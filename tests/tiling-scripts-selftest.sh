@@ -96,6 +96,15 @@ if command -v python3 >/dev/null && python3 -I -c 'import PIL' 2>/dev/null && [ 
     python3 -I "$repo/tests/clock-width.py" --selftest >"$work/cw.log" 2>&1 || fail "clock-width selftest: $(tail -3 "$work/cw.log")"
 fi
 
+if [ -z "${SELFTEST_INNER:-}" ]; then
+    skipped=$(SELFTEST_INNER=1 SELFTEST_INTER=/nonexistent/Inter-Medium.otf bash "$0" 2>&1)
+    case $skipped in
+    *"skip: clock selftest"*Inter*) ;;
+    *) fail "without Inter the clock selftest did not print a skip line naming Inter (TF-1)" ;;
+    esac
+    unset skipped
+fi
+
 if [ "$failures" -gt 0 ]; then
     exit 1
 fi
