@@ -27,6 +27,7 @@ pub mod keysheet;
 pub mod lamp;
 pub mod launch;
 pub mod launcher;
+pub mod log;
 pub mod modes;
 pub mod notice;
 pub mod runtime;

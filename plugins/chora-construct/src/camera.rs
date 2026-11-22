@@ -209,7 +209,7 @@ impl Construct {
                 if let Some(i) = self.pane_ahead()
                     && let Err(err) = self.fly_in(i)
                 {
-                    eprintln!("chora-construct: the fly-in: {err}");
+                    crate::log::log_warn!("chora-construct: the fly-in: {err}");
                 }
                 return;
             }
@@ -461,7 +461,7 @@ impl Construct {
         if let Some((plugin, scene)) = &flown.plugin {
             let call = json!({"client": plugin, "method": "pane.focus", "params": {"name": scene}});
             if let Err(err) = self.rt.conn.call::<_, Value>("methods.call", call) {
-                eprintln!("chora-construct: {plugin} pane.focus: {err}");
+                crate::log::log_warn!("chora-construct: {plugin} pane.focus: {err}");
             }
             self.flown = Some(flown);
             self.frame()?;
@@ -534,7 +534,7 @@ impl Construct {
             }
         }
         if !drag_errors.is_empty() {
-            eprintln!("chora-construct: {}", drag_errors.join("; "));
+            crate::log::log_warn!("chora-construct: {}", drag_errors.join("; "));
         }
         self.rt.grab_give_keys()?;
         if self.in_pane() {
@@ -573,7 +573,7 @@ impl Construct {
                 ))
             })?;
             if let Err(err) = self.rt.grab(binding, Grab::Swallow) {
-                eprintln!("chora-construct: the tap of the modifier: {err}");
+                crate::log::log_warn!("chora-construct: the tap of the modifier: {err}");
             }
         }
         Ok(())

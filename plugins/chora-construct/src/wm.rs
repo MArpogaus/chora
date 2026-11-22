@@ -230,7 +230,7 @@ impl Construct {
             .map(|m| m.manager.clone())
             .collect();
         for name in names {
-            eprintln!("chora-construct: the window manager {name} did not connect");
+            crate::log::log_warn!("chora-construct: the window manager {name} did not connect");
             self.drop_manager(&name)?;
         }
         Ok(())

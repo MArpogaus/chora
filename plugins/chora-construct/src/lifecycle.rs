@@ -160,7 +160,7 @@ impl Construct {
     pub(crate) fn tell_phase(&mut self, surface: &str, phase: Phase) {
         let emit = self.book.phase_event(surface, phase, None);
         if let Err(err) = self.rt.conn.call::<_, Value>("events.emit", emit) {
-            eprintln!("chora-construct: construct.window: {err}");
+            crate::log::log_warn!("chora-construct: construct.window: {err}");
         }
     }
 
