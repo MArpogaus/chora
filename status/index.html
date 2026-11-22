@@ -57,10 +57,10 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-22T07:35:00Z",
+  updated: "2026-11-22T08:42:00Z",
   start: "2026-11-21T04:00:00Z",   // budget reset (owner)
   end: "2026-11-28T03:59:00Z",     // next reset; F5, F7 carried over
-  budget: 8.8,                       // % of the new week used (reset 04:00)
+  budget: 9.0,                       // % of the new week used (reset 04:00)
   goals: [
     ["F1", "Plan in merge-sized slices", "done", "reviewed plan"],
     ["F2", "Shared code in one kit, no copies", "done", "met by audit r2 (19:13): 0 copies; kit-report keeps it after debt-down"],
@@ -72,9 +72,9 @@ const S = {
     ["F8", "Docs and decision records", "done", "merged 18:30 (train 68), reviewed; doc fixes merged (train 72)"]
   ],
   now: [
-    "Train 107 runs the full gate (about half done, all green so far): the tour fix round 3 (tour reds 84 to 66, tiling 23 to 0) and the one-question helper fix. The gate-health harness follows alone in train 108.",
+    "Train 107 runs the full gate (nearly done, all green so far): the tour fix round 3 (tour reds 84 to 66, tiling 23 to 0) and the one-question helper fix. The gate-health harness follows alone in train 108.",
     "Six lanes run: the tiling major (a joining look took the keyboard) is fixed and now merges the latest session branch with a full gate; honest launch states (no 30 s fake failure); 10 known-red mc look rows; a 3-hour leak and stall run; construct logging to the log system; missing tests for the watchdog and reload.",
-    "Spending is under pace (8.8 % used at 07:34 UTC, 14:34 Bangkok; the line is at 16.5 %). All six lane slots are full; more start as lanes hand back."
+    "Spending is under pace (9.0 % used at 08:42 UTC, 15:42 Bangkok; the line is at 17.2 %). All six lane slots are full; more start as lanes hand back."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
 };
