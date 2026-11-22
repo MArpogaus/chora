@@ -380,6 +380,8 @@ struct Mc {
     /// The settings of the last build without the theme: a change of the
     /// theme alone fades the colors.
     shape: Option<Value>,
+    /// The theme of the nodes that stand.
+    themed: Option<Value>,
     /// The keyboard focus that mc gave and the core moved
     /// (`kit::wm::focus`).
     focus: Focus,
@@ -567,6 +569,7 @@ impl Mc {
             sigs: BTreeMap::new(),
             fitting: HashMap::new(),
             shape: None,
+            themed: None,
             rendered: None,
             focus: Focus::default(),
             core_focus: None,
@@ -863,12 +866,18 @@ impl Plugin for Mc {
         }
         self.name_theme()
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
-        let theme_only = self.built && !plain && self.shape.as_ref() == Some(&self.shape_of());
+        let same_shape = self.built && !plain && self.shape.as_ref() == Some(&self.shape_of());
+        let theme_only = same_shape && self.themed != Some(self.theme_of());
+        let no_look = same_shape && !theme_only;
         self.rt.start_grabs();
         self.grab_all()
             .and_then(|()| self.rt.end_grabs())
             .and_then(|()| {
+                if no_look {
+                    return Ok(());
+                }
                 if theme_only && self.recolor()? {
+                    self.themed = Some(self.theme_of());
                     return Ok(());
                 }
                 self.build()
@@ -2529,6 +2538,23 @@ mod tests {
         assert_eq!(panel_effects(&mc, &model, "agenda"), 0, "the drop");
         mc.settings_changed().unwrap();
         assert_eq!(panel_effects(&mc, &model, "agenda"), 1, "it blurs again");
+    }
+
+    /// A change of the write time or of the write switch changes no node
+    /// that stands: new text reads them when it writes. The settings
+    /// then rebuild nothing (the 300-panel scene took 3 s for it).
+    #[test]
+    fn a_write_setting_that_changes_no_look_rebuilds_nothing() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("write-only", [1920, 1080]);
+        mc.settings_changed().unwrap();
+        let before = model.lock().unwrap().queries;
+        mc.settings.value.write.duration_ms = 300.0;
+        mc.settings_changed().unwrap();
+        mc.settings.value.write.enabled = false;
+        mc.settings_changed().unwrap();
+        assert_eq!(model.lock().unwrap().queries, before, "no build ran");
+        assert_eq!(mc.shape, Some(mc.shape_of()));
     }
 
     /// A query costs the core a walk over the scene, so a scene of 300
