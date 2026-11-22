@@ -1,16 +1,15 @@
-# ti-minor-r1 (RC 2 known issues, shared bar "notify never covers work"; tiling MINORs): ti-5, ti-6/ti-19, ti-7
+# ti-minor r1 (rc 1, 3: four tiling MINOR rows of the ledger, three of them known-red gate cells)
 
-Model: sonnet, effort medium (routine: three small tiling fixes with gate cells).
-Lane: cloud, branch claude/ti-minor from fee9c695 (session head). One round, stop at 250 k. Cost about 1.5 %.
-PM note on rules.md 6: ti-1 (BLOCK) is open only for the fuzzel >= 1.11 pin in the environment, not chora code; RC 1 is waived (owner 10:47). So MINOR work on tiling is allowed this round.
-Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow || true`; `cargo check --workspace`; a failure or missing tool: send_message the PM "ti-minor BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
-Read on claude/session-log: findings/tiling.md rows ti-5, ti-6, ti-7, ti-19 and their sources. On the branch: plugins/chora-tiling (bar, notify placement, fullscreen), tests/gate-tiling-*.sh, docs/configuration.md tiling part.
-Items (red gate test commit first, then the fix; no sleep, no retry; smallest change; KISS, POLS):
-1. ti-5: a toast that starts while the chat is open is placed clear of the chat panel (read the chat state at start); red cell: toast rect overlaps chat rect.
-2. ti-6 and ti-19 (same cause): the tooltips of Apps, Keys and power do not stay after a click or Escape; red cell: tooltip surface present 1 s after the click.
-3. ti-7: with a fullscreen window the bar does not cover the window's first line (bar below the fullscreen window, or hidden while fullscreen, as tiling designs say); red cell: bar rect intersects the fullscreen window's top 20 px while the window is fullscreen.
-Not yours: ti-1 (fuzzel pin), ti-11, ti-12, ti-14, ti-25 (later), other looks.
-Gate: merge origin/claude/autonomous-dev-session-3w-i33pg7 if it moved; `tests/merge-gate.sh --jobs 2 --only pre-commit,ci-check,build,test,clippy,gate-lib,layout,tiling-audit,tiling-look,tiling-empty,chat-keys,doors`; poll in the same turn; never end a turn to wait. A red cell you did not cause: name it with its log line (FLK-* in backlog.md), do not rerun to green.
-Done when: each item red sha, fix sha, cell, capture; findings/tiling.md rows `fixed <sha> (red <sha>) cell:<name>`; reports/ti-minor.md "## r1" on claude/session-log; head sha.
-Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 6 lines).
-Rules: push claude/ti-minor and claude/session-log only (fetch and merge on reject, no force); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com>; no attribution lines; never --no-verify; no system packages.
+Model: sonnet, effort medium (bar CSS, one launch-error notice path and one gate's asserts; red test first)
+Lane: cloud, claude/ti-minor at a1f3c8d7 (claude/ti-38 head, review r2 MERGE-OK, joins the next train). Cost at most 0.8 %; stop at 250 k context. One area: the tiling look (flavors/tiling/waybar/, plugins/chora-tiling/src/main.rs launch-error path) and tests/gate-tiling-bar.sh, gate-tiling-spacing.sh, gate-tiling-notice.sh, gate-join-keys.sh. No xp file (ti-43, ti-44 wait for xp-38).
+Why: findings/tiling.md on claude/session-log, rows ti-40, ti-41, ti-42 (known-red, 3 of 3 red in gate-alive r1) and ti-45 (review ti-38 r2 rw-3, reports/ti-38.md "## Review r2").
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`; a failure: send_message the PM "ti-minor BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1) ti-40, PM decision (POLS: the bar does not jump): the left island keeps its width through the four layout words; the layout chip gets a fixed width that fits the longest word. The gate check stays; drop its known-red row once green.
+2) ti-41: design/looks/tiling-v2.md (or tiling.md) decides the separator-to-word spacing; name the guide line. The code follows the guide; if the guide is silent, the gate follows the code and you say so. Drop the known-red row once green.
+3) ti-42: cause with lines why chora-notify lists no "Power menu not installed" (tell_launch_error, main.rs:257: which core socket it reaches in the gate session); red first is the existing cell; fix the cause, not the gate. Drop its known-red row.
+4) ti-45: tests/gate-join-keys.sh asserts the holders (tiling-first: tiling null, xp null; xp-first: xp holds) before the key and the holder after the key, and one click case; it must stay green on a1f3c8d7 and go red on 3b14c825 (paste both).
+5) After: each of the four cells 5 times at --jobs 2: 0 red (paste counts); tests/acts/known-red.toml and the known-red rows lose exactly the rows you closed.
+Gate: full `tests/merge-gate.sh --jobs 2` (no --only) on claude/ti-minor merged with fresh origin/claude/autonomous-dev-session-3w-i33pg7, detached: `setsid nohup bash -c '(tests/merge-gate.sh --jobs 2 > /tmp/gate.log 2>&1; echo EXIT $? >> /tmp/gate.log)' >/dev/null 2>&1 </dev/null &`, poll /tmp/gate.log in the same turn; never end a turn to wait. A red cell you did not cause: name it with its log line; do not rerun to green.
+Done when: ti-40, ti-41, ti-42, ti-45 each closed with a red line and a green cell (or ti-41 with the guide line), 5/5 per cell, the gate green or its foreign reds named.
+Report: reports/ti-minor.md "## r1" on claude/session-log (shas, causes, red and green lines, counts, gate summary); send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 4 lines with the head sha.
+Rules: push claude/ti-minor and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).
