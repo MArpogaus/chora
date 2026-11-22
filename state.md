@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-22 23:07 UTC)
+## Now (2026-11-22 23:08 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 22:56 PM 4.9 % (Bangkok 11-22) + 1.5 % (11-23), week about 14 % (lanes est.) vs 28 % pace; under pace: 6 lanes
 session branch: 6b01c976 (t108 green 13:01); 63 greens. Reds: t109g CUBE-SETTLE; t109h FLAKE-K1; t110 CHAT-IDLE; t110b PIX-CAPSULE. t110c red 22:32 cube.open 349 ms: load of 5 leaked compositors (HARNESS-LEAK); clean 3/3 at 40a2ba92 (122-162 ms); t110d 22:56 same head.
@@ -22,12 +22,12 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| flake-hint-r1.md (F5, rc 3: hint act; 0.8 %) | sonnet medium, claude/flake-hint d2634fe0 | done 22:41, PM review MERGE-OK; t111 |
-| cube-settle-r2.md (F5, rc 3: float steps under load; 0.6 %) | sonnet medium, claude/cube-settle e905195e | done 23:05, PM review MERGE-OK; t111 |
+| flake-hint-r1.md (F5, rc 3) | sonnet medium, claude/flake-hint d2634fe0 | done 22:41, PM review MERGE-OK; t111 |
+| cube-settle-r2.md (F5, rc 3) | sonnet medium, claude/cube-settle e905195e | done 23:05, PM review MERGE-OK; t111 |
 | mc-round-r1.md (rc 3, 9, 1: FLK-MC-SCALE, MH-2, MC-HEAD, MH-1; 1 %) | sonnet medium, claude/mc-round 42585079 | session_016iS3kPDDmVwVQ6Mocgk14G 21:40 |
 | tiling-fix-r1.md (rc 3, 1: ti-37, 27, 25c; 1 %) | sonnet medium, claude/tiling-fix 011db749 | done 21:28, PM review MERGE-OK; t111 |
 | harness-leak-r1.md (F5, rc 3, 9: HARNESS-LEAK; 0.5 %) | sonnet medium, claude/harness-leak 6b01c976 | session_016iS3kLAyzZ7Uff7AJRj4wH 22:57 |
-| tiling-round-r1.md (rc 2, 1: T1, T3, I2, TF-1; 1 %) | sonnet medium, claude/tiling-round 011db749 | starting |
+| tiling-round-r1.md (rc 2, 1: T1, T3, I2, TF-1; 1 %) | sonnet medium, claude/tiling-round 011db749 | session_016iS3kNkRxE9puQDkmcAQBn 23:08 |
 | xp-idle-r1.md (F5, rc 3: FLK-CHAT-IDLE, xh-1; 0.5 %) | sonnet medium, claude/xp-idle bd5af4b3 | session_016iS3kM1upUA2pS1qWuZ3JY 21:38 (xp-helper r2 MERGE-OK, rides in it) |
 
 ## Queue (% week; 5 % reserve)
