@@ -1134,6 +1134,18 @@ mod tests {
     }
 
     #[test]
+    fn a_running_program_without_a_window_gives_no_message_after_the_old_limit() {
+        let now = Instant::now();
+        let mut launches = running(now, None);
+        launches.check(seconds(now, 2));
+        launches.noted("t1", 12);
+        for s in [30, 31, 300] {
+            assert_eq!(launches.check(seconds(now, s)), none(), "{s} s");
+        }
+        assert_eq!(launches.window(Some("t1")), Some(12), "it still starts");
+    }
+
+    #[test]
     fn a_program_that_ended_without_a_window_is_a_failure_at_once() {
         let now = Instant::now();
         let file = StatusFile::create().expect("a status file");
