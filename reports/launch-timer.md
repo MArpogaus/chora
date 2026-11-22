@@ -28,3 +28,9 @@ Gate (`cargo test -p chora-kit -p chora-xp` green, `cargo clippy --workspace --a
 - `tests/merge-gate.sh --jobs 1` (full): red-first to tiling-audit PASS (build, test, clippy, 2d-guard, xp, matrix, virtual, xp-*, hud, layout), then tiling-look FAIL at 419 s, and the gate stops there. xp-notepad (the cell with this path) PASS 55 s.
 - tiling-look is foreign: `FAIL: ink-2560x1600@2 bar-font: the clock is 119.5 wide, not Inter 14 px weight 500 (100-119)` (same line for paper-2560x1600@2, then `FAIL: the bar differs from the spec of tiling-v2`). It is the tiling bar clock font at 2x; this branch touches no tiling code, and I did not rerun it.
 - Because the gate stops at the first red, I ran the steps after it with `--only` (`tiling-empty` to `e2e`, 26 steps, `--jobs 1`): all PASS, no SKIP, including launcher-click (17 s) and e2e (295 s).
+
+## PM review r1 (07:59 UTC; small diff, builder sonnet)
+Base 1c9e64f7..629faf7b, 4 files +244 -105. Checks: red commits dc2565e1, 057063ec before fix 629faf7b; GIVE_UP gone from xp (launch.rs re-export, panels.rs expire 0); `Change::Done { note }` dismisses the starting notice when the window shows (panels.rs `tell`); StatusFile kept with reason; merge with 7a6c0eb8 clean (`git merge-tree`). The lane gated on 1c9e64f7, not the fresh head: its tiling-look red is the known bar-font red that CLOCK-WIDTH fixed (t107 tiling-look PASS on the newer head); the train runs the full gate on the merge.
+- lt-1 MINOR: a program that runs without ever showing a window (tray tool, daemon) keeps its "still starting" notice (expire 0) until it ends. Honest, but visible; to backlog DB11.
+- lt-2 MINOR: docs/decisions.md D104 still names the 30 s limit; doc fix to backlog DB11.
+Verdict (computed): 0 BLOCK, 0 MAJOR: MERGE-OK. Joins train 109 after t108 (harness alone).

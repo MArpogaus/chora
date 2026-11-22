@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-22 07:34 UTC)
+## Now (2026-11-22 07:58 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 07:34 week 8.8 % (6.1 + 2.7 Bkk days; under pace 16.5 %: 6 lanes, ti-38 r2 07:34; WM-TESTS after ti-38, same xp wm files)
 session branch: 7a6c0eb8 (t106 green 06:42, all 49 steps; CLOCK-WIDTH in); 61 greens.
@@ -24,7 +24,6 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 | Lane | Model, branch | State |
 |---|---|---|
 | ti-38-r2.md (F7, rc 2: ti-38 MAJOR; r1 4441f1d4 done, merge 7a6c0eb8 conflicts, construct act rerun; 1.5 %) | opus high, claude/ti-38 4441f1d4 | session_016iS3kMg9i8mAmHNyiis9cz 07:34 |
-| launch-timer-r1.md (slice 39: F-2, GIVE_UP, StatusFile; 1.6 %) | sonnet high, claude/launch-timer 1c9e64f7 | session_016iS3kNfazT1Ae2LVddkKvB 06:17 |
 | looks1-mc-r1.md (rc 1 looks: 10 mc known-red rows; 1.4 %) | sonnet medium, claude/looks1-mc 7a6c0eb8 | session_016iS3kLPWJtz5XGMi6Uc9Hm 06:45 |
 | sim-long-r1.md (rc 9: leaks, stalls over 3 h; 1.0 %) | haiku high, claude/sim-long 7a6c0eb8 | session_016iS3kMNxMZdeaWzofsKMsD 06:45 |
 | log-down-co-r1.md (rc 9a: construct eprintln to tracing; 0.9 %) | sonnet medium, claude/log-down-co 7a6c0eb8 | starting |
@@ -32,7 +31,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 
 ## Queue (% week; 5 % reserve)
 4. (F7, rc 2-3) TOUR-FIX r3 done 06:20 85c5f3bc (84 to 66 red, tiling I2 23 to 0); PM review r3 MERGE-OK; in t107 with ASK-ONE 322eef20 (PM review MERGE-OK; ao-1 to DB7 d).
-5. t107 06:44 on 3b14c825 detached: TOUR-FIX 85c5f3bc + ASK-ONE 322eef20; then t108 GATE-ALIVE a7ffdf22 alone (harness; PM review MERGE-OK, +8 steps, ga-1 to DB21); then RECORD r2.
+5. t107 06:44 on 3b14c825 detached: TOUR-FIX 85c5f3bc + ASK-ONE 322eef20; then t108 GATE-ALIVE a7ffdf22 alone (harness; PM review MERGE-OK, +8 steps, ga-1 to DB21); then t109 LAUNCH-TIMER 629faf7b (PM review MERGE-OK, lt-1, lt-2 to DB11); then RECORD r2.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
