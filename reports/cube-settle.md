@@ -37,3 +37,8 @@ Green:
 After, whole cube cell, CUBE_LOAD=1 (4/CPU) x10: 10/10 green (rc 0, 163 to 184 s each).
 
 Gate: `tests/merge-gate.sh --jobs 2` (no --only) on e905195e: 57 PASS, no FAIL, EXIT 0 ("all steps passed").
+
+## Review r2 (PM)
+Base ffb197f3..e905195e, tests/gate-construct-cube.sh only (+11 -9); red f0778522 before e0e1f8ca, e905195e. Bare sleeps 1, 0.5, 0.4 replaced by waits on the state (hint gone, two faces, float shown); lane: 10/10 under CUBE_LOAD=1, full gate 57 PASS.
+- cs-1 MINOR: the slow turn goes from 3000 to 10000 ms, so the two-faces and float checks no longer run inside a 3 s turn, and the cell is about 7 s longer; the face-1 wait doubles to 80 as a hang guard. Acceptable: the checks still wait on the state, not on time.
+Verdict (computed): no open MAJOR -> MERGE-OK. Joins t111.
