@@ -27,3 +27,8 @@ A quick runner (cube open, one window, keys_acts) saw the names-no-key red in 1 
 
 ### Gate
 `tests/merge-gate.sh --jobs 1` on d2634fe0: all steps passed, 0 FAIL, 0 SKIP (acts PASS 1380 s).
+
+## Review r1 (PM)
+Base 3b14c825..d2634fe0: test code only (tests/acts, tiling gate one-liners, merge-gate D91 list); red e046fce1 before fix 6b5bec5c; lane counts 3/8 red before, 20/20 after, full gate --jobs 1 green.
+- fh-1 NIT: stable_rect compares two consecutive polls of s.until, not reads "0.25 s apart" as the docstring says; the poll interval sets the gap.
+Verdict (computed): no open MAJOR -> MERGE-OK. Joins t111.
