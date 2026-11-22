@@ -26,13 +26,13 @@ import re
 import subprocess
 import sys
 
-DIRECTIVES = ("shellcheck", "noqa", "type:", "pylint", "fmt:", "pragma:")
+DIRECTIVES = ("shellcheck", "noqa", "type:", "pylint", "fmt:", "pragma:", "mkdir-ok:")
 HUNK = re.compile(r"^@@ -\S+ \+(\d+)")
 RUST_RAW = re.compile(r"b?r(#*)\"")
 HEREDOC = re.compile(r"(?<!<)<<(-?)\s*(['\"]?)([A-Za-z_]\w*)\2")
 MESSAGE = """inline comments are not allowed: names explain the code.
 Allowed: doc comments (///, //!, docstrings), // SAFETY:, // injected:, tool directives
-(shellcheck, noqa, type:, pylint, fmt:, pragma: in shell and Python) and the
+(shellcheck, noqa, type:, pylint, fmt:, pragma:, mkdir-ok: in shell and Python) and the
 usage header at the top of a script. Remove the comment or move the
 reason into the doc comment of the item."""
 

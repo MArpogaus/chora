@@ -14,7 +14,8 @@ need jq
 temp_config
 work=$XDG_CONFIG_HOME
 export XDG_RUNTIME_DIR=$work/run
-mkdir -p "$XDG_RUNTIME_DIR" "$work/fakes" "$work/flavor"
+# shellcheck disable=SC2174
+mkdir -p -m 700 "$XDG_RUNTIME_DIR" "$work/fakes" "$work/flavor"
 cat >"$work/fakes/choractl" <<'EOF'
 #!/bin/sh
 case "$1" in

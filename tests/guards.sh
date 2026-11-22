@@ -363,6 +363,17 @@ mkdir_case "a variable set from the runtime directory" fail 'runtime=\x24{XDG_RU
 mkdir_case "a variable set from a variable" fail 'r=\x24XDG_RUNTIME_DIR\nstyle=\x24r/s\nmkdir -p "\x24style/icons"\n'
 mkdir_case "a path elsewhere" pass 'mkdir -p "\x24HOME/Pictures"\n'
 mkdir_case "a comment" pass '# mkdir -p "\x24XDG_RUNTIME_DIR/x"\n'
+flavor_mkdir_case() {
+  local label=$1 want=$2 text=$3
+  mkdir -p "$work/flavors/x"
+  printf '%b' "$text" >"$work/flavors/x/script.sh"
+  bash "$tests_dir/mkdir-runtime.sh" "$work/flavors/x/script.sh" >/dev/null
+  verdict "mkdir-runtime: $label" "$want" $?
+}
+
+flavor_mkdir_case "flavor mkdir -p without -m" fail 'mkdir -p "\x24HOME/x"\n'
+flavor_mkdir_case "flavor mkdir -p marked mkdir-ok" pass '# mkdir-ok: user pictures\nmkdir -p "\x24HOME/x"\n'
+flavor_mkdir_case "flavor mkdir -p -m 700" pass 'mkdir -p -m 700 "\x24HOME/x"\n'
 mkdir_case "a variable of a longer name" pass 'runtime=\x24XDG_RUNTIME_DIR\nmkdir -p "\x24runtime_other/x"\n'
 
 sync_case() {

@@ -74,6 +74,8 @@ jobs:
       run: tests/tiling-scripts-selftest.sh
     - name: a file over 1,500 production lines does not grow
       run: tools/size-ratchet && tests/size-ratchet-selftest.sh
+    - name: a raised ratchet count needs a ratchet-raise line
+      run: tests/ratchet-raise-selftest.sh
     - name: the lint debt counts do not grow
       run: tools/lint-ratchet
     - name: the cut holds, a plugin could be packaged alone

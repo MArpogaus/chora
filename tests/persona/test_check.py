@@ -463,5 +463,68 @@ class SceneState(unittest.TestCase):
             self.assertIn("scene: cube stood back, face 3, pane room no, walk no", line)
 
 
+class WithChildren(unittest.TestCase):
+    """with_children counts a window of a face manager as shown only while
+    its face is at the front (RPM-1)."""
+
+    def cube(self, front=0):
+        faces = [{"manager": "xp", "output": "face-0"}, {"manager": None, "output": "face-1"}]
+        return {"faces": faces, "front": front}
+
+    def child(self, output, shown=True):
+        return {"windows": [{"surface": "s2", "shown": shown, "output": output}]}
+
+    def run_it(self, cube, state, label="construct", clients=("construct", "xp")):
+        snapshot = snap(states={"construct": {}}, cube=cube, clients=clients)
+        out = check.with_children(Reader(label, clients, {"xp": state}), snapshot)
+        return out.states.get("xp")
+
+    def test_a_child_window_on_the_front_face_is_shown(self):
+        got = self.run_it(self.cube(0), self.child("face-0"))
+        self.assertTrue(got["windows"][0]["shown"])
+
+    def test_a_child_window_on_another_face_is_not_shown(self):
+        got = self.run_it(self.cube(1), self.child("face-0"))
+        self.assertFalse(got["windows"][0]["shown"])
+
+    def test_a_window_the_child_does_not_show_stays_hidden(self):
+        got = self.run_it(self.cube(0), self.child("face-0", shown=False))
+        self.assertFalse(got["windows"][0]["shown"])
+
+    def test_a_client_that_manages_no_face_is_not_read(self):
+        cube = {"faces": [{"manager": None, "output": "face-0"}], "front": 0}
+        self.assertIsNone(self.run_it(cube, self.child("face-0")))
+
+    def test_another_look_reads_no_children(self):
+        self.assertIsNone(self.run_it(self.cube(0), self.child("face-0"), label="xp"))
+
+
+class WaitForApp(unittest.TestCase):
+    """ph-1: round.sh probe waits for the window of the probe in the scene,
+    not a fixed time."""
+
+    def nodes(self, app):
+        return [{"id": "s1", "kind": "surface", "surface": {"app_id": app}}]
+
+    def test_the_window_is_there_at_once(self):
+        self.assertTrue(check.wait_for_app(lambda: self.nodes("chora-probe"), "chora-probe", 20))
+
+    def test_the_window_comes_after_a_few_reads(self):
+        reads = iter([[], [], self.nodes("chora-probe")])
+        got = check.wait_for_app(lambda: next(reads), "chora-probe", 20, sleep=lambda _: None)
+        self.assertTrue(got)
+
+    def test_another_window_is_no_probe(self):
+        ticks = iter(range(0, 100, 5))
+        got = check.wait_for_app(
+            lambda: self.nodes("foot"),
+            "chora-probe",
+            20,
+            sleep=lambda _: None,
+            clock=lambda: next(ticks),
+        )
+        self.assertFalse(got)
+
+
 if __name__ == "__main__":
     unittest.main()

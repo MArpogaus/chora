@@ -35,6 +35,7 @@ if command -v xdg-user-dir >/dev/null 2>&1; then
     [ "$pictures" = "$HOME" ] && pictures=""
 fi
 dir=${pictures:-${XDG_PICTURES_DIR:-$HOME/Pictures}}/Screenshots
+# mkdir-ok: the Screenshots folder of the user pictures, not a runtime directory
 mkdir -p "$dir" || exit 1
 file=$dir/$(date +%Y-%m-%d_%H-%M-%S).png
 if [ "${1:-full}" = area ]; then
