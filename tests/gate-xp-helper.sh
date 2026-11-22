@@ -87,7 +87,7 @@ case $cell in
 xp29-click)
     voice
     start_assistant xp29
-    sleep 1
+    ctl wait id:hud-figure --timeout 10 >/dev/null || fail "xp-29: no paperclip to click"
     click hud-figure
     ctl wait id:hud-chat --timeout 5 >/dev/null || fail "xp-29: a click on the paperclip opens no chat"
     ok "xp-29: a click on the paperclip opens the chat (helper)"
@@ -95,7 +95,7 @@ xp29-click)
     ;;
 xp29-none)
     start_assistant xp29none
-    sleep 1
+    ctl wait id:hud-figure --timeout 10 >/dev/null || fail "xp-29: no paperclip to click"
     click hud-figure
     ctl wait id:hud-chat --timeout 5 >/dev/null || fail "xp-29: a click on the paperclip with no helper opens no chat"
     ok "xp-29: a click on the paperclip opens the chat (no helper)"

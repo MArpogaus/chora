@@ -26,19 +26,46 @@ FAKE_VOICE_ENTRIES=$entries python3 -I "$repo/tests/fake-voice.py" "$shots/claim
     <"$shots/voice.in" >"$shots/voice.log" 2>&1 &
 pids+=($!)
 exec 5>"$shots/voice.in"
+wait_assistant_linked() {
+    local _
+    for _ in $(seq 100); do
+        ctl call assistant state.get >/dev/null 2>&1 && return 0
+        sleep 0.2
+    done
+    return 1
+}
+wait_assistant_linked || fail "the assistant never linked: $(tail -n 3 "$shots/assistant.log")"
 echo 'voice.state {"name": "Atlas", "state": "working", "task": "Write file", "step": 1, "steps": 1, "seq": 2, "epoch": 1}' >&5
-sleep 1.5
 ctl call assistant chat.show '{"name": "atlas"}' >/dev/null || fail "chat.show failed"
 ctl wait id:hud-chat --timeout 10 >/dev/null || fail "no chat view"
 dump() { ctl query owner:assistant | jq -c '[.[] | {id, text: (.meta.text // .props.text // null)}]'; }
-before=$(dump)
+wait_dump() {
+    local _
+    for _ in $(seq 100); do
+        dumped=$(dump)
+        echo "$dumped" | grep -q "$1" && return 0
+        sleep 0.2
+    done
+    return 1
+}
+wait_dump 'Working'
+before=$dumped
 echo "$before" | grep -q 'Working' || fail "the header does not say Working while the helper works: $before"
 echo 'voice.confirm {"id": "51", "prompt": "Write notes.txt?", "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true}' >&5
 ctl wait id:hud-card --timeout 10 >/dev/null || fail "no card"
 echo 'voice.confirm {"id": "51", "done": true}' >&5
 echo 'voice.state {"name": "Atlas", "state": "idle", "task": "", "seq": 2, "epoch": 1}' >&5
-sleep 1.5
-after=$(dump)
+wait_header_idle() {
+    local _
+    for _ in $(seq 100); do
+        dumped=$(dump)
+        echo "$dumped" | grep -q 'Idle' && ! echo "$dumped" | grep -q 'Working\|step 1 of 1' && return 0
+        sleep 0.2
+    done
+    return 1
+}
+wait_header_idle
+after=$dumped
 echo "$shots: $after" >"$shots/after.json"
 exec 5>&-
 echo "$after" | grep -q 'Working' && fail "the header still says Working after the answer: $after"
