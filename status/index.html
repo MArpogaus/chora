@@ -57,7 +57,7 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-21T23:45:00Z",
+  updated: "2026-11-22T00:48:00Z",
   start: "2026-11-21T04:00:00Z",   // budget reset (owner)
   end: "2026-11-28T03:59:00Z",     // next reset; F5, F7 carried over
   budget: 7.3,                       // % of the new week used (reset 04:00)
@@ -72,9 +72,9 @@ const S = {
     ["F8", "Docs and decision records", "done", "merged 18:30 (train 68), reviewed; doc fixes merged (train 72)"]
   ],
   now: [
-    "Train 104 runs now: key routing (review r2 passed, no MAJOR), the 3D-look face hint, shared-kit tests and the mc and helper-chat file split.",
+    "Train 104 (key routing, the 3D-look face hint, shared-kit tests, the mc and helper-chat file split) is held: the rerun failed only in a bar check that expects a fixed clock width, and the Sunday date is 1 px wider. A small lane fixes that check; then the train runs again.",
     "The tiling simulated-user round 4 does not pass yet: a new 10 px gap between tiles (off the 4 px grid, 13 hits), and in a mixed tiling and XP session Super+Return opened an XP window instead of a tile (to verify on the train 104 build, which changes key routing). A fix lane follows train 104.",
-    "Four lanes: tour fixes for the v9 recording (the F7 check against tour v8), the 3D-look two-keyboard-owners fix r3, flaky-test waits, and a test-harness fix (it hid some breaches and passed two tiling tasks without checking them).",
+    "The tour fixes for the v9 recording are done (90 tour check failures down to 66, each left one a recorded finding). The independent review found 3 major faults in the new checks (a stale screenshot can survive a new take, scene names mixed up, some checks silently off); a fix round runs now. Also running: the 3D-look two-keyboard-owners fix r3, flaky-test waits, a test-harness fix and one flaky tiling test.",
     "Spending is under pace (7.3 % used at 23:37 UTC, the line is at 11.8 %); more lanes start after train 104."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
