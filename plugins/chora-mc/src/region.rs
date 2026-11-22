@@ -984,7 +984,12 @@ impl Mc {
         if let Some(at) = items.iter().position(|i| i.put == Put::Slot)
             && let Some((_, y)) = flow.iter().find(|(i, _)| *i == at)
         {
-            self.slot = Some([left, top + y, width, (height - y).max(baseline)]);
+            let end = if foot.is_empty() {
+                height
+            } else {
+                foot_top - baseline
+            };
+            self.slot = Some([left, top + y, width, (end - y).max(baseline)]);
         }
         for (item, y) in flow
             .into_iter()

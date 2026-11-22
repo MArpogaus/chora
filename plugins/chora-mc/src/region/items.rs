@@ -550,9 +550,6 @@ impl Mc {
     /// The doors at the foot of a side: a word for each action that has a
     /// key, three in a line, clicked like its key.
     fn door_items(&self, slot: i32, name: &str, content: &Content, region: Region) -> Vec<Item> {
-        if self.chat == crate::Chat::Open {
-            return Vec::new();
-        }
         let id = format!("{}-{name}", self.region_id(region));
         let mut ty = self.content_type(content, false);
         ty.color = self
