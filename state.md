@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-22 21:40 UTC)
+## Now (2026-11-22 22:56 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 21:38 PM 4.9 % (Bangkok 11-22) + 1.3 % (11-23), week about 14 % (lanes est.) vs 28 % pace; under pace: 6 lanes
-session branch: 6b01c976 (t108 green 13:01); 63 greens. Reds: t109g FLK-CUBE-SETTLE; t109h K1 pose (FLAKE-K1); t110 FLK-CHAT-IDLE; t110b 21:20 FLK-PIX-CAPSULE (1/4 under load, 3/3 alone). t110c 21:38 = 9ee1cef1 + core-fix + mc-helper (40a2ba92).
+budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 22:56 PM 4.9 % (Bangkok 11-22) + 1.5 % (11-23), week about 14 % (lanes est.) vs 28 % pace; under pace: 6 lanes
+session branch: 6b01c976 (t108 green 13:01); 63 greens. Reds: t109g CUBE-SETTLE; t109h FLAKE-K1; t110 CHAT-IDLE; t110b PIX-CAPSULE. t110c red 22:32 cube.open 349 ms: load of 5 leaked compositors (HARNESS-LEAK); clean 3/3 at 40a2ba92 (122-162 ms); t110d 22:56 same head.
 burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series, hint act red twice; closes on flake-hint + haiku series 5 at 2 jobs on t109 head); F7 open.
 
 ## RC
@@ -31,7 +31,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 ## Queue (% week; 5 % reserve)
 3. (rc 8) DOCS-RC r2 (pr-1..5) on the Thu head.
 4. (F7, rc 11) record-v9 r2 after ti-38.
-5. (rc 1, 3, 8, 9) t110c running: t110b list + CORE-FIX, MC-HELPER (40a2ba92); t111: XP-IDLE (carries XP-MINOR, XP-HELPER), TILING-FIX, CUBE-SETTLE, FLAKE-HINT as they pass. Then: eprintln ratchet; haiku series 5 (F5).
+5. (rc 1, 3, 8, 9) t110d running: t110b list + CORE-FIX, MC-HELPER (40a2ba92); t111: XP-IDLE (carries XP-MINOR, XP-HELPER), TILING-FIX, CUBE-SETTLE, FLAKE-HINT as they pass. Then: eprintln ratchet; haiku series 5 (F5).
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
