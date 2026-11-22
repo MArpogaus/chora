@@ -37,3 +37,13 @@ Base 22884a79..fca4f8b5, one file (crates/chora-kit/src/launcher.rs, +27 -8); re
 - pr1-1 closed: `ask` picks the first trimmed stderr line with prefix "err:" (Failed with the rest), else Closed, any exit code. Checked against fuzzel 1.11.1 log.c:28,82-86: the error prefix is " err" then ": file:line: "; colorize is auto and stderr is a pipe here, so no escape codes reach the match. The exit-1 cell is restored with the real line; the warn-then-err cell is new; warn-then-Escape unchanged. Gate cells named in the brief PASS (worker, --jobs 1).
 - pr2-1 NIT: the notice keeps fuzzel's "config.c:17: " source position ("Run could not start: config.c:17: [colors].prompt: invalid key"); a plain user does not need it. Backlog.
 Verdict (computed): no open MAJOR -> MERGE-OK fca4f8b5. Worker archived.
+
+## r1
+
+Branch claude/xp-minor, head 3bec0cbf (base a1f3c8d7; merged with fresh origin/claude/autonomous-dev-session-3w-i33pg7).
+
+- ti-43 + ti-44, 7e49b273. Red: `arrival_other_look_leaves_settles` failed (left: Joined, right: Settled) with the other look gone. Fix: `Wm::look_gone` (startup.rs), called from `Event::ClientDisconnected` (dispatch.rs): when joined and no other look holds a claim, settle, refocus, and give the desktop the keyboard. Code fix, api.md:425 unchanged (D119 not affected).
+- ti-44 unit tests, startup.rs `mod tests`: arrival_starting_alone_is_settled, arrival_joining_a_look_with_a_claim_is_joined, arrival_other_look_leaves_settles, arrival_a_client_that_holds_no_claim_leaving_keeps_joined, arrival_click_on_the_free_desktop_settles. Seeded wrong transition (join sets Settled): 4 of 5 FAILED, only starting_alone passed. Seed reverted.
+- xp-28, 16316aeb: not reproduced on the head, so no code. Cell `xp-chat-idle` (tests/gate-xp-chat-idle.sh, in merge-gate.sh) plays fake voice working step 1/1, question, answer, idle: header says Working before, Idle after, no "step 1 of 1"; unit test `the_header_is_idle_and_stop_off_when_the_turn_ends_after_a_question` checks running() is false. I did not bisect which commit fixed it (likely 06b9666c kit7 state machine; unverified). The header follows voice.state, so a real voice that never sends idle would still show Working; that is not covered. Stop button state checked only via running(), not in the scene. The "editor over desktop icons" half: not examined, report only.
+- Counts: arrival_ 5/5 green x5; gate-xp-chat-idle.sh 5/5 green.
+- Gate: tests/merge-gate.sh --jobs 2 (full): 58 PASS, no FAIL, EXIT 0, no foreign reds.
