@@ -284,8 +284,8 @@ class CaptureDumps(unittest.TestCase):
 
         return ttd.diff
 
-    def test_row_id_is_the_scene_of_the_first_act(self):
-        for slug, want in (("01-xp", "x1"), ("02-tiling", "t1"), ("03-mc-light", "m1"), ("03b-mc-dark", "m7"), ("04-construct", "c1"), ("05-handover", "h1")):
+    def test_row_id_without_a_scene_is_the_letter_of_the_look_and_the_number(self):
+        for slug, want in (("01-xp", "x1"), ("02-tiling", "t1"), ("03-mc-light", "m1"), ("03b-mc-dark", "md1"), ("04-construct", "c1"), ("05-handover", "h1")):
             t = self.tour(slug)
             self.act(t)
             self.assertEqual(t.rows[0]["id"], want, slug)
@@ -384,63 +384,59 @@ class CaptureDumps(unittest.TestCase):
 
 
 class SceneIds(unittest.TestCase):
-    """rw-2: dumps and intended.toml name an act by the scene id of design/tour-v9.md, not by its number in the chapter."""
+    """rw-2: dumps and intended.toml name an act by the scene id of design/tour-v9.md (`scene=` of the
+    act), not by its number in the chapter; a later act of the same scene takes a letter (`h1b`)."""
 
-    SLUGS = {"xp": ["01-xp"], "tiling": ["02-tiling"], "mc": ["03-mc-light", "03b-mc-dark"], "construct": ["04-construct"], "handover": ["05-handover"]}
+    CHAPTERS = ("xp", "tiling", "mc", "construct", "handover")
 
-    def descriptions(self, chapter):
+    def acts(self, chapter):
+        """(description source, scene id or None) of every `t.act(...)` of a chapter file, in file order."""
         tree = ast.parse((ROOT / "demo" / "tour" / "chapters" / f"{chapter}.py").read_text())
-        calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "act"]
-        return [c.args[1].value for c in sorted(calls, key=lambda c: c.lineno)]
+        calls = sorted((n for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "act"), key=lambda c: c.lineno)
+        out = []
+        for c in calls:
+            scene = next((k.value.value for k in c.keywords if k.arg == "scene" and isinstance(k.value, ast.Constant)), None)
+            out.append((ast.unparse(c.args[1]), scene))
+        return out
 
-    def ids_of(self, chapter):
-        """The id of every act of a chapter, in the order of the file (the dark mc acts follow the light ones)."""
-        import scenes
+    def test_every_act_names_its_scene(self):
+        import re
 
-        slugs = self.SLUGS[chapter]
-        light = len(self.descriptions(chapter)) - (8 if chapter == "mc" else 0)
-        counts = [light, 8] if chapter == "mc" else [light]
-        return [[scenes.act_id(slug, n) for n in range(1, k + 1)] for slug, k in zip(slugs, counts)]
+        for chapter in self.CHAPTERS:
+            bare = [d for d, scene in self.acts(chapter) if not (scene and re.fullmatch(r"[xtmch]\d+", scene))]
+            self.assertEqual(bare, [], f"{chapter}: acts without a scene id like x3")
 
-    def test_the_send_to_act_is_h2(self):
-        descriptions = self.descriptions("handover")
-        (ids,) = self.ids_of("handover")
-        by_id = dict(zip(ids, descriptions))
-        self.assertIn("Send To", by_id["h2"])
-        self.assertNotIn("Click Start", by_id["h2"])
-        self.assertIn("Click Start", by_id["h1"])
-
-    def test_every_act_has_a_scene_and_the_ids_are_unique(self):
-        import scenes
-
-        for chapter, slugs in self.SLUGS.items():
-            total = len(self.descriptions(chapter))
-            self.assertEqual(sum(len(scenes.SCENES[s]) for s in slugs), total, f"{chapter}: one scene per act")
-            seen = [i for ids in self.ids_of(chapter) for i in ids]
-            self.assertEqual(len(seen), len(set(seen)), f"{chapter}: ids repeat")
+    def test_the_send_to_act_is_h2_and_start_is_h1(self):
+        scene = {d: s for d, s in self.acts("handover")}
+        send = [s for d, s in scene.items() if "Send To" in d]
+        start = [s for d, s in scene.items() if d.startswith("'Click Start")]
+        self.assertEqual((send, start), (["h2"], ["h1"]))
 
     def test_a_second_act_of_a_scene_has_its_letter(self):
-        import scenes
-
-        self.assertEqual([scenes.act_id("05-handover", n) for n in (1, 2, 3, 4, 5)], ["h1", "h1b", "h1c", "h1d", "h2"])
-
-    def test_intended_names_scenes_of_the_design(self):
-        import tomllib
-
-        import scenes
-
-        table = tomllib.loads((ROOT / "demo" / "tour" / "intended.toml").read_text())
-        known = {i for slug in scenes.SCENES for i in (scenes.act_id(slug, n) for n in range(1, len(scenes.SCENES[slug]) + 1))}
-        self.assertEqual([c["act"] for c in table["change"] if c["act"] not in known], [])
-
-    def test_the_rows_of_a_take_carry_the_scene_id(self):
         work = tempfile.mkdtemp(prefix="tour-scene-")
         t = tour.Tour(FakeSession(), work, work + "/w")
         t.begin("5 handover", "05-handover")
         t.run_segment = lambda label="": None
-        for n in range(5):
-            t.act("look", f"act {n}", "x", lead=0.0, tail=0.0)
-        self.assertEqual([r["id"] for r in t.rows], ["h1", "h1b", "h1c", "h1d", "h2"])
+        for n, scene in enumerate(["h1", "h1", "h1", "h2", "h1"]):
+            t.act("look", f"act {n}", "x", lead=0.0, tail=0.0, scene=scene)
+        self.assertEqual([r["id"] for r in t.rows], ["h1", "h1b", "h1c", "h2", "h1d"])
+
+    def test_the_chapters_use_each_scene_of_intended_toml(self):
+        import tomllib
+
+        table = tomllib.loads((ROOT / "demo" / "tour" / "intended.toml").read_text())
+        scenes = {s for chapter in self.CHAPTERS for _, s in self.acts(chapter)}
+        self.assertEqual([c["act"] for c in table["change"] if c["act"] not in scenes], [])
+
+    def test_the_first_row_of_h2_is_the_send_to_act(self):
+        """The row that intended.toml calls h2 carries the Send To act, not the Start click."""
+        work = tempfile.mkdtemp(prefix="tour-scene-")
+        t = tour.Tour(FakeSession(), work, work + "/w")
+        t.begin("5 handover", "05-handover")
+        t.run_segment = lambda label="": None
+        for text, scene in (("Click Start", "h1"), ("Click Notepad", "h1"), ("Title-bar right click, Send To, Tiling desktop", "h2")):
+            t.act("look", text, "x", lead=0.0, tail=0.0, scene=scene)
+        self.assertEqual({r["id"]: r["description"] for r in t.rows}["h2"], "Title-bar right click, Send To, Tiling desktop")
 
 
 class OldBuild(unittest.TestCase):
