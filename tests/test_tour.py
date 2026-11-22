@@ -406,6 +406,41 @@ class SceneIds(unittest.TestCase):
             bare = [d for d, scene in self.acts(chapter) if not (scene and re.fullmatch(r"[xtmch]\d+", scene))]
             self.assertEqual(bare, [], f"{chapter}: acts without a scene id like x3")
 
+    @staticmethod
+    def design_scenes():
+        """The scene ids of the tables of design/tour-v9.md: the file of the checkout, else the one of
+        origin/claude/session-log (the design lives on that branch)."""
+        import re
+        import subprocess
+
+        path = ROOT / "design" / "tour-v9.md"
+        if path.exists():
+            text = path.read_text()
+        else:
+            run = subprocess.run(["git", "show", "origin/claude/session-log:design/tour-v9.md"], cwd=ROOT, capture_output=True, text=True)
+            if run.returncode:
+                raise unittest.SkipTest("design/tour-v9.md is neither in the checkout nor on origin/claude/session-log")
+            text = run.stdout
+        return set(re.findall(r"^\| ([xtmch]\d+) \|", text, re.M))
+
+    def test_every_scene_id_is_one_of_design_tour_v9(self):
+        known = self.design_scenes()
+        self.assertTrue({"x1", "t1", "m1", "c1", "h1"} <= known, known)
+        for chapter in self.CHAPTERS:
+            odd = sorted({scene for d, scene in self.acts(chapter) if scene not in known and scene not in self.OFF_DESIGN.get(chapter, ())})
+            self.assertEqual(odd, [], f"{chapter}: scene ids that design/tour-v9.md does not name")
+
+    OFF_DESIGN = {"xp": ("x12",)}
+    """rv-1: the three cube acts of xp (Ctrl+Alt+Right, Ctrl+Alt+Left, Super drag) keep `x12`, an id the design
+    does not name: the one that fits, c3 (turn by key, by drag), is taken by 8 acts of the construct chapter, whose
+    ids `c3`, `c3b` .. would be the same files in `captures/` (a take of the tour writes all chapters to one folder).
+    The design says "Not in xp: the cube"; the PM decides whether it names x12 or the acts move."""
+
+    def test_the_off_design_ids_are_three_acts_of_xp_and_the_design_has_not_caught_up(self):
+        known = self.design_scenes()
+        self.assertEqual(known & {"x12"}, set(), "design/tour-v9.md names x12 now: empty OFF_DESIGN")
+        self.assertEqual([d[:20] for d, scene in self.acts("xp") if scene == "x12"], ["'Ctrl+Alt+Right: tur", "'Ctrl+Alt+Left: back", "'Super held, drags o"])
+
     def test_the_send_to_act_is_h2_and_start_is_h1(self):
         scene = {d: s for d, s in self.acts("handover")}
         send = [s for d, s in scene.items() if "Send To" in d]
