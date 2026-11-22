@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-22 19:59 UTC)
+## Now (2026-11-22 20:11 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 19:01 PM 4.9 % (Bangkok 11-22) + 0.6 % (11-23), week about 13 % (lanes est.) vs 24 % pace; under pace: 6 lanes
-session branch: 6b01c976 (t108 green 13:01); 63 greens. t109g red: FLK-CUBE-SETTLE; t109h red 19:30 construct-extra K1 fly-out pose 2 px (FLAKE-K1 fixes). t110 from 19:50 (aeaf8138 = t109h + Queue 6; conflicts gate steps, known-red resolved).
+session branch: 6b01c976 (t108 green 13:01); 63 greens. t109g red: FLK-CUBE-SETTLE; t109h red 19:30 construct-extra K1 fly-out pose 2 px (FLAKE-K1 fixes). t110 red 20:00 xp-chat-idle (FLK-CHAT-IDLE, XP-MINOR cell race, 3/3 alone); t110b 20:12 without XP-MINOR (9ee1cef1).
 burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series, hint act red twice; closes on flake-hint + haiku series 5 at 2 jobs on t109 head); F7 open.
 
 ## RC
@@ -32,7 +32,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 ## Queue (% week; 5 % reserve)
 3. (rc 8) DOCS-RC r2 (pr-1..5) on the Thu head.
 4. (F7, rc 11) record-v9 r2 after ti-38.
-5. (rc 1, 3, 8, 9) t110 running, adds t109h list: MC-FOCUS e22f824d, TI-38 a1f3c8d7, DOCS-RC 54c30d16, TI-MINOR 136bbd82, FLAKE-WAIT 176938d1, XP-38 c7f2e64f, FLAKE-K1 7d8ad513, CO-46 83033ed6, XP-MINOR 3bec0cbf, TI-THEME 4e46028b, MC-SCALE ac538e82. Then: eprintln ratchet; haiku series 5 (F5).
+5. (rc 1, 3, 8, 9) t110b running, adds t109h list: 10 of t109h list (9ee1cef1). XP-MINOR 3bec0cbf waits for FLK-CHAT-IDLE fix. Then: eprintln ratchet; haiku series 5 (F5).
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
