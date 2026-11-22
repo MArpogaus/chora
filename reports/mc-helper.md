@@ -69,3 +69,10 @@ of the first run was /tmp/acts-run-6tte_cfr (container, gone with it).
 `tests/merge-gate.sh --jobs 2`, full, detached, on 42585079 (= merged with
 origin/claude/autonomous-dev-session-3w-i33pg7): 58 steps PASS, "all steps
 passed", EXIT 0. `mc-host` is now one of them. No foreign red.
+
+## Review r1 (PM, own commits 9eaee852..42585079 on ac538e82, +64 -79, under 200 lines; PM not the builder)
+
+Checks: red first (9eaee852 before 00406cd8, 5ed59654 before c5acd4d0, 61098a37 before 42585079: met); mc-57 fixture (fake-voice.py FAKE_VOICE_LIST, default unchanged); mc-55 words (agents.yaml, agent.rs:463, manage.rs tests, gate-mc-paths.sh:374); mc-56 (region/items.rs:553 door_items empty while Chat::Open); known-red rows removed only for the cells now green; mc-host is a plain gate step; gate 58 PASS EXIT 0.
+- mh-1 MINOR tests/gate-mc-host.sh:158, :233: 00406cd8 also rewrites two checks (the dark dot 204 120 102 -> 216 152 138; "card above the hint" -> "card names its keys, no second hint") under a fixture commit; the commit names no product commit that changed them. Fix: the next mc round names the product sha for each, or reverts if none.
+- mh-2 MINOR plugins/chora-mc/src/region/items.rs:553: while the chat is open, lock, power, programs and volume have no mouse door (shared bar: reachable; vision: mouse a full second path). Close is one click, so not MAJOR. Fix: a known issue line, or the doors move above the chat in a later mc round.
+Verdict (computed): 0 BLOCK, 0 MAJOR, 2 MINOR: MERGE-OK. Joins t111.

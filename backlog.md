@@ -393,3 +393,4 @@ DB21 | 11-22 | later | gate-tiling-motion.sh: restore the deep (focused) vs ligh
 - CO-WALK-TIMING (construct, POLS; 11-22 18:55, flake-k1 r2): a walk tap starts from the running walk's position (camera.rs:240-247), so two quick taps walk a different distance than two slow ones. Check in the next construct persona round whether users notice; no change before.
 - TX-CPU-SAFE (core-diag r3 PM review, 11-22): sl-3 test thread_cpu() uses unsafe clock_gettime (allow 361); read /proc/thread-self/stat (utime+stime) instead and lower allow to 360. Cost 0.2 %.
 - CK-1 (MINOR, core-fix review r1): render/cost.rs a_resized_layer_on_two_outputs_of_the_same_scale_drops_old_sizes bars sizes < 11; bar <= 2 like its sibling. Next core round.
+- MH-1, MH-2 (MINOR, mc-helper review r1): mc-host check rewrites without a product sha; no mouse doors while the chat is open. Next mc round.
