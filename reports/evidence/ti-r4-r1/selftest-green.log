@@ -1,0 +1,20 @@
+ok: check.py: its contracts and reads on planted snapshots
+ok: systemctl, wpctl, grim, loginctl and notify-send are stand-ins, first in the PATH of the core
+ok: systemctl suspend reaches the stand-in
+ok: wpctl answers and logs, keeps the level and the mute, grim writes its file and logs
+ok: screenshot.sh in the environment of the core writes under the session directory
+ok: persona-check has screen.capture and methods.call, not input.inject
+ok: mc+tiling starts both looks
+ok: tiling+xp: Super+Return opens a tile of tiling, the first look
+ok: shared scripts installed under the session, lock leaves a mark
+ok: swaylock stand-in draws a visible lock and goes
+ok: mousepad stand-in starts a window Untitled - Notepad
+ok: mousepad stand-in takes the text that is typed
+ok: the probe window has a title bar and a drag moves it ([84.0,84.0,208.0,229.0] to [384.0,234.0,208.0,229.0])
+ok: check.py wait-app finds the probe window and fails with a message for a missing one
+ok: the probe window reports its presses to PERSONA_PROBE
+ok: the helper works on hello, rests and answers
+ok: check.py end holds each goal to its own begin and uses it up
+ok: the checker counts the windows of the xp child of a cube as shown (no I1, no I3)
+ok: the checker reads a child only as a face manager, and shows only the front face (negative cases)
+ok: persona session

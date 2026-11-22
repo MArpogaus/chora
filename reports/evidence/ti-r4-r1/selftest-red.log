@@ -1,0 +1,9 @@
+ok: check.py: its contracts and reads on planted snapshots
+ok: systemctl, wpctl, grim, loginctl and notify-send are stand-ins, first in the PATH of the core
+ok: systemctl suspend reaches the stand-in
+ok: wpctl answers and logs, keeps the level and the mute, grim writes its file and logs
+ok: screenshot.sh in the environment of the core writes under the session directory
+ok: persona-check has screen.capture and methods.call, not input.inject
+ok: mc+tiling starts both looks
+FAIL: tiling+xp: Super+Return opened a window of xp, not of tiling (the first look)
+rc=1

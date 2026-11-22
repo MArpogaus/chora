@@ -1,0 +1,7 @@
+ok: Super+a gives the chat field the keyboard
+ok: with one helper, typed text and Enter reach the helper
+ok: a notice of chora-notify steps aside of the open chat panel
+ok: Esc closes the chat and the window gets the keyboard back
+ok: the first key after the hand-over reaches the window
+ok: with two helpers, a text and then a number send the text to that helper
+rc=0
