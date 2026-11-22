@@ -173,8 +173,9 @@ cell_return() {
 cell_give() {
     local w
     w=$(foot_of_tiling give)
-    inject "[{\"pointer_move\": {\"node\": \"$w\", \"point\": [100, 60]}},
-      {\"button\": {\"state\": \"pressed\"}}, {\"button\": {\"state\": \"released\"}}]"
+    until_ok "echo '[{\"pointer_move\": {\"node\": \"$w\", \"point\": [100, 60]}}]' | ctl inject >/dev/null 2>&1" 80 ||
+        fail "give: the node $w shows no point [100, 60] after 20 s: $(ctl query "id:$w" | jq -c '.[0].rects')"
+    inject '[{"button": {"state": "pressed"}}, {"button": {"state": "released"}}]'
     ctl call xp start_menu '{"open": true}' >/dev/null || fail "give: open the Start menu"
     menu_after open || fail "give: the Start menu does not open"
     ctl call tiling window.give "{\"surface\": \"$w\", \"to\": \"xp\"}" >/dev/null 2>&1
