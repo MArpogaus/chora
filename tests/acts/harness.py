@@ -76,6 +76,7 @@ class Snapshot:
     boxes: dict | None = None
     blocks: dict = dataclasses.field(default_factory=dict)
     shots: dict | None = dataclasses.field(default_factory=dict)
+    exits: dict = dataclasses.field(default_factory=dict)
 
     def by_id(self):
         """The nodes by id."""
@@ -417,6 +418,7 @@ LOOKS = {
 }
 WALLPAPER = {"xp", "mc", "construct"}
 BLOCKS = ["notify", "assistant"]
+ONE_CALL = {"choractl", "chat-door", "chat-opener"}
 
 
 class Session:
@@ -627,8 +629,46 @@ class Session:
         return proc
 
     def clients(self):
-        """The connected client names."""
-        return {c.get("name") for c in self.core.call("clients.list") or []}
+        """The connected client names, without the tools that connect for
+        one call: the panel of the tiling flavor runs choractl every 2 s
+        and the reader of the helper door again and again, and a call that
+        a snapshot saw and the next did not is no disconnect (sh-32)."""
+        names = {c.get("name") for c in self.core.call("clients.list") or []}
+        return names - ONE_CALL
+
+    def exits(self):
+        """The programs of the session that have ended, by name, each with
+        how (the code or the signal) and, for the core, the last lines of
+        its log that tests/headless-session.sh keeps in the env file; empty
+        while every program runs. The core is the program of the session
+        whose end drops every client, so a disconnect that this names is a
+        crash and not a lost socket."""
+        out = {}
+        for proc in getattr(self, "procs", []):
+            code = proc.poll()
+            if code is None:
+                continue
+            core = proc is getattr(self, "core_proc", None)
+            name = "core" if core else pathlib.Path(str(proc.args[0])).name
+            if code < 0:
+                how = f"ended by {signal.Signals(-code).name}"
+            else:
+                how = f"exited with code {code}"
+            if core:
+                how += self.core_tail()
+            out[name] = how
+        return out
+
+    def core_tail(self):
+        """`; last lines: ...` of the log of the core as the env file keeps
+        them after `the core ended with N`; empty without them."""
+        with contextlib.suppress(OSError):
+            text = (self.work / "env").read_text(errors="replace")
+            _, found, tail = text.partition("the core ended with")
+            lines = tail.splitlines()[1:] if found else []
+            if lines:
+                return "; last lines: " + " | ".join(line.strip()[:200] for line in lines[-8:])
+        return ""
 
     def outputs(self):
         """The outputs."""
@@ -760,6 +800,7 @@ class Session:
             blocks=self.blocks(clients),
             boxes=self.core.call("scene.boxes"),
             shots=shots,
+            exits=self.exits(),
         )
 
     def act(
