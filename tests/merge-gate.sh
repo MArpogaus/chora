@@ -23,6 +23,7 @@
 # checks the grabs after a flight into a pane.  `pixels` reads the labels, a pane
 # beside a cube and the 2x step-in from captures. `mc-paths` runs the cells of the main paths of chora-mc. `mc-sofa` runs the cells of the sofa and kitchen scenarios of chora-mc. `mc-column` runs the margin column of chora-mc at 1280x720 and 1920x1080. `mc-handover` runs the cells of a window that goes to mc. `launcher-click` clicks a row of the Apps launcher of tiling and of the Programs launcher of the construct with the hands of a persona (act.py) and asks for the program of that row. `construct-extra` runs the construct gates K1 (a pane at 1:1), mcpane, nested, k2a, windows, 3d (K5, direct input on the 3D base) and i3 (one focus holder after a click in the xp face of the cube). `e2e` runs the scripts of the e2e job of
 # .github/workflows/ci.yaml in its order (tests/e2e-sequence.sh); a skip fails the step unless tests/e2e-skips.txt lists it.
+# `tiling-keys-more`, `tiling-windows` and `tiling-system` run the tiling gates that the other tiling steps do not (key list, keycaps, bar Keys, chip, programs; focus, follow, doors, swallow, gaps, motion; reload, system); `handover` the handover between window managers (D55), `mc-scale` the 300-panel scene of mc, `watchdog-starved` the frame watchdog on a starved host, `xp-run` the Run box of xp, `demo` the demo scenes. A step `known-red-NAME` is a gate script whose red is filed in findings/: --list shows it, a full run leaves it out, `--only known-red-NAME` runs it.
 # `voice-acp` runs the ACP sub-agent smoke test (a question that edits a file is answered by a HUD button, not by a spoken yes), `voice-events` the voice.state events, and `agent` the agent interface in a headless sway (tests/agent.sh).
 # `identity` fails when any commit of BASE..HEAD, merges included, has an author or
 # a committer other than the identity in `expected_identity` below (a lane hook has
@@ -275,6 +276,19 @@ launcher-click|BIN=$repo/target/debug tests/gate-launcher-click.sh
 voice-acp|BIN=$repo/target/debug tests/voice-acp.sh
 voice-events|BIN=$repo/target/debug tests/voice-events.sh
 agent|out=\$(mktemp -d /tmp/chora-agent-gate.XXXXXX) && tests/agent.sh "$repo/target/debug" "\$out" && rm -rf "\$out"
+tiling-keys-more|BIN=$repo/target/debug tests/gate-tiling-keys.sh && BIN=$repo/target/debug tests/gate-tiling-keycaps.sh && BIN=$repo/target/debug tests/gate-tiling-bar-keys.sh && BIN=$repo/target/debug tests/gate-tiling-chip.sh && BIN=$repo/target/debug tests/gate-tiling-programs.sh
+tiling-windows|BIN=$repo/target/debug tests/gate-tiling-focus.sh && BIN=$repo/target/debug tests/gate-tiling-follow.sh && BIN=$repo/target/debug tests/gate-tiling-doors.sh && BIN=$repo/target/debug tests/gate-tiling-swallow.sh && BIN=$repo/target/debug tests/gate-tiling-gaps.sh && BIN=$repo/target/debug tests/gate-tiling-motion.sh
+tiling-system|BIN=$repo/target/debug tests/gate-tiling-reload.sh && BIN=$repo/target/debug tests/gate-tiling-system.sh
+handover|BIN=$repo/target/debug tests/gate-handover.sh
+mc-scale|BIN=$repo/target/debug tests/gate-mc-scale.sh
+watchdog-starved|BIN=$repo/target/debug tests/gate-watchdog-starved.sh
+xp-run|BIN=$repo/target/debug tests/gate-xp-run.sh
+demo|BIN=$repo/target/debug tests/gate-demo.sh
+known-red-mc-host|BIN=$repo/target/debug tests/gate-mc-host.sh
+known-red-tiling-theme|BIN=$repo/target/debug tests/gate-tiling-theme.sh
+known-red-tiling-bar|BIN=$repo/target/debug tests/gate-tiling-bar.sh
+known-red-tiling-spacing|BIN=$repo/target/debug tests/gate-tiling-spacing.sh
+known-red-tiling-notice|BIN=$repo/target/debug tests/gate-tiling-notice.sh
 e2e|tests/e2e-sequence.sh "$repo/target/debug"
 STEPS
 }
@@ -298,9 +312,22 @@ if [ -n "$list_commands" ]; then
     exit 0
 fi
 
+
 if [ -n "$list_steps" ]; then
     printf '%s\n' "${step_names[@]}"
     exit 0
+fi
+
+if [ -z "$only" ] && [ -z "${worker_mode:-}" ]; then
+    kept_names=()
+    kept_commands=()
+    for i in "${!step_names[@]}"; do
+        case ${step_names[$i]} in known-red-*) continue ;; esac
+        kept_names+=("${step_names[$i]}")
+        kept_commands+=("${step_commands[$i]}")
+    done
+    step_names=("${kept_names[@]}")
+    step_commands=("${kept_commands[@]}")
 fi
 
 selected() {
