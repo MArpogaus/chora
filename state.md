@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-22 08:42 UTC)
+## Now (2026-11-22 08:49 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 08:42 week 9.0 % (6.1 + 2.9 Bkk days; under pace 17.2 %: 6 lanes; WM-TESTS after ti-38, same xp wm files)
-session branch: 7a6c0eb8 (t106 green 06:42, all 49 steps; CLOCK-WIDTH in); 61 greens.
+session branch: 3b14c825 (t107 green 08:47: TOUR-FIX r3 + ASK-ONE); 62 greens. t108 GATE-ALIVE a7ffdf22 alone runs.
 burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at 2 jobs, one host; rc 9 rows open); F7 open, carried.
 
 ## RC (design/rc.md)
@@ -28,11 +28,12 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 | sim-long-r1.md (rc 9: leaks, stalls over 3 h; 1.0 %) | haiku high, claude/sim-long 7a6c0eb8 | session_016iS3kMNxMZdeaWzofsKMsD 06:45; pass 8, 0 stalls; sl-3 W12 core dies 8/8 |
 | log-down-co-r1.md (rc 9a: construct eprintln to tracing; 0.9 %) | sonnet medium, claude/log-down-co 7a6c0eb8 | session_016iS3kLT7r8MsQvNKiKKLC2 07:05; gate runs |
 | test-gaps-r1.md (F5 H13: WD2, WD3, reload, SA10; 0.6 %) | haiku high, claude/test-gaps 7a6c0eb8 | session_016iS3kLQ33yxXvWr7rYvYsD 07:05; gate 89dc32c4 |
+| flake-series-r5.md (F5, rc 3: five gates at 2 jobs on 3b14c825; 1 %) | haiku high, claude/flake-series-r5 3b14c825 | starting |
 
 ## Queue (% week; 5 % reserve)
-4. (F7, rc 2-3) TOUR-FIX r3 done 06:20 85c5f3bc (84 to 66 red, tiling I2 23 to 0); PM review r3 MERGE-OK; in t107 with ASK-ONE 322eef20 (PM review MERGE-OK; ao-1 to DB7 d).
-5. t107 06:44 on 3b14c825: TOUR-FIX 85c5f3bc + ASK-ONE 322eef20; then t108 GATE-ALIVE a7ffdf22 alone (harness, MERGE-OK); then t109 LAUNCH-TIMER 629faf7b (MERGE-OK); then RECORD r2.
-6. OPT-IN r1 done 08:15 (six PASS on 7a6c0eb8; oi-2, oi-4 to DB21); ON-PATH (RF2) already met. Next slot: FLAKE-SERIES r5 (rc 3, F5) on the t107 head.
+4. (F7, rc 2-3) TOUR-FIX r3 85c5f3bc and ASK-ONE 322eef20 merged in t107 (3b14c825); next tour round after ti-38 r2 merges.
+5. t108 08:49 on 3b14c825: GATE-ALIVE a7ffdf22 alone (harness); then lanes merge the head; t109 LAUNCH-TIMER 629faf7b; then RECORD r2.
+6. OPT-IN r1 done (six PASS; oi-2, oi-4 to DB21). FLAKE-SERIES r5 (rc 3, F5; 1 %) runs on 3b14c825.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
