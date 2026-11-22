@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-22 07:04 UTC)
+## Now (2026-11-22 07:08 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 06:43 week 8.5 % (6.1 + 2.4 Bkk days; under pace 16 %: 5th, 6th lane; WM-TESTS after ti-38, same xp wm files)
+budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 06:43 week 8.5 % (6.1 + 2.4 Bkk days; under pace 16 %: 6 lanes 07:08; WM-TESTS after ti-38, same xp wm files)
 session branch: 7a6c0eb8 (t106 green 06:42, all 49 steps; CLOCK-WIDTH in); 61 greens.
 burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at 2 jobs, one host; rc 9 rows open); F7 open, carried.
 
