@@ -23,7 +23,7 @@ export CHORA_FLAVOR_DIR=$repo/flavors/tiling
 temp_config
 home=$XDG_CONFIG_HOME/home
 mkdir -p "$home"
-session_start 1280x800 -- "$bin/chora-tiling"
+session_start 1280x800 -- "$bin/chora-tiling" --no-companions
 grant screen.capture methods.call
 shot=$XDG_CONFIG_HOME/notice.png
 ctl capture --output HEADLESS-1 "$shot" >/dev/null || fail "the capture"

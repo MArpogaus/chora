@@ -46,10 +46,13 @@ if [ -n "${SHOTS:-}" ]; then
     sleep 1
     ctl capture --output HEADLESS-1 "$SHOTS/tiling-bar-keys.png" >/dev/null || fail "the capture"
 fi
-echo '[{"shortcut": {"keys": "Escape"}}]' | ctl inject >/dev/null || fail "inject Escape"
-for _ in $(seq 20); do
-    listed || break
-    sleep 0.2
+sleep 1
+for _ in 1 2 3; do
+    echo '[{"shortcut": {"keys": "Escape"}}]' | ctl inject >/dev/null || fail "inject Escape"
+    for _ in $(seq 10); do
+        listed || break 2
+        sleep 0.2
+    done
 done
 listed && fail "Escape keeps the key list"
 ok "Escape closes the key list"

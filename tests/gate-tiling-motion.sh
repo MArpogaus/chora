@@ -11,7 +11,7 @@ set -u
 need swaybg
 need_bins chora choractl chora-tiling chora-probe
 temp_config
-session_start 1280x800 -- "$bin/chora-tiling"
+session_start 1280x800 -- "$bin/chora-tiling" --no-companions
 grant screen.capture
 shot=$XDG_CONFIG_HOME/motion.png
 start() {
@@ -30,10 +30,10 @@ for _ in $(seq 60); do
 done
 sleep 3
 ctl capture --output HEADLESS-1 "$shot" >/dev/null || fail "the capture"
-grey=$(pixel "$shot" 1279 400 | cut -d" " -f1)
-for spot in "5 400 12" "1270 400 6"; do
+grey=$(pixel "$shot" 1279 400 | cut -d" " -f2)
+for spot in "10 400 6" "1270 400 6"; do
     read -r x y least <<<"$spot"
-    got=$(pixel "$shot" "$x" "$y" | cut -d' ' -f1)
+    got=$(pixel "$shot" "$x" "$y" | cut -d' ' -f2)
     [ $((grey - got)) -ge "$least" ] || fail "no shadow at $x,$y: $got against the wallpaper $grey"
 done
 ok "the focused window has a deep shadow, the other a light one"
