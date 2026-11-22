@@ -26,7 +26,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 | sh-32-r1.md (F5, rc 9: acts tiling I14 flake, 2 of 3 trains) | sonnet high, claude/sh-32 1c9e64f7 | session_016iS3kP3XbvGgWDcqL8QrGn 00:03 |
 | p2-harness-m.md (rc 2: known-red filter, L2, T7 vacuous; r4 harness check) | sonnet medium, claude/p2-harness-m 1c9e64f7 | session_016iS3kMxK3mijyHf3skqCwg 23:38 |
 | co-i3-r3.md (rc 2: review r2 rv-1 MAJOR, state.rs:65 owned-surface arm) | sonnet medium, claude/co-i3 2b571478 | session_016iS3kQftQgVnSgb4hmQy5h 21:51 |
-| review-tour-fix-r1.md (F7: seeded review 892d035c..faf958fe) | sonnet high, claude/tour-fix faf958fe | starting 00:34 |
+| review-tour-fix-r1.md (F7: seeded review 892d035c..faf958fe) | sonnet high, claude/tour-fix faf958fe | session_016iS3kPBqAdYZWCigAc1JRN 00:35 |
 | gate-waits-r1.md (F5, rc 3: sleeps to waits in six flaky cells) | sonnet medium, claude/gate-waits 1c599c74 | session_016iS3kMaugq8mKyEhmsaZMe 14:01 |
 
 ## Queue (% week; 5 % reserve)
