@@ -105,7 +105,8 @@ class OldCore:
     """The connection of the harness to a core that may lack `scene.boxes` (the build 733967aa of the
     v8 replay): that one call answers `None` (a snapshot without boxes: no masks, the invariants
     that read boxes find nothing) and says so once; any other error, and any other method, goes
-    through."""
+    through. Only `Checker.attach` with TOUR_BASELINE set wraps the core in it: on the candidate a
+    lost `scene.boxes` is an error and a red act."""
 
     OPTIONAL = ("scene.boxes",)
 
@@ -215,8 +216,9 @@ class Checker:
     invariant of invariants.ALL. `source` answers a `harness.Snapshot`; `Checker.attach` reads the
     live session of the tour as the persona check does."""
 
-    def __init__(self, source):
+    def __init__(self, source, baseline=False):
         self.source = source
+        self.baseline = baseline
 
     @classmethod
     def attach(cls, env, looks, runs, wallpaper=None):
@@ -230,15 +232,18 @@ class Checker:
         h.env = dict(env)
         h.runtime = pathlib.Path(env["XDG_RUNTIME_DIR"])
         h.connect(env["CHORA_SOCKET"], "tour-check")
-        h.core = OldCore(h.core)
-        return cls(h.snapshot)
+        baseline = bool(os.environ.get("TOUR_BASELINE"))
+        if baseline:
+            h.core = OldCore(h.core)
+        return cls(h.snapshot, baseline)
 
     def snapshot(self):
         return self.source()
 
     def judge(self, row, expect, before, after):
-        """The red lines of an act. On a build without `scene.boxes` (OldCore) the boxes cannot be
-        read, so "missing boxes" is no breach there. The design exemptions of tests/acts/known-red.toml
+        """The red lines of an act. On the build of the baseline replay (TOUR_BASELINE: OldCore, no
+        `scene.boxes`) the boxes cannot be read, so "missing boxes" is no breach there; on the
+        candidate it stays red. The design exemptions of tests/acts/known-red.toml
         (`[[exempt]]`: the Luna tray down to 3.0:1) hold here too; its known-red rows do not."""
         import dataclasses
 
@@ -250,7 +255,7 @@ class Checker:
         red = expect.check(before, after) if expect else []
         for key, check in invariants.ALL.items():
             red += [f"{key}: {b}" for b in check(before, after, act)]
-        if after.boxes is None:
+        if self.baseline and after.boxes is None:
             red = [line for line in red if "missing boxes" not in line]
         exempt = harness.exemptions()
         return [line for line in red if not harness.exempted(line, exempt)]
