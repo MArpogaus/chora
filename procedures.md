@@ -11,8 +11,8 @@ Now <= `date -u`; a session-branch change needs a status/ change; the budget lin
 1. git worktree add -q --detach /home/user/wt/trainN <session head sha>.
 2. Each MERGE-OK sha in merge order: git -c identity merge -q --no-ff <sha>
    -m "Merge branch 'claude/X' into claude/autonomous-dev-session-3w-i33pg7".
-3. setsid nohup, detached (gate 125 min > 2 h tool cap, t108 killed 10:49): (tests/merge-gate.sh --push claude/autonomous-dev-session-3w-i33pg7
-   > /tmp/claude-0/trainN.log 2>&1; echo EXIT $? >> /tmp/claude-0/trainN.log). --jobs 1 until flakes-l r2 merges (4 reds at 2-3, green at 1; 11-20).
+3. setsid nohup, detached: (tests/merge-gate.sh --push claude/autonomous-dev-session-3w-i33pg7
+   > /tmp/claude-0/trainN.log 2>&1; echo EXIT $? >> /tmp/claude-0/trainN.log). --jobs 2 (flakes-l merged t92; series r4 5/5 at 2; critic 11-22). Oldest MERGE-OK first.
 4. Red: bisect by halves; a real fault goes back to its lane. After: worktree remove --force,
    rm -rf ~/.cache/sccache, df -h /; state.md, status page, Queue realigned.
 
@@ -22,12 +22,12 @@ Brief (Model line `^Model: (haiku|sonnet|opus|Fable)`, opus/Fable "because <reas
 -> create_session(source_url https://github.com/MArpogaus/chora, source_revision claude/X, model claude-sonnet-5-5 |
 claude-opus-5-5 | claude-haiku-5-5, effort, tags ["chora-lane"], prompt "You are a build lane of the chora session (PM <pm id>, your parent). Your brief is briefs/X.md on
 claude/session-log; its full text is below. Follow it exactly, in this same turn, until done or blocked." + the brief text
-(11-21: a fetch of the brief was refused, a pasted brief by message ignored) -> send_later 6-7 min
+-> send_later 6-7 min
 start check -> session id into Lanes. Step 0: no setup.sh (auto mode refuses it in lanes, 11-20 00:48); rely on env setup. Handback: archive the worker. Product code: the lane runs the full gate, no --only (t99b).
 
 ## Seeded review (owner 06:12)
 Base..head and diffstat; the brief's done criteria as checks; known findings by id; a command and files per check;
-no gate (cargo test -p only); <= 120 k, <= 0.5 %, <= 8 findings; computed verdict. Template briefs/review-wm2-r1.md.
+no gate (cargo test -p only); a failed Done-when line (gate incomplete or red) is INCOMPLETE, not MERGE-OK; PM review only under 200 lines or a pure move; <= 120 k, <= 0.5 %, <= 8 findings; computed verdict. Template briefs/review-wm2-r1.md.
 Sonnet high for ports; opus for core, design, security; a PM review for small diffs (PM not the builder).
 
 ## Ids
