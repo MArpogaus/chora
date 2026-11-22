@@ -505,8 +505,44 @@ class OldBuild(unittest.TestCase):
 
         before = test_acts.snap(boxes=None)
         helper = test_acts.snap(boxes=None, nodes=[{"id": "hud-chat", "kind": "node", "owner": "assistant", "meta": {"surface": "chat"}, "rects": {"HEADLESS-1": [0, 0, 10, 10]}}])
-        got = tour.Checker(lambda: before).judge({"description": "an act"}, None, before, helper)
+        got = tour.Checker(lambda: before, baseline=True).judge({"description": "an act"}, None, before, helper)
         self.assertEqual([line for line in got if "missing boxes" in line], [])
+
+    def test_the_candidate_keeps_missing_boxes_red(self):
+        """rw-3: without TOUR_BASELINE a build that lost `scene.boxes` is red, never green on nothing."""
+        before = test_acts.snap(boxes=None)
+        helper = test_acts.snap(boxes=None, nodes=[{"id": "hud-chat", "kind": "node", "owner": "assistant", "meta": {"surface": "chat"}, "rects": {"HEADLESS-1": [0, 0, 10, 10]}}])
+        got = tour.Checker(lambda: before).judge({"description": "an act"}, None, before, helper)
+        self.assertEqual([line for line in got if "missing boxes" in line], ["I8: missing boxes: no scene.boxes answer for the helper surfaces"])
+
+    def test_the_candidate_prints_every_box_invariant(self):
+        import invariants
+
+        planted = {key: (lambda before, after, act, key=key: [f"{key} planted"]) for key in ("I5", "I6", "I8", "I9")}
+        with mock.patch.dict(invariants.ALL, planted, clear=True):
+            got = tour.Checker(lambda: snap()).judge({"description": "an act"}, None, snap(), snap())
+        self.assertEqual(got, [f"{key}: {key} planted" for key in planted])
+
+    def attached(self, baseline):
+        """The core that `Checker.attach` leaves in the harness, with TOUR_BASELINE set or not."""
+        import os
+
+        import harness
+
+        session = mock.MagicMock()
+        session.core = object()
+        if baseline:
+            os.environ["TOUR_BASELINE"] = "1"
+        try:
+            with mock.patch.object(harness, "Session", return_value=session):
+                tour.Checker.attach({"XDG_RUNTIME_DIR": "/tmp", "CHORA_SOCKET": "/tmp/s"}, ["xp"], "/tmp/evidence")
+        finally:
+            os.environ.pop("TOUR_BASELINE", None)
+        return session.core
+
+    def test_only_the_baseline_core_may_lack_boxes(self):
+        self.assertIsInstance(self.attached(True), tour.OldCore)
+        self.assertNotIsInstance(self.attached(False), tour.OldCore)
 
     def test_the_exemption_of_the_list_holds_in_the_tour_too(self):
         """The one design exemption of tests/acts/known-red.toml (the Luna tray, down to 3.0:1) is no red line of a row; known-red rows are not applied."""
