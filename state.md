@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-22 13:33 UTC)
+## Now (2026-11-22 13:36 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day (90.2 % in 135 h), no day cap; tokens.py 12:45 week 9.8 % (6.1 + 3.7; under pace 19.7 %; lanes wait on gates: add reviews, rc 4, 6)
 session branch: 6b01c976 (t108 green 13:01: GATE-ALIVE); 63 greens. t109 033f416f runs at --jobs 2 from 13:02.
@@ -13,7 +13,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 | 2 | Persona round 4 | xp, mc meet; co T1 T2, tiling I2 T1 T3 open |
 | 3 | 3 greens, no flake | open: flake-hint, series r5 |
 | 4, 5 | CI green on a PR; packaging | pre-commit green on 6b01c976; CI PR at release |
-| 6 | Review per area | open: 61 merges since adf71956; REVIEW-DELTA r1 runs |
+| 6 | Review per area | r1 MERGE-OK 13:35 (0 MAJOR, rd-5 MEDIUM: MC-FOCUS); Thu round |
 | 7 | deny, machete; updates | clean; 7 bumps (DEPS) |
 | 8 | Docs, CHANGELOG, known issues | open: DOCS-RC |
 | 9 | Flakes, window loss | open: core-diag (t110), mesh-churn, sim-long |
@@ -27,7 +27,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 | mesh-churn-r1.md (rc 9: sl-1 texture churn; 1.5 %) | opus high, claude/mesh-churn 96e5c804 | session_016iS3kLrku4JTjEeufgN2oV 11:31 |
 | log-down-xp-r1.md (rc 9: xp eprintln 18; 0.9 %) | sonnet medium, claude/log-down-xp 70cbf9bd | session_016iS3kPYbLrqZVkcAvctZ1S 11:36 |
 | flake-series-r5.md (F5, rc 3: 5 gates at 2 jobs; 1 %) | haiku high, claude/flake-series-r5 3b14c825 | session_016iS3kPEG2bDTyKBSQgj5BM 08:49 |
-| review-delta-r1.md (rc 6: adf71956..6b01c976, 61 merges; 1.5 %) | opus high, claude/review-delta 6b01c976 | session_016iS3kNG4tb3JCTf7P3SjiS 13:27 |
+| mc-focus-r1.md (rc 9, I3: rd-5 MEDIUM, mc misses focus.node; 0.8 %) | sonnet medium, claude/mc-focus 6b01c976 | starting |
 | record-v9-r1.md (F7, rc 11: v9 take vs v8; 1.2 %) | sonnet medium, claude/record-v9 6b01c976 | session_016iS3kPEnmatu6w5XewDQLy 13:33 |
 
 ## Queue (% week; 5 % reserve)
