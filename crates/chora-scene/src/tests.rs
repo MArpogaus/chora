@@ -2014,3 +2014,58 @@ fn the_order_survives_a_round_trip_and_normal_is_left_out() {
     let normal = serde_json::to_value(crate::Props::default()).unwrap();
     assert!(normal.get("order").is_none());
 }
+
+/// `count` rects under `parent`, ids `{prefix}{i}`.
+fn rects(prefix: &str, parent: &str, count: usize) -> Vec<Command> {
+    (0..count)
+        .map(|i| Command::Create {
+            id: format!("{prefix}{i}"),
+            kind: NodeKind::Rect,
+            parent: parent.into(),
+            props: PropsUpdate::default(),
+        })
+        .collect()
+}
+
+/// The time of `Scene::check` plus `Scene::apply` of `commands`, the two
+/// runs of one transaction in the core.
+fn transaction_time(scene: &mut Scene, commands: &[Command]) -> std::time::Duration {
+    let start = std::time::Instant::now();
+    scene.check("wm", commands).unwrap();
+    scene.apply("wm", commands).unwrap();
+    start.elapsed()
+}
+
+/// sl-3: the place of a root child is a binary search over the sorted
+/// root children, not a walk over all of them (was 57 s for 10000).
+/// Four times the creates take about four times as long, not sixteen;
+/// the floor of 50 ms keeps a fast small run from making the ratio noise.
+#[test]
+fn ten_thousand_creates_under_the_root_take_linear_time() {
+    let small = transaction_time(&mut Scene::default(), &rects("r", ROOT, 2500));
+    let mut scene = Scene::default();
+    let big = transaction_time(&mut scene, &rects("r", ROOT, 10_000));
+    assert_eq!(scene.node(ROOT).unwrap().children.len(), 10_000);
+    assert!(big < std::time::Duration::from_secs(2), "{big:?}");
+    let floor = small.max(std::time::Duration::from_millis(50));
+    assert!(big < 8 * floor, "2500 in {small:?}, 10000 in {big:?}");
+}
+
+/// sl-3: a remove finds its place among the siblings and stops there
+/// (was 3.4 s for 10000 in the core).
+#[test]
+fn ten_thousand_removes_of_siblings_take_linear_time() {
+    let mut scene = Scene::default();
+    let mut setup = vec![group("g", ROOT)];
+    setup.extend(rects("c", "g", 10_000));
+    scene.apply("wm", &setup).unwrap();
+    let removes: Vec<Command> = (0..10_000)
+        .map(|i| Command::Remove {
+            id: format!("c{i}"),
+            to: None,
+        })
+        .collect();
+    let time = transaction_time(&mut scene, &removes);
+    assert_eq!(scene.node("g").unwrap().children.len(), 0);
+    assert!(time < std::time::Duration::from_secs(1), "{time:?}");
+}

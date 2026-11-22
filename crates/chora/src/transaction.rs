@@ -961,4 +961,40 @@ mod tests {
         assert_eq!(ids, [json!(99), json!(id)]);
         assert!(wm.closed(&mut core));
     }
+
+    /// sl-3: one `scene.apply` of 10000 creates under the root answers
+    /// before the hang watchdog calls the main loop stalled (3 s,
+    /// `hang::STALL_AFTER`). The commands of `repro-sl3.sh`, under
+    /// `MAX_LINE`.
+    #[test]
+    fn a_big_transaction_answers_before_the_stall_line() {
+        let mut core = Core::new();
+        let mut wm = core.named("wm");
+        let commands: Vec<Value> = (0..10_000)
+            .map(|i| {
+                json!({"create": {"id": format!("n{i}"), "kind": "rect",
+                "parent": "root", "props": {"size": [1, 1]}}})
+            })
+            .collect();
+        let request = json!({"jsonrpc": "2.0", "id": 1, "method": "scene.apply",
+            "params": {"commands": commands}});
+        let mut line = request.to_string().into_bytes();
+        line.push(b'\n');
+        let start = Instant::now();
+        let mut sent = 0;
+        let mut responses = Vec::new();
+        while responses.is_empty() && start.elapsed() < Duration::from_secs(120) {
+            match wm.write(&line[sent..]) {
+                Ok(n) => sent += n,
+                Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {}
+                Err(err) => panic!("the core must read the whole line: {err}"),
+            }
+            core.dispatch();
+            responses.extend(wm.responses());
+        }
+        let time = start.elapsed();
+        assert_eq!(responses.len(), 1, "{responses:?}");
+        assert!(responses[0].get("result").is_some(), "{:?}", responses[0]);
+        assert!(time < Duration::from_secs(3), "{time:?}");
+    }
 }
