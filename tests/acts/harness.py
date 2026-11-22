@@ -35,6 +35,7 @@ import shutil
 import signal
 import socket
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -697,14 +698,18 @@ class Session:
         text changed while the captures were taken: a clock that redraws
         at the minute tick would else show its new text on the old pixels. The boxes are read
         before and after the captures too: a sheet that still slides in has its boxes where
-        it ends and its pixels where it began."""
+        it ends and its pixels where it began. A scene that still changes at the last try is
+        returned as read and says so on stderr (`did not settle`), never silently."""
         for attempt in range(tries):
             nodes = self.core.call("scene.query", {"selector": "*"}) or []
             boxes = self.core.call("scene.boxes")
             shots = self.shots(outputs) if self.capturing() else None
             again = self.core.call("scene.query", {"selector": "*"}) or []
             boxes_again = self.core.call("scene.boxes")
-            if (scene_texts(nodes) == scene_texts(again) and boxes == boxes_again) or attempt == tries - 1:
+            settled = scene_texts(nodes) == scene_texts(again) and boxes == boxes_again
+            if settled or attempt == tries - 1:
+                if not settled:
+                    print(f"harness: the scene did not settle in {tries} reads of {self.label}: the pixels and the boxes may be of two moments", file=sys.stderr, flush=True)
                 return nodes, boxes_again, shots
             sleep(0.3)
 
