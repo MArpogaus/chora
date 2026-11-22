@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-22 23:08 UTC)
+## Now (2026-11-22 23:09 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 22:56 PM 4.9 % (Bangkok 11-22) + 1.5 % (11-23), week about 14 % (lanes est.) vs 28 % pace; under pace: 6 lanes
 session branch: 6b01c976 (t108 green 13:01); 63 greens. Reds: t109g CUBE-SETTLE; t109h FLAKE-K1; t110 CHAT-IDLE; t110b PIX-CAPSULE. t110c red 22:32 cube.open 349 ms: load of 5 leaked compositors (HARNESS-LEAK); clean 3/3 at 40a2ba92 (122-162 ms); t110d 22:56 same head.
@@ -28,7 +28,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 | tiling-fix-r1.md (rc 3, 1: ti-37, 27, 25c; 1 %) | sonnet medium, claude/tiling-fix 011db749 | done 21:28, PM review MERGE-OK; t111 |
 | harness-leak-r1.md (F5, rc 3, 9: HARNESS-LEAK; 0.5 %) | sonnet medium, claude/harness-leak 6b01c976 | session_016iS3kLAyzZ7Uff7AJRj4wH 22:57 |
 | tiling-round-r1.md (rc 2, 1: T1, T3, I2, TF-1; 1 %) | sonnet medium, claude/tiling-round 011db749 | session_016iS3kNkRxE9puQDkmcAQBn 23:08 |
-| xp-idle-r1.md (F5, rc 3: FLK-CHAT-IDLE, xh-1; 0.5 %) | sonnet medium, claude/xp-idle bd5af4b3 | session_016iS3kM1upUA2pS1qWuZ3JY 21:38 (xp-helper r2 MERGE-OK, rides in it) |
+| xp-idle-r1.md (F5, rc 3: FLK-CHAT-IDLE, xh-1; 0.5 %) | sonnet medium, claude/xp-idle db7a7acd | done 23:09, PM review MERGE-OK; t111 |
 
 ## Queue (% week; 5 % reserve)
 3. (rc 8) DOCS-RC r2 (pr-1..5) on the Thu head.
