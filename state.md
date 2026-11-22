@@ -26,13 +26,13 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 | ti-38-r2.md (F7, rc 2: ti-38 MAJOR; r1 4441f1d4 done, merge 7a6c0eb8 conflicts, construct act rerun; 1.5 %) | opus high, claude/ti-38 4441f1d4 | session_016iS3kMg9i8mAmHNyiis9cz 07:34 |
 | looks1-mc-r1.md (rc 1 looks: 10 mc known-red rows; 1.4 %) | sonnet medium, claude/looks1-mc 7a6c0eb8 | session_016iS3kLPWJtz5XGMi6Uc9Hm 06:45 |
 | sim-long-r1.md (rc 9: leaks, stalls; 1.0 %) | haiku high, claude/sim-long 7a6c0eb8 | session_016iS3kMNxMZdeaWzofsKMsD 06:45; sl-3 W12 core dies 8/8 |
-| log-down-co-r1.md (rc 9a: construct eprintln to tracing; 0.9 %) | sonnet medium, claude/log-down-co 7a6c0eb8 | session_016iS3kLT7r8MsQvNKiKKLC2 07:05; gate runs |
-| split-b-r1.md (F4 headroom: voice core.rs 1,420, agents.rs 1,410; 1.6 %) | sonnet medium, claude/split-b 3b14c825 | starting 09:06 |
+| log-down-co-r1.md (rc 9a: co eprintln to tracing; 0.9 %) | sonnet medium, claude/log-down-co 7a6c0eb8 | session_016iS3kLT7r8MsQvNKiKKLC2 07:05; gate runs |
+| split-b-r1.md (F4: voice core, agents 1,420, 1,410; 1.6 %) | sonnet medium, claude/split-b 3b14c825 | session_016iS3kQcGNziaNKrScfwCsx 09:06 |
 | flake-series-r5.md (F5, rc 3: 5 gates at 2 jobs; 1 %) | haiku high, claude/flake-series-r5 3b14c825 | session_016iS3kPEG2bDTyKBSQgj5BM 08:49 |
 
 ## Queue (% week; 5 % reserve)
 4. (F7, rc 2-3) TOUR-FIX r3 85c5f3bc and ASK-ONE 322eef20 merged in t107 (3b14c825); next tour round after ti-38 r2 merges.
-5. t108 08:49 on 3b14c825: GATE-ALIVE a7ffdf22 alone (harness); then lanes merge the head; t109 LAUNCH-TIMER 629faf7b + TEST-GAPS 89dc32c4 (PM review MERGE-OK); then RECORD r2.
+5. t108 08:49 on 3b14c825: GATE-ALIVE a7ffdf22 alone (harness); then lanes merge the head; t109 LAUNCH-TIMER 629faf7b + TEST-GAPS 89dc32c4 (PM MERGE-OK); then RECORD r2.
 6. OPT-IN r1 done (six PASS; oi-2, oi-4 to DB21). FLAKE-SERIES r5 (rc 3, F5; 1 %) runs on 3b14c825.
 
 ## Needs owner
