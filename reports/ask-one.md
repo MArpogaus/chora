@@ -42,3 +42,9 @@ Gate
   walk, keys, pixels, mc-paths, mc-sofa, mc-column, mc-handover,
   launcher-click, voice-acp, voice-events, agent, e2e: all PASS ("partial
   run: nothing is pushed").
+
+## Review r1 (PM, 2026-11-22; PM not the builder; 1c9e64f7..322eef20, 4 files +227 -22)
+Checks: DB7 a red ac0e5e53, fix 018bd4b8: `sub_shown` is set on every sub question that asks (core.rs ~660, the same branch that sets `sub_confirm`), so a stale id only meets `sub_confirm` None; the replaced card refuses its own question only (test also checks the chat question still answers). DB7 b red ae2c388a, fix bb0d382c: `fits` and `question_text` share `shows()` (bytes and lines). DB7 c 0aab9538: REJECTED code and the refusal text pinned, plus the asking path told apart. RF3 227ed78a, 51e3af5a: kit `ConfirmCall` (deny_unknown_fields, lowercase); `always` is INVALID_PARAMS, as before (it never parsed); grep ConfirmParams empty.
+Gate: foreign red tiling-look bar-font = ti-37 (CLOCK-WIDTH in t106); tiling-empty to e2e PASS by --only; the full gate runs in the train.
+Findings: none BLOCK or MAJOR. ao-1 MINOR mc.rs `shows()` counts newline lines, not wrapped ones: a 3999-byte single line wraps past 30 screen lines on 1280x800 (backlog DB7 d).
+Verdict (computed): MERGE-OK on 322eef20.
