@@ -2492,6 +2492,23 @@ mod tests {
         assert_eq!(panel_effects(&mc, &model, "agenda"), 1, "it blurs again");
     }
 
+    /// A change of the write time or of the write switch changes no node
+    /// that stands: new text reads them when it writes. The settings
+    /// then rebuild nothing (the 300-panel scene took 3 s for it).
+    #[test]
+    fn a_write_setting_that_changes_no_look_rebuilds_nothing() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("write-only", [1920, 1080]);
+        mc.settings_changed().unwrap();
+        let before = model.lock().unwrap().queries;
+        mc.settings.value.write.duration_ms = 300.0;
+        mc.settings_changed().unwrap();
+        mc.settings.value.write.enabled = false;
+        mc.settings_changed().unwrap();
+        assert_eq!(model.lock().unwrap().queries, before, "no build ran");
+        assert_eq!(mc.shape, Some(mc.shape_of()));
+    }
+
     /// A query costs the core a walk over the scene, so a scene of 300
     /// panels must not ask one per title and row: the alignment of a
     /// scene reads all rects with one query.
