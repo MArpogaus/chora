@@ -2,8 +2,8 @@
 # Two looks on one output, as the persona session tiling+xp has them (p2r2
 # ricer, T7 and I3): tiling starts first and holds the give keys, xp joins
 # on the same output without `--output`, and leaves the keyboard with
-# tiling (ti-38); a click on the desktop of xp gives xp the keyboard, and a
-# foot starts with xp. Cells:
+# tiling (ti-38); a click on a desktop icon of xp gives xp the keyboard,
+# and a foot starts with xp. Cells:
 #
 #   keys  xp focuses its window, and the key list of tiling takes the
 #         keyboard: one look says it holds the focus
@@ -89,8 +89,11 @@ click() {
 holder_of() { ctl state "$1" | jq -r '.focus.holder // "none"'; }
 ctl capture "$shots/before.png" >/dev/null || fail "capture before"
 [ "$(holder_of xp)" = none ] || fail "xp joined and took the keyboard: $(ctl state xp | jq -c .focus)"
-click 5 400
-[ "$(holder_of xp)" = xp ] || fail "a click on the desktop of xp gives xp no keyboard: $(ctl state xp | jq -c .focus)"
+icon=$(ctl query id:xp-icon-1 | jq -r '.[0].rects | to_entries[0].value | "\(.[0] + .[2] / 2 | floor) \(.[1] + .[3] / 2 | floor)"') ||
+    fail "xp shows no second desktop icon"
+read -r ix iy <<<"$icon"
+click "$ix" "$iy"
+[ "$(holder_of xp)" = xp ] || fail "a click on a desktop icon of xp gives xp no keyboard: $(ctl state xp | jq -c .focus)"
 foot -f "DejaVu Sans Mono:size=10" -a probe -o colors.background=c81e1e sh -c 'sleep 900' >"$shots/foot.log" 2>&1 &
 run_pid $!
 w=$(ctl wait "app_id:probe kind:surface owner:xp" --timeout 20 | jq -r '.[0].id') ||

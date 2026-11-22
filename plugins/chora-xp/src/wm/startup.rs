@@ -197,6 +197,15 @@ impl Wm {
         self.arrival == super::Arrival::Joined
     }
 
+    /// Whether the smallest claim at a point of the scene is one of another
+    /// look, as the core chooses a look for a press (D55).
+    pub(super) fn claim_of_another_look(&mut self, point: [f64; 2]) -> bool {
+        let Ok(groups) = self.rt.conn.query("kind:group") else {
+            return false;
+        };
+        chora_scene::claimant_at(&groups, point, |_| true).is_some_and(|owner| owner != NAME)
+    }
+
     /// Whether a look other than xp holds a claim.
     fn another_look(&mut self) -> Result<bool, ClientError> {
         let groups = self.rt.conn.query("kind:group")?;

@@ -424,8 +424,10 @@ does not take the keyboard from it (D119): it takes the keyboard when the
 person clicks it, gives it a window (`Super+Alt+N`) or focuses one of its
 windows, and when no other look holds a claim. chora-xp holds the
 keyboard with its desktop icons while it has no window, but not when it
-starts beside another look, and not after a window of that look closes;
-rule 5 then keeps the next new window with the look that was there first.
+starts beside another look, not after a window of that look closes, and
+not for a click on its wallpaper in a smaller claim of that look, which
+the click chose; rule 5 keeps the next new window with the look that was
+there first.
 
 A press of a real pointer button on a point of a claim with no window
 under it chooses the owner of the smallest such claim, unless that one
