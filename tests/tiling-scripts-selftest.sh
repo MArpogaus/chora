@@ -92,7 +92,14 @@ for dir in $made; do
 done
 find /tmp -maxdepth 1 -name 'chora-tiling*' -newer "$work/stamp" -exec rm -rf {} + 2>/dev/null
 
-if command -v python3 >/dev/null && python3 -I -c 'import PIL' 2>/dev/null && [ -f /usr/share/fonts/opentype/inter/Inter-Medium.otf ]; then
+inter=${SELFTEST_INTER:-/usr/share/fonts/opentype/inter/Inter-Medium.otf}
+if ! command -v python3 >/dev/null; then
+    echo "skip: clock selftest, python3 is missing"
+elif ! python3 -I -c 'import PIL' 2>/dev/null; then
+    echo "skip: clock selftest, the Python module PIL is missing"
+elif [ ! -f "$inter" ]; then
+    echo "skip: clock selftest, the font Inter is missing ($inter)"
+else
     python3 -I "$repo/tests/clock-width.py" --selftest >"$work/cw.log" 2>&1 || fail "clock-width selftest: $(tail -3 "$work/cw.log")"
 fi
 
