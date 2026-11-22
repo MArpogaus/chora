@@ -600,9 +600,10 @@ const ASSISTANT: &str = "assistant";
 /// The events; `voice.*` are those of the voice agent (D65),
 /// `assistant.chat` says where the HUD host shows its chat, and
 /// `assistant.chat.keyboard` when its field takes the keyboard.
-const EVENTS: [&str; 20] = [
+const EVENTS: [&str; 21] = [
     "voice.*",
     "focus.changed",
+    "focus.node",
     "node.key",
     "assistant.chat",
     "assistant.chat.keyboard",
