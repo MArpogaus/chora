@@ -334,3 +334,15 @@ fixed in `788605f4` without touching the list.
 
 Head `788605f4`. No production file over 1500 lines (size-ratchet: 0
 files).
+
+## r3
+
+F5 (FLK-TX-STALL): the sl-3 test measured wall time on the dispatching thread, so other test threads counted against the core.
+
+- Base 788605f4. Red `50ca5899` "test(core): CHORA_TX_LOAD=1 turns sl-3 red on wall time" (test-only env switch spawns 4 busy threads per core).
+  Red line: `sl-3 wall 3.027575339s` / `panicked at crates/chora/src/transaction.rs:1038:9: 3.027575339s` (an earlier run: 3.17 s).
+- Repro (4 shell spinners, lib run, 5x, wall): 1.10, 1.46, 1.39, 1.59, 1.39 s (all green, bar 3 s).
+- Green `93e9af7b`: the bar is thread CPU time (`clock_gettime(CLOCK_THREAD_CPUTIME_ID)`) < 3 s; wall < 60 s only as hang guard. No raised bar, no ignore.
+- Follow-up `03e17809` (head): the lint ratchet counted my eprintln and a print_stderr allow; the test writes with `writeln!(stderr)`, the one `allow(unsafe_code, reason)` stays, list allow 361 (`ratchet-raise:` line). The first gate run was red on exactly this (allow 362 vs 360, eprintln 132 vs 131), caused by me, fixed.
+- 10 runs of the lib test under 4 spinners + CHORA_TX_LOAD=1, 0 red. CPU / wall: 0.73/4.51, 0.72/4.47, 0.70/4.32, 0.70/3.97, 0.72/4.10, 0.71/4.24, 0.69/4.05, 0.76/4.50, 0.72/4.19, 0.68/3.98 s (the wall bar would have been red in all 10). The final head ran 10 more under load: CPU 0.69 to 0.77 s, 0 red.
+- Gate: `tests/merge-gate.sh --jobs 2` (full) on claude/core-diag 03e17809 merged with fresh origin/claude/autonomous-dev-session-3w-i33pg7 (detached cb7fd55a): 57 cells PASS, EXIT 0, nothing pushed.
