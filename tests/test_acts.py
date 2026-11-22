@@ -435,6 +435,43 @@ class KnownRed(unittest.TestCase):
         self.assertEqual(len(shots), 2)
         self.assertEqual(boxes["O"]["boxes"][0]["rect"], [0, 56, 5, 5])
 
+    def test_a_scene_that_never_settles_says_so(self):
+        """rw-7: after the last try the last read is returned with a line in the log, never silently."""
+        import contextlib
+        import io
+
+        s = object.__new__(harness.Session)
+        step = iter(range(100))
+
+        def call(method, _params=None):
+            if method == "scene.boxes":
+                return {"O": {"boxes": [{"node": "n", "rect": [0, next(step), 5, 5]}]}}
+            return [{"id": "n", "text": "x"}] if method == "scene.query" else {}
+
+        s.core = type("C", (), {"call": staticmethod(call)})()
+        s.label, s.looks = "xp", ["xp"]
+        s.shots = lambda outputs: {}
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            nodes, boxes, _ = s.settled_scene([], tries=3, sleep=lambda _t: None)
+        self.assertIn("did not settle", err.getvalue())
+        self.assertIn("3 reads", err.getvalue())
+        self.assertEqual(nodes[0]["id"], "n")
+        self.assertIsNotNone(boxes)
+
+    def test_a_scene_that_settles_logs_nothing(self):
+        import contextlib
+        import io
+
+        s = object.__new__(harness.Session)
+        s.core = type("C", (), {"call": staticmethod(lambda method, _p=None: [{"id": "n", "text": "x"}] if method == "scene.query" else {})})()
+        s.label, s.looks = "xp", ["xp"]
+        s.shots = lambda outputs: {}
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            s.settled_scene([], sleep=lambda _t: None)
+        self.assertEqual(err.getvalue(), "")
+
     def test_a_snapshot_reads_the_boxes_after_the_clients(self):
         s = object.__new__(harness.Session)
         order = []
