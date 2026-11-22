@@ -1,0 +1,14 @@
+# harness-leak r1 (F5, rc 3 and 9: HARNESS-LEAK)
+
+Model: sonnet, effort medium (process cleanup in two shell scripts; routine)
+Lane: cloud, claude/harness-leak at 6b01c976 (session head). Cost at most 0.5 %; stop at 250 k context. One area: tests/merge-gate.sh, tests/gate-lib.sh (or the lib the gate cells source), tests/gate-*.sh only where a cell starts its compositor outside the lib.
+Why (backlog.md on claude/session-log, HARNESS-LEAK): after gate runs five `chora --headless` compositors (construct x4, mc, xp; up 1.6 to 8.9 h) stayed alive and held about 2 of 4 CPUs; the t110c cube cell then failed "cube.open took 402 ms, 349 ms more than construct.list" (tests/gate-construct-cube.sh:753); 122-162 ms once they were killed.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`; a failure: send_message the PM "harness-leak BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1) Find which exits leak (a failing cell, a timeout, SIGTERM of merge-gate, `fail` inside a subshell): file:line for each; paste the ps lines.
+2) Red first: a gate-lib self test (in the existing gate-lib step) that runs a cell which fails, one killed by timeout, and checks with pgrep that no compositor of that run lives after; red on that commit (paste the line).
+3) Fix: every cell runs its compositor in its own process group and a trap kills the group on EXIT, INT, TERM; merge-gate.sh refuses to start (clear message naming the pids) while a `chora --headless` of an earlier run lives. No sleep-based waits; no raised bar.
+After: the self test 5/5; one full gate; `pgrep -fa 'chora --headless'` empty after it (paste).
+Gate: full `tests/merge-gate.sh --jobs 2` (no --only) on claude/harness-leak merged with fresh origin/claude/autonomous-dev-session-3w-i33pg7, detached: `setsid nohup bash -c '(tests/merge-gate.sh --jobs 2 > /tmp/gate.log 2>&1; echo EXIT $? >> /tmp/gate.log)' >/dev/null 2>&1 </dev/null &`, poll /tmp/gate.log in the same turn; never end a turn to wait. A red cell you did not cause: name it with its log line; do not rerun to green.
+Done when: the leaking exits named, red then green commits, 5/5 self test, the gate green or its foreign reds named, no compositor left after the gate.
+Report: reports/harness-leak.md "## r1" on claude/session-log (shas, leaks, red and green lines, counts, gate summary); send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 4 lines with the head sha.
+Rules: push claude/harness-leak and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).
