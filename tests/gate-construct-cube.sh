@@ -57,6 +57,8 @@
 #   SHOT  a PNG path that keeps a capture of the cube during a turn
 #   INJECT_LAG  seconds before each injection (default 0): the start of a
 #         choractl on a loaded machine, the stress of the keys in a row
+#   CUBE_LOAD   1 starts 8 busy shell loops per CPU for the run (a loaded host): the
+#         cube must settle in time with the shell and ctl calls slowed down
 #   CLOCK_EDGE  seconds before a minute change at which a still check starts
 #         (default: at once): the clocks of the construct and of xp draw at
 #         the change, the stress of a check across a minute
@@ -122,6 +124,12 @@ EOF
 }
 
 session_start 1280x800 -- "$bin/chora-construct"
+if [ "${CUBE_LOAD:-0}" = 1 ]; then
+    for _ in $(seq $((8 * $(nproc)))); do
+        (while :; do :; done) &
+        pids+=($!)
+    done
+fi
 grant input.inject screen.capture
 ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
 
