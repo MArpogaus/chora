@@ -534,6 +534,7 @@ fn transaction_error(error: &TransactionError) -> RpcError {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Write;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -1023,7 +1024,6 @@ mod tests {
     /// work on that thread, and other test threads are not the core's
     /// cost. Wall time only guards against a hang (60 s).
     #[test]
-    #[allow(clippy::print_stderr, reason = "the test prints its time")]
     fn a_big_transaction_answers_before_the_stall_line() {
         let mut core = Core::new();
         let mut wm = core.named("wm");
@@ -1054,7 +1054,7 @@ mod tests {
         let wall = start.elapsed();
         let time = thread_cpu().saturating_sub(cpu_start);
         drop(busy);
-        eprintln!("sl-3 cpu {time:?} wall {wall:?}");
+        writeln!(std::io::stderr(), "sl-3 cpu {time:?} wall {wall:?}").expect("stderr");
         assert_eq!(responses.len(), 1, "{responses:?}");
         assert!(responses[0].get("result").is_some(), "{:?}", responses[0]);
         assert!(time < Duration::from_secs(3), "cpu {time:?}");
