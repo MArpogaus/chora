@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-22 14:21 UTC)
+## Now (2026-11-22 14:41 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day (90.2 % in 135 h), no day cap; tokens.py 12:45 week 9.8 % (6.1 + 3.7; under pace 19.7 %; lanes wait on gates: add reviews, rc 4, 6)
-session branch: 6b01c976 (t108 green 13:01: GATE-ALIVE); 63 greens. t109 red 13:54 in pull (title drag, 1 of 5: 4 cell reruns green, flake FLK-PULL-DRAG); t109b cd7beeac = t109 + t110 (core-diag, log-down-xp, mesh-churn) at --jobs 2 from 14:22.
+session branch: 6b01c976 (t108 green 13:01: GATE-ALIVE); 63 greens. t109 red 13:54: pull flake FLK-PULL-DRAG (4 reruns green). t109b cd7beeac (t109 + core-diag, log-down-xp, mesh-churn) red 14:35: matrix flake FLK-GIVE-POINT (rerun green). t109c same head from 14:41.
 burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series, hint act red twice; closes on flake-hint + haiku series 5 at 2 jobs on t109 head); F7 open.
 
 ## RC (plans/week-3.md 1; rc.4 waiver gone)
@@ -32,8 +32,8 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 ## Queue (% week; 5 % reserve)
 3. DOCS-RC r1 now (under pace); r2 on the Thu head.
 4. (rc 1, F7) tour round after ti-38 r2 merges;
-5. (rc 3; 0 %) t109b from 14:22 (cd7beeac): LAUNCH-TIMER 629faf7b, TEST-GAPS 89dc32c4, LOG-DOWN-CO b974134e, SIM-LONG ce451499, SPLIT-C 96e5c804, SPLIT-B 2af7801c, LOG-DOWN-MC b843bf5f, LOOKS1-MC b0453e19 (gates pending t109).
-6. (rc 9) after t109b: eprintln ratchet down; haiku series 5 at 2 jobs on its head (F5).
+5. (rc 3; 0 %) t109c from 14:41 (cd7beeac): LAUNCH-TIMER 629faf7b, TEST-GAPS 89dc32c4, LOG-DOWN-CO b974134e, SIM-LONG ce451499, SPLIT-C 96e5c804, SPLIT-B 2af7801c, LOG-DOWN-MC b843bf5f, LOOKS1-MC b0453e19 (gates pending t109).
+6. (rc 9) after t109c: eprintln ratchet down; haiku series 5 at 2 jobs on its head (F5).
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
