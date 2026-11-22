@@ -7,7 +7,8 @@ BASE and CAND are folders (the replay on 733967aa and the v9 take) with, per act
 `<act>.<capture>.png` (a still, 8-bit RGB or RGBA, no pointer) and `<act>.<capture>.json`:
 `{"nodes": [scene.query nodes], "masks": [[x, y, w, h], ...]}`; `checks` optionally maps a check
 name to "green" or "red". A capture with no file in BASE has `baseline: none` only when
-intended.toml lists it in `baseline_none = ["<act>.<capture>"]`; any other absence is a regression, and
+intended.toml lists it in `baseline_none = ["<act>.<capture>"]` or the `baseline-none.json` of BASE (or of the folder
+above it) names it (rv-3); any other absence is a regression, and
 so is a capture in BASE that CAND lacks. No capture at all (an empty or missing folder) exits 1.
 
 Two diffs per capture:
@@ -187,7 +188,7 @@ def compare(base, cand, intended, none=()):
     names = sorted({p.name for p in base.glob("*.png")} | {p.name for p in cand.glob("*.png")})
     for name in names:
         stem = name[: -len(".png")]
-        act, _, capture = stem.rpartition(".")
+        act, _, capture = stem.partition(".")
         row = {"act": act, "capture": capture}
         if not (cand / name).exists():
             rows.append({**row, "verdict": "regression", "unnamed": ["missing capture"], "flipped": [], "detail": "in the baseline only"})
@@ -213,6 +214,17 @@ def compare(base, cand, intended, none=()):
     return rows
 
 
+def none_of(base):
+    """The `<act>.<capture>` names of `baseline-none.json` (run.py writes it in the folder of the take
+    on the old build) in the base folder or the folder above it, where `captures/` of the take lies."""
+    names = []
+    for folder in (pathlib.Path(base), pathlib.Path(base).parent):
+        path = folder / "baseline-none.json"
+        if path.exists():
+            names += [n for entry in json.loads(path.read_text()) for n in entry.get("names", [])]
+    return names
+
+
 def main():
     args = sys.argv[1:]
     intended_path, as_json = None, False
@@ -226,7 +238,7 @@ def main():
     if len(args) != 2:
         sys.exit(__doc__)
     table = tomllib.loads(pathlib.Path(intended_path).read_text()) if intended_path else {}
-    rows = compare(args[0], args[1], table.get("change", []), table.get("baseline_none", []))
+    rows = compare(args[0], args[1], table.get("change", []), table.get("baseline_none", []) + none_of(args[0]))
     if as_json:
         print(json.dumps(rows, indent=1))
     else:
