@@ -1711,6 +1711,41 @@ mod tests {
         assert!(core.sub_confirm.is_some());
     }
 
+    /// A sub-agent question whose screen a newer question replaced is
+    /// still a no when its card cannot be shown: it is never left to be
+    /// answered without a screen (review secfix c r2, DB7 a).
+    #[test]
+    fn an_unshowable_question_replaced_on_screen_is_still_refused() {
+        let mut core = with_coder();
+        let mut sub = sub_question(&mut core, true);
+        let old = core.shown.expect("the sub-agent question is on the screen");
+        let effects = core.handle(text(9, false, Ok("Mach das Fenster zu.")));
+        let [(id, _)] = asks(&effects)[..] else {
+            panic!("{effects:?}");
+        };
+        let (answer, mut chat_rx) = oneshot::channel();
+        let event = chat::Event::Confirm {
+            prompt: "Wirklich?".into(),
+            detail: String::new(),
+            always: std::sync::Arc::default(),
+            physical: true,
+            answer,
+        };
+        core.handle(reply(id, event));
+        let new = core.shown.expect("the chat question replaced it");
+        assert_ne!(old, new);
+        assert!(sub.try_recv().is_err(), "the sub question still waits");
+        core.handle(Input::Unshowable(old));
+        assert_eq!(sub.try_recv(), Ok(false), "refused, not left pending");
+        assert!(core.sub_confirm.is_none());
+        assert!(chat_rx.try_recv().is_err());
+        wait_for_key(&mut core);
+        core.handle(Input::ConfirmKey(true));
+        assert_eq!(chat_rx.try_recv(), Ok(Some(true)));
+        core.handle(Input::ConfirmKey(true));
+        assert_eq!(sub.try_recv(), Err(oneshot::error::TryRecvError::Closed));
+    }
+
     /// A question that takes a key names its keys as the card does.
     #[test]
     fn the_spoken_keys_are_spelled_as_on_the_card() {
