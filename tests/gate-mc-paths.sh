@@ -371,7 +371,7 @@ cell_mouse_back() {
     key Super+Right
     until_ok '[ "$(current)" = morning ]' 20 || fail "no page 2"
     until_ok 'has_text "← 1  Agenda"' 20 || fail "the footer of page 2 has no line back"
-    has_text "→ 3  Agents" || fail "the footer of page 2 has no line on"
+    has_text "→ 3  Helpers" || fail "the footer of page 2 has no line on"
     shot mouse-back
     sleep 1
     click_rect "$(text_rect "← 1  Agenda")"
