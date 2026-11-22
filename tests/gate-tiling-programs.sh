@@ -15,7 +15,7 @@ need_bins chora choractl chora-tiling chora-probe
 export PATH=$bin:$PATH
 export CHORA_FLAVOR_DIR=$repo/flavors/tiling
 temp_config
-session_start 1280x800 -- "$bin/chora-tiling"
+session_start 1280x800 -- "$bin/chora-tiling" --no-companions
 grant screen.capture
 for file in docs/configuration.md dist/arch/PKGBUILD crates/chora/Cargo.toml; do
     grep -q "fuzzel.*1\.11" "$repo/$file" || fail "$file does not name fuzzel 1.11, the first with mouse support"

@@ -11,7 +11,9 @@ set -u
 . "$(dirname "$0")/gate-lib.sh"
 need_bins chora choractl chora-tiling chora-probe
 temp_config
-session_start 1280x800 -- "$bin/chora-tiling"
+mkdir -p "$XDG_CONFIG_HOME/chora"
+"$bin/chora-tiling" --print-config | sed 's/^  shadows: true/  shadows: false/' >"$XDG_CONFIG_HOME/chora/chora-tiling.yaml"
+session_start 1280x800 -- "$bin/chora-tiling" --no-companions
 grant screen.capture
 shot=$XDG_CONFIG_HOME/gaps.png
 
