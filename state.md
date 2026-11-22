@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-22 17:43 UTC)
+## Now (2026-11-22 17:46 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 16:15 PM day 4.9 %, week about 13 % (lanes est.) vs 24 % pace; under pace: 6 lanes full
-session branch: 6b01c976 (t108 green 13:01: GATE-ALIVE); 63 greens. t109b cd7beeac red 14:35: matrix flake FLK-GIVE-POINT (rerun green). t109c red 15:37: FLK-K1 (2nd). t109d red 16:46: mc-scale FLK-MC-SCALE (new, load). t109e from 16:47.
+budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 17:46 PM 4.9 % (Bangkok 11-22) + 0.3 % (11-23), week about 13 % (lanes est.) vs 24 % pace; under pace: 6 lanes full
+session branch: 6b01c976 (t108 green 13:01: GATE-ALIVE); 63 greens. t109b cd7beeac red 14:35: matrix flake FLK-GIVE-POINT (rerun green). t109c red 15:37: FLK-K1 (2nd). t109d red 16:46: mc-scale FLK-MC-SCALE (new, load). t109e red 17:4x: FLK-K1b (lane r2). t109f from 17:45.
 burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series, hint act red twice; closes on flake-hint + haiku series 5 at 2 jobs on t109 head); F7 open.
 
 ## RC (plans/week-3.md 1; rc.4 waiver gone)
@@ -30,7 +30,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 ## Queue (% week; 5 % reserve)
 3. DOCS-RC r2 (pr-1..5) on the Thu head.
 4. (F7, rc 11) record-v9 r1: diff void (clock); r2 after ti-38.
-5. (rc 3; 0 %) t109e from 16:47 (cd7beeac): LAUNCH-TIMER 629faf7b, TEST-GAPS 89dc32c4, LOG-DOWN-CO b974134e, SIM-LONG ce451499, SPLIT-C 96e5c804, SPLIT-B 2af7801c, LOG-DOWN-MC b843bf5f, LOOKS1-MC b0453e19.
+5. (rc 3; 0 %) t109f from 17:45 (cd7beeac): LAUNCH-TIMER 629faf7b, TEST-GAPS 89dc32c4, LOG-DOWN-CO b974134e, SIM-LONG ce451499, SPLIT-C 96e5c804, SPLIT-B 2af7801c, LOG-DOWN-MC b843bf5f, LOOKS1-MC b0453e19.
 6. (rc 1, 8, 9) next train: MC-FOCUS e22f824d, TI-38 a1f3c8d7, DOCS-RC 54c30d16, TI-MINOR 136bbd82, FLAKE-WAIT 176938d1, XP-38 c7f2e64f, FLAKE-K1 308f0915, CO-46 83033ed6 (PM MERGE-OK); D119 at merge. After t109c: eprintln ratchet down; haiku series 5 at 2 jobs after the flake lanes (F5).
 
 ## Needs owner
