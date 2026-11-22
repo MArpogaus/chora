@@ -389,7 +389,7 @@ mod tests {
 
     use serde_json::json;
 
-    use super::{Corner, QUESTION_BYTES, Report, at, question_text, start};
+    use super::{Corner, QUESTION_BYTES, Report, at, fits, question_text, start};
 
     /// Review plugins r1, VO-B-06 and sh-26: a detail too long for the
     /// HUD is not cut, which would hide its tail: the HUD shows that it
@@ -406,6 +406,21 @@ mod tests {
         assert!(text.ends_with(keys), "{text}");
         let short = question_text("Shall I?", "x: 1", keys);
         assert_eq!(short, format!("Shall I?\nx: 1{keys}"));
+    }
+
+    /// The text node holds few lines of the screen: 4000 bytes of 300
+    /// short lines do not fit, and the HUD then shows no cut list but
+    /// the line that says the command is too long (review secfix c r2,
+    /// DB7 b).
+    #[test]
+    fn many_short_lines_do_not_fit() {
+        let detail = "short line 1\n".repeat(300);
+        assert!(detail.len() < QUESTION_BYTES, "{}", detail.len());
+        assert!(!fits("Shall I?", &detail, None));
+        let text = question_text("Shall I?", &detail, "");
+        assert!(text.contains("too long to show"), "{text}");
+        assert!(!text.contains("short line"), "{text}");
+        assert!(fits("Shall I?", &"short line 1\n".repeat(10), None));
     }
 
     /// The question goes out without a character that hides or reorders
