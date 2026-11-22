@@ -17,3 +17,24 @@ Open: the findings come from older captures; a fresh capture on the head would c
 ## PM review r1
 
 Checked: 03e06230, bdb5af3a, c1adc900 and 6092aee3 are ancestors of fee9c695 (`git merge-base --is-ancestor`); the cells named are in train 89b green (tiling-audit, tiling-look, tiling-empty PASS, ce2c436b). Verdict: nothing to merge (no branch); ti-5, ti-6/19, ti-7 stay fixed. The gap (toast with the chat open, end to end) goes to p2-r2-tiling item 2, not a new lane. Worker archived.
+
+## r1
+
+Branch claude/ti-minor, head 136bbd82 (base a1f3c8d7 plus a merge of fresh origin/claude/autonomous-dev-session-3w-i33pg7, a3921f96; pushed).
+
+**ti-40** (left island width). Red: `FAIL: the left island ends at 436 with tile_left, at 411 with tile` (gate-tiling-bar.sh). Fix: `#custom-layout { min-width: 100px }` in flavors/tiling/waybar/style.css (fits "Kacheln links"/"Tile bottom"). Green: "ok: the left island keeps its width through four layout words". The gate check stays.
+
+**ti-41** (separator to layout word). tiling-v2.md line 59 names "the layout word" and line 17 only a 4 px unit; no guide line gives a separator-to-word number, so the gate follows the code: the chip edge is 6 px from the separator (as the other items) and the word one padding in (12 measured, 10 wanted, within 2). Red: `separator to the layout word: 6 px, not 12`. Hidden second red behind it: the tooltip check of the same gate wanted a tooltip over Apps/Keys, which c1adc900 removed on purpose; it now asserts no tooltip under a pointer at rest. Green: all four oks of gate-tiling-spacing.sh.
+
+**ti-42** (no "Power menu not installed"). Cause: not a lost notice. tell_launch_error (main.rs:257) connects to the core of the gate session and notify.show succeeds; chora-notify shows one card at a time (card.rs header, `push`: `waiting`) and the screenshot card (default 10 s) was still up: state.get listed `"waiting": [2]`, and `shown_notices` reads only `shown`. The gate waited 5 s. Product behaviour (one card, queue) left as is; the gate dismisses the screenshot card first (`dismiss_notices`), as a person would. Note for the PM: a critical notice still waits up to 10 s behind a normal card; a design question for chora-notify, not filed here. Green: "a launch that fails ends with failure and chora-notify shows the reason".
+
+**ti-45** (gate-join-keys). Asserts the holders before the key (tiling-first: tiling none, xp none; xp-first: tiling none, xp xp), after the key (tiling-first: tiling holds; xp-first: xp holds), and one click case (click on the tile after the second key: tiling holds, xp none; core with --test-injected-press-is-real). Green on a1f3c8d7: `tiling-first: after a click on the tile at 640 405: tiling {"holder":"tiling","surface":"s2"} xp {"holder":null}` and the final ok. Red on 3b14c825 (built apart): `tiling-first: before the key: tiling {"holder":null} xp {"holder":"xp"}` then `FAIL: tiling-first before the key: the holders are tiling none, xp xp; wanted tiling none, xp none`.
+
+**Counts** (each cell 5 times in a row; /tmp/chora-gate.lock serializes gates, so jobs 1 in effect): gate-tiling-bar 5/5, gate-tiling-spacing 5/5, gate-tiling-notice 5/5, gate-join-keys 5/5; 0 red.
+
+**known-red.** tests/acts/known-red.toml holds no row of these four (its rows are the construct and tiling-keys guide checks); nothing removed there. The three known-red steps of tests/merge-gate.sh (known-red-tiling-bar, -spacing, -notice) are gone; their gates run as the new step `tiling-bar`. known-red-tiling-theme and known-red-mc-host stay. The rows ti-40, ti-41, ti-42, ti-45 of findings/tiling.md are yours to close.
+
+**Gate** `tests/merge-gate.sh --jobs 2` on 136bbd82 (fresh origin merged, up to date): EXIT 1, 39 steps PASS. Red: step `acts` (232 pass, 5 known red, 2 blocking), both construct, not mine:
+- `FAIL: construct I6: in act 'co-42: the hint Keys of a face stays after 3 s and opens the key list by a click': on HEADLESS-1 'PANES' (construct-help-body-head-6) is 11 px, the guide wants 14 px`
+- `FAIL: construct act:the hint Keys of a face names a key that opens the key list: ... RuntimeError: the hint keys names no key`
+After the failure the steps after `pixels` (mc-paths ... e2e, incl. the new tiling-bar) did not run in the full run; `--only tiling-bar --jobs 2`: PASS 136 s.
