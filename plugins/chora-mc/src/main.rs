@@ -8,8 +8,12 @@
 //! itself.
 
 #![allow(
+    clippy::cognitive_complexity,
+    reason = "the tracing macros count as branches; the handlers are flat lists of arms"
+)]
+#![allow(
     clippy::print_stderr,
-    reason = "a plugin logs to stderr, which the session keeps"
+    reason = "the usage line of --launch is no log: the log starts in the runtime"
 )]
 
 mod acts;
@@ -1660,6 +1664,22 @@ mod tests {
         let title = Word::Volume.text(Language::of_session());
         let volume = text_of(&right_items(&mc), "-doors-volume");
         assert_eq!(volume, Some(format!("{title} 40%")));
+    }
+
+    /// While the chat is open its box lies over the doors, so the column
+    /// has none; the doors come back when it shuts.
+    #[test]
+    fn the_doors_leave_while_the_chat_is_open() {
+        let mut mc = crate::testing::mc("doors-chat", [1280, 800]).0;
+        mc.show("agenda", false).unwrap();
+        let doors = |mc: &super::Mc| {
+            (right_items(mc).iter())
+                .filter(|i| i.hit.as_deref().is_some_and(|h| h.starts_with("door:")))
+                .count()
+        };
+        assert_eq!(doors(&mc), 5);
+        mc.chat = crate::Chat::Open;
+        assert_eq!(doors(&mc), 0);
     }
 
     /// A chat that cannot open says so in a critical notice of

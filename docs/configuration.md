@@ -453,7 +453,7 @@ panels:
   style: {base: body, color: accent}   # a style of the settings, changed
 - id: agents
   cell: [1, 0, 1, 2]
-  title: Agents
+  title: Helpers
 ```
 
 Each scene of panels or of an app has a head in the style of the LaTeX

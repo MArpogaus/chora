@@ -340,8 +340,8 @@ impl<'de> Deserialize<'de> for VoiceHud {
         match name.as_str() {
             "host" => Ok(Self::Host),
             "own" => {
-                eprintln!(
-                    "chora-mc: voice_hud: own is gone; the HUD host draws the voice \
+                tracing::warn!(
+                    "voice_hud: own is gone; the HUD host draws the voice \
                      HUD of mc (read as host)"
                 );
                 Ok(Self::Host)
@@ -650,6 +650,35 @@ mod tests {
         }
         let written = serde_json::to_value(&config).unwrap();
         assert!(written.get("voice_hud").is_none());
+    }
+
+    /// lc-2: a warn of mc reaches stderr through the kit subscriber with
+    /// its level and its target (the crate of mc). The test starts itself
+    /// as the child, which starts the kit log and loads `voice_hud: own`.
+    #[test]
+    fn a_warn_of_mc_reaches_stderr_with_level_and_target() {
+        if std::env::var_os("CHORA_MC_LOG_CHILD").is_some() {
+            chora_kit::log::init();
+            let _ = parse::<Config>(&format!("{DEFAULT}voice_hud: own\n"));
+            return;
+        }
+        let out = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "--nocapture",
+                "config::tests::a_warn_of_mc_reaches_stderr_with_level_and_target",
+            ])
+            .env("CHORA_MC_LOG_CHILD", "1")
+            .env("RUST_LOG", "info")
+            .output()
+            .unwrap();
+        let err = String::from_utf8_lossy(&out.stderr);
+        let line = err
+            .lines()
+            .find(|l| l.contains("voice_hud: own is gone"))
+            .unwrap_or_else(|| panic!("no mc line on stderr: {err}"));
+        assert!(line.contains("WARN"), "{line}");
+        assert!(line.contains("chora_mc::config"), "{line}");
     }
 
     /// A settings file of mc with `voice_hud: own` loads, and a save
