@@ -377,3 +377,4 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 DB20 | 11-22 | later | tour v10: the three xp cube acts (demo/tour/chapters/xp.py:263-267) are x12, off design/tour-v9.md (tour-fix r3 rv-1); give them their own letter.
 DB7 d | 11-22 | later | voice mc.rs shows(): count wrapped screen lines, not only newlines (ask-one review ao-1, MINOR).
 DB21 | 11-22 | later | gate-tiling-motion.sh: restore the deep (focused) vs light (other) shadow split, two thresholds (gate-alive review ga-1, MINOR); name the source of the thin-space 0.56 in gate-tiling-keys.sh (ga-2). oi-2: gate-lib session_start leaves /tmp/gate-env.* (5 per run); oi-4: gate-demo GIFs at 9.49 MB of the 10 MB limit (reports/opt-in.md r1).
+- lm-1 (MINOR, review-looks1-mc): mc region/items.rs question_pending has no unit test (act rows cover it).
