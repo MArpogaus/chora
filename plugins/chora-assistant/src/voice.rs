@@ -58,15 +58,15 @@ pub fn greeting_pending() -> bool {
     greeted_file().is_some_and(|file| !file.exists())
 }
 
-/// Remembers the greeting; a failure leaves the greeting for the next start.
+/// Remembers the greeting; when that fails the paperclip greets again at
+/// the next start.
 fn remember_greeting() {
     let Some(file) = greeted_file() else {
         return;
     };
-    if let Some(dir) = file.parent()
-        && let Err(err) = std::fs::create_dir_all(dir).and_then(|()| std::fs::write(&file, b"1\n"))
-    {
-        eprintln!("chora-assistant: the greeting is not remembered: {err}");
+    let dir = file.parent().map(std::fs::create_dir_all);
+    if dir.is_some_and(|made| made.is_ok()) {
+        let _ = std::fs::write(&file, b"1\n");
     }
 }
 
