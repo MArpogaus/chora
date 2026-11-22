@@ -4,7 +4,7 @@ use super::{
     Action, BARS, Bar, Change, Click, Command, DIALOGS, DOUBLE_CLICK, DateDialog, DisplayDialog,
     EffectsDialog, HIDE_DELAY, HelpDialog, Hit, Instant, Mode, NAME, Outcome, Panel, Path, Rect,
     Setting, Store, TaskbarDialog, Value, Wm, apps, context, control, desktop_icons, display, help,
-    json, launch, taskbar, volume, wallpaper,
+    json, taskbar, volume, wallpaper,
 };
 
 use chora_kit::notice::{self, Notice, Urgency};
@@ -51,10 +51,7 @@ impl Wm {
         }
         let (summary, body) = change.text();
         let (replaces, expire_ms) = match change {
-            Change::Starting { .. } => (
-                None,
-                i32::try_from(launch::GIVE_UP.as_millis()).unwrap_or(-1),
-            ),
+            Change::Starting { .. } => (None, 0),
             Change::Failed { note, .. } | Change::Fallback { note, .. } => (*note, -1),
             Change::Done { .. } => return,
         };

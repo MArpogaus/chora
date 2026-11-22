@@ -7,14 +7,18 @@
 //! process is gone and the unit has no process left, the program ended;
 //! with a failed exit status, which the shell around the command writes
 //! to a file, it ended without a window and fails at once. A program that
-//! is still starting after a moment shows that it is; one
-//! that shows no window within [`GIVE_UP`] fails unless it still runs. The
-//! tracking answers each start with [`Change`]s that a look shows through
-//! the notification server.
+//! is still starting after a moment shows that it is, and it is until its
+//! window shows or the program ends: a program that runs without a window
+//! is neither served nor failed, and no timer decides for it. One that
+//! ended without a failure and shows no window within [`HAND_OVER`] fails
+//! too, since a launcher may have handed its work to a running instance
+//! and a window of that shows soon. The tracking answers each start with
+//! [`Change`]s that a look shows through the notification server.
 
 use std::{
     sync::{
         Arc,
+        atomic::{AtomicBool, Ordering},
         mpsc::{Receiver, Sender, channel},
     },
     time::{Duration, Instant},
@@ -23,8 +27,11 @@ use std::{
 /// How long a program starts unnoticed before a message says so.
 pub const SHOW_AFTER: Duration = Duration::from_secs(2);
 
-/// How long a program may take to open its first window.
-pub const GIVE_UP: Duration = Duration::from_secs(30);
+/// How long after a program ended without a failure its window may still
+/// show: a launcher that hands its work to a running instance exits at
+/// once. It is also the wait for a start whose end nobody can see, which
+/// has neither a pid nor a unit.
+pub const HAND_OVER: Duration = Duration::from_secs(30);
 
 /// Programs that show no toplevel window, a layer-shell launcher or a
 /// toggle that hands over to a running instance: their start is no wait.
@@ -90,7 +97,7 @@ pub enum Why {
     Missing,
     /// `choractl run` could not start it.
     Refused,
-    /// No window showed within [`GIVE_UP`].
+    /// A start that nobody follows showed no window within [`HAND_OVER`].
     Slow,
     /// The program ended without a window.
     Exited,
@@ -104,7 +111,7 @@ impl Why {
         match self {
             Self::Missing | Self::NoEditor => "is not installed.".into(),
             Self::Refused => "could not be started.".into(),
-            Self::Slow => format!("showed no window in {} seconds.", GIVE_UP.as_secs()),
+            Self::Slow => format!("showed no window in {} seconds.", HAND_OVER.as_secs()),
             Self::Exited => "ended without a window.".into(),
         }
     }
@@ -131,7 +138,7 @@ impl Change {
                 let body = match why {
                     Why::Missing => "The program is not installed.".to_string(),
                     Why::Refused => "The session could not start it.".into(),
-                    Why::Slow => format!("No window opened in {} seconds.", GIVE_UP.as_secs()),
+                    Why::Slow => format!("No window opened in {} seconds.", HAND_OVER.as_secs()),
                     Why::Exited => "The program ended without a window.".into(),
                     Why::NoEditor => "No text editor installed (for example mousepad).\nTo name one yourself: editor in chora-xp.yaml".into(),
                 };
@@ -153,7 +160,20 @@ struct Entry {
     shown: bool,
     watched: bool,
     gone: bool,
+    ended: Option<Instant>,
+    _watch: Option<Watch>,
     next: Next,
+}
+
+/// Stops the thread that follows a program once its start is not waited
+/// for any more.
+#[derive(Debug)]
+struct Watch(Arc<AtomicBool>);
+
+impl Drop for Watch {
+    fn drop(&mut self) {
+        self.0.store(true, Ordering::Relaxed);
+    }
 }
 
 /// What a start falls back to when its program does not open.
@@ -169,9 +189,12 @@ struct Next {
     /// only once this one shows its window.
     fell: Option<(String, Why)>,
     /// Where the shell of a start writes its failed exit status. A pidfd
-    /// tells that a program ended, not how, and a program that is no child
-    /// has no status to wait for; a status of zero may be a hand-over to a
-    /// running instance, so only a failure ends the wait at once.
+    /// tells that a program ended, not how, and the main process of a unit
+    /// is a child of the user manager, not of the look, so there is no
+    /// status to wait for; the unit is started with `--collect`, which
+    /// removes it, a failed one too, with its result. A status of zero may
+    /// be a hand-over to a running instance, so only a failure ends the
+    /// wait at once.
     status: Option<Arc<StatusFile>>,
 }
 
@@ -462,8 +485,14 @@ impl Launches {
             return;
         }
         let watched = pid.is_some() || unit.is_some();
+        let stop = Arc::new(AtomicBool::new(false));
         if watched {
-            watch(self.sender.clone(), token.clone(), (pid, unit));
+            watch(
+                self.sender.clone(),
+                token.clone(),
+                (pid, unit),
+                stop.clone(),
+            );
         }
         self.entries.push(Entry {
             name: started.name,
@@ -475,6 +504,8 @@ impl Launches {
             shown: false,
             watched,
             gone: false,
+            ended: None,
+            _watch: watched.then(|| Watch(stop)),
             next: started.next,
         });
     }
@@ -516,14 +547,15 @@ impl Launches {
     }
 
     /// What the programs that wait for a window call for at `now`. A
-    /// program that ended without a window fails at once, unless a
-    /// window of another start opened meanwhile, which a launcher that
-    /// hands its work to a running instance explains. A program that
-    /// shows no window within [`GIVE_UP`] fails too, unless it still runs.
+    /// program that ended with a failure and without a window fails at
+    /// once, unless a window of another start opened meanwhile, which a
+    /// launcher that hands its work to a running instance explains. One
+    /// that ended without a failure fails when no window shows within
+    /// [`HAND_OVER`] of its end. A program that runs waits for its window
+    /// or its end, however long that takes.
     pub fn check(&mut self, now: Instant) -> Vec<Change> {
         let mut changes = Vec::new();
         let mut failed = Vec::new();
-        let mut served = Vec::new();
         let (windows, bare) = (self.windows, self.bare);
         self.entries.retain_mut(|entry| {
             let age = now.saturating_duration_since(entry.since);
@@ -533,13 +565,11 @@ impl Launches {
                 failed.push((entry.take(), Why::Exited));
                 return false;
             }
-            if age >= GIVE_UP {
-                if entry.watched && !entry.gone {
-                    changes.push(Change::Done { note: entry.note });
-                    let (name, _, next) = entry.take();
-                    served.push((name, next));
-                } else if silent {
-                    failed.push((entry.take(), Why::Slow));
+            if let Some(why) = entry.over(now) {
+                if silent {
+                    failed.push((entry.take(), why));
+                } else if let Some(note) = entry.note {
+                    changes.push(Change::Done { note: Some(note) });
                 }
                 return false;
             }
@@ -558,9 +588,6 @@ impl Launches {
             }
             true
         });
-        for (name, next) in served {
-            self.served(name, next);
-        }
         for ((name, note, next), why) in failed {
             changes.extend(self.fail((name, note), why, next, now));
         }
@@ -569,6 +596,20 @@ impl Launches {
 }
 
 impl Entry {
+    /// Why the wait is over at `now`, if it is: the program ended
+    /// [`HAND_OVER`] ago, or nobody can see its end and it started that
+    /// long ago.
+    fn over(&mut self, now: Instant) -> Option<Why> {
+        let (since, why) = if !self.watched {
+            (self.since, Why::Slow)
+        } else if self.gone {
+            (*self.ended.get_or_insert(now), Why::Exited)
+        } else {
+            return None;
+        };
+        (now.saturating_duration_since(since) >= HAND_OVER).then_some(why)
+    }
+
     fn take(&mut self) -> (String, Option<u32>, Next) {
         (
             std::mem::take(&mut self.name),
@@ -581,30 +622,40 @@ impl Entry {
 /// Follows the program of a start on a thread of its own and tells
 /// `sender` when it ended: its main process is gone and its unit has no
 /// process left. A process that a pidfd cannot hold, and a unit without a
-/// main process, are looked at once a second. The thread gives up with
-/// the limit of [`GIVE_UP`].
-fn watch(sender: Sender<Heard>, token: String, (pid, unit): (Option<u32>, Option<String>)) {
+/// main process, are looked at once a second. The thread ends with the
+/// program, or when `stop` is set because the start is not waited for.
+fn watch(
+    sender: Sender<Heard>,
+    token: String,
+    (pid, unit): (Option<u32>, Option<String>),
+    stop: Arc<AtomicBool>,
+) {
     std::thread::spawn(move || {
-        let deadline = Instant::now() + GIVE_UP + Duration::from_secs(1);
+        let stopped = || stop.load(Ordering::Relaxed);
         let unit = unit.as_deref();
         let main_gone = pid.is_none_or(|pid| {
-            main_process_gone(pid, unit, deadline).unwrap_or_else(|| {
-                gone_by_polling((pid, unit), (deadline, POLL), (alive, unit_main_pid))
+            main_process_gone(pid, unit, (&stopped, POLL)).unwrap_or_else(|| {
+                gone_by_polling((pid, unit), (&stopped, POLL), (alive, unit_main_pid))
             })
         });
-        let unit_empty = || unit.is_none_or(|u| becomes(deadline, POLL, || !unit_active(u)));
+        let unit_empty = || unit.is_none_or(|u| becomes(stopped, POLL, || !unit_active(u)));
         if main_gone && unit_empty() {
             let _ = sender.send(Heard::Gone(token));
         }
     });
 }
 
-/// Whether the process `pid` is gone, waiting for its end until
-/// `deadline`; `None` when it cannot be held: the pidfd cannot be opened
-/// or the wait was interrupted. The process is held with a pidfd, which
-/// tells the end of a process that is no child; a pid that the unit no
-/// longer names has ended, and may name another process by now.
-fn main_process_gone(pid: u32, unit: Option<&str>, deadline: Instant) -> Option<bool> {
+/// Whether the process `pid` is gone, waiting for its end until `stopped`
+/// tells to give up, which it is asked once every `every`; `None` when it
+/// cannot be held: the pidfd cannot be opened or the wait was
+/// interrupted. The process is held with a pidfd, which tells the end of a
+/// process that is no child; a pid that the unit no longer names has
+/// ended, and may name another process by now.
+fn main_process_gone(
+    pid: u32,
+    unit: Option<&str>,
+    (stopped, every): (&dyn Fn() -> bool, Duration),
+) -> Option<bool> {
     use rustix::{
         event::{PollFd, PollFlags, Timespec, poll},
         process::{Pid, PidfdFlags, pidfd_open},
@@ -623,44 +674,47 @@ fn main_process_gone(pid: u32, unit: Option<&str>, deadline: Instant) -> Option<
     if unit.is_some_and(|unit| unit_main_pid(unit) != Some(pid)) {
         return Some(true);
     }
-    let left = deadline.saturating_duration_since(Instant::now());
     let timeout = Timespec {
-        tv_sec: i64::try_from(left.as_secs()).unwrap_or(i64::MAX),
-        tv_nsec: i64::from(left.subsec_nanos()),
+        tv_sec: i64::try_from(every.as_secs()).unwrap_or(i64::MAX),
+        tv_nsec: i64::from(every.subsec_nanos()),
     };
-    let mut fds = [PollFd::new(&fd, PollFlags::IN)];
-    match poll(&mut fds, Some(&timeout)) {
-        Ok(ready) => Some(ready > 0),
-        Err(_) => None,
+    loop {
+        let mut fds = [PollFd::new(&fd, PollFlags::IN)];
+        match poll(&mut fds, Some(&timeout)) {
+            Ok(0) if stopped() => return Some(false),
+            Ok(0) => {}
+            Ok(_) => return Some(true),
+            Err(_) => return None,
+        }
     }
 }
 
 /// The time between two looks at a program that cannot be held with a pidfd.
 const POLL: Duration = Duration::from_secs(1);
 
-/// Whether `probe` turns true before `deadline`, asked once every `every`.
-fn becomes(deadline: Instant, every: Duration, mut probe: impl FnMut() -> bool) -> bool {
+/// Whether `probe` turns true before `stopped` tells to give up, asked
+/// once every `every`.
+fn becomes(stopped: impl Fn() -> bool, every: Duration, mut probe: impl FnMut() -> bool) -> bool {
     loop {
         if probe() {
             return true;
         }
-        let now = Instant::now();
-        if now >= deadline {
+        if stopped() {
             return false;
         }
-        std::thread::sleep(every.min(deadline - now));
+        std::thread::sleep(every);
     }
 }
 
-/// Whether the process `pid` is gone before `deadline`, found by looking
-/// at it once every `every`: it is no process any more, or the unit names
+/// Whether the process `pid` is gone before `stopped` tells to give up,
+/// found by looking at it once every `every`: it is no process any more, or the unit names
 /// another main process.
 fn gone_by_polling(
     (pid, unit): (u32, Option<&str>),
-    (deadline, every): (Instant, Duration),
+    (stopped, every): (impl Fn() -> bool, Duration),
     (alive, main_pid): (impl Fn(u32) -> bool, impl Fn(&str) -> Option<u32>),
 ) -> bool {
-    becomes(deadline, every, || {
+    becomes(stopped, every, || {
         !alive(pid) || unit.is_some_and(|unit| main_pid(unit) != Some(pid))
     })
 }
@@ -785,7 +839,7 @@ const BUILTINS: [&str; 18] = [
 /// no assignment, quote around the program, path, operator or
 /// substitution that could make the shell find the program elsewhere.
 /// Such a command never runs, so a message can say so at once; any other
-/// command runs and the limit of [`GIVE_UP`] speaks.
+/// command runs, and the shell finds the program or does not.
 fn missing(command: &str, on_path: impl Fn(&str) -> bool) -> bool {
     let Some(word) = command.split_whitespace().next() else {
         return false;
@@ -840,17 +894,17 @@ mod tests {
         now + Duration::from_secs(s)
     }
 
+    fn never() -> bool {
+        false
+    }
+
     #[test]
     fn a_probe_that_turns_true_before_the_deadline_is_true() {
         let mut asked = 0;
-        let turned = becomes(
-            Instant::now() + Duration::from_secs(5),
-            Duration::from_millis(5),
-            || {
-                asked += 1;
-                asked == 3
-            },
-        );
+        let turned = becomes(never, Duration::from_millis(5), || {
+            asked += 1;
+            asked == 3
+        });
         assert!(turned);
         assert_eq!(asked, 3);
     }
@@ -859,7 +913,7 @@ mod tests {
     fn a_probe_that_stays_false_is_false_at_the_deadline() {
         let begun = Instant::now();
         let turned = becomes(
-            begun + Duration::from_millis(100),
+            || begun.elapsed() >= Duration::from_millis(100),
             Duration::from_millis(5),
             || false,
         );
@@ -876,25 +930,44 @@ mod tests {
         let pid = child.id();
         let every = Duration::from_millis(5);
         let probes = (alive, |_: &str| None);
-        let soon = Instant::now() + Duration::from_millis(100);
+        let begun = Instant::now();
+        let soon = || begun.elapsed() >= Duration::from_millis(100);
         assert!(!gone_by_polling((pid, None), (soon, every), probes));
         child.kill().unwrap();
         child.wait().unwrap();
-        let later = Instant::now() + Duration::from_secs(5);
-        assert!(gone_by_polling((pid, None), (later, every), probes));
+        assert!(gone_by_polling((pid, None), (never, every), probes));
     }
 
     #[test]
     fn a_unit_that_names_another_main_process_ends_the_wait() {
-        let later = Instant::now() + Duration::from_secs(5);
         let every = Duration::from_millis(5);
         let own = std::process::id();
         let probes = (alive, |_: &str| Some(own + 1));
         assert!(gone_by_polling(
             (own, Some("app.service")),
-            (later, every),
+            (never, every),
             probes
         ));
+    }
+
+    #[test]
+    fn a_wait_for_a_process_that_runs_ends_when_it_is_told_to_stop() {
+        let mut child = std::process::Command::new("sleep")
+            .arg("30")
+            .spawn()
+            .unwrap();
+        let every = Duration::from_millis(10);
+        let stop = AtomicBool::new(false);
+        let stopped = || stop.load(Ordering::Relaxed);
+        std::thread::scope(|scope| {
+            let wait = scope.spawn(|| main_process_gone(child.id(), None, (&stopped, every)));
+            std::thread::sleep(Duration::from_millis(50));
+            assert!(!wait.is_finished(), "a running process is waited for");
+            stop.store(true, Ordering::Relaxed);
+            assert_eq!(wait.join().unwrap(), Some(false));
+        });
+        child.kill().unwrap();
+        child.wait().unwrap();
     }
 
     #[test]
@@ -1010,7 +1083,7 @@ mod tests {
         assert_eq!(launches.take_notes(), [12]);
         assert_eq!(launches.take_notes(), Vec::<u32>::new());
         assert_eq!(
-            launches.check(seconds(now, GIVE_UP.as_secs())),
+            launches.check(seconds(now, HAND_OVER.as_secs())),
             [Change::Failed {
                 name: "writer".into(),
                 note: None,
@@ -1053,7 +1126,7 @@ mod tests {
     fn a_launcher_that_hands_over_to_a_running_instance_is_no_failure() {
         let (mut launches, now) = launches();
         assert_eq!(launches.window(None), None);
-        assert_eq!(launches.check(seconds(now, GIVE_UP.as_secs())), none());
+        assert_eq!(launches.check(seconds(now, HAND_OVER.as_secs())), none());
     }
 
     #[test]
@@ -1061,11 +1134,11 @@ mod tests {
         let (mut launches, now) = launches();
         assert!(
             launches
-                .check(seconds(now, GIVE_UP.as_secs() - 1))
+                .check(seconds(now, HAND_OVER.as_secs() - 1))
                 .iter()
                 .all(|c| matches!(c, Change::Starting { .. }))
         );
-        let changes = launches.check(seconds(now, GIVE_UP.as_secs()));
+        let changes = launches.check(seconds(now, HAND_OVER.as_secs()));
         assert_eq!(
             changes,
             [Change::Failed {
@@ -1089,23 +1162,6 @@ mod tests {
             assert_eq!(launches.check(seconds(now, 2)), none(), "{name}");
             assert_eq!(launches.check(seconds(now, 40)), none(), "{name}");
         }
-    }
-
-    #[test]
-    fn a_program_that_still_runs_at_the_limit_is_no_failure() {
-        let now = Instant::now();
-        let mut launches = Launches::new();
-        launches.add(Started {
-            answer: Some(answer(Some(std::process::id()))),
-            ..started(now)
-        });
-        launches.check(seconds(now, 2));
-        launches.noted("t1", 12);
-        assert_eq!(
-            launches.check(seconds(now, GIVE_UP.as_secs())),
-            [Change::Done { note: Some(12) }]
-        );
-        assert_eq!(launches.check(seconds(now, 60)), none());
     }
 
     /// A start whose main process is this test process: it never ends.
@@ -1174,6 +1230,55 @@ mod tests {
     }
 
     #[test]
+    fn a_program_that_ended_without_a_failure_or_a_window_ends_the_wait_late() {
+        let now = Instant::now();
+        let mut launches = Launches::new();
+        launches.add(Started {
+            answer: Some(answer(Some(u32::MAX))),
+            ..started(now)
+        });
+        launches.entries[0].gone = true;
+        launches.check(seconds(now, 5));
+        assert!(
+            launches
+                .check(seconds(now, 5 + HAND_OVER.as_secs() - 1))
+                .iter()
+                .all(|c| !matches!(c, Change::Failed { .. }))
+        );
+        let changes = launches.check(seconds(now, 5 + HAND_OVER.as_secs()));
+        assert!(
+            matches!(
+                changes.as_slice(),
+                [Change::Failed {
+                    why: Why::Exited,
+                    ..
+                }]
+            ),
+            "{changes:?}"
+        );
+    }
+
+    #[test]
+    fn a_hand_over_that_showed_a_window_of_another_start_closes_its_message() {
+        let now = Instant::now();
+        let mut launches = Launches::new();
+        launches.add(Started {
+            answer: Some(answer(Some(u32::MAX))),
+            ..started(now)
+        });
+        launches.check(seconds(now, 2));
+        launches.noted("t1", 12);
+        launches.entries[0].gone = true;
+        launches.window(Some("other"));
+        launches.check(seconds(now, 3));
+        assert_eq!(
+            launches.check(seconds(now, 3 + HAND_OVER.as_secs())),
+            [Change::Done { note: Some(12) }]
+        );
+        assert_eq!(launches.check(seconds(now, 200)), none());
+    }
+
+    #[test]
     fn an_end_with_a_window_of_another_start_is_waited_for_and_not_told() {
         let now = Instant::now();
         let mut launches = Launches::new();
@@ -1181,7 +1286,7 @@ mod tests {
         launches.entries[0].gone = true;
         launches.window(Some("other"));
         assert_eq!(launches.check(seconds(now, 1)), none());
-        assert_eq!(launches.check(seconds(now, GIVE_UP.as_secs())), none());
+        assert_eq!(launches.check(seconds(now, HAND_OVER.as_secs())), none());
     }
 
     fn chain() -> Vec<Candidate> {
@@ -1326,7 +1431,7 @@ mod tests {
     fn an_editor_that_handed_over_with_status_zero_is_waited_for() {
         let now = Instant::now();
         let mut launches = ended_editor(now, None, chain()[1..].to_vec());
-        for s in [2, 5, 10, GIVE_UP.as_secs() - 1] {
+        for s in [2, 5, 10, HAND_OVER.as_secs() - 1] {
             let changes = launches.check(seconds(now, s));
             assert!(
                 changes.iter().all(|c| matches!(c, Change::Starting { .. })),
