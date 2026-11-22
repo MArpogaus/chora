@@ -27,12 +27,12 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 | mc-helper-r1.md (rc 1: mc-57, 56, 55; 1 %) | sonnet medium, claude/mc-helper 42585079 | done 21:23, PM review MERGE-OK (mh-1, mh-2 MINOR) |
 | tiling-fix-r1.md (rc 3, 1: ti-37, 27, 25c; 1 %) | sonnet medium, claude/tiling-fix 4e46028b | session_016iS3kLAsJPbPUQ193bX8zu 19:25 |
 | core-fix-r1.md (rc 9: mch-1..4; 0.8 %) | sonnet medium, claude/core-fix 4fedd240 | done 20:52, PM review MERGE-OK (ck-1, ck-2 MINOR); slot free for record-v9 r2 after t110b |
-| xp-helper-r2.md (rc 1: rx-1..8; 0.8 %) | sonnet medium, claude/xp-helper bd5af4b3 | done 21:25, PM review r2 MERGE-OK (xh-1, xh-2 MINOR) |
+| xp-idle-r1.md (F5, rc 3: FLK-CHAT-IDLE, xh-1; 0.5 %) | sonnet medium, claude/xp-idle bd5af4b3 | starting 21:3x (xp-helper r2 MERGE-OK, rides in it) |
 
 ## Queue (% week; 5 % reserve)
 3. (rc 8) DOCS-RC r2 (pr-1..5) on the Thu head.
 4. (F7, rc 11) record-v9 r2 after ti-38.
-5. (rc 1, 3, 8, 9) t110b running: 10 of t109h list (9ee1cef1); t111: CORE-FIX 4fedd240, MC-HELPER 42585079, XP-HELPER bd5af4b3. XP-MINOR waits for FLK-CHAT-IDLE. Then: eprintln ratchet; haiku series 5 (F5).
+5. (rc 1, 3, 8, 9) t110b running: 10 of t109h list (9ee1cef1); t111: CORE-FIX 4fedd240, MC-HELPER 42585079, XP-IDLE (carries XP-MINOR, XP-HELPER). Then: eprintln ratchet; haiku series 5 (F5).
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
