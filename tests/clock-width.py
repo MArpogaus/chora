@@ -47,9 +47,10 @@ def selftest():
             if lo <= text_width(MONO, text) <= hi:
                 print(f"FAIL: the mono face {text} passes {lo:.1f}-{hi:.1f}")
                 bad += 1
-    widest = max((time.strftime(FORMAT, time.localtime(time.mktime((2026, 1, 1 + d, h, m, 0, 0, 0, -1))))
-                  for d in range(366) for h in range(24) for m in range(0, 60, 1)),
-                 key=lambda x: text_width(INTER, x))
+    days = [time.localtime(time.mktime((2026, 1, 1 + d, 12, 0, 0, 0, 0, -1))) for d in range(366)]
+    date = max((time.strftime("%a %d %b ", d) for d in days), key=lambda x: text_width(INTER, x))
+    hour = max((f"{h:02d}:{m:02d}" for h in range(24) for m in range(60)), key=lambda x: text_width(INTER, x))
+    widest = date + hour
     t = time.mktime(time.strptime("2026 " + widest, "%Y " + FORMAT))
     lo, hi = FIXED_OLD
     if lo <= text_width(INTER, widest) <= hi:
