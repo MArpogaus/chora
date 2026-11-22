@@ -15,7 +15,8 @@ temp_config
 export HOME=$XDG_CONFIG_HOME/home
 mkdir -p "$HOME"
 session_start "1280x800@1" -- "$bin/chora-xp" --theme "$repo/flavors/xp/theme"
-"$bin/chora-assistant" >"$shots/assistant.log" 2>&1 &
+start_assistant_like_a_loaded_machine() { sleep 0.8; exec "$bin/chora-assistant"; }
+start_assistant_like_a_loaded_machine >"$shots/assistant.log" 2>&1 &
 pids+=($!)
 grant screen.capture
 entries=$shots/entries.json
