@@ -38,3 +38,11 @@ Branch claude/ti-minor, head 136bbd82 (base a1f3c8d7 plus a merge of fresh origi
 - `FAIL: construct I6: in act 'co-42: the hint Keys of a face stays after 3 s and opens the key list by a click': on HEADLESS-1 'PANES' (construct-help-body-head-6) is 11 px, the guide wants 14 px`
 - `FAIL: construct act:the hint Keys of a face names a key that opens the key list: ... RuntimeError: the hint keys names no key`
 After the failure the steps after `pixels` (mc-paths ... e2e, incl. the new tiling-bar) did not run in the full run; `--only tiling-bar --jobs 2`: PASS 136 s.
+
+## PM review r1 (136bbd82)
+
+Base a1f3c8d7..136bbd82 without the merge a3921f96: 12 files +92 -46 (PM review: under 200 lines, PM not the builder). Checked: ti-40 min-width on the chip, gate check kept; ti-41 the gate now measures chip edge 6 px and word 10 px in the chip (guide tiling-v2.md names no number; accepted, the 12 px rule of the islands still holds for every other gap); ti-42 dismiss_notices before the launch, cause with lines (card.rs one card, queue); ti-45 holders asserted before, after the key and after a click; red on 3b14c825 pasted. The three known-red tiling steps become step tiling-bar in the full run.
+Findings:
+- rw-1 MINOR tests/gate-join-keys.sh (click case): `sleep 0.5` then expect_holders; a sleep-only wait in a new assert. Fix: until_ok on the holder. Next tiling round.
+- rw-2 MINOR (design, chora-notify): a failure notice waits up to 10 s behind a normal card (report ti-42). Backlog NOTIFY-PRIO.
+Gate: foreign reds named (acts, construct: hint keys = flake-hint lane; PANES 11 px = co-45 family); steps after pixels run in the train. Verdict computed: 0 BLOCK, 0 MAJOR: MERGE-OK; joins t110. Worker archived.
