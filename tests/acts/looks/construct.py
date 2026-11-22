@@ -482,9 +482,11 @@ def hint_rect(s, node):
     return None
 
 
-def hint_click(node):
+def hint_click(node, dwell=0.0):
     """A cue: a click in the middle of the hint `node` on the screen; the
-    pointer rests low first, which shows the hints of a face."""
+    pointer rests low first, which shows the hints of a face. `dwell` is
+    the time between reading the rect and the click: a slow harness, in
+    which the 3 s of the hints after a step in run out in between."""
 
     def cue(s):
         w, h = s.outputs()[0]["size"]
@@ -496,6 +498,7 @@ def hint_click(node):
             f"the hint {node} on the screen",
         )
         x, y, bw, bh = seen[-1]
+        time.sleep(dwell)
         s.inject([{"pointer_move": {"position": [x + bw / 2, y + bh / 2]}}, {"click": {}}])
 
     return cue
@@ -652,7 +655,7 @@ def keys_acts(s):
     )
     s.act(
         "the hint Keys of a face opens the key list by a click",
-        [key("Alt+Escape"), cube_navigates, plain("Return"), hint_click(KEYS_HINT)],
+        [key("Alt+Escape"), cube_navigates, plain("Return"), hint_click(KEYS_HINT, dwell=3.5)],
         opens=[SHEET],
         expect=Expect(open=[SHEET]),
     )
