@@ -47,3 +47,11 @@ Branch claude/xp-minor, head 3bec0cbf (base a1f3c8d7; merged with fresh origin/c
 - xp-28, 16316aeb: not reproduced on the head, so no code. Cell `xp-chat-idle` (tests/gate-xp-chat-idle.sh, in merge-gate.sh) plays fake voice working step 1/1, question, answer, idle: header says Working before, Idle after, no "step 1 of 1"; unit test `the_header_is_idle_and_stop_off_when_the_turn_ends_after_a_question` checks running() is false. I did not bisect which commit fixed it (likely 06b9666c kit7 state machine; unverified). The header follows voice.state, so a real voice that never sends idle would still show Working; that is not covered. Stop button state checked only via running(), not in the scene. The "editor over desktop icons" half: not examined, report only.
 - Counts: arrival_ 5/5 green x5; gate-xp-chat-idle.sh 5/5 green.
 - Gate: tests/merge-gate.sh --jobs 2 (full): 58 PASS, no FAIL, EXIT 0, no foreign reds.
+
+## PM review (2026-11-22 18:31 UTC)
+Range a1f3c8d7..3bec0cbf, own commits 7e49b273 (dispatch.rs +6/-2, startup.rs +104) and 16316aeb (chat.rs +20, gate-xp-chat-idle.sh +47, merge-gate +1): 176 lines, PM review (rules.md 7, PM not the builder).
+- ti-43: look_gone settles only when joined and no other claim; a failed claim query keeps Joined (unwrap_or(true)): safe. Done.
+- ti-44: five Arrival units, seeded red 4/5 reported. Done.
+- xp-28: header half not reproducible, guarded by cell xp-chat-idle; editor-over-icons half not examined: stays open (next xp lane).
+- Gate 58 PASS on the merge with the session head. Test in the same commit as the fix: allowed by red-first (merge-gate.sh:30).
+Verdict (computed): 0 MAJOR -> MERGE-OK. Joins t110 after TI-38.
