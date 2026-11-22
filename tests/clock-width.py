@@ -5,7 +5,10 @@ The clock shows "%a %d %b %H:%M" (flavors/tiling/waybar/config.jsonc), so its
 width in Inter 14 px weight 500 follows the date and the time (107 to 124 px).
 bounds(times) gives the (low, high) width in px of the text of each time in
 TIMES (epoch seconds, the capture may span a minute change), +-3 px for the
-rounding of the ink. The mono face is 134.75 px wide for every text, above the
+rounding of the ink. The selftest holds the widest text of the year, every
+minute of every day, in the bound of that very text: the fixed 100-119 of the
+first gate misses it (ti-37, "Sun 22 Nov 00:36" is 120.0 wide, the widest is
+"Wed 06 May 04:44" at 128.7). The mono face is 134.75 px wide for every text, above the
 bound of any date.
 
 Usage: clock-width.py EPOCH...   prints "LOW HIGH"
@@ -18,6 +21,7 @@ INTER = "/usr/share/fonts/opentype/inter/Inter-Medium.otf"
 MONO = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
 FORMAT = "%a %d %b %H:%M"
 SLACK = 3
+FIXED_OLD = (100, 119)
 
 
 def text_width(font_path, text):
@@ -43,6 +47,18 @@ def selftest():
             if lo <= text_width(MONO, text) <= hi:
                 print(f"FAIL: the mono face {text} passes {lo:.1f}-{hi:.1f}")
                 bad += 1
+    widest = max((time.strftime(FORMAT, time.localtime(time.mktime((2026, 1, 1 + d, h, m, 0, 0, 0, -1))))
+                  for d in range(366) for h in range(24) for m in range(0, 60, 1)),
+                 key=lambda x: text_width(INTER, x))
+    t = time.mktime(time.strptime("2026 " + widest, "%Y " + FORMAT))
+    lo, hi = FIXED_OLD
+    if lo <= text_width(INTER, widest) <= hi:
+        print(f"FAIL: the widest text {widest} fits the old fixed {lo}-{hi}")
+        bad += 1
+    lo, hi = bounds([t])
+    if not lo <= text_width(INTER, widest) <= hi:
+        print(f"FAIL: the widest text {widest} ({text_width(INTER, widest):.1f}) is outside {lo:.1f}-{hi:.1f}")
+        bad += 1
     t = time.mktime((2026, 11, 22, 0, 36, 0, 0, 0, -1))
     lo, hi = bounds([t])
     if not lo <= 120.0 <= hi:

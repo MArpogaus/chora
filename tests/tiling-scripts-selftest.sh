@@ -6,6 +6,8 @@
 # pids of the plugin. Fake choractl, chora-tiling and waybar stand in for
 # the programs.
 #
+# It also runs the selftest of the clock bound (tests/clock-width.py, ti-37).
+#
 # Usage: tests/tiling-scripts-selftest.sh
 set -u
 
@@ -89,6 +91,10 @@ for dir in $made; do
     [ "$got" = 700 ] || fail "the mktemp dir has mode $got, not 700"
 done
 find /tmp -maxdepth 1 -name 'chora-tiling*' -newer "$work/stamp" -exec rm -rf {} + 2>/dev/null
+
+if command -v python3 >/dev/null && python3 -I -c 'import PIL' 2>/dev/null && [ -f /usr/share/fonts/opentype/inter/Inter-Medium.otf ]; then
+    python3 -I "$repo/tests/clock-width.py" --selftest >"$work/cw.log" 2>&1 || fail "clock-width selftest: $(tail -3 "$work/cw.log")"
+fi
 
 if [ "$failures" -gt 0 ]; then
     exit 1
