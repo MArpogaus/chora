@@ -72,10 +72,18 @@ verdict() {
     echo "cell $1 $2${3:+: $3}"
     [ "$2" = pass ] || reds+=("$1")
 }
+hold_foot() {
+    local pid=$1 app=$2
+    until ctl query "app_id:$app kind:surface" 2>/dev/null | jq -e 'length > 0' >/dev/null; do :; done
+    kill -STOP "$pid"
+    (sleep 3; kill -CONT "$pid") &
+    run_pid $!
+}
 foot_of_tiling() {
     local id
     foot -f "DejaVu Sans Mono:size=10" -a "$1" sh -c 'sleep 900' >>"$shots/foot.log" 2>&1 &
     run_pid $!
+    [ -z "${GIVE_RACE:-}" ] || hold_foot $! "$1"
     id=$(ctl wait "app_id:$1 kind:surface" --timeout 20 | jq -r '.[0].id') || fail "foot $1 does not show"
     for _ in $(seq 50); do
         case $(ctl query "id:$id" | jq -r '.[0].owner // "none"') in
