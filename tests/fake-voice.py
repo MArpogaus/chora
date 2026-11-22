@@ -20,7 +20,7 @@ argument plus `.answers`, and the agent ends the question with
 FAKE_VOICE_ENTRIES names a JSON file with the transcript of the helper
 `atlas`; then the agent also exports `agent`, `agent.read`,
 `agent.cancel`, `chat.open` and `chat.close`. `agent.read` answers the
-entries after `after`, `agent` answers `agent_list` with one helper, and
+entries after `after`, `agent` answers `agent_list` with one helper (or the text of FAKE_VOICE_LIST), and
 every call of these goes as a line of JSON to the file of the first
 argument plus `.chat`.
 
@@ -103,7 +103,7 @@ def chat_answer(method, params):
     with open(claims_file + ".chat", "a", encoding="utf-8") as f:
         f.write(json.dumps({"method": method, "params": params}, sort_keys=True) + "\n")
     if method == "agent" and params.get("tool") == "agent_list":
-        return "projects: demo; agents: atlas (demo, working)"
+        return os.environ.get("FAKE_VOICE_LIST", "projects: demo; agents: atlas (demo, working)")
     if method == "agent" and params.get("tool") == "agent_say" and os.environ.get("FAKE_VOICE_ANSWER"):
         answer_say(params.get("name", "atlas"), params.get("text", ""))
         return "ok"
