@@ -333,6 +333,17 @@ pub fn flow(cells: &[[u32; 4]], cols: u32) -> (Vec<[u32; 4]>, u32) {
 mod tests {
     use super::*;
 
+    /// The word table says helper: no visible head of a shipped scene
+    /// says agent (mc-55).
+    #[test]
+    fn no_shipped_chapter_title_says_agent() {
+        for (name, text) in BUILT_IN {
+            let scene = parse(text).unwrap();
+            let title = scene.chapter.title.unwrap_or_default().to_lowercase();
+            assert!(!title.contains("agent"), "{name}: {title}");
+        }
+    }
+
     fn dir(name: &str) -> chora_kit::testing::TempDir {
         chora_kit::testing::TempDir::unmade(&format!("chora-mc-{name}"))
     }

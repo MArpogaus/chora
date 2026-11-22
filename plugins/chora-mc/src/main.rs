@@ -1838,6 +1838,15 @@ mod tests {
         assert!(!mc.agents.iter().any(|a| a.name == "voice"));
         assert!(mc.solo.is_none() && !mc.texts.contains_key("confirm"));
         assert!(mc.agents.iter().any(|a| a.name == "Atlas"));
+        let head = mc.scenes["agents"]
+            .chapter
+            .running_head
+            .clone()
+            .unwrap_or_default();
+        assert!(
+            !head.to_lowercase().contains("agent"),
+            "the head says {head:?}"
+        );
     }
 
     /// mc never claims the indicator of voice: the HUD host does.
