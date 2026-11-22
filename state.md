@@ -22,11 +22,11 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| flake-hint-r1.md (F5, rc 3: ldm-2 hint-click act; 0.8 %) | sonnet medium, claude/flake-hint 3b14c825 | session_016iS3kLq6SXjYGB7qdMUEni 12:46 |
+| flake-hint-r1.md (F5, rc 3: hint-click act; 0.8 %) | sonnet medium, claude/flake-hint 3b14c825 | session_016iS3kLq6SXjYGB7qdMUEni 12:46 |
 | flake-wait-r1.md (F5, rc 3, 9: two flakes, leaks; 1 %) | sonnet medium, claude/flake-wait 6b01c976 | session_016iS3kLfksC26x7cKnd3hBR 14:42 |
-| xp-38-r1.md (rc 1, 3: notify card 1.04:1, twice; 0.8 %) | sonnet medium, claude/xp-38 6b01c976 | session_016iS3kLMbUMw4vZ3TDqcxR6 15:03 |
+| xp-38-r1.md (rc 1, 3: notify card 1.04:1; 0.8 %) | sonnet medium, claude/xp-38 6b01c976 | session_016iS3kLMbUMw4vZ3TDqcxR6 15:03 |
 | co-46-r1.md (rc 1: hidden window keeps keys; 1 %) | sonnet high, claude/co-46 6b01c976 | session_016iS3kPkq3PWcVkMRxyrwRU 15:16 |
-| ti-minor-r1.md (rc 1, 3: ti-40, 41, 42, 45; 0.8 %) | sonnet medium, claude/ti-minor a1f3c8d7 | starting |
+| ti-minor-r1.md (rc 1, 3: ti-40, 41, 42, 45; 0.8 %) | sonnet medium, claude/ti-minor a1f3c8d7 | session_016iS3kPQNjDTWEE7rCPBjtm 15:18 |
 | docs-rc-r1.md (rc 8; 0.8 %) | sonnet low, claude/docs-rc 6b01c976 | session_016iS3kLAuHWp9BSjW4taJuA 13:55 |
 
 ## Queue (% week; 5 % reserve)
