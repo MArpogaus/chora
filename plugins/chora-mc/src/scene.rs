@@ -273,8 +273,8 @@ pub fn load(dir: &Path) -> BTreeMap<String, Scene> {
             Ok(scene) if check_name(name).is_ok() => {
                 scenes.insert(name.into(), scene);
             }
-            Ok(_) => eprintln!("chora-mc: {}: a wrong name", path.display()),
-            Err(err) => eprintln!("chora-mc: {}: {err}", path.display()),
+            Ok(_) => tracing::warn!("{}: a wrong name", path.display()),
+            Err(err) => tracing::warn!("{}: {err}", path.display()),
         }
     }
     scenes

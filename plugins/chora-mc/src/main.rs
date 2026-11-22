@@ -8,8 +8,12 @@
 //! itself.
 
 #![allow(
+    clippy::cognitive_complexity,
+    reason = "the tracing macros count as branches; the handlers are flat lists of arms"
+)]
+#![allow(
     clippy::print_stderr,
-    reason = "a plugin logs to stderr, which the session keeps"
+    reason = "the usage line of --launch is no log: the log starts in the runtime"
 )]
 
 mod acts;

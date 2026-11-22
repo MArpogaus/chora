@@ -89,7 +89,7 @@ impl Mc {
     pub(crate) fn tell_phase(&mut self, surface: &str, phase: Phase) {
         let emit = self.book.phase_event(surface, phase, None);
         if let Err(err) = self.rt.conn.call::<_, Value>("events.emit", emit) {
-            eprintln!("chora-mc: mc.window: {err}");
+            tracing::warn!("mc.window: {err}");
         }
     }
 
@@ -177,7 +177,7 @@ impl Mc {
         let new = !commands.is_empty();
         commands.extend(self.place_window(&name, surface, true));
         if let Some(err) = self.try_apply(&commands)? {
-            eprintln!("chora-mc: {surface}: {err}");
+            tracing::warn!("{surface}: {err}");
             if new {
                 self.scenes.remove(&name);
                 self.transient.remove(&name);

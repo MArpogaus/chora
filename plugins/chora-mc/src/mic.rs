@@ -86,13 +86,13 @@ impl Mc {
             match self.rt.conn.call::<_, Value>("methods.call", call) {
                 Ok(_) => Mic::Off,
                 Err(err) => {
-                    eprintln!("chora-mc: voice.mute: {err}");
+                    tracing::warn!("voice.mute: {err}");
                     Mic::Failed
                 }
             }
         };
         if let Err(err) = self.render() {
-            eprintln!("chora-mc: mic: {err}");
+            tracing::warn!("mic: {err}");
         }
         true
     }
