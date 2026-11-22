@@ -41,3 +41,10 @@ Findings
 - oi-5 (nit, header). tests/gate-construct-keys.sh header is hard to read: the text runs
   "also under the default voice_hud: host;" and then "a give key without a window says so;
   Super+t starts ...", and a list of co-numbers mixes into it. Log: head -40 of the script.
+
+## PM note r1 (08:16 UTC)
+Checked: six PASS lines in the table, logs named; no product change, so no review (rule 7 needs none for a run without code).
+oi-3 answered: construct-hud runs in every merge gate (step `hud`, t107 PASS 78 s); battle is the sim-long lane (r1 running, 3 h loop). The candidate run uses the plan list plus construct-keys-persona.
+oi-1: brief error by the PM (path tests/battle/kill-session.sh); fixed in the template for the candidate brief.
+oi-2 (gate-env temp files) and oi-4 (GIF margin 9.49 MB of 10 MB) to backlog DB21 (harness).
+Slice 20: green once on 7a6c0eb8 (early); the candidate run repeats it.

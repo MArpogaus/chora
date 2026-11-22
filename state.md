@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-22 08:00 UTC)
+## Now (2026-11-22 08:16 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 07:34 week 8.8 % (6.1 + 2.7 Bkk days; under pace 16.5 %: 6 lanes, ti-38 r2 07:34; WM-TESTS after ti-38, same xp wm files)
 session branch: 7a6c0eb8 (t106 green 06:42, all 49 steps; CLOCK-WIDTH in); 61 greens.
@@ -28,11 +28,11 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 | sim-long-r1.md (rc 9: leaks, stalls over 3 h; 1.0 %) | haiku high, claude/sim-long 7a6c0eb8 | session_016iS3kMNxMZdeaWzofsKMsD 06:45 |
 | log-down-co-r1.md (rc 9a: construct eprintln to tracing; 0.9 %) | sonnet medium, claude/log-down-co 7a6c0eb8 | starting |
 | test-gaps-r1.md (F5 H13: WD2, WD3, reload, SA10; 0.6 %) | haiku high, claude/test-gaps 7a6c0eb8 | starting |
-| opt-in-r1.md (slice 20, rc 3: six opt-in gates once, early; 0.8 %) | haiku high, claude/opt-in 7a6c0eb8 | session_016iS3kPmvHQkgxyKGUTcaWH 08:00 |
 
 ## Queue (% week; 5 % reserve)
 4. (F7, rc 2-3) TOUR-FIX r3 done 06:20 85c5f3bc (84 to 66 red, tiling I2 23 to 0); PM review r3 MERGE-OK; in t107 with ASK-ONE 322eef20 (PM review MERGE-OK; ao-1 to DB7 d).
-5. t107 06:44 on 3b14c825 detached: TOUR-FIX 85c5f3bc + ASK-ONE 322eef20; then t108 GATE-ALIVE a7ffdf22 alone (harness; PM review MERGE-OK, +8 steps, ga-1 to DB21); then t109 LAUNCH-TIMER 629faf7b (PM review MERGE-OK, lt-1, lt-2 to DB11); then RECORD r2.
+5. t107 06:44 on 3b14c825: TOUR-FIX 85c5f3bc + ASK-ONE 322eef20; then t108 GATE-ALIVE a7ffdf22 alone (harness, MERGE-OK); then t109 LAUNCH-TIMER 629faf7b (MERGE-OK); then RECORD r2.
+6. OPT-IN r1 done 08:15 (six PASS on 7a6c0eb8; oi-2, oi-4 to DB21); ON-PATH (RF2) already met. Next slot: FLAKE-SERIES r5 (rc 3, F5) on the t107 head.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
