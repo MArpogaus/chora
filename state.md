@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-22 06:22 UTC)
+## Now (2026-11-22 06:43 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 06:16 week 8.4 % (6.1 + 2.3 Bkk days; under pace 15.6 %: 5th lane; WM-TESTS after ti-38, same xp wm files)
-session branch: 1c9e64f7; 60 greens; t104 red 23:59 acts tiling I14 (sh-32); t104b red 00:36 only in tiling-look bar-font: clock 120 wide (limit 119), date-dependent check (Sunday); CLOCK-WIDTH, then t104c.
+budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 06:43 week 8.5 % (6.1 + 2.4 Bkk days; under pace 16 %: 5th, 6th lane; WM-TESTS after ti-38, same xp wm files)
+session branch: 7a6c0eb8 (t106 green 06:42, all 49 steps; CLOCK-WIDTH in); 61 greens.
 burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at 2 jobs, one host; rc 9 rows open); F7 open, carried.
 
 ## RC (design/rc.md)
@@ -26,10 +26,12 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 | ti-38-r1.md (F7, rc 2: ti-38 MAJOR, joining look takes the keyboard) | opus high, claude/ti-38 e86b3cfa | session_016iS3kP4PwZqxBu9ivmLzFw 04:14 |
 | gate-alive-r1.md (F6, D91: B4, H3, T2, T3; 1.3 %) | sonnet medium, claude/gate-alive 1c9e64f7 | session_016iS3kNRAqJWwcFQdn1C6Nz 04:25 |
 | launch-timer-r1.md (slice 39: F-2, GIVE_UP, StatusFile; 1.6 %) | sonnet high, claude/launch-timer 1c9e64f7 | session_016iS3kNfazT1Ae2LVddkKvB 06:17 |
+| looks1-mc-r1.md (rc 1 looks: 10 mc known-red rows; 1.4 %) | sonnet medium, claude/looks1-mc 7a6c0eb8 | starting |
+| sim-long-r1.md (rc 9: leaks, stalls over 3 h; 1.0 %) | haiku high, claude/sim-long 7a6c0eb8 | starting |
 
 ## Queue (% week; 5 % reserve)
-4. (F7, rc 2-3) TOUR-FIX r3 done 06:20 85c5f3bc (84 to 66 red, tiling I2 23 to 0); PM review r3 MERGE-OK; joins t107 after t106 with ASK-ONE 322eef20 (PM review MERGE-OK; ao-1 MINOR to DB7 d); then RECORD r2.
-5. t105 killed at the 2 h task limit 04:33 (48/49 PASS, e2e PASS alone 04:37; --only never pushes); t106 04:38 on 7a6c0eb8 detached (no limit): t105 f9e2f3f6 + TI-R4 e86b3cfa, KEYS-ROUTE e16d558e, CO-HINT 51475800, KIT-COV 619da642, SPLIT-A a3c14590, CO-I3 042a9c77; TOUR-FIX after r3.
+4. (F7, rc 2-3) TOUR-FIX r3 done 06:20 85c5f3bc (84 to 66 red, tiling I2 23 to 0); PM review r3 MERGE-OK; in t107 with ASK-ONE 322eef20 (PM review MERGE-OK; ao-1 to DB7 d).
+5. t107 06:44 on 3b14c825 detached: TOUR-FIX 85c5f3bc + ASK-ONE 322eef20; then RECORD r2.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
