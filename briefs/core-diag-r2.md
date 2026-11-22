@@ -1,0 +1,14 @@
+# core-diag r2 (rc 9: sim-long sl-3 and sl-1 fixes)
+
+Model: opus, effort high, because it changes the scene core (transaction cost) and the allocator setup of the core process
+Lane: cloud, claude/core-diag at fc779a76 (r1 repros on 3b14c825). Cost at most 2 %; stop at 250 k context. One area: crates/chora-scene/src/scene.rs and its tests, crates/chora/src/main.rs, crates/chora/src/transaction.rs tests only, tests/battle/repro-sl1.sh and repro-sl3.sh. Not mesh.rs (split-c owns it now; malloc_trim and the slot churn fix wait for a later round).
+Why: reports/core-diag.md "## r1" on claude/session-log: sl-3 Scene::band (scene.rs:922-940) and unlink (961-968) are quadratic (10000 creates under root 57 s); sl-1 core RSS keeps the llvmpipe texture peak in glibc arena 0 (repro-sl1 RED by 224 MB).
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`; a failure: send_message the PM "core-diag BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1) Red tests first, one commit, all red today: in chora-scene src/tests.rs `ten_thousand_creates_under_the_root_take_linear_time` and `ten_thousand_removes_of_siblings_take_linear_time`; in chora transaction.rs tests `a_big_transaction_answers_before_the_stall_line` (bounds as in the r1 report). Keep bounds loose enough for a debug build on a loaded host (no flake): state the measured margin.
+2) Fix band(): partition_point on the sorted root children (say in a comment why the order holds: link and set_order keep it). Fix unlink(): position + remove. No other behaviour change; the existing scene tests stay green.
+3) sl-1: first thing in main(): libc::mallopt(libc::M_MMAP_THRESHOLD, 64 << 10), with a one-line comment naming sl-1. repro-sl1.sh green (paste its end lines), w9 end RSS measured once.
+4) repro-sl3.sh green at N=10000 (paste the time).
+Gate: full `tests/merge-gate.sh --jobs 1` (no --only) green on claude/core-diag merged with origin/claude/autonomous-dev-session-3w-i33pg7. A red cell you did not cause: name it with its log line; do not rerun to green. Run it in the background and poll in the same turn; never end a turn to wait.
+Done when: three red-first tests green after the fix, both repros green, full gate green, no file over 1,500 production lines.
+Report: reports/core-diag.md "## r2" on claude/session-log (shas, red then green test names, repro numbers before and after, gate summary); send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 4 lines with the head sha.
+Rules: push claude/core-diag and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash.
