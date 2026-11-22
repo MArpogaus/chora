@@ -583,6 +583,64 @@ class OldBuild(unittest.TestCase):
         self.assertNotIn("BROKE", text)
 
 
+    def baseline_take(self, error, chapter="handover"):
+        """run.py on the baseline (not `--check`) with a chapter that dumps h1.Q and then raises `error`;
+        (exit code, output, the baseline-none.json it wrote or None)."""
+        import os
+        import types
+
+        out_dir = tempfile.mkdtemp(prefix="tour-none-")
+
+        def stops(ctx):
+            work = tempfile.mkdtemp(prefix="tour-none-w-")
+            t = tour.Tour(Shooter(), ctx.out, work + "/w", checker=tour.Checker(lambda: snap()))
+            t.begin("5 handover", "05-handover")
+            t.run_segment = lambda label="": None
+            t.act("look", "Click Start", "x", lead=0.0, tail=0.0, scene="h1", capture="Q")
+            t.done()
+            t.flush()
+            raise error
+
+        module = types.ModuleType(f"chapters.{chapter}")
+        module.run = stops
+        sys.modules[f"chapters.{chapter}"] = module
+        os.environ.update(TOUR_BASELINE="1", TOUR_OUT=out_dir)
+        out = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(out):
+                code = run.main([chapter])
+        finally:
+            for key in ("TOUR_BASELINE", "TOUR_OUT", "TOUR_CHECK"):
+                os.environ.pop(key, None)
+            del sys.modules[f"chapters.{chapter}"]
+        path = pathlib.Path(out_dir) / "baseline-none.json"
+        return code, out.getvalue(), json.loads(path.read_text()) if path.exists() else None
+
+    def test_another_error_on_the_baseline_is_broke(self):
+        """rw-4: a TypeError of the harness, a dead core: the take fails loud, nothing is `baseline: none`."""
+        for error in (TypeError("act() got an unexpected keyword argument"), RuntimeError("the core closed the connection")):
+            code, text, none = self.baseline_take(error)
+            self.assertEqual(code, 1, text)
+            self.assertIn("BROKE", text)
+            self.assertNotIn("baseline: none from", text)
+            self.assertIsNone(none)
+
+    def test_baseline_none_json_names_the_captures_that_did_not_run(self):
+        code, text, none = self.baseline_take(RuntimeError("choractl call xp-give: no method window.give"))
+        self.assertEqual(code, 0, text)
+        (entry,) = none
+        self.assertEqual(entry["chapter"], "handover")
+        self.assertNotIn("h1.Q", entry["names"])
+        self.assertIn("h2.Q", entry["names"])
+        self.assertIn("h7.Q", entry["names"])
+        self.assertTrue(all(name.partition(".")[2] for name in entry["names"]), entry["names"])
+
+    def test_the_names_of_the_plan_follow_the_loops_of_a_chapter(self):
+        planned = tour.planned("tiling")
+        self.assertEqual(len(planned), len(set(planned)))
+        self.assertEqual([n for n in planned if n.startswith("t3")], [f"t3{letter}.Q" for letter in ("", *"bcdefgh")])
+
+
 CHAPTERS_A = ("xp", "tiling", "handover")
 
 
