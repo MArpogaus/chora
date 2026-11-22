@@ -179,8 +179,9 @@ pub fn scaled(at: [f64; 2], frame: [f64; 2], scale: f64) -> Transform {
 /// The commands that put a window group at its place: a new window opens
 /// from 94 % and transparent, a window that a tag switch brings back
 /// slides in, a window that moved slides, and without `animate` every one
-/// jumps. A move carries the opacity 1 too: it ends an open that still runs,
-/// and the window must not stay half transparent.
+/// jumps. Every branch that is not an open carries the opacity 1: an update
+/// ends an open that still runs where it stands (a rebuild after a reload
+/// does this), and the window must not stay half transparent.
 #[must_use]
 pub fn place(
     sent: Option<&Placement>,
@@ -206,7 +207,7 @@ pub fn place(
     if !dress.animate || (placement.border == 0 && sent.is_none()) {
         return vec![Command::Update {
             id: group,
-            props: shown(end, None),
+            props: shown(end, Some(1.0)),
         }];
     }
     match sent {
@@ -229,7 +230,7 @@ pub fn place(
         ],
         Some(s) if s.at.is_none() => vec![Command::Update {
             id: group,
-            props: shown(end, None),
+            props: shown(end, Some(1.0)),
         }],
         Some(_) => vec![change(group, to(end, Some(1.0)), Some(MOVE))],
     }
@@ -301,6 +302,24 @@ mod tests {
         let commands = place(Some(&before), &after, [300, 20], &ON);
         assert!(matches!(&commands[..], [Command::Animate { props, .. }]
             if props.opacity == Some(1.0)));
+    }
+
+    #[test]
+    fn a_jump_ends_an_open_that_still_runs_with_the_opacity_1() {
+        let off = Dress {
+            animate: false,
+            ..ON
+        };
+        let first = placed(Some([20, 20]), Mark::Focus);
+        let hidden = placed(None, Mark::Line);
+        for (sent, dress) in [(None, &off), (Some(&hidden), &ON)] {
+            let commands = place(sent, &first, [20, 20], dress);
+            assert!(
+                matches!(&commands[..], [Command::Update { props, .. }]
+                if props.opacity == Some(1.0) && props.visible == Some(true)),
+                "{commands:?}"
+            );
+        }
     }
 
     #[test]
