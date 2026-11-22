@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-22 13:53 UTC)
+## Now (2026-11-22 13:54 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day (90.2 % in 135 h), no day cap; tokens.py 12:45 week 9.8 % (6.1 + 3.7; under pace 19.7 %; lanes wait on gates: add reviews, rc 4, 6)
 session branch: 6b01c976 (t108 green 13:01: GATE-ALIVE); 63 greens. t109 033f416f runs at --jobs 2 from 13:02.
@@ -27,9 +27,10 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 | flake-series-r5.md (F5, rc 3: 5 gates at 2 jobs; 1 %) | haiku high, claude/flake-series-r5 3b14c825 | session_016iS3kPEG2bDTyKBSQgj5BM 08:49 |
 | mc-focus-r1.md (rc 9, I3: rd-5 MEDIUM, mc misses focus.node; 0.8 %) | sonnet medium, claude/mc-focus 6b01c976 | session_016iS3kNytLH7EhG5sJybjcm 13:37 |
 | record-v9-r1.md (F7, rc 11: v9 take vs v8; 1.2 %) | sonnet medium, claude/record-v9 6b01c976 | session_016iS3kPEnmatu6w5XewDQLy 13:33 |
+| docs-rc-r1.md (rc 8: CHANGELOG, known issues, mc keys; 0.8 %) | sonnet low, claude/docs-rc 6b01c976 | starting |
 
 ## Queue (% week; 5 % reserve)
-3. CI-HEAD dropped (pre-commit green on 6b01c976). Next free slot: DOCS-RC (rc 8; 0.8 %; plan D6).
+3. DOCS-RC r1 now (under pace); r2 on the Thu head.
 4. (rc 1, F7) tour round after ti-38 r2 merges;
 5. (rc 3; 0 %) t109 at --jobs 2 from 13:02 (033f416f): LAUNCH-TIMER 629faf7b, TEST-GAPS 89dc32c4, LOG-DOWN-CO b974134e, SIM-LONG ce451499, SPLIT-C 96e5c804, SPLIT-B 2af7801c, LOG-DOWN-MC b843bf5f, LOOKS1-MC b0453e19 (gates pending t109).
 6. (rc 9) t110: CORE-DIAG 788605f4 (MERGE-OK 13:32; by 01:32), LOG-DOWN-XP ce11e056 (PM 13:45), MESH-CHURN dc6a266d (13:53; mch-1 MEDIUM 2 views: backlog); then eprintln ratchet down.
