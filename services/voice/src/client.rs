@@ -100,20 +100,6 @@ impl Claims {
     }
 }
 
-/// The parameters of `confirm`.
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields, rename_all = "lowercase")]
-enum Answer {
-    Yes,
-    No,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ConfirmParams {
-    answer: Answer,
-}
-
 /// The parameters of `confirm.answer`: the id as `voice.confirm` sends it.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -884,8 +870,11 @@ impl Plugin for Client {
             "sleep" => Call::Sleep,
             "wake" => Call::Wake,
             "confirm" => {
-                let ConfirmParams { answer } = runtime::params(params)?;
-                Call::Confirm(matches!(answer, Answer::Yes))
+                let confirm: chora_kit::ask::ConfirmCall = runtime::params(params)?;
+                let yes = confirm
+                    .yes()
+                    .ok_or_else(|| RpcError::new(RpcError::INVALID_PARAMS, "answer: yes or no"))?;
+                Call::Confirm(yes)
             }
             "talk" => {
                 let Talk { down } = runtime::params(params)?;
