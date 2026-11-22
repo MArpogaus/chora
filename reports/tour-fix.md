@@ -134,10 +134,10 @@ Not in this round: rw-8 (NIT) not asked.
 New reds, each with a findings row, none a known-red row:
 - **tiling I2: +18 red acts** (23 acts, 62 lines `tb-s1 and tb-s5 are 10 apart, no whole number of 4`; 0 before): the effect of rw-5, row **ti-31**.
 - tiling expect: -2 acts (t26, t28 held this run): rows ti-35, ti-36.
-- tiling I6: +2 lines (the screenshot path of the notice card differs per run; same cause, sh-31), 4 acts instead of 3 (one more act holds the card).
+- tiling I6: +2 lines (4 acts instead of 3; the lines are the 11 px notice card of the screenshot acts, the cause of sh-31; I did not trace why one act more shows it).
 - handover I3: +1 line, act h1 "Two screens" (`construct and xp each say they hold the focus`); not a new red act (h1 was red by I6 already); the breach is co-43 (I3), it is on a different act of the chapter than the `known` row in "Click Start".
 - "missing boxes" on the candidate: 0 lines (rw-3 turns nothing red here: the candidate has `scene.boxes`).
-- Note (not changed): the `known` I5 rows of mc acts 4-6 say `drop known` in the after run (green); r1 had the same rows.
+- Note (not changed): the `known` I5 rows of mc acts 4-6 say `drop known` in the after run (green); I did not compare them with r1.
 
 ### Gate
 Full `tests/merge-gate.sh --jobs 1` (no --only) on 87fdbeb9 (claude/tour-fix merged with origin/claude/autonomous-dev-session-3w-i33pg7): stopped at the first red step, **tiling-look** (/tmp/merge-gate.jFbLpl/tiling-look.log):
