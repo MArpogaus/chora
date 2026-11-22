@@ -230,6 +230,8 @@ pull() {
     read -r surface _ _ x y <<<"$(probe)"
     [ -z "${PULL_RACE:-}" ] || y=$((y + 300))
     until_ok 'ctl query "id:xp-title-$surface" | grep -q VIRTUAL-1' 40 || fail "the window has no title bar"
+    until_ok 'a=$(probe); sleep 0.3; [ -n "$a" ] && [ "$a" = "$(probe)" ] && read -r surface _ _ x y <<<"$a"' 40 ||
+        fail "the window does not hold its place before the press: $(probe)"
     inject "[{\"pointer_move\": {\"position\": [$((x + 90)), $((y - 12))]}},
         {\"button\": {\"state\": \"pressed\", \"hold\": true}}]"
     inject '[{"pointer_move": {"position": [900, 300]}}]'
