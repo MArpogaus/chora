@@ -43,6 +43,8 @@ pub const LIFT: f64 = 24.0;
 pub enum Set {
     Walk,
     Flown,
+    /// The small chip `Keys` that a face keeps after its hints went (co-42).
+    Rest,
     Cube,
     Pull,
 }
@@ -138,6 +140,7 @@ pub fn resting_set(at: Resting) -> Option<Set> {
     let shows = at.timed || at.low;
     match (at.engaged, at.has_cube) {
         (true, _) if shows => Some(Set::Flown),
+        (true, true) => Some(Set::Rest),
         (false, false) if shows => Some(Set::Walk),
         _ => None,
     }
@@ -665,7 +668,8 @@ mod tests {
         };
         assert_eq!(at(true, true, true, false), Some(Set::Flown));
         assert_eq!(at(true, true, false, true), Some(Set::Flown));
-        assert_eq!(at(true, true, false, false), None);
+        assert_eq!(at(true, true, false, false), Some(Set::Rest));
+        assert_eq!(at(true, false, false, false), None);
         assert_eq!(at(false, false, true, false), Some(Set::Walk));
         assert_eq!(at(false, true, true, false), None);
     }

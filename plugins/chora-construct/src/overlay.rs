@@ -610,6 +610,7 @@ impl Construct {
                 hints.push(item(self.hint_keys_chord(), Word::AllKeys, "keys"));
                 hints
             }
+            Set::Rest => vec![item(self.hint_keys_chord(), Word::AllKeys, "keys")],
             Set::Pull => vec![item(Vec::new(), Word::PullHint, "pull")],
         }
     }
@@ -705,25 +706,33 @@ impl Construct {
     }
 
     /// The capsule of the hints of `set`: the glass, the hits and the
-    /// words of the chips; over a program or a face the dark glass.
+    /// words of the chips; over a program or a face the dark glass. The
+    /// chip that rests over any face has the lifted tint, so its keycaps
+    /// keep the contrast over a light face.
     fn hint_capsule(
         &mut self,
         set: crate::hints::Set,
         items: &[crate::hints::Item],
         hover: Option<&str>,
     ) -> Result<Vec<Command>, ClientError> {
-        let over = matches!(set, crate::hints::Set::Flown | crate::hints::Set::Pull);
+        let over = matches!(
+            set,
+            crate::hints::Set::Flown | crate::hints::Set::Rest | crate::hints::Set::Pull
+        );
         let out = [
             self.lens.w,
             self.lens.h - if over { crate::hints::LIFT } else { 0.0 },
         ];
         self.fitted(|s| {
             let base = s.styled();
-            let look = if over {
+            let mut look = if over {
                 crate::hints::over_content(&base)
             } else {
                 base
             };
+            if set == crate::hints::Set::Rest {
+                look.glass.strong = look.glass.plain(true);
+            }
             let mut commands = crate::hints::draw(&look, items, out, hover, over);
             let places = crate::hints::places(&look, items, out);
             for (item, at) in items.iter().zip(places).filter(|(i, _)| i.chip) {
