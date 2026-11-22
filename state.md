@@ -27,7 +27,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 | mc-helper-r1.md (rc 1: mc-57, 56, 55; 1 %) | sonnet medium, claude/mc-helper ac538e82 | session_016iS3kPf9yfyEu48CsZyHxX 19:37 |
 | tiling-fix-r1.md (rc 3, 1: ti-37, 27, 25c; 1 %) | sonnet medium, claude/tiling-fix 4e46028b | session_016iS3kLAsJPbPUQ193bX8zu 19:25 |
 | core-fix-r1.md (rc 9: mch-1..4, ratchet 362; 0.8 %) | sonnet medium, claude/core-fix 46e98b3e | session_016iS3kLGtC2Po7TiyJVrWmQ 19:35 ok |
-| xp-helper-r2.md (rc 1: rx-1 MAJOR greeting X, rx-2..8; 0.8 %) | sonnet medium, claude/xp-helper eda60a6b | starting (review r1 FIX 19:58) |
+| xp-helper-r2.md (rc 1: rx-1 MAJOR greeting X, rx-2..8; 0.8 %) | sonnet medium, claude/xp-helper eda60a6b | session_016iS3kQ9ejqKsH4NhfzK8XR 19:59 (review r1 FIX) |
 
 ## Queue (% week; 5 % reserve)
 3. (rc 8) DOCS-RC r2 (pr-1..5) on the Thu head.
