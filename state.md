@@ -27,7 +27,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 | mesh-churn-r1.md (rc 9: sl-1 texture churn; 1.5 %) | opus high, claude/mesh-churn 96e5c804 | session_016iS3kLrku4JTjEeufgN2oV 11:31 |
 | log-down-xp-r1.md (rc 9: xp eprintln 18; 0.9 %) | sonnet medium, claude/log-down-xp 70cbf9bd | session_016iS3kPYbLrqZVkcAvctZ1S 11:36 |
 | flake-series-r5.md (F5, rc 3: 5 gates at 2 jobs; 1 %) | haiku high, claude/flake-series-r5 3b14c825 | session_016iS3kPEG2bDTyKBSQgj5BM 08:49 |
-| mc-focus-r1.md (rc 9, I3: rd-5 MEDIUM, mc misses focus.node; 0.8 %) | sonnet medium, claude/mc-focus 6b01c976 | starting |
+| mc-focus-r1.md (rc 9, I3: rd-5 MEDIUM, mc misses focus.node; 0.8 %) | sonnet medium, claude/mc-focus 6b01c976 | session_016iS3kNytLH7EhG5sJybjcm 13:37 |
 | record-v9-r1.md (F7, rc 11: v9 take vs v8; 1.2 %) | sonnet medium, claude/record-v9 6b01c976 | session_016iS3kPEnmatu6w5XewDQLy 13:33 |
 
 ## Queue (% week; 5 % reserve)
