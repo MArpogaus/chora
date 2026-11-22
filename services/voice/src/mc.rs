@@ -346,6 +346,17 @@ impl Reporter {
 /// scene holds 4 KiB.
 const QUESTION_BYTES: usize = 4000;
 
+/// The most lines of a question on the own HUD: the text node starts
+/// 24 px from the top and a line of 18 px is some 22 px high, so that
+/// 30 lines show on the smallest screen; more would run off it and hide
+/// the tail of the command (review secfix c r2, DB7 b).
+const QUESTION_LINES: usize = 30;
+
+/// Whether `text` shows whole on the own HUD: in bytes and in lines.
+fn shows(text: &str) -> bool {
+    text.len() <= QUESTION_BYTES && text.lines().count() <= QUESTION_LINES
+}
+
 /// The line of the keys of a question on the own HUD; none without keys.
 fn keys_line(keys: Option<&ConfirmKeys>) -> String {
     keys.map(|k| format!("\n{} = yes, {} = no", show_key(&k.yes), show_key(&k.no)))
@@ -357,19 +368,19 @@ fn keys_line(keys: Option<&ConfirmKeys>) -> String {
 /// 2), so that no key confirms a command that the person cannot read.
 pub fn fits(prompt: &str, detail: &str, keys: Option<&ConfirmKeys>) -> bool {
     let (prompt, detail) = (sanitize(prompt), sanitize(detail));
-    prompt.len() + "\n".len() + detail.len() + keys_line(keys).len() <= QUESTION_BYTES
+    shows(&format!("{prompt}\n{detail}{}", keys_line(keys)))
 }
 
 /// The line of a question whose detail does not fit on the own HUD.
 const TOO_LONG: &str = "(the command is too long to show here)";
 
 /// The question on the own HUD: the prompt, the detail and the line of
-/// the keys, at most [`QUESTION_BYTES`]. A longer detail is never cut,
+/// the keys, at most [`QUESTION_BYTES`] and [`QUESTION_LINES`]. A longer detail is never cut,
 /// which would hide its tail: [`TOO_LONG`] takes its place, and the
 /// prompt and the keys stay. voice.confirm carries it whole.
 fn question_text(prompt: &str, detail: &str, keys: &str) -> String {
     let text = format!("{prompt}\n{detail}{keys}");
-    if text.len() <= QUESTION_BYTES {
+    if shows(&text) {
         return text;
     }
     let text = format!("{prompt}\n{TOO_LONG}{keys}");
@@ -389,7 +400,7 @@ mod tests {
 
     use serde_json::json;
 
-    use super::{Corner, QUESTION_BYTES, Report, at, question_text, start};
+    use super::{Corner, QUESTION_BYTES, Report, at, fits, question_text, start};
 
     /// Review plugins r1, VO-B-06 and sh-26: a detail too long for the
     /// HUD is not cut, which would hide its tail: the HUD shows that it
@@ -406,6 +417,21 @@ mod tests {
         assert!(text.ends_with(keys), "{text}");
         let short = question_text("Shall I?", "x: 1", keys);
         assert_eq!(short, format!("Shall I?\nx: 1{keys}"));
+    }
+
+    /// The text node holds few lines of the screen: 4000 bytes of 300
+    /// short lines do not fit, and the HUD then shows no cut list but
+    /// the line that says the command is too long (review secfix c r2,
+    /// DB7 b).
+    #[test]
+    fn many_short_lines_do_not_fit() {
+        let detail = "short line 1\n".repeat(300);
+        assert!(detail.len() < QUESTION_BYTES, "{}", detail.len());
+        assert!(!fits("Shall I?", &detail, None));
+        let text = question_text("Shall I?", &detail, "");
+        assert!(text.contains("too long to show"), "{text}");
+        assert!(!text.contains("short line"), "{text}");
+        assert!(fits("Shall I?", &"short line 1\n".repeat(10), None));
     }
 
     /// The question goes out without a character that hides or reorders

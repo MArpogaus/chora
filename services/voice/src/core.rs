@@ -363,6 +363,9 @@ pub struct Core {
     /// Only a key answers the question of the sub-agent. A question of
     /// the reply does not change it.
     sub_physical: bool,
+    /// The id of the card of the sub-agent question that waits, which a
+    /// newer card may have replaced on the screen.
+    sub_shown: Option<u64>,
     /// The questions so far, the one on the screen, and since when it
     /// shows.
     confirms: u64,
@@ -443,6 +446,7 @@ impl Core {
             sub_confirm: None,
             sub_until: now,
             sub_physical: false,
+            sub_shown: None,
             confirms: 0,
             shown: None,
             shown_at: now,
@@ -653,6 +657,7 @@ impl Core {
                 self.confirm_from = Some(Instant::now());
                 let name = note.ask.as_ref().map(|(name, _)| agents::title(name));
                 effects.extend(self.show((note.text, note.detail), note.physical, name));
+                self.sub_shown = self.shown;
             }
             self.sub_physical = note.physical;
             self.sub_confirm = note.ask;
@@ -1173,8 +1178,22 @@ impl Core {
     }
 
     /// The question `id` cannot show whole: a no, with the error earcon;
-    /// another id, such as that of a question that ended, is nothing.
+    /// another id, such as that of a question that ended, is nothing. The
+    /// card of a sub-agent question that a newer card replaced on the
+    /// screen is a no for that question alone: it is never left to wait
+    /// for an answer without a screen.
     fn unshowable(&mut self, id: u64) -> Vec<Effect> {
+        if self.sub_shown == Some(id) && self.shown != Some(id) {
+            self.sub_shown = None;
+            if let Some((name, answer)) = self.sub_confirm.take() {
+                crate::log::info(&format!(
+                    "confirm {name}: the replaced question is too long for the own HUD, a no"
+                ));
+                let _ = answer.send(false);
+                return self.earcon(Earcon::Error).into_iter().collect();
+            }
+            return Vec::new();
+        }
         if !self.confirming() || self.shown != Some(id) {
             return Vec::new();
         }
@@ -1709,6 +1728,41 @@ mod tests {
         say(&mut core, "Ja.");
         assert!(sub.try_recv().is_err(), "no answer without the key");
         assert!(core.sub_confirm.is_some());
+    }
+
+    /// A sub-agent question whose screen a newer question replaced is
+    /// still a no when its card cannot be shown: it is never left to be
+    /// answered without a screen (review secfix c r2, DB7 a).
+    #[test]
+    fn an_unshowable_question_replaced_on_screen_is_still_refused() {
+        let mut core = with_coder();
+        let mut sub = sub_question(&mut core, true);
+        let old = core.shown.expect("the sub-agent question is on the screen");
+        let effects = core.handle(text(9, false, Ok("Mach das Fenster zu.")));
+        let [(id, _)] = asks(&effects)[..] else {
+            panic!("{effects:?}");
+        };
+        let (answer, mut chat_rx) = oneshot::channel();
+        let event = chat::Event::Confirm {
+            prompt: "Wirklich?".into(),
+            detail: String::new(),
+            always: std::sync::Arc::default(),
+            physical: true,
+            answer,
+        };
+        core.handle(reply(id, event));
+        let new = core.shown.expect("the chat question replaced it");
+        assert_ne!(old, new);
+        assert!(sub.try_recv().is_err(), "the sub question still waits");
+        core.handle(Input::Unshowable(old));
+        assert_eq!(sub.try_recv(), Ok(false), "refused, not left pending");
+        assert!(core.sub_confirm.is_none());
+        assert!(chat_rx.try_recv().is_err());
+        wait_for_key(&mut core);
+        core.handle(Input::ConfirmKey(true));
+        assert_eq!(chat_rx.try_recv(), Ok(Some(true)));
+        core.handle(Input::ConfirmKey(true));
+        assert_eq!(sub.try_recv(), Err(oneshot::error::TryRecvError::Closed));
     }
 
     /// A question that takes a key names its keys as the card does.
