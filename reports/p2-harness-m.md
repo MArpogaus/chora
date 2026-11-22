@@ -20,3 +20,12 @@ Then 4d738ce8 (test): tests/test_acts.py PersonaContracts read the new L2 digest
 - README updated.
 
 Gate: `python3 -m pytest tests/persona -q` 48 passed. `tests/merge-gate.sh --jobs 1` (second run, after 4d738ce8): 22 PASS, 1 FAIL, not rerun: cell `tiling-look` (log /tmp/merge-gate.m3rVLt/tiling-look.log): `FAIL: ink-1280x800 bar-font: the clock is 120.0 wide, not Inter 14 px weight 500 (100-119)` (same for ink-2560x1600@2, paper-1280x800, paper-2560x1600@2). Not mine: a pixel measure of the tiling bar clock, no persona code involved. The gate stopped there, so the cells after it did not run; the first run (before 4d738ce8) passed 26 cells up to `acts`.
+
+## Review r1 (PM; 1c9e64f7..4d738ce8, 4 files +153 -11)
+- Red first: d117c9f9, 0a63c5fb, d8bf577b each precede their fix (16c24276, 3fe48aee, 4727946f).
+- Known-red filter: `named()` uses harness.row_covers with `act` dropped; of 189 rows none lacks both capture and match, so no row is a pair-wide wildcard any more (checked on 4d738ce8).
+- pv-1 MINOR check.py:806: a run whose begin snapshot has no `.config` (older run dir) gives begin None, which differs from any digest, so L2's change check passes; should print "not measured".
+- pv-2 MINOR check.py:606: "the reload took" is still only the focus holder (no reload counter in the state answer); the brief's reload proof stays open, the docstring says so.
+- pv-3 NIT check.py:751: the digest hashes file names, not relative paths.
+- Gate: 22 PASS, stopped at tiling-look bar-font (clock 120 wide, t104b, not this branch); full gate runs in the train with CLOCK-WIDTH.
+Counts: BLOCK 0, MAJOR 0, MINOR 2, NIT 1. Verdict: MERGE-OK.
