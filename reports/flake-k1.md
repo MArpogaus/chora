@@ -32,3 +32,10 @@ Green 7d8ad513: the drag during the walk goes left (position 70, not 130), the t
 
 After: 20 runs of the k1 gate under a looping `cargo build --release` (load average 6 on 4 cores): 20 of 20 rc 0, 0 red lines.
 Gate: full `tests/merge-gate.sh --jobs 2` on claude/flake-k1 (merge with origin/claude/autonomous-dev-session-3w-i33pg7: already up to date), 51 PASS, 1 FAIL: mc-scale "settings.set of the write time beside 300 panels takes 5658 ms, more than 5000 ms" (/tmp/gate.log; FLK-MC-SCALE, known, not mine; not rerun). construct-extra PASS 174 s (k1 inside). EXIT 1 for that cell alone.
+
+## PM review r2 (2026-11-22 18:55 UTC)
+Range 308f0915..7d8ad513: red 27522585, green 7d8ad513, tests/gate-construct-k1.sh only (+28/-16), PM review (PM not the builder).
+- Cause named with lines (camera.rs:240-247: a walk tap starts from the running walk's position); the gate now waits for move and rest, drops dead sleeps, drags left so two taps keep the pane in view. Repro 7/10 red, after 20/20 under load.
+- Gate 51 PASS, 1 FAIL mc-scale (FLK-MC-SCALE, known, lane running): foreign red named.
+- Note (not a finding of this lane): w w distance depends on tap timing; POLS question for the construct persona round, backlog.
+Verdict (computed): 0 MAJOR -> MERGE-OK. FLAKE-K1 7d8ad513 replaces 308f0915 in t110.
