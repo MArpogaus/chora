@@ -26,8 +26,8 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 | ti-38-r2.md (F7, rc 2: ti-38 MAJOR; r1 4441f1d4 done, merge 7a6c0eb8 conflicts, construct act rerun; 1.5 %) | opus high, claude/ti-38 4441f1d4 | session_016iS3kMg9i8mAmHNyiis9cz 07:34 |
 | looks1-mc-r1.md (rc 1 looks: 10 mc known-red rows; 1.4 %) | sonnet medium, claude/looks1-mc 7a6c0eb8 | session_016iS3kLPWJtz5XGMi6Uc9Hm 06:45 |
 | sim-long-r1.md (rc 9: leaks, stalls over 3 h; 1.0 %) | haiku high, claude/sim-long 7a6c0eb8 | session_016iS3kMNxMZdeaWzofsKMsD 06:45; pass 8, 0 stalls; sl-3 W12 core dies 8/8 |
-| log-down-co-r1.md (rc 9a: construct eprintln to tracing; 0.9 %) | sonnet medium, claude/log-down-co 7a6c0eb8 | starting |
-| test-gaps-r1.md (F5 H13: WD2, WD3, reload, SA10; 0.6 %) | haiku high, claude/test-gaps 7a6c0eb8 | starting |
+| log-down-co-r1.md (rc 9a: construct eprintln to tracing; 0.9 %) | sonnet medium, claude/log-down-co 7a6c0eb8 | session_016iS3kLT7r8MsQvNKiKKLC2 07:05; gate runs |
+| test-gaps-r1.md (F5 H13: WD2, WD3, reload, SA10; 0.6 %) | haiku high, claude/test-gaps 7a6c0eb8 | session_016iS3kLQ33yxXvWr7rYvYsD 07:05; gate 89dc32c4 |
 
 ## Queue (% week; 5 % reserve)
 4. (F7, rc 2-3) TOUR-FIX r3 done 06:20 85c5f3bc (84 to 66 red, tiling I2 23 to 0); PM review r3 MERGE-OK; in t107 with ASK-ONE 322eef20 (PM review MERGE-OK; ao-1 to DB7 d).
