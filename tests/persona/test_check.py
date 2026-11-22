@@ -243,11 +243,12 @@ def look_state(holder_surface, windows, holder="self"):
     return {"windows": windows, "focus": focus, "open": [], "busy": []}
 
 
-def goal(run, before, after, task, hist=(), look=None):
+def goal(run, before, after, task, hist=None, look=None):
     """One goal: `begin` is the snapshot `before`, the scene at `end` is
     `after`, `hist` the toplevels the persona's actions saw."""
     run.save("begin", before, {})
     run.scene = after
+    hist = [[]] if hist is None else hist
     with open(run.state_dir / "history.jsonl", "a", encoding="utf-8") as f:
         for i, tops in enumerate(hist):
             row = {"t": time.time() + 1 + i, "action": "x", "open": [], "helper": {}}
@@ -322,11 +323,32 @@ class NoConfig(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             run = FakeRun(folder, snap())
             (pathlib.Path(folder) / "xp.yaml").write_text("editor: mousepad\n")
-            status, out = goal(run, snap(), self.after(), "L2")
+            run.save("begin", snap(), {})
+            (pathlib.Path(folder) / "xp.yaml").write_text("editor: notepad\n")
+            run.scene = self.after()
+            status, out = run_end(run, "L2")
             self.assertEqual(status, 0, out)
             self.assertIn("task L2 pass", out)
             status, out = goal(run, snap(), snap(), "L2")
             self.assertEqual(status, 1, out)
+
+    def test_a_run_that_changed_nothing_is_red(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, snap())
+            (pathlib.Path(folder) / "xp.yaml").write_text("editor: mousepad\n")
+            status, out = goal(run, snap(), self.after(), "L2")
+            self.assertEqual(status, 1, out)
+            self.assertIn("the config value did not change", task_line(out, "L2"))
+
+    def test_a_change_the_look_did_not_take_is_red(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, snap())
+            run.save("begin", snap(), {})
+            (pathlib.Path(folder) / "xp.yaml").write_text("editor: notepad\n")
+            run.scene = snap()
+            status, out = run_end(run, "L2")
+            self.assertEqual(status, 1, out)
+            self.assertIn("the look is not back with the focus", task_line(out, "L2"))
 
 
 class GivenAway(unittest.TestCase):
@@ -370,6 +392,32 @@ class GivenAway(unittest.TestCase):
             self.assertEqual(status, 1, out)
 
 
+class NoEvent(unittest.TestCase):
+    """A contract that holds state ("no window lost") is not reached when no
+    observation came since the begin: neither pass nor FAIL."""
+
+    def test_t7_without_an_event_is_not_reached(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, one_window("s1"))
+            status, out = goal(run, one_window("s1"), one_window("s1"), "T7", hist=())
+            self.assertEqual(status, 0, out)
+            self.assertIn("task T7 not reached (no event since begin)", out)
+            self.assertNotIn("pass", task_line(out, "T7"))
+
+    def test_t7_with_an_event_is_judged(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, one_window("s1"))
+            status, out = goal(run, one_window("s1"), one_window("s1"), "T7", hist=[["s1"]])
+            self.assertIn("task T7 pass", out)
+
+    def test_c2_and_l3_without_an_event_are_not_reached(self):
+        for task in ("C2", "L3"):
+            with self.subTest(task), tempfile.TemporaryDirectory() as folder:
+                run = FakeRun(folder, one_window("s1"))
+                _, out = goal(run, one_window("s1"), one_window("s1"), task, hist=())
+                self.assertIn(f"task {task} not reached", out)
+
+
 class Covered(unittest.TestCase):
     """T7: a given window that is shown but drawn under another window is not
     lost; it is a separate MINOR line (root order, known)."""
@@ -407,6 +455,39 @@ class Covered(unittest.TestCase):
             status, out = goal(run, self.before(), one_window("s1"), "T7")
             self.assertEqual(status, 1, out)
             self.assertIn("windows lost ['s2']", out)
+
+
+class KnownRedNamesBreaches(unittest.TestCase):
+    """A known-red row hides only the breaches it names (capture, match); an
+    unlisted breach of the same look and invariant prints."""
+
+    ROWS = [{"look": "xp", "id": "I6", "capture": "xp-a", "match": "wants 14 px", "finding": "f", "slice": "s"}]
+
+    def lines(self, *texts):
+        rows = [{"time": 1.0, "action": "x", "look": "xp", "invariant": "I6", "breach": t} for t in texts]
+        return "".join(json.dumps(r) + "\n" for r in rows)
+
+    def found(self, *texts):
+        original = check.harness.known_red
+        check.harness.known_red = lambda: self.ROWS
+        try:
+            with tempfile.TemporaryDirectory() as folder:
+                run = FakeRun(folder, snap())
+                (run.dir / "breaches.jsonl").write_text(self.lines(*texts))
+                return [b["breach"] for b in run.breaches()]
+        finally:
+            check.harness.known_red = original
+
+    def test_a_listed_breach_is_hidden(self):
+        self.assertEqual(self.found("(xp-a) guide wants 14 px"), [])
+
+    def test_another_element_of_the_same_pair_prints(self):
+        text = "(xp-b) guide wants 14 px"
+        self.assertEqual(self.found("(xp-a) guide wants 14 px", text), [text])
+
+    def test_another_text_of_the_same_pair_prints(self):
+        text = "(xp-a) overlaps (xp-c)"
+        self.assertEqual(self.found(text), [text])
 
 
 def pane_node(visible=True):
@@ -458,7 +539,7 @@ class SceneState(unittest.TestCase):
             run = FakeRun(folder, cube_snap("navigate", front=3))
             run.s.label = "construct"
             run.save("begin", cube_snap("navigate", front=3), {})
-            _, out = run_end(run, "T7")
+            _, out = goal(run, cube_snap("navigate", front=3), cube_snap("navigate", front=3), "T7")
             line = next(x for x in out.splitlines() if x.startswith("task T7"))
             self.assertIn("scene: cube stood back, face 3, pane room no, walk no", line)
 

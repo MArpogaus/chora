@@ -183,6 +183,9 @@ cp "$repo/tests/gate-lib.sh" "$repo/tests/gate-lock.sh" "$fake/tests/"
 printf '#!/bin/bash\necho XDG_RUNTIME_DIR=/new\necho WAYLAND_DISPLAY=/new/wayland-1\necho CHORA_SOCKET=/new/chora/wayland-1.sock\nexec sleep 5\n' \
     >"$fake/tests/headless-session.sh"
 chmod +x "$fake/tests/headless-session.sh"
+mkdir -p "$fake/target/debug"
+printf '#!/bin/sh\necho "[]"\n' >"$fake/target/debug/choractl"
+chmod +x "$fake/target/debug/choractl"
 printf 'CHORA_SOCKET=/old/chora/wayland-1.sock\n' >"$work/again.env"
 again=$(CHORA_GATE_LOCK=$work/again.lock timeout -k 1 30 bash -c '
 . "$1/tests/gate-lib.sh"
@@ -280,5 +283,15 @@ if [ "$out" != "$(printf 'ok: 3 cells ran\nwent-on')" ]; then
     echo "FAIL: a cell list that ran 3 and skipped 1 does not end in ok: $out"
     failures=$((failures + 1))
 fi
+out=$(CHORA_GATE_LOCK_HELD=x bash -c '. "$1/tests/gate-lib.sh"; (sleep 1; touch "$2/late") & until_ok "[ -e \"$2/late\" ]" 20 && echo came' gate "$repo" "$work" 2>&1)
+[ "$out" = came ] || {
+    echo "FAIL: until_ok does not wait for a state that comes after 1 s: $out"
+    failures=$((failures + 1))
+}
+out=$(CHORA_GATE_LOCK_HELD=x bash -c '. "$1/tests/gate-lib.sh"; until_ok false 2 || echo gave-up' gate "$repo" 2>&1)
+[ "$out" = gave-up ] || {
+    echo "FAIL: until_ok does not give up on a state that never comes: $out"
+    failures=$((failures + 1))
+}
 [ "$failures" = 0 ] || exit 1
 echo "ok: gate-lib-selftest"

@@ -182,7 +182,7 @@ answered() {
 audit() {
     local cell=$1 tag=$2 out
     [[ $cell =~ ^(${CELLS:-.*})$ ]] || return 0
-    sleep 0.8
+    settle
     ctl outputs >"$shots/layout-$cell-$tag.outputs.json"
     ctl query '*' >"$shots/layout-$cell-$tag.json"
     ctl capture "$shots/layout-$cell-$tag.png" >/dev/null 2>&1
@@ -237,9 +237,9 @@ first_floor() {
     : >"$work/typed"
     typed c
     until_ok 'typed_is c' || { echo "FAIL: $tag: a key typed after the click did not reach the terminal"; failed=1; }
-    sleep 1
+    settle
     key Alt+Escape
-    sleep 1
+    settle
     key Super+x
     until_ok 'ctl call construct construct.list | jq -e ".panes | length == 0" >/dev/null' ||
         { echo "FAIL: $tag: the terminal pane did not close: $(ctl call construct construct.list | jq -c .panes)"; failed=1; return; }
@@ -248,9 +248,9 @@ first_floor() {
     until_ok 'pane_named startcell' || { echo "FAIL: $tag: Super+T after the click started no terminal"; failed=1; return; }
     until_ok card_gone || { echo "FAIL: $tag: the card stays after Super+T"; failed=1; }
     ok "$tag: Super+T started a terminal and the card went"
-    sleep 1
+    settle
     key Alt+Escape
-    sleep 1
+    settle
     key Super+x
     until_ok 'ctl query app_id:startcell | jq -e "length == 0" >/dev/null' ||
         { echo "FAIL: $tag: the window of the start cell is left"; failed=1; }
@@ -341,7 +341,7 @@ use_mode() {
     done
     until_ok 'ctl query app_id:startcell | jq -e "length == 0" >/dev/null' ||
         { echo "FAIL: $tag: a terminal window is left after the close"; failed=1; }
-    sleep 0.4
+    settle
     label_gone || { echo "FAIL: $tag: a pane label is left 400 ms after the last pane closed"; failed=1; }
 }
 
@@ -377,7 +377,7 @@ more_panes() {
     until_ok 'filled construct-hint-fly-in' || { echo "FAIL: $tag: the hint Fly in has no hover fill under the pointer"; failed=1; }
     key Tab
     until_shows construct-list-row-1 || { echo "FAIL: $tag: the window list shows no second row"; failed=1; return; }
-    sleep 0.5
+    settle
     hover_at construct-list-row-1 || { echo "FAIL: $tag: no second row on the screen"; failed=1; return; }
     until_ok 'filled construct-list-row-1' || { echo "FAIL: $tag: the second row has no hover fill under the pointer"; failed=1; }
     press_at construct-list-row-1 || { echo "FAIL: $tag: no second row on the screen"; failed=1; return; }
@@ -452,7 +452,7 @@ SCRIPT
     fi
     hint_bar "$tag" "$size"
     echo '[{"pointer_move": {"position": [24, 712]}}]' | ctl inject >/dev/null
-    sleep 0.5
+    settle
     audit walk "$tag"
 
     ask
@@ -463,22 +463,22 @@ SCRIPT
     until_shows hud-chat || echo "FAIL: $tag: no chat"
     audit chat-ask "$tag"
     answered
-    sleep 0.5
+    settle
     audit chat "$tag"
     ctl call assistant chat.hide '{}' >/dev/null 2>&1
-    sleep 0.5
+    settle
 
     key Tab
-    sleep 0.6
+    settle
     audit list "$tag"
     typed sun
     audit list-search "$tag"
     key Escape
     key Escape
-    sleep 0.4
+    settle
 
     key Super+F1
-    sleep 0.6
+    settle
     audit help "$tag"
     help_contrast "$tag" "$size"
     typed pane

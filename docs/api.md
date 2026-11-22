@@ -441,11 +441,17 @@ grabs of managers of virtual outputs wait for it (sh-23). A key of the user that
 a window manager grabbed chooses that one in the same way when its
 claim holds the pointer or the keyboard focus, unless it has the
 keyboard focus anyway: the window that its key starts, such as the
-terminal of `Super+Return`, opens where the person is. Elsewhere the
-key changes nothing. The choice ends with
+terminal of `Super+Return`, opens where the person is, also while a
+window of a face of a cube or a pane has the keyboard. Elsewhere the
+key changes nothing. The grabs of the manager that owns the keyboard
+focus never wait for the choice, so a chord of the screen's manager
+takes no key from the program on a face: the next chord of the face
+reaches it, and ends a choice that a key made. The choice ends with
 the next press of the user that chooses nobody, and when the keyboard
 focus changes, for example when the chosen manager focuses its new
-window. An injected press neither chooses nor ends a choice.
+window. An injected press neither chooses nor ends a choice, except
+in the test mode of the headless backend, where it counts as a press
+of the user, as it does for a button.
 
 One case differs. When the pointer is over a pane that forwards into a
 virtual output, no click chose a manager, and the rule of the keyboard

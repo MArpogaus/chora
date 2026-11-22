@@ -61,6 +61,9 @@ impl Construct {
             self.hidden.iter().any(|h| h == s)
                 || (self.panes.iter()).any(|p| p.attached && p.window() == Some(s))
         };
+        if self.kit_focus.taken_by_other(NAME) {
+            return json!({"holder": null});
+        }
         match self.core_focus.as_deref() {
             Some(surface) if owned(surface) => json!({"holder": NAME, "surface": surface}),
             None if self.active && !self.overlay => json!({"holder": NAME}),
@@ -215,6 +218,47 @@ pub(crate) mod tests {
         assert_eq!(c.state().unwrap()["focus"], held);
         c.core_focus = Some("s2".into());
         assert_eq!(c.state().unwrap()["focus"], json!({"holder": null}));
+    }
+
+    /// A node of another client that took the keyboard (a click in the xp
+    /// face) leaves the construct holding nothing, not the whole space
+    /// (co-i3 r2, I3 of the persona round 5).
+    #[test]
+    fn a_focused_node_of_another_client_takes_the_focus_off_the_construct() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut c, _core) = construct("state-foreign-node", false);
+        c.active = true;
+        assert_eq!(c.state().unwrap()["focus"], json!({"holder": "construct"}));
+        let node = |node: Option<&str>, owner: Option<&str>| chora_scene::Event::FocusNode {
+            node: node.map(String::from),
+            owner: owner.map(String::from),
+        };
+        c.event(node(Some("xp-icons"), Some("xp"))).unwrap();
+        assert_eq!(c.state().unwrap()["focus"], json!({"holder": null}));
+        c.event(node(None, None)).unwrap();
+        assert_eq!(c.state().unwrap()["focus"], json!({"holder": "construct"}));
+    }
+
+    /// A click in the xp face while an owned window has the keys: the
+    /// foreign node holds the focus, not the construct (co-i3 r3, rv-1).
+    #[test]
+    fn a_foreign_node_takes_the_focus_off_an_owned_window_too() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut c, _core) = construct("state-foreign-over-window", false);
+        c.active = true;
+        c.panes
+            .push(pane("foot", "s1", Content::Window { command: None }, true));
+        c.core_focus = Some("s1".into());
+        let held = json!({"holder": "construct", "surface": "s1"});
+        assert_eq!(c.state().unwrap()["focus"], held);
+        let node = |node: Option<&str>, owner: Option<&str>| chora_scene::Event::FocusNode {
+            node: node.map(String::from),
+            owner: owner.map(String::from),
+        };
+        c.event(node(Some("xp-icons"), Some("xp"))).unwrap();
+        assert_eq!(c.state().unwrap()["focus"], json!({"holder": null}));
+        c.event(node(None, None)).unwrap();
+        assert_eq!(c.state().unwrap()["focus"], held);
     }
 
     /// A look that takes the focused pane out of sight gives the keyboard

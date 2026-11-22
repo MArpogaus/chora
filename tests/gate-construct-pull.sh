@@ -291,7 +291,7 @@ CHORA_TEST_FLAGS=--test-injected-press-is-real pull pair
 until_ok 'test "$(owner)" = construct' 40 || fail "the window did not go to the construct past the edge: $(probe)"
 inject "[{\"pointer_move\": {\"position\": [260, 340], \"output\": \"$edge\"}},
     {\"button\": {\"state\": \"released\"}}]"
-sleep 1
+settle
 first=$(pane_name "$surface")
 until_ok xp_let_go 20 || fail "xp still lists the window after the drop: $(keyboard_holder)"
 until_ok xp_holds_no_keys 20 ||
@@ -308,7 +308,7 @@ call pane.resize "{\"name\": \"$first\", \"scale\": 3}" >/dev/null || fail "pane
 call pane.move "{\"name\": \"$second\", \"right\": -150}" >/dev/null || fail "pane.move $second"
 inject '[{"shortcut": {"keys": "Alt+Escape"}}]'
 until_ok "$stood_back" 40 || fail "Alt+Escape did not step back with two panes: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
-sleep 1
+settle
 breaches=$(closed_cube_breaches)
 [ -z "$breaches" ] || fail "stood back with two panes the cube is not closed or the panes overlap (rv-1): $breaches"
 ok "stood back with two panes on one side the faces meet, the mirrors lie under them and no pane covers a face or the other pane"
@@ -335,7 +335,7 @@ ok "the pane wobbles on with a depth of $(deepest "$surface")"
 [ -z "${PULL_SHOT:-}" ] || ctl capture "$PULL_SHOT" >/dev/null
 inject "[{\"pointer_move\": {\"position\": [220, 320], \"output\": \"$edge\"}},
     {\"button\": {\"state\": \"released\"}}]"
-sleep 1
+settle
 [ "$(owner)" = construct ] || fail "the window is lost or left after the drop: $(probe)"
 [ "$(pane_of "$surface")" != none ] || fail "the pane went after the drop"
 [ -n "$(pane_name "$surface")" ] || fail "the pane of the window has no name"
@@ -356,7 +356,7 @@ rests=$(node "construct-pane-$surface")
     fail "the camera flew into the window after the pull-out: $(node "$surface")"
 inject '[{"pointer_move": {"position": [300, 200]}}]'
 inject '[{"pointer_move": {"position": [900, 600]}}]'
-sleep 1
+settle
 [ "$(node "construct-pane-$surface")" = "$rests" ] ||
     fail "the pane follows the pointer with no button down: $rests, then $(node "construct-pane-$surface")"
 [ "$(node "$surface" | python3 -I -c 'import json, sys; print(json.load(sys.stdin)[0])')" = "construct-pane-$surface" ] ||
@@ -398,7 +398,7 @@ for how in super plain; do
     until_ok 'test "$(owner)" = construct' 40 || fail "the window did not go to the construct past the edge: $(probe)"
     inject "[{\"pointer_move\": {\"position\": [260, 340], \"output\": \"$edge\"}},
         {\"button\": {\"state\": \"released\"}}]"
-    sleep 1
+    settle
     windows_before=$(window_count)
     name=$(pane_name "$surface")
     call pane.move "{\"name\": \"$name\", \"right\": -700}" >/dev/null || fail "pane.move $name"
@@ -406,7 +406,7 @@ for how in super plain; do
     home_rect=$(pane_rect)
     inject '[{"shortcut": {"keys": "Alt+Escape"}}]'
     until_ok "$stood_back" 40 || fail "Alt+Escape did not step back after the pull-out: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
-    sleep 1
+    settle
     [ -z "${BEHIND_SHOT:-}" ] || ctl capture "$BEHIND_SHOT" >/dev/null
     breaches=$(closed_cube_breaches)
     [ -z "$breaches" ] || fail "stood back after the pull-out the cube is not closed (co-21): $breaches"
@@ -425,11 +425,11 @@ print(bool(nodes and nodes[0].get("visible") and nodes[0]["rects"].get("HEADLESS
     aside_rect=$(pane_rect)
     call view.step_in '{}' >/dev/null || fail "view.step_in"
     until_ok 'test "$(prop construct-cube-face-0 forward)" = True' 40 || fail "view.step_in did not step in: $(prop construct-cube-face-0 forward)"
-    sleep 1
+    settle
     [ "$(pane_rect)" = "$home_rect" ] || fail "the pane is not home after the step in: $(pane_rect), before the step back $home_rect"
     call view.step_back '{}' >/dev/null || fail "view.step_back"
     until_ok "$stood_back" 40 || fail "the second step back did not stand back"
-    sleep 1
+    settle
     [ "$(pane_rect)" = "$aside_rect" ] || fail "the pane is not beside the cube again: $(pane_rect), the first time $aside_rect"
     ok "stepped in again the pane is home at $home_rect, and beside the cube again when stood back"
     read -r px py <<<"$(pane_middle)"
@@ -491,7 +491,7 @@ stood() {
     call view.step_back '{}' >/dev/null || fail "view.step_back"
     until_ok "$stood_back" 40 || fail "view.step_back did not stand back: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
     until_ok 'test -n "$(plane_middle)"' 40 || fail "no floating plane of the window"
-    sleep 1
+    settle
     read -r px py <<<"$(plane_middle)"
     inject "[{\"pointer_move\": {\"position\": [$px, $py]}},
         {\"button\": {\"state\": \"pressed\", \"hold\": true}},
@@ -502,7 +502,7 @@ stood() {
 CHORA_TEST_FLAGS=--test-injected-press-is-real stood plane_beside
 [ -z "$(hint_text)" ] || fail "stood back, a plain drag on a plane shows the pull hint: $(hint_text)"
 inject '[{"pointer_move": {"position": [1200, 100]}}, {"button": {"state": "released"}}]'
-sleep 1
+settle
 [ "$(owner)" = xp ] || fail "a drag on a floating plane pulled the window out: $(probe)"
 [ "$(pane_of "$surface")" = none ] || fail "a drag on a floating plane made a pane: $(pane_of "$surface")"
 ok "stood back, a drag on a floating plane pulls nothing out; the cube turns instead: $(probe)"
@@ -543,7 +543,7 @@ until_ok 'read -r _ _ _ nx _ <<<"$(probe)"; test "$nx" -gt 1100' 20 || fail "the
 call view.step_back '{}' >/dev/null || fail "view.step_back"
 until_ok "$stood_back" 40 || fail "view.step_back did not stand back with the window over the edge: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
 until_ok 'test -n "$(plane_middle)"' 40 || fail "no floating plane of the window"
-sleep 1
+settle
 plane_right=$(right_of "construct-cube-float-0-$surface")
 face_right=$(right_of construct-cube-face-0)
 [ "$plane_right" -gt $((face_right + 20)) ] ||
@@ -561,7 +561,7 @@ inject '[{"pointer_move": {"position": [500, 300]}}]'
 until_ok 'read -r _ _ _ nx _ <<<"$(probe)"; test "$nx" != "$x"' 20 ||
     fail "after the refused give the window left its drag: $(probe)"
 inject '[{"button": {"state": "released"}}]'
-sleep 1
+settle
 [ "$(owner)" = xp ] || fail "the window left xp after the refused give: $(probe)"
 [ "$(pane_of "$surface")" = none ] || fail "a refused give made a pane: $(pane_of "$surface")"
 ok "after the refused give the window goes on with the drag and stays with xp: $(probe)"

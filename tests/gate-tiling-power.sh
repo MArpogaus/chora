@@ -112,9 +112,9 @@ fi
 rm -f "$XDG_PICTURES_DIR"/Screenshots/*.png
 keys Super+space
 wait_menu || fail "Super+space opened no launcher"
-sleep 0.5
+settle
 echo '[{"text": {"text": "Screenshot"}}]' | ctl inject - >/dev/null || fail "typing Screenshot"
-sleep 1
+settle
 keys Return
 for _ in $(seq 20); do
     ls "$XDG_PICTURES_DIR"/Screenshots/*.png >/dev/null 2>&1 && break

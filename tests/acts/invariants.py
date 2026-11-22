@@ -231,7 +231,9 @@ def i14(before, after, act):
         lines = [line for line in text.splitlines() if PANIC.search(line)]
         out += [f"{name} log: {line[:200]}" for line in lines[:3]]
     gone = before.clients - after.clients - set(act.disconnects)
-    out += [f"{client} disconnected, the act did not declare it" for client in sorted(gone)]
+    ended = "; ".join(f"{name} {how}" for name, how in sorted(after.exits.items()))
+    cause = ended or "no program of the session had ended: the connection was lost while it ran"
+    out += [f"{client} disconnected, the act did not declare it ({cause})" for client in sorted(gone)]
     return out
 
 

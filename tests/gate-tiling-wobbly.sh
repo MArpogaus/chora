@@ -47,7 +47,7 @@ inject '[{"button": {"state": "released"}}]'
 ok "a tiled window does not wobble"
 
 inject '[{"shortcut": {"keys": "Super+Ctrl+space"}}]'
-sleep 1
+settle
 drag
 bend_is 1 || fail "a floating window does not bend under a drag"
 ok "a floating window wobbles under a drag"

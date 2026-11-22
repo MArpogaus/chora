@@ -13,7 +13,7 @@
 # look for the shared keys and one visible door per action. `acts` runs the act contracts of
 # tests/acts with the invariants I1 to I14 (no I11 yet) on state.get and scene.boxes against tests/acts/known-red.toml. `matrix` runs tiling and xp on one output too (gate-handover-shared.sh), a look that joins and leaves the keyboard with the one there (gate-join-keys.sh), the Super tap of xp beside tiling on two outputs (gate-start-tap.sh) and ends with the click that
 # chooses a window manager for a new window; `virtual` hands a window over between window
-# managers on a screen and on virtual outputs; `xp-faces` runs one xp on
+# managers on a screen and on virtual outputs, and a chord of the screen manager chooses it over a face window (gate-keys-route.sh); `xp-faces` runs one xp on
 # four virtual outputs; `cube` shows that xp on the faces of a cube in the
 # construct; `pull` drags a window out of a face of that cube and back; `out` turns the stood-back cube by a drag on a window, shows its keys and closes it.
 # `winit` runs a virtual output with xp in a chora nested on the winit
@@ -21,7 +21,7 @@
 # construct and reads the pose of the camera at exact times; `keys` types text
 # into the space, starts the terminal and the launcher, closes panes and
 # checks the grabs after a flight into a pane.  `pixels` reads the labels, a pane
-# beside a cube and the 2x step-in from captures. `mc-paths` runs the cells of the main paths of chora-mc. `mc-sofa` runs the cells of the sofa and kitchen scenarios of chora-mc. `mc-column` runs the margin column of chora-mc at 1280x720 and 1920x1080. `mc-handover` runs the cells of a window that goes to mc. `launcher-click` clicks a row of the Apps launcher of tiling and of the Programs launcher of the construct with the hands of a persona (act.py) and asks for the program of that row. `construct-extra` runs the construct gates K1 (a pane at 1:1), mcpane, nested, k2a, windows and 3d (K5, direct input on the 3D base). `e2e` runs the scripts of the e2e job of
+# beside a cube and the 2x step-in from captures. `mc-paths` runs the cells of the main paths of chora-mc. `mc-sofa` runs the cells of the sofa and kitchen scenarios of chora-mc. `mc-column` runs the margin column of chora-mc at 1280x720 and 1920x1080. `mc-handover` runs the cells of a window that goes to mc. `launcher-click` clicks a row of the Apps launcher of tiling and of the Programs launcher of the construct with the hands of a persona (act.py) and asks for the program of that row. `construct-extra` runs the construct gates K1 (a pane at 1:1), mcpane, nested, k2a, windows, 3d (K5, direct input on the 3D base) and i3 (one focus holder after a click in the xp face of the cube). `e2e` runs the scripts of the e2e job of
 # .github/workflows/ci.yaml in its order (tests/e2e-sequence.sh); a skip fails the step unless tests/e2e-skips.txt lists it.
 # `voice-acp` runs the ACP sub-agent smoke test (a question that edits a file is answered by a HUD button, not by a spoken yes), `voice-events` the voice.state events, and `agent` the agent interface in a headless sway (tests/agent.sh).
 # `identity` fails when any commit of BASE..HEAD, merges included, has an author or
@@ -240,7 +240,7 @@ package-deps|tests/gate-package-deps.sh
 package-lists|tests/gate-package-lists.sh
 xp|tests/xp.sh "$repo/target/debug"
 matrix|tests/gate-handover-matrix.sh && tests/gate-give-holders.sh && tests/gate-handover-shared.sh && BIN=$repo/target/debug tests/gate-join-keys.sh && BIN=$repo/target/debug tests/gate-click-routes.sh && BIN=$repo/target/debug tests/gate-injected-presses.sh && BIN=$repo/target/debug tests/gate-start-tap.sh
-virtual|BIN=$repo/target/debug tests/gate-handover-virtual.sh
+virtual|BIN=$repo/target/debug tests/gate-handover-virtual.sh && BIN=$repo/target/debug tests/gate-keys-route.sh
 xp-faces|BIN=$repo/target/debug tests/gate-xp-faces.sh
 xp-paperclip|BIN=$repo/target/debug tests/gate-xp-paperclip.sh
 xp-fields|BIN=$repo/target/debug tests/gate-xp-fields.sh
@@ -259,7 +259,7 @@ cube|BIN=$repo/target/debug tests/gate-construct-cube.sh
 pull|BIN=$repo/target/debug tests/gate-construct-pull.sh
 placed|BIN=$repo/target/debug tests/gate-construct-placed.sh
 construct-hud|BIN=$repo/target/debug tests/gate-construct-hud.sh
-construct-extra|BIN=$repo/target/debug tests/gate-construct-k1.sh && BIN=$repo/target/debug tests/gate-construct-mcpane.sh && BIN=$repo/target/debug tests/gate-construct-nested.sh && BIN=$repo/target/debug tests/gate-construct-k2a.sh && BIN=$repo/target/debug tests/gate-construct-windows.sh && BIN=$repo/target/debug tests/gate-construct-3d.sh
+construct-extra|BIN=$repo/target/debug tests/gate-construct-k1.sh && BIN=$repo/target/debug tests/gate-construct-mcpane.sh && BIN=$repo/target/debug tests/gate-construct-nested.sh && BIN=$repo/target/debug tests/gate-construct-k2a.sh && BIN=$repo/target/debug tests/gate-construct-windows.sh && BIN=$repo/target/debug tests/gate-construct-3d.sh && BIN=$repo/target/debug tests/gate-construct-i3.sh
 out|BIN=$repo/target/debug tests/gate-construct-out.sh
 winit|BIN=$repo/target/debug tests/gate-virtual-winit.sh
 wm-pane|BIN=$repo/target/debug tests/gate-construct-wm-pane.sh

@@ -447,4 +447,133 @@ mod tests {
         drop(icons);
         assert!(!copy.exists());
     }
+
+    /// A theme of the freedesktop layout with a PNG of each size, as
+    /// `SIZE/apps/NAME.png`, and an SVG in `scalable/apps` if asked.
+    fn theme_with(tag: &str, name: &str, pngs: &[u32], svg: bool) -> crate::testing::TempDir {
+        let theme = crate::testing::TempDir::new(&format!("chora-icons-theme-{tag}"));
+        for size in pngs {
+            let apps = theme.path().join(format!("{size}x{size}")).join("apps");
+            fs::create_dir_all(&apps).unwrap();
+            fs::write(apps.join(format!("{name}.png")), png(*size, *size, 0)).unwrap();
+        }
+        if svg {
+            let apps = theme.path().join("scalable/apps");
+            fs::create_dir_all(&apps).unwrap();
+            fs::write(apps.join(format!("{name}.svg")), b"<svg/>").unwrap();
+        }
+        theme
+    }
+
+    #[test]
+    fn a_theme_gives_its_svg_first_and_else_its_largest_png_up_to_64() {
+        let theme = theme_with("svg", "calc", &[16, 48], true);
+        assert_eq!(
+            search(theme.path(), "calc", None),
+            Some(theme.path().join("scalable/apps/calc.svg"))
+        );
+        let theme = theme_with("png", "calc", &[16, 48], false);
+        assert_eq!(
+            search(theme.path(), "calc", None),
+            Some(theme.path().join("48x48/apps/calc.png"))
+        );
+    }
+
+    #[test]
+    fn a_wanted_size_wins_over_the_svg_and_a_png_above_64_is_refused() {
+        let theme = theme_with("wanted", "calc", &[16, 48], true);
+        assert_eq!(
+            search(theme.path(), "calc", Some(16)),
+            Some(theme.path().join("16x16/apps/calc.png"))
+        );
+        let big = theme_with("big", "calc", &[128], false);
+        assert_eq!(search(big.path(), "calc", None), None, "128 is above 64");
+    }
+
+    #[test]
+    fn a_symbolic_theme_directory_and_a_missing_name_give_no_icon() {
+        let theme = crate::testing::TempDir::new("chora-icons-theme-dark");
+        let apps = theme.path().join("symbolic/apps");
+        fs::create_dir_all(&apps).unwrap();
+        fs::write(apps.join("calc.png"), png(16, 16, 0)).unwrap();
+        assert_eq!(
+            search(theme.path(), "calc", None),
+            None,
+            "symbolic is skipped"
+        );
+        let theme = theme_with("missing", "calc", &[16], true);
+        assert_eq!(search(theme.path(), "other", None), None);
+    }
+
+    #[test]
+    fn an_icon_is_remembered_once_found() {
+        let (_dir, path) = file("remembered.png", &png(8, 8, 0));
+        let name = path.to_str().unwrap();
+        let mut icons = Icons::new(["none"]);
+        let first = icons.find(name);
+        assert_eq!(first, Some(path.clone()));
+        fs::remove_file(&path).unwrap();
+        assert_eq!(icons.find(name), first, "the answer is kept");
+
+        let (_dir, path) = file("sized.png", &png(8, 8, 0));
+        let name = path.to_str().unwrap();
+        let first = icons.find_sized(name, 16);
+        assert_eq!(first, Some(path.clone()));
+        fs::remove_file(&path).unwrap();
+        assert_eq!(
+            icons.find_sized(name, 16),
+            first,
+            "the sized answer is kept"
+        );
+    }
+
+    #[test]
+    fn a_name_with_a_slash_is_no_theme_icon_and_a_path_is_its_own_file() {
+        let mut icons = Icons::new(["none"]);
+        assert_eq!(icons.find("apps/calc"), None);
+        assert_eq!(icons.find(""), None);
+        assert_eq!(icons.find("/chora-no-such-dir/calc.png"), None);
+        assert_eq!(Icons::new(["none"]).for_sender("a/b"), None);
+    }
+
+    #[test]
+    fn a_program_without_an_icon_takes_the_generic_program_icon() {
+        let missing = "chora-no-such-icon-xyz";
+        let mut icons = Icons::new(["none"]);
+        assert_eq!(
+            icons.program(missing),
+            icons.find("application-x-executable")
+        );
+        assert_eq!(
+            icons.program_sized(missing, 16),
+            icons.find_sized("application-x-executable", 16)
+        );
+    }
+
+    #[test]
+    fn the_first_sized_icon_of_a_list_is_the_first_one_found() {
+        let (_dir, path) = file("first.png", &png(24, 24, 0));
+        let mut icons = Icons::new(["none"]);
+        let names = ["chora-no-such-icon-xyz", path.to_str().unwrap()];
+        assert_eq!(icons.first_sized(&names, 24), Some(path));
+    }
+
+    #[test]
+    fn the_copies_past_the_limit_go_the_oldest_first() {
+        let runtime = runtime_with("evict", 0o700);
+        let mut icons = Icons::new(["none"]);
+        let mut copies = Vec::new();
+        for n in 0..=KEPT_COPIES {
+            let bytes = format!("png{n}");
+            copies.push(
+                icons
+                    .private_copy_in(Some(runtime.clone()), bytes.as_bytes())
+                    .unwrap(),
+            );
+        }
+        assert!(!copies[0].exists(), "the oldest copy is removed");
+        assert!(copies[KEPT_COPIES].exists(), "the newest stays");
+        drop(icons);
+        fs::remove_dir_all(runtime).unwrap();
+    }
 }

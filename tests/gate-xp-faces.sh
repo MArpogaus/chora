@@ -179,15 +179,14 @@ cell_no_cube_on_faces() {
       {"key": {"key": "Super_L", "state": "pressed"}},
       {"button": {"state": "pressed", "hold": true}},
       {"pointer_move": {"position": [400, 220]}}]'
-    sleep 0.5
+    pace 0.5
     hidden=$(ctl query id:xp-cube-bg | jq length)
     inject '[{"button": {"state": "released"}},
       {"key": {"key": "Super_L", "state": "released"}}]'
     [ "$hidden" = 0 ] || return 1
     python3 -I "$repo/tests/pane-host.py" --grab Ctrl+Alt+Right >/dev/null 2>&1 || return 1
     ctl call xp turn_to '{"desktop": 1}' >/dev/null 2>&1 || return 1
-    sleep 1
-    ctl query "id:$w" | jq -e '(.[0].rects | length) > 0' >/dev/null
+    until_ok "ctl query id:$w | jq -e '(.[0].rects | length) > 0' >/dev/null" 20
 }
 
 cell_drag_keeps_rect() {
@@ -212,7 +211,7 @@ drawn() { ctl render-stats | jq -c '.outputs | map_values([.damaged_frames, .pas
 
 cell_still_faces_draw_nothing() {
     local before
-    sleep 3
+    pace 3
     for _ in 1 2; do
         before=$(drawn)
         sleep 2
@@ -266,13 +265,7 @@ cell_float_survives_restart() {
     float "$face" true || return 1
     [ "$(opacity)" = 0 ] || return 1
     ctl call xp restart >/dev/null 2>&1 || return 1
-    sleep 2
-    ctl wait "id:xp-bar-$face" --timeout 20 >/dev/null || return 1
-    for _ in $(seq 25); do
-        [ "$(opacity)" = 100 ] && ctl query "id:$w" | jq -e '(.[0].rects | length) > 0' >/dev/null && return 0
-        sleep 0.2
-    done
-    return 1
+    until_ok "[ \"\$(opacity)\" = 100 ] && ctl query id:$w | jq -e '(.[0].rects | length) > 0' >/dev/null" 60
 }
 
 declare -A got

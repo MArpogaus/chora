@@ -11,7 +11,8 @@
 #   bar-surface   the island is `surface` at 92 %: 0.92 surface + 0.08 black
 #   bar-hairline  a 1 px `line` hairline around the island, no gradient edge
 #   bar-font      Inter 14 px weight 500: the width and the ink of Apps and
-#                 Keys, the width of the clock (Inter, not the mono face)
+#                 Keys, the width of the clock (Inter, not the mono face; the bound follows
+#                 the clock text, tests/clock-width.py)
 #   bar-words     the words Apps and Keys and the power icon are visible
 # Each cell is a measurement of the capture, no retry beyond the wait for
 # the bar.
@@ -56,15 +57,19 @@ round() {
     sleep 2
     ctl capture --output HEADLESS-1 "$shot" >/dev/null 2>&1 || fail "$tag: the capture"
     [ -z "$shots" ] || cp "$shot" "$shots/bar-$tag.png"
+    local now clock_bound
+    now=$(date +%s)
+    clock_bound=$(python3 -I "$repo/tests/clock-width.py" $((now - 60)) "$now") || fail "$tag: the clock bound"
     # shellcheck disable=SC2046
-    python3 -I - "$repo/tests/png-pixel.py" "$shot" "$scale" "$tag" $(palette "$theme") <<'PY' || red=1
+    python3 -I - "$repo/tests/png-pixel.py" "$shot" "$scale" "$tag" "$clock_bound" $(palette "$theme") <<'PY' || red=1
 import importlib.util, sys
 spec = importlib.util.spec_from_file_location("png_pixel", sys.argv[1])
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 rows = list(mod.rows(open(sys.argv[2], "rb").read()))
 s, tag = int(sys.argv[3]), sys.argv[4]
-surface, line, text = (tuple(int(v) for v in sys.argv[5 + 3 * i:8 + 3 * i]) for i in range(3))
+clock_bound = tuple(float(v) for v in sys.argv[5].split())
+surface, line, text = (tuple(int(v) for v in sys.argv[6 + 3 * i:9 + 3 * i]) for i in range(3))
 W, H = len(rows[0]) // 4, len(rows)
 
 def px(x, y):
@@ -167,8 +172,10 @@ c_right = next(x for x in range(760 * s, 640 * s, -1) if bar(x, y_mid))
 clock = ink_box(c_left // s + 4, c_right // s - 3, 14, 34)
 if clock is None:
     die("bar-words", "no clock in the bar")
-elif not 100 <= clock[0] <= 119:
-    die("bar-font", f"the clock is {clock[0]:.1f} wide, not Inter 14 px weight 500 (100-119)")
+else:
+    c_lo, c_hi = clock_bound
+    if not c_lo <= clock[0] <= c_hi:
+        die("bar-font", f"the clock is {clock[0]:.1f} wide, not Inter 14 px weight 500 ({c_lo:.0f}-{c_hi:.0f} for its text)")
 if failed:
     sys.exit(1)
 print(f"ok: {tag}: island {left},{top} to {right},{bottom}, surface {inside}, hairline, Apps {apps}, Keys {keys}, clock {clock[0]:.1f}")

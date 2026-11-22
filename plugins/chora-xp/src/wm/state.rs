@@ -98,7 +98,7 @@ impl Wm {
     }
 
     /// A node of xp, such as its Start menu, has the keyboard.
-    fn own_node(&self) -> bool {
+    pub(super) fn own_node(&self) -> bool {
         self.key_node.as_deref() == Some(NAME)
     }
 
@@ -304,6 +304,23 @@ mod tests {
             sent.iter()
                 .all(|c| !matches!(c, chora_scene::Command::FocusNode { .. })),
             "the keys of tiling's node are taken: {sent:?}"
+        );
+    }
+
+    /// HT-rx-1: the Start menu of xp has the keys when the foreign window
+    /// that had the focus goes: the icons do not take them from the menu.
+    #[test]
+    fn the_desktop_icons_leave_the_keys_of_the_start_menu_of_xp() {
+        let (mut wm, _methods) = wm_on_fake_core("state-icons-menu");
+        wm.event(focus("t1")).unwrap();
+        let taken = json!({"event": "focus.node", "node": "xp-menu", "owner": "xp"});
+        wm.event(serde_json::from_value(taken).unwrap()).unwrap();
+        assert!(wm.own_node(), "the menu of xp has the keyboard");
+        let sent = wm.focus_moved(None);
+        assert!(
+            sent.iter()
+                .all(|c| !matches!(c, chora_scene::Command::FocusNode { .. })),
+            "the icons took the keys from the open Start menu: {sent:?}"
         );
     }
 
