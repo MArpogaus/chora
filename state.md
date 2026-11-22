@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-22 04:16 UTC)
+## Now (2026-11-22 04:22 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 04:16 week 8.1 % (6.1 + 2.0 Bkk days; 0.33 %/h, under pace 14.6 %: more lanes)
 session branch: 1c9e64f7; 60 greens; t104 red 23:59 acts tiling I14 (sh-32); t104b red 00:36 only in tiling-look bar-font: clock 120 wide (limit 119), date-dependent check (Sunday); CLOCK-WIDTH, then t104c.
@@ -24,10 +24,11 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 | Lane | Model, branch | State |
 |---|---|---|
 | ti-38-r1.md (F7, rc 2: ti-38 MAJOR, joining look takes the keyboard) | opus high, claude/ti-38 e86b3cfa | session_016iS3kP4PwZqxBu9ivmLzFw 04:14 |
+| tour-fix-r3.md (F7, rc 11: ti-31 check fault, rv-1..6; 0.8 %) | sonnet medium, claude/tour-fix 87fdbeb9 | starting |
 
 ## Queue (% week; 5 % reserve)
-4. (F7, rc 2-3) TOUR-FIX r2 done 03:40 87fdbeb9 (66 to 84 red, +18 ti-31; gate red only tiling-look clock = ti-37, fixed by t105); REVIEW r2 MERGE-OK 03:50 (5 MINOR rv-1..5: r3 with ti-31); PM 11-22: inner gap 10 of tiling-v2 holds, ti-31 a check fault for r3; then train, RECORD r2.
-5. t105 running 02:33 f9e2f3f6: CLOCK-WIDTH 527dc847, P2-HARNESS-M, SH-32, GATE-WAITS; TI-R4 MERGE-OK 04:14 e86b3cfa (ti-38 MAJOR filed, 2 %); next: LOOP-SLEEPS; then t104c: TOUR-FIX 87fdbeb9, TI-R4, KEYS-ROUTE e16d558e, CO-HINT, KIT-COV, SPLIT-A, CO-I3 042a9c77.
+4. (F7, rc 2-3) TOUR-FIX r2 done 03:40 87fdbeb9 (66 to 84 red, +18 ti-31; gate red only tiling-look clock = ti-37, fixed by t105); REVIEW r2 MERGE-OK 03:50; r3 lane (ti-31, rv-1..6); PM 11-22: inner gap 10 of tiling-v2 holds, ti-31 a check fault for r3; then train, RECORD r2.
+5. t105 running 02:33 f9e2f3f6: CLOCK-WIDTH 527dc847, P2-HARNESS-M, SH-32, GATE-WAITS; TI-R4 MERGE-OK 04:14 e86b3cfa; LOOP-SLEEPS met on 1c9e64f7, dropped; then t104c: TOUR-FIX 87fdbeb9, TI-R4, KEYS-ROUTE e16d558e, CO-HINT, KIT-COV, SPLIT-A, CO-I3 042a9c77.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
