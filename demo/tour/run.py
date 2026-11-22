@@ -76,6 +76,7 @@ def main(argv):
     else:
         out = os.environ.get("TOUR_OUT", "/tmp/claude-0/tour-v9")
         os.makedirs(out, exist_ok=True)
+        shutil.rmtree(os.path.join(out, tour.CAPTURES), ignore_errors=True)
     os.environ["TOUR_OUT"] = out
     baseline = bool(os.environ.get("TOUR_BASELINE"))
     tour.TAKEN.clear()
@@ -88,9 +89,9 @@ def main(argv):
         except Exception as err:  # noqa: BLE001
             if baseline and isinstance(err, RuntimeError) and tour.NO_METHOD.search(str(err)):
                 reason = " ".join(str(err).split())
-                names = [n for n in tour.planned(name) if n not in tour.TAKEN]
-                none.append({"chapter": name, "reason": reason, "names": names, "trace": traceback.format_exc()})
-                print(f"chapter {name}: baseline: none from the act that stopped it: {reason} ({len(names)} captures)")
+                missing = [n for n in tour.planned(name) if n not in tour.TAKEN]
+                none.append({"chapter": name, "reason": reason, "names": missing, "trace": traceback.format_exc()})
+                print(f"chapter {name}: baseline: none from the act that stopped it: {reason} ({len(missing)} captures)")
                 continue
             broke += 1
             print(f"chapter {name}: BROKE\n{traceback.format_exc()}")
