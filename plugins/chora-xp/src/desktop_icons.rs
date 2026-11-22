@@ -32,6 +32,9 @@ const PREFIX: &str = "xp-icon-";
 const CELL_W: i32 = 80;
 const CELL_H: i32 = 88;
 const MARGIN: i32 = 8;
+/// The width of the column of icons at the left of the work area: new
+/// windows start right of it.
+pub const COLUMN: i32 = MARGIN + CELL_W;
 const ICON: i32 = 32;
 /// The icon in its cell: centered, 2 pixels below the top.
 const ICON_X: i32 = (CELL_W - ICON) / 2;

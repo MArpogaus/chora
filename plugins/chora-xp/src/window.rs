@@ -7,6 +7,7 @@ use chora_scene::{Command, Mesh, PropsUpdate, ToplevelState, Transform};
 
 use crate::{
     decoration::{self, BORDER, Button, Look, SHADOW},
+    desktop_icons::COLUMN,
     theme::{Rect, Theme},
 };
 
@@ -399,7 +400,7 @@ pub fn title_of(title: Option<&str>, app_id: Option<&str>) -> String {
 }
 
 /// The places of new windows: cascaded from the top-left corner of an
-/// area, 30 pixels per window, back at the corner when a window would
+/// area, right of the column of the desktop icons, 30 pixels per window, back at the corner when a window would
 /// leave the area.
 #[derive(Default)]
 pub struct Places {
@@ -419,7 +420,7 @@ impl Places {
     /// later one has its size first. A window larger than the area
     /// starts at its corner.
     pub fn place(&mut self, turn: i32, [w, h]: [i32; 2], [ax, ay, aw, ah]: Rect) -> [i32; 2] {
-        let at = |n: i32| [ax + 24 + 30 * n, ay + 24 + 30 * n];
+        let at = |n: i32| [ax + COLUMN + 24 + 30 * n, ay + 24 + 30 * n];
         let mut pos = at((turn - self.corner).max(0));
         if pos[0] + w > ax + aw || pos[1] + h > ay + ah {
             self.corner = turn;
@@ -584,10 +585,10 @@ mod tests {
             let turn = places.turn();
             places.place(turn, size, area)
         };
-        assert_eq!(place([600, 400]), [24, 24]);
-        assert_eq!(place([600, 400]), [54, 54]);
-        assert_eq!(place([600, 700]), [24, 24]);
-        assert_eq!(place([600, 400]), [54, 54]);
+        assert_eq!(place([600, 400]), [112, 24]);
+        assert_eq!(place([600, 400]), [142, 54]);
+        assert_eq!(place([600, 700]), [112, 24]);
+        assert_eq!(place([600, 400]), [142, 54]);
     }
 
     #[test]
@@ -595,8 +596,8 @@ mod tests {
         let mut places = Places::default();
         let area = [0, 0, 1280, 770];
         let (first, second) = (places.turn(), places.turn());
-        assert_eq!(places.place(second, [600, 400], area), [54, 54]);
-        assert_eq!(places.place(first, [600, 400], area), [24, 24]);
+        assert_eq!(places.place(second, [600, 400], area), [142, 54]);
+        assert_eq!(places.place(first, [600, 400], area), [112, 24]);
     }
 
     #[test]
