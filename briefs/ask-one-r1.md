@@ -1,0 +1,15 @@
+# ask-one r1 (rc 6 security: DB7 a-c, RF3 rest)
+
+Model: sonnet, effort high (security path of the voice service; three small fixes with red tests and one wire type to share)
+Lane: cloud, claude/ask-one at 1c9e64f7 (session head). Cost at most 1.2 %; stop at 250 k context. One area: services/voice/src (core.rs, mc.rs, client.rs) and crates/chora-kit/src/ask.rs; no look code.
+Why: plans/week-3.md slice 37 on claude/session-log; backlog.md DB7 (reports/review-secfix-c-r2.md, MINOR lines at its end); reports/debt-2026-11-20.md RF3. A19 is mostly done (kit ask.rs owns ANSWER_METHOD, the assistant uses it); left: client.rs:113 its own `ConfirmParams`, and the three DB7 items. A question answered blind or a refusal not pinned by a test is a hole on the path that asks before risky acts (vision card).
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`; a failure: send_message the PM "ask-one BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Each fix: red test commit first (it fails alone), then the fix commit (rules.md 8).
+1) DB7 a (core.rs ~1168): an `Unshowable(id)` for a question that a newer one replaced on screen must still refuse that older question (never leave it answerable without being shown); red test: ask A, ask B (replaces), Unshowable(A), answer A: refused (the sub question is answered no when its screen is replaced).
+2) DB7 b (mc.rs:358 `fits`): count lines as well as bytes (the lines that mc shows), the same sum as `question_text` (mc.rs:370); red test: 4000 bytes of 300 short lines do not fit.
+3) DB7 c (client.rs ~1135 test; hold_security ~750): a test through hold_security asserts the answer is REJECTED (an Err with the refusal), not only that nothing changed.
+4) RF3: client.rs:113 `ConfirmParams` goes; use the type of chora_kit::ask (add to ask.rs only what is missing, with a unit test); `grep -rn ConfirmParams services crates plugins` empty after.
+Gate: `cargo test -p chora-voice -p chora-kit`, `cargo clippy --workspace -- -D warnings`, then the full `tests/merge-gate.sh --jobs 1` (no --only) green on claude/ask-one merged with origin/claude/autonomous-dev-session-3w-i33pg7 (fetch it fresh: a train may have moved it). A red cell you did not cause: name it with its log line; do not rerun to green. Run long steps in the background and poll in the same turn; never end a turn to wait.
+Done when: DB7 a, b, c and RF3 closed with red and fix commits, the grep empty, the gate green or its foreign reds named.
+Report: reports/ask-one.md "## r1" on claude/session-log (shas, test names, gate summary); mark DB7 done in backlog.md; send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 5 lines with the head sha.
+Rules: push claude/ask-one and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report and the DB7 line); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages.
