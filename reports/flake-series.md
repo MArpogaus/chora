@@ -152,3 +152,38 @@ None: no step was red in any of the five full runs.
 ### Verdict
 
 F5 "no flaky gate" is met for this round: 5 of 5 full runs green at --jobs 2 on 1c599c74. F17 status is not changed by this round. The open flake rows from r3 (FLK-HUD-TAB, xp-faces, pull) were not reproduced in these five runs; their evidence is r3's, not this round's.
+
+## r5
+
+Brief: flake-series-r5 (F5 verdict on the week-3 head: five full gates in a row green at --jobs 2 on the session head 3b14c825, train 107). Lane: cloud, branch claude/flake-series-r5 at 3b14c825. Model: haiku, effort high. No production code changed; no commit on the code branch; nothing fixed, retimed, ignored or marked known-red.
+
+Setup: step 0 tools present (cargo, sccache, cargo-llvm-cov, foot, python3, ffmpeg), so setup.sh was not run. `git fetch --unshallow` done; `cargo check --workspace` exit 0.
+
+Host (recorded once, before run 1): `nproc` 4; memory 16087 MB total, 9982 MB free, 5478 MB buff/cache, no swap.
+
+Result: **5 of 5 green.** Runs 1 to 5 all exit 0, 49 PASS each, no FAIL or MISMATCH line in any log. No red step, so no reruns of single steps were needed.
+
+### Gate runs (`tests/merge-gate.sh --jobs 2`, no --push, on 3b14c825)
+
+| run | start (UTC) | end (UTC) | exit | red steps | first failing line | minutes |
+|---|---|---|---|---|---|---|
+| 1 | 08:53:43 | 10:07:24 | 0 | none (49 PASS) | - | 73.6 |
+| 2 | 10:07:24 | 11:13:18 | 0 | none (49 PASS) | - | 65.9 |
+| 3 | 11:13:18 | 12:21:19 | 0 | none (49 PASS) | - | 68.0 |
+| 4 | 12:21:19 | 13:28:38 | 0 | none (49 PASS) | - | 67.3 |
+| 5 | 13:28:38 | 14:36:58 | 0 | none (49 PASS) | - | 68.3 |
+
+Runs took 66 to 74 minutes, longer than r4's 39 to 46 minutes on 1c599c74; the cause was not investigated. Logs kept in the lane scratchpad (`r5/run1.log` to `r5/run5.log`, `r5/summary.txt`).
+
+### Reruns of each step alone
+
+None: no step was red in any of the five full runs.
+
+### Leak evidence (after run 5, no gate running)
+
+- `ls /tmp/gate-env.* | wc -l`: **650** files (615 `-rw-------`, 35 `-rw-r--r--`), dated from 09:54 onward. Not investigated whether the gate's own cleanup should remove them.
+- chora processes left: `pgrep -c chora` (process name) **0**; `pgrep -fc chora` (full command line) **70**, all `sh /home/user/chora/flavors/tiling/wallpaper.sh`.
+
+### Verdict
+
+F5 "no flaky gate" is met for this round: 5 of 5 full runs green at --jobs 2 on 3b14c825. The open flake rows from r3 (FLK-HUD-TAB, xp-faces, pull) did not reproduce in these five runs; construct-hud, xp-faces and pull passed in every run. F17 status is not changed by this round. The leak evidence (650 gate-env files, 70 wallpaper.sh processes left behind) is recorded for a separate look; it did not fail any step.
