@@ -57,10 +57,10 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-22T08:42:00Z",
+  updated: "2026-11-22T09:36:00Z",
   start: "2026-11-21T04:00:00Z",   // budget reset (owner)
   end: "2026-11-28T03:59:00Z",     // next reset; F5, F7 carried over
-  budget: 9.0,                       // % of the new week used (reset 04:00)
+  budget: 9.3,                       // % of the new week used (reset 04:00)
   goals: [
     ["F1", "Plan in merge-sized slices", "done", "reviewed plan"],
     ["F2", "Shared code in one kit, no copies", "done", "met by audit r2 (19:13): 0 copies; kit-report keeps it after debt-down"],
@@ -73,8 +73,8 @@ const S = {
   ],
   now: [
     "Train 107 merged green at 08:47 UTC (15:47 Bangkok): the tour fix round 3 (tour reds 84 to 66, tiling 23 to 0) and the one-question helper fix. Train 108 runs the gate-health harness alone; a five-gate flake series checks the new head.",
-    "Six lanes run: the tiling major (a joining look took the keyboard) is fixed and now merges the latest session branch with a full gate; honest launch states (no 30 s fake failure); 10 known-red mc look rows; a 3-hour leak and stall run; construct logging to the log system; missing tests for the watchdog and reload.",
-    "Spending is under pace (9.0 % used at 08:42 UTC, 15:42 Bangkok; the line is at 17.2 %). All six lane slots are full; more start as lanes hand back."
+    "Six lanes run: the tiling major (a joining look took the keyboard) is fixed and now merges the latest session branch with a full gate; honest launch states (no 30 s fake failure); 10 known-red mc look rows; a 3-hour leak and stall run; a five-gate flake series; splitting the two largest voice files and the two largest core files away from the 1,500-line limit. Construct logging, the launch timer and the watchdog tests passed review and join train 109.",
+    "Spending is under pace (9.3 % used at 09:36 UTC, 16:36 Bangkok; the line is at 17.8 %). All six lane slots are full; more start as lanes hand back."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
 };
