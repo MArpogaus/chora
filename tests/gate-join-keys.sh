@@ -11,10 +11,13 @@
 #                 the window of Super+Return opens in xp
 #
 # Each cell prints the `focus` of `choractl state` of both looks before the
-# key. The looks take injected keys (test_accept_injected_keys).
+# key and asserts the holders (tiling-first: tiling and xp none; xp-first: xp
+# holds, tiling none), and the holder after the key; tiling-first ends with a
+# click on the tile, which leaves the keyboard with tiling. The looks take injected keys (test_accept_injected_keys).
 #
 # Usage: tests/gate-join-keys.sh   BIN: directory with the binaries
 #   SHOTS: directory for the logs (default: a temp dir)
+# expect_holders TAG TILING-HOLDER XP-HOLDER fails when a holder differs.
 # shellcheck disable=SC2016
 set -uo pipefail
 . "$(dirname "$0")/gate-lib.sh"
@@ -44,6 +47,11 @@ start_look() {
     pids+=($!)
     until_ok "ctl state $1 >/dev/null 2>&1" 80 || fail "$2: $1 does not answer state.get: $(tail -n 3 "$shots/$2-$1.log")"
 }
+holder_of() { ctl state "$1" | jq -r '.focus.holder // "none"'; }
+expect_holders() {
+    [ "$(holder_of tiling)" = "$2" ] && [ "$(holder_of xp)" = "$3" ] ||
+        fail "$1: the holders are tiling $(holder_of tiling), xp $(holder_of xp); wanted tiling $2, xp $3"
+}
 holders() { echo "tiling $(ctl state tiling | jq -c .focus) xp $(ctl state xp | jq -c .focus)"; }
 steady() {
     local now
@@ -56,7 +64,7 @@ surface_owner() { ctl query kind:surface | jq -r '.[0].owner // empty'; }
 
 cell() {
     local first=$1 joins=$2 name=$1-first owner
-    env_file=$shots/$name.env session_start 1280x800
+    CHORA_TEST_FLAGS=--test-injected-press-is-real env_file=$shots/$name.env session_start 1280x800
     grant input.inject methods.call
     start_look "$first" "$name"
     start_look "$joins" "$name"
@@ -64,12 +72,14 @@ cell() {
     last_holders=''
     until_ok steady 40
     echo "$name: before the key: $(holders)"
+    if [ "$first" = tiling ]; then expect_holders "$name before the key" none none; else expect_holders "$name before the key" none xp; fi
     echo '[{"shortcut": {"keys": "Super+Return"}}]' | ctl inject >/dev/null || fail "$name: inject Super+Return"
     until_ok '[ -n "$(surface_owner)" ]' 80 || fail "$name: Super+Return opened no window"
     owner=$(surface_owner)
     echo "$name: after the key: $(holders), window of $owner"
     [ "$owner" = "$first" ] ||
         fail "$name: Super+Return opened a window of $owner, not of $first, which held the keyboard before $joins joined"
+    if [ "$first" = tiling ]; then expect_holders "$name after the key" tiling none; else expect_holders "$name after the key" none xp; fi
     if [ "$first" = tiling ]; then
         until_ok "ctl state tiling | jq -e '.windows | length == 1 and (.[0].floating | not)' >/dev/null" 40 ||
             fail "$name: tiling shows no tile: $(ctl state tiling | jq -c .windows)"
@@ -81,6 +91,13 @@ cell() {
         owner=$(surface_owner)
         echo "$name: after the tile closed and a second key: $(holders), window of $owner"
         [ "$owner" = tiling ] || fail "$name: after the tile closed, Super+Return opened a window of $owner"
+        spot=$(ctl query kind:surface | jq -r '.[0].rects | to_entries[0].value | "\(.[0] + .[2] / 2 | floor) \(.[1] + .[3] / 2 | floor)"') ||
+            fail "$name: no rect of the tile"
+        echo "[{\"pointer_move\": {\"position\": [${spot% *}, ${spot#* }]}}, {\"button\": {\"state\": \"pressed\"}}, {\"button\": {\"state\": \"released\"}}]" |
+            ctl inject >/dev/null || fail "$name: inject the click"
+        sleep 0.5
+        expect_holders "$name after a click on the tile at $spot" tiling none
+        echo "$name: after a click on the tile at $spot: $(holders)"
     fi
     ok "$name: $joins joined and left the keyboard with $first; Super+Return opened a window of $first"
     end_session
