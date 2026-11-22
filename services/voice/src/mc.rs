@@ -346,6 +346,17 @@ impl Reporter {
 /// scene holds 4 KiB.
 const QUESTION_BYTES: usize = 4000;
 
+/// The most lines of a question on the own HUD: the text node starts
+/// 24 px from the top and a line of 18 px is some 22 px high, so that
+/// 30 lines show on the smallest screen; more would run off it and hide
+/// the tail of the command (review secfix c r2, DB7 b).
+const QUESTION_LINES: usize = 30;
+
+/// Whether `text` shows whole on the own HUD: in bytes and in lines.
+fn shows(text: &str) -> bool {
+    text.len() <= QUESTION_BYTES && text.lines().count() <= QUESTION_LINES
+}
+
 /// The line of the keys of a question on the own HUD; none without keys.
 fn keys_line(keys: Option<&ConfirmKeys>) -> String {
     keys.map(|k| format!("\n{} = yes, {} = no", show_key(&k.yes), show_key(&k.no)))
@@ -357,19 +368,19 @@ fn keys_line(keys: Option<&ConfirmKeys>) -> String {
 /// 2), so that no key confirms a command that the person cannot read.
 pub fn fits(prompt: &str, detail: &str, keys: Option<&ConfirmKeys>) -> bool {
     let (prompt, detail) = (sanitize(prompt), sanitize(detail));
-    prompt.len() + "\n".len() + detail.len() + keys_line(keys).len() <= QUESTION_BYTES
+    shows(&format!("{prompt}\n{detail}{}", keys_line(keys)))
 }
 
 /// The line of a question whose detail does not fit on the own HUD.
 const TOO_LONG: &str = "(the command is too long to show here)";
 
 /// The question on the own HUD: the prompt, the detail and the line of
-/// the keys, at most [`QUESTION_BYTES`]. A longer detail is never cut,
+/// the keys, at most [`QUESTION_BYTES`] and [`QUESTION_LINES`]. A longer detail is never cut,
 /// which would hide its tail: [`TOO_LONG`] takes its place, and the
 /// prompt and the keys stay. voice.confirm carries it whole.
 fn question_text(prompt: &str, detail: &str, keys: &str) -> String {
     let text = format!("{prompt}\n{detail}{keys}");
-    if text.len() <= QUESTION_BYTES {
+    if shows(&text) {
         return text;
     }
     let text = format!("{prompt}\n{TOO_LONG}{keys}");
