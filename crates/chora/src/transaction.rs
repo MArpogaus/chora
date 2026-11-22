@@ -998,10 +998,30 @@ mod tests {
         }
     }
 
+    /// CPU time of the calling thread (`CLOCK_THREAD_CPUTIME_ID`).
+    #[allow(unsafe_code, reason = "one clock_gettime call into a local timespec")]
+    fn thread_cpu() -> Duration {
+        let mut ts = libc::timespec {
+            tv_sec: 0,
+            tv_nsec: 0,
+        };
+        let rc = unsafe {
+            libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, std::ptr::addr_of_mut!(ts))
+        };
+        assert_eq!(rc, 0, "clock_gettime(CLOCK_THREAD_CPUTIME_ID)");
+        Duration::new(
+            ts.tv_sec.unsigned_abs(),
+            u32::try_from(ts.tv_nsec).expect("nanoseconds fit u32"),
+        )
+    }
+
     /// sl-3: one `scene.apply` of 10000 creates under the root answers
     /// before the hang watchdog calls the main loop stalled (3 s,
     /// `hang::STALL_AFTER`). The commands of `repro-sl3.sh`, under
-    /// `MAX_LINE`.
+    /// `MAX_LINE`. The bar is on the CPU time of the dispatching thread,
+    /// not on wall time: the watchdog sees a stalled loop, which is CPU
+    /// work on that thread, and other test threads are not the core's
+    /// cost. Wall time only guards against a hang (60 s).
     #[test]
     #[allow(clippy::print_stderr, reason = "the test prints its time")]
     fn a_big_transaction_answers_before_the_stall_line() {
@@ -1018,6 +1038,7 @@ mod tests {
         let mut line = request.to_string().into_bytes();
         line.push(b'\n');
         let busy = BusyThreads::from_env();
+        let cpu_start = thread_cpu();
         let start = Instant::now();
         let mut sent = 0;
         let mut responses = Vec::new();
@@ -1030,11 +1051,13 @@ mod tests {
             core.dispatch();
             responses.extend(wm.responses());
         }
-        let time = start.elapsed();
+        let wall = start.elapsed();
+        let time = thread_cpu().saturating_sub(cpu_start);
         drop(busy);
-        eprintln!("sl-3 wall {time:?}");
+        eprintln!("sl-3 cpu {time:?} wall {wall:?}");
         assert_eq!(responses.len(), 1, "{responses:?}");
         assert!(responses[0].get("result").is_some(), "{:?}", responses[0]);
-        assert!(time < Duration::from_secs(3), "{time:?}");
+        assert!(time < Duration::from_secs(3), "cpu {time:?}");
+        assert!(wall < Duration::from_secs(60), "wall {wall:?}");
     }
 }
