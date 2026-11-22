@@ -200,6 +200,7 @@ impl Construct {
         host.since = Instant::now();
         self.cube = Some(host);
         self.core_focus = self.focused_surface()?;
+        self.covered_focus_to_nobody()?;
         self.open_modes()?;
         self.frame()
     }

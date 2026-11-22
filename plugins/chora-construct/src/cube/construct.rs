@@ -77,6 +77,7 @@ impl Construct {
             return Err(ClientError::Rpc(err));
         }
         self.cube = Some(host);
+        self.covered_focus_to_nobody()?;
         self.open_modes()?;
         self.frame()?;
         Ok(json!({"outputs": outputs}))
