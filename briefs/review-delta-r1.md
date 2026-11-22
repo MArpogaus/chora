@@ -1,10 +1,10 @@
-# review-delta r1 (rc 6): seeded per-area code review of adf71956..1c599c74
+# review-delta r1 (rc 6): seeded per-area code review of adf71956..6b01c976
 
 Model: opus, effort high, because it is a per-area review of core input, IPC and the plugins' key paths (stray keys, lost windows, security); the builders never review themselves (rules.md 7)
-Lane: cloud, read-only on code: claude/review-delta at 1c599c74, base adf71956 (code part: crates, plugins, services: 65 files, +3672 -535; 34 first-parent merges). One round.
-Stop at 150 k context; cost at most 1.0 %; at most 10 findings. No merge gate run (each merge ran it green). Why: plans/week-3.md row 19 and rc 6 (claude/session-log): the 11-20 08:59 review covers code to adf71956 only. This round takes the delta now; a short round on the Thursday head follows.
+Lane: cloud, read-only on code: claude/review-delta at 6b01c976, base adf71956 (code part: crates, plugins, services: 87 files, +6243 -1394; 61 first-parent merges). One round.
+Stop at 200 k context; cost at most 1.5 %; at most 10 findings. No merge gate run (each merge ran it green). Why: plans/week-3.md row 19 and rc 6 (claude/session-log): the 11-20 08:59 review covers code to adf71956 only. This round takes the delta now; a short round on the Thursday head follows.
 Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`; a failure: send_message the PM "review-delta BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
-Read: `git diff adf71956 1c599c74 -- crates plugins services`; `git log --oneline --first-parent adf71956..1c599c74`.
+Read: `git diff adf71956 6b01c976 -- crates plugins services`; `git log --oneline --first-parent adf71956..6b01c976`.
 Checks, each with its command and files:
 1) Core (crates/chora/src/input.rs, ipc.rs, testing.rs): the escape hatch stays above every plugin; no key reaches a client the pointer only hovers; IPC requests validated (sizes, ids, unknown fields) and no panic on bad input; testing.rs compiled only for tests or a feature. `cargo test -p chora input:: ipc::`. Skip safety.rs and logs.rs: reports/core-rv.md r1 reviewed and fixed them (rv-1, rv-2, rv-5).
 2) Kit (crates/chora-kit/src/launcher.rs, wm/focus.rs; tests/wm_focus.rs): launcher spawns without a shell from user strings (no injection), honest failure when the launcher is missing; focus holder per look. `cargo test -p chora-kit --features testing`.

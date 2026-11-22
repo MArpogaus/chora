@@ -1,39 +1,40 @@
 # State
 
-## Now (2026-11-22 11:35 UTC)
+## Now (2026-11-22 13:36 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 11:31 week 9.6 % (6.1 + 3.5; under pace 18.9 %: 6 lanes; WM-TESTS after ti-38)
-session branch: 3b14c825 (t107 green 08:47: TOUR-FIX r3 + ASK-ONE); 62 greens. t108 GATE-ALIVE a7ffdf22 rerun 10:50 (2 h cap).
-burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at 2 jobs, one host; rc 9 rows open); F7 open, carried.
+budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day (90.2 % in 135 h), no day cap; tokens.py 12:45 week 9.8 % (6.1 + 3.7; under pace 19.7 %; lanes wait on gates: add reviews, rc 4, 6)
+session branch: 6b01c976 (t108 green 13:01: GATE-ALIVE); 63 greens. t109 033f416f runs at --jobs 2 from 13:02.
+burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series, hint act red twice; closes on flake-hint + haiku series 5 at 2 jobs on t109 head); F7 open.
 
-## RC (design/rc.md)
+## RC (plans/week-3.md 1; rc.4 waiver gone)
 | # | Criterion | State |
 |---|---|---|
-| 1 | UX: no BLOCK or MAJOR open | waived for this rc (owner 10:47); findings to known issues |
-| 2 | Persona round 4 | xp r4, mc r5 meet; P2-R5-CO 18:10: fails T1, T2 (by mouse in a face), I3 MAJOR co-43 (pre-existing); tiling r4 23:36 NO: I2 x13 (ti-31), T1 xp-owned window (ti-32 verify), T3 (ti-33); L2, T7 vacuous |
-| 3 | Three greens in a row | 30b, 33-40 green (9); latest 88b, 89b |
-| 4 | CI green | green on 29e2cd77 13:13 |
-| 5 | Packaging smoke | arch, rpm, podman green 29e2cd77 |
-| 6 | Code review per area | 08:59 and delta r1 16:11 (to 1c599c74): MERGE-OK, 0 MAJOR; rd-2 MEDIUM in xp-rd |
-| 7 | deny, machete | clean (ci-rc) |
-| 8 | Docs, CHANGELOG, known issues | docs merged; D78-D95 train 37; cz changelog at the tag |
-| 9 | Logging audit, flakes | t14, t17 |
-| 11 | Tour, UX loop | v7 MERGE-OK; new tour with checks after P2 (owner 11-17) |
+| 1, 1b | No BLOCK/MAJOR, independent pass; owner sees v9 | open: ti-38 r2; RECORD-V9 |
+| 2 | Persona round 4 | xp, mc meet; co T1 T2, tiling I2 T1 T3 open |
+| 3 | 3 greens, no flake | open: flake-hint, series r5 |
+| 4, 5 | CI green on a PR; packaging | pre-commit green on 6b01c976; CI PR at release |
+| 6 | Review per area | r1 MERGE-OK 13:35 (0 MAJOR, rd-5 MEDIUM: MC-FOCUS); Thu round |
+| 7 | deny, machete; updates | clean; 7 bumps (DEPS) |
+| 8 | Docs, CHANGELOG, known issues | open: DOCS-RC |
+| 9 | Flakes, window loss | open: core-diag (t110), mesh-churn, sim-long |
+| 11 | Tour v9 | open = F7 |
 
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
 | ti-38-r2.md (F7, rc 2: ti-38 MAJOR; r1 4441f1d4 done, merge 7a6c0eb8 conflicts, construct act rerun; 1.5 %) | opus high, claude/ti-38 4441f1d4 | session_016iS3kMg9i8mAmHNyiis9cz 07:34 |
-| log-down-mc-r1.md (rc 9: mc eprintln 27, lc-2; 0.9 %) | sonnet medium, claude/log-down-mc 70cbf9bd | session_016iS3kQGuYZia3PrtJKkqgJ 10:55 |
-| core-diag-r2.md (rc 9: sl-3 band, unlink; sl-1 mallopt; 2 %) | opus high, claude/core-diag fc779a76 | session_016iS3kQcXW93puoYVHWyYxt 10:40 |
-| mesh-churn-r1.md (rc 9: sl-1 texture churn, malloc_trim; 1.5 %) | opus high, claude/mesh-churn 96e5c804 | session_016iS3kLrku4JTjEeufgN2oV 11:31 |
+| flake-hint-r1.md (F5, rc 3: ldm-2 hint-click act; 0.8 %) | sonnet medium, claude/flake-hint 3b14c825 | session_016iS3kLq6SXjYGB7qdMUEni 12:46 |
+| mesh-churn-r1.md (rc 9: sl-1 texture churn; 1.5 %) | opus high, claude/mesh-churn 96e5c804 | session_016iS3kLrku4JTjEeufgN2oV 11:31 |
 | log-down-xp-r1.md (rc 9: xp eprintln 18; 0.9 %) | sonnet medium, claude/log-down-xp 70cbf9bd | session_016iS3kPYbLrqZVkcAvctZ1S 11:36 |
 | flake-series-r5.md (F5, rc 3: 5 gates at 2 jobs; 1 %) | haiku high, claude/flake-series-r5 3b14c825 | session_016iS3kPEG2bDTyKBSQgj5BM 08:49 |
+| mc-focus-r1.md (rc 9, I3: rd-5 MEDIUM, mc misses focus.node; 0.8 %) | sonnet medium, claude/mc-focus 6b01c976 | session_016iS3kNytLH7EhG5sJybjcm 13:37 |
+| record-v9-r1.md (F7, rc 11: v9 take vs v8; 1.2 %) | sonnet medium, claude/record-v9 6b01c976 | session_016iS3kPEnmatu6w5XewDQLy 13:33 |
 
 ## Queue (% week; 5 % reserve)
-4. (F7, rc 2-3) next tour round after ti-38 r2 merges (t107 had TOUR-FIX r3, ASK-ONE).
-5. t108 10:50 on 3b14c825: GATE-ALIVE a7ffdf22 alone; lanes merge head; t109 LAUNCH-TIMER 629faf7b + TEST-GAPS 89dc32c4 + LOG-DOWN-CO b974134e + SIM-LONG ce451499 + LOOKS1-MC b0453e19 + SPLIT-C 96e5c804 + SPLIT-B 2af7801c (PM OK); then RECORD r2.
-6. OPT-IN r1 done (six PASS; oi-2, oi-4 to DB21). FLAKE-SERIES r5 (rc 3, F5; 1 %) runs on 3b14c825.
+3. CI-HEAD dropped (pre-commit green on 6b01c976). Next free slot: DOCS-RC (rc 8; 0.8 %; plan D6).
+4. (rc 1, F7) tour round after ti-38 r2 merges;
+5. (rc 3; 0 %) t109 at --jobs 2 from 13:02 (033f416f): LAUNCH-TIMER 629faf7b, TEST-GAPS 89dc32c4, LOG-DOWN-CO b974134e, SIM-LONG ce451499, SPLIT-C 96e5c804, SPLIT-B 2af7801c, LOG-DOWN-MC b843bf5f, LOOKS1-MC b0453e19 (gates pending t109).
+6. (rc 9) t110: CORE-DIAG 788605f4 (MERGE-OK 13:32; acts red foreign: hint race; by 01:32).
 
 ## Needs owner
 - Delete claude/release-rc4 (403).

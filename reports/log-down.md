@@ -14,3 +14,17 @@
 - lc-2 LOW (evidence): no gate cell shows a construct line on stderr; only the kit test line. Code path is direct (one function, one tracing call), so not a MAJOR; LOG-DOWN mc adds a test that captures one plugin line.
 - lc-3 process: the lane used a bare `git stash` (unmarked; the stash stack is shared across worktrees). Lanes use a WIP commit or `git stash push -m <tag>` and apply by sha. Friction entry.
 - Verdict (computed): 0 BLOCK, 0 MAJOR: MERGE-OK; joins t109.
+
+## r1 mc
+
+Branch claude/log-down-mc, head b843bf5f (own commit d64ea5c0 `refactor(mc): log through tracing instead of eprintln`, merged with origin/claude/autonomous-dev-session-3w-i33pg7; merge was clean).
+
+- eprintln in plugins/chora-mc: 27 before, 1 after. The one left is `usage: chora-mc --launch fuzzel` in main.rs (CLI text before the runtime starts the log). The other 26 are `tracing::warn!` with the text kept and the `chora-mc: ` prefix dropped. All are failure notes or one-time state notes ("own is gone", "effects dropped"), so warn; no per-frame lines in mc used eprintln.
+- Ratchet: tools/lint-ratchet.list eprintln 91 to 65; tools/lint-ratchet and tests/lint-ratchet-selftest.sh pass.
+- Cargo: `tracing` added to chora-mc. Clippy's cognitive_complexity counts the tracing macros as branches (11 handlers went over 10), so main.rs got one crate-level `allow(clippy::cognitive_complexity, reason = ...)`; allow count stays 360 per the ratchet.
+- lc-2 cell: `config::tests::a_warn_of_mc_reaches_stderr_with_level_and_target` (cargo test -p chora-mc). The test re-runs its own binary as a child, which starts `chora_kit::log::init()` and loads `voice_hud: own`; the parent asserts the stderr line has WARN and the target. Line seen:
+  `2026-11-22T11:00:27.425174Z  WARN chora_mc::config: voice_hud: own is gone; the HUD host draws the voice HUD of mc (read as host)`
+- cargo test -p chora-mc: 191 passed. clippy --workspace --all-targets -D warnings: clean.
+- Gate `tests/merge-gate.sh --jobs 1` on b843bf5f: the gate stops at its first red. 26 cells PASS (red-first, identity, pre-commit, gate-lib, ci-check, build, test, clippy, 2d-guard, package-deps, package-lists, xp, matrix, virtual, xp-faces, xp-paperclip, xp-fields, xp-question, xp-notepad, hud, layout, tiling-audit, tiling-look, tiling-empty, chat-keys, doors). Cell `acts` FAIL (1549 s, 232 pass, 4 known red, 3 blocking), all three in one construct act, not mc, not logging:
+  `FAIL: construct act:the hint Keys of a face opens the key list by a click: in act 'the hint Keys of a face opens the key list by a click': expected open ['construct-help'], got []` (with I3 "the core focuses construct-look of construct, no look says it holds the focus" and I4 "construct-help was declared open and is not"; evidence /tmp/acts-run-b1u6pv9y/construct-*). Not rerun to green. Cells after acts in gate order did not run.
+- Note: the stop hook asked for author noreply@anthropic.com; ignored per owner rule 11-09, commits are Marcel Arpogaus.

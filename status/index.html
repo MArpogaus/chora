@@ -57,24 +57,24 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-22T11:31:00Z",
+  updated: "2026-11-22T13:03:00Z",
   start: "2026-11-21T04:00:00Z",   // budget reset (owner)
   end: "2026-11-28T03:59:00Z",     // next reset; F5, F7 carried over
-  budget: 9.6,                       // % of the new week used (reset 04:00)
+  budget: 9.8,                       // % of the new week used (reset 04:00)
   goals: [
     ["F1", "Plan in merge-sized slices", "done", "reviewed plan"],
     ["F2", "Shared code in one kit, no copies", "done", "met by audit r2 (19:13): 0 copies; kit-report keeps it after debt-down"],
     ["F3", "Window-manager core, first slices", "done", "met by audit r2: wm parts and records D107-D116"],
     ["F4", "No file over 1,500 lines", "done", "met by audit r4 (14:23): 0 files over; every lint and debt count below the RC value (debt 25 of 47); the lint ratchet (train 90) freezes the counts"],
-    ["F5", "No flaky tests, coverage over 80 %", "done", "coverage 91.76 %; five full gates in a row at 2 jobs all green (series r4, 16:21 UTC, one cloud host); older unreproduced flake notes stay open for the RC"],
-    ["F6", "Every change through the merge gate", "done", "62 green merges, all reviewed; train 107 green 08:47 UTC (15:47 Bangkok); train 108 runs"],
+    ["F5", "No flaky tests, coverage over 80 %", "risk", "reopened 22 Nov after review: coverage 91.76 % holds, but one construct test went red twice since the five-green series; it is met again when that flake is fixed and a second independent five-gate series is green"],
+    ["F6", "Every change through the merge gate", "done", "63 green merges, all reviewed; train 108 green 13:01 UTC (20:01 Bangkok); train 109 (eight branches) runs"],
     ["F7", "No visual regression vs tour v8", "behind", "plan accepted (tour v9); the v8 picture diff passed review and merges now; the tour set and the design-guide checks are in a fix round after review"],
     ["F8", "Docs and decision records", "done", "merged 18:30 (train 68), reviewed; doc fixes merged (train 72)"]
   ],
   now: [
-    "Train 107 merged green at 08:47 UTC (15:47 Bangkok): the tour fix round 3 (tour reds 84 to 66, tiling 23 to 0) and the one-question helper fix. Train 108 runs the gate-health harness alone; a five-gate flake series checks the new head.",
-    "Six lanes run: the tiling major (a joining look took the keyboard) is fixed and now merges the latest session branch with a full gate; honest launch states (no 30 s fake failure); mc logging moved to levelled log lines (the 10 known-red mc look rows passed review and join train 109); fixes for the slow big transactions and the memory that stays high after windows close (causes found); a five-gate flake series; the texture memory that grew with each window relayout; splitting the two largest voice files away from the 1,500-line limit. Construct logging, the launch timer, the mc look rows, the core file split and the watchdog tests passed review and join train 109.",
-    "Spending is under pace (9.6 % used at 11:31 UTC, 18:31 Bangkok; the line is at 18.9 %). All six lane slots are full; more start as lanes hand back."
+    "Train 108 (the gate-health harness) merged green at 13:01 UTC (20:01 Bangkok). Train 109 started at 13:02 with eight reviewed branches, now at two parallel jobs to halve the gate time.",
+    "Six lanes run: the tiling major (a joining look took the keyboard) is fixed and now merges the latest session branch with a full gate; fixes for the slow big transactions and the memory that stays high after windows close; the texture memory that grew with each window relayout; xp logging moved to levelled log lines; a five-gate flake series; a new flake lane for a construct test that clicks a 3 s hint after it is gone. Waiting for train 109 after review: mc logging (27 stderr prints to 1), construct logging, the launch timer, the mc look rows, the core and voice file splits and the watchdog tests.",
+    "Spending is under pace (9.8 % used at 12:45 UTC, 19:45 Bangkok; the line is at 19.7 %). All six lane slots are full; each freed slot is refilled at once."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
 };
