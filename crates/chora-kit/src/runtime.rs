@@ -867,6 +867,10 @@ mod tests {
         let err = reload_settings(&mut plugin).unwrap_err();
         assert_eq!(err.code, RpcError::INVALID_PARAMS);
         assert_eq!(plugin.settings.value.gap, 6);
+        assert_eq!(
+            plugin.applied, 6,
+            "a file that fails to parse applies nothing"
+        );
         std::fs::write(&path, "gap: 7\n").unwrap();
         plugin.fail = Some(7);
         assert!(reload_settings(&mut plugin).is_err());
