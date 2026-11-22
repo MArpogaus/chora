@@ -215,7 +215,7 @@ impl Layers {
             .retain(|(id, ..), slot| keep(id) && now - slot.used < UNUSED_FOR);
         self.evict_over_cap();
         if std::mem::take(&mut self.dropped) || self.textures.len() < before {
-            trim_heap();
+            crate::heap::trim();
         }
         self.ids.retain(|(_, id, _), _| keep(id));
         self.passed.retain(|(_, id), _| keep(id));
@@ -380,7 +380,11 @@ impl Layers {
     ) -> Result<&mut Slot, GlesError> {
         let (node, slot, size) = key;
         let key = (node.to_string(), slot, size.w, size.h);
-        if !self.textures.contains_key(&key) {
+        let joins = self
+            .textures
+            .get(&key)
+            .is_none_or(|slot| !slot.users.iter().any(|(name, _)| *name == self.view));
+        if joins {
             self.drop_left(&key);
         }
         let slot = match self.textures.entry(key) {
@@ -401,7 +405,8 @@ impl Layers {
         Ok(slot)
     }
 
-    /// Before the texture of a new size for a slot of a node: the current
+    /// When a view first joins the users of a size of a slot of a node (a new
+    /// size, or one that another view of the same scale made): the current
     /// view leaves the textures of other sizes of that slot that it used
     /// in an earlier frame, and those that no other view uses go now, not
     /// after `UNUSED_FOR`. A view of another scale keeps its own size.
@@ -519,18 +524,6 @@ impl Layers {
             });
         }
         (entry.id.clone(), entry.commit)
-    }
-}
-
-/// Gives freed heap back to the system after layer textures were dropped
-/// (sim-long sl-1): a software GL keeps the pixels of a texture on the
-/// heap, and glibc keeps a freed arena for later until it is trimmed, so
-/// the resident memory stayed at its peak after a relayout.
-#[allow(unsafe_code, reason = "a glibc call that takes and returns a number")]
-fn trim_heap() {
-    #[cfg(all(target_os = "linux", target_env = "gnu"))]
-    unsafe {
-        libc::malloc_trim(0);
     }
 }
 

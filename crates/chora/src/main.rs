@@ -1,20 +1,17 @@
 //! The chora Wayland compositor.
 
+use std::io::Write;
 use std::process::ExitCode;
 
-#[allow(
-    clippy::print_stderr,
-    unsafe_code,
-    reason = "the last words of a failed start; one mallopt call before any thread starts"
-)]
+/// Runs the core; the last words of a failed start go to stderr, and a failed
+/// write has nowhere to go.
 fn main() -> ExitCode {
-    // SAFETY: sets a glibc option before any thread starts; a fixed mmap threshold returns freed llvmpipe textures to the system (sl-1).
-    unsafe { libc::mallopt(libc::M_MMAP_THRESHOLD, 64 << 10) };
+    chora::heap::tune();
     let args: Vec<String> = std::env::args().skip(1).collect();
     match chora::run(&args) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("chora: {error}");
+            let _ = writeln!(std::io::stderr(), "chora: {error}");
             ExitCode::FAILURE
         }
     }

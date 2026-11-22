@@ -999,21 +999,24 @@ mod tests {
         }
     }
 
-    /// CPU time of the calling thread (`CLOCK_THREAD_CPUTIME_ID`).
-    #[allow(unsafe_code, reason = "one clock_gettime call into a local timespec")]
+    /// CPU time of the calling thread: utime and stime (fields 14 and 15)
+    /// of `/proc/thread-self/stat`, in clock ticks. The tick is the fixed
+    /// `USER_HZ` of 100 that Linux reports to user space, so no `sysconf`
+    /// call (and no `unsafe`) is needed. The command name (field 2) may
+    /// hold spaces, so the fields are counted from its closing parenthesis.
     fn thread_cpu() -> Duration {
-        let mut ts = libc::timespec {
-            tv_sec: 0,
-            tv_nsec: 0,
+        const USER_HZ: u64 = 100;
+        let stat = std::fs::read_to_string("/proc/thread-self/stat").expect("read thread stat");
+        let rest = stat.rsplit_once(')').expect("thread stat has a command").1;
+        let mut fields = rest.split_whitespace().skip(11);
+        let mut ticks = || -> u64 {
+            fields
+                .next()
+                .and_then(|f| f.parse().ok())
+                .expect("utime and stime in thread stat")
         };
-        let rc = unsafe {
-            libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, std::ptr::addr_of_mut!(ts))
-        };
-        assert_eq!(rc, 0, "clock_gettime(CLOCK_THREAD_CPUTIME_ID)");
-        Duration::new(
-            ts.tv_sec.unsigned_abs(),
-            u32::try_from(ts.tv_nsec).expect("nanoseconds fit u32"),
-        )
+        let (utime, stime) = (ticks(), ticks());
+        Duration::from_millis((utime + stime) * 1000 / USER_HZ)
     }
 
     /// sl-3: one `scene.apply` of 10000 creates under the root answers
