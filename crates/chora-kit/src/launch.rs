@@ -1108,6 +1108,31 @@ mod tests {
         assert_eq!(launches.check(seconds(now, 60)), none());
     }
 
+    /// A start whose main process is this test process: it never ends.
+    fn running(now: Instant, fell: Option<(String, Why)>) -> Launches {
+        let mut launches = Launches::new();
+        launches.add(Started {
+            answer: Some(answer(Some(std::process::id()))),
+            next: Next {
+                fell,
+                ..Next::default()
+            },
+            ..started(now)
+        });
+        launches
+    }
+
+    #[test]
+    fn a_running_program_without_a_window_is_not_served_at_the_old_limit() {
+        let now = Instant::now();
+        let mut launches = running(now, Some(("pad".to_owned(), Why::Missing)));
+        launches.check(seconds(now, 2));
+        for s in [30, 31, 300] {
+            launches.check(seconds(now, s));
+            assert_eq!(launches.collect(), none(), "{s} s: served without a window");
+        }
+    }
+
     #[test]
     fn a_program_that_ended_without_a_window_is_a_failure_at_once() {
         let now = Instant::now();
