@@ -327,6 +327,16 @@ chat_session() {
     until_ok '! has_text "Back one step"' 20 || fail "the key list stays beside the open chat"
     shot "chat-$theme"
     ok "the open chat fills the column ($chat), the page is the same, and the keys go ($theme)"
+    until_ok 'has_text "Power"' 20 || fail "no door of the column beside the open chat"
+    jq -ne --argjson c "$chat" --argjson p "$(text_rect Power)" '$p[1] >= $c[1] + $c[3]' >/dev/null ||
+        fail "the door Power lies under the chat: $(text_rect Power) $chat"
+    read -r dx dy <<<"$(hit_center doors-volume)"
+    [ -n "$dx" ] || fail "the door Volume takes no pointer beside the open chat"
+    click_at "$dx" "$dy"
+    sleep 1
+    ctl call mc scene.list '{}' >/dev/null || fail "mc does not answer after a click on a door"
+    ctl query id:hud-chat | jq -e "length > 0" >/dev/null || fail "the chat closed with a click on a door"
+    ok "the doors stay below the open chat and a click on Volume reaches mc ($theme)"
     ctl call assistant chat.hide '{}' >/dev/null || fail "chat.hide"
     until_ok 'has_text "Back one step"' 40 || fail "the column does not come back"
     ok "closing the chat brings the key list back"
