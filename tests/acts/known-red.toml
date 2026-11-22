@@ -299,42 +299,6 @@ match = "the contrast"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
-act = "the chat of the helper opens"
-capture = "mc-r0-right-doors-lock"
-finding = "guide-checks r2: mc-r0-right-doors-lock: the contrast"
-id = "I6"
-look = "mc"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the chat of the helper opens"
-capture = "mc-r0-right-doors-power"
-finding = "guide-checks r2: mc-r0-right-doors-power: the contrast"
-id = "I6"
-look = "mc"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the chat of the helper opens"
-capture = "mc-r0-right-doors-programs"
-finding = "guide-checks r2: mc-r0-right-doors-programs: the contrast"
-id = "I6"
-look = "mc"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the chat of the helper opens"
-capture = "mc-r0-right-doors-volume"
-finding = "guide-checks r2: mc-r0-right-doors-volume: the contrast"
-id = "I6"
-look = "mc"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
 act = "the helper asks"
 capture = "mc-r1-right-chat-door"
 finding = "guide-checks r2: mc-r1-right-chat-door: the contrast"
