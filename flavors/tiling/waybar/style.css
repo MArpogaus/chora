@@ -111,6 +111,7 @@ tooltip label {
   border-radius: 6px;
   margin: 4px 0;
   padding: 0 10px;
+  min-width: 100px;
 }
 
 #custom-apps:hover,
