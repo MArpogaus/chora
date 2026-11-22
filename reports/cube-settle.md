@@ -18,3 +18,22 @@ After, CUBE_LOAD=1 (4 busy loops per CPU) x10: the 49-degree and turn key bars 1
 - run 8: "the window does not float during a turn" (`until_ok ... 6`, 6 x 0.25 s after `sleep 0.4`, a wall poll)
 At 8/CPU that line and "the hint Step back names the keys" go red as well. Open: a further load-sensitive wall poll in the float steps (needs its own row, not filed by me).
 Note: the red commit has 8/CPU, the green commit 4/CPU.
+
+## r2
+
+Branch claude/cube-settle at e905195e (pushed): red f0778522, green e0e1f8ca (floats), green e905195e (turn). Base already contained origin/claude/autonomous-dev-session-3w-i33pg7 (merge was a no-op).
+
+Split (both lines are the gate, the product is fine):
+1. "floating windows: the face after the step in differs from the face before the step back" (tests/gate-construct-cube.sh `floats`): the two captures differ only in the bottom hint capsule (bbox 480,696,800,760; a capture 3 s later equals the first). The hint Step back shows 3 s after a step in (hints.rs FLOWN). `flat.png` was taken after `sleep 1`, `landed.png` after `sleep 0.5`: bare sleeps against a timer. Idle, both fall inside the 3 s; under load the calls pass 3 s, so flat has no hint and landed has one. A time-dependent element, not a product change. Red message now names it: "(hint Step back: gone before, True after)".
+2. "the window does not float during a turn" (`until_ok ... 6` after `sleep 0.4`, a 1.5 s wall poll against a 3 s turn): under load the polls (prop calls) run past the turn, the plane is gone when read.
+3. "the hint Step back names the keys" (:339) did not go red at 4/CPU; it was not touched. Not seen at 4/CPU in 30 runs.
+
+Red: CUBE_LOAD=1 at 4/CPU on ffb197f3: 1/10 green, 9 reds all at line 1 (the floats line). With the red commit's message, run 4 of 4 showed "gone before, True after". Line 2 was red 1 in 10 (run 5 of the check run after fix 1), no separate red commit for it: intermittent, no deterministic red.
+
+Green:
+- floats: waits with `until_ok hint_gone 40` before each capture (state: hint expired), no bare sleep. After fix 1: 9/10, the one red is line 2.
+- turn: the slow turn is 10 s as a stimulus (was 3 s), no `sleep 0.4`; both faces and the float plane are polled by state (40 x 0.25 s guard); the end of the turn has a guard of 80 x 0.25 s. No bar raised. The cell is about 7 s longer.
+
+After, whole cube cell, CUBE_LOAD=1 (4/CPU) x10: 10/10 green (rc 0, 163 to 184 s each).
+
+Gate: `tests/merge-gate.sh --jobs 2` (no --only) on e905195e: 57 PASS, no FAIL, EXIT 0 ("all steps passed").
