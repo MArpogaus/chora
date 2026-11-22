@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-22 17:10 UTC)
+## Now (2026-11-22 17:11 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 16:15 PM day 4.9 %, week about 13 % (lanes est.) vs 24 % pace; under pace: 6 lanes full
 session branch: 6b01c976 (t108 green 13:01: GATE-ALIVE); 63 greens. t109b cd7beeac red 14:35: matrix flake FLK-GIVE-POINT (rerun green). t109c red 15:37: FLK-K1 (2nd). t109d red 16:46: mc-scale FLK-MC-SCALE (new, load). t109e from 16:47.
@@ -25,8 +25,8 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 | flake-hint-r1.md (F5, rc 3: hint act; 0.8 %) | sonnet medium, claude/flake-hint 3b14c825 | session_016iS3kLq6SXjYGB7qdMUEni 12:46 |
 | co-46-r1.md (rc 1: hidden keys; 1 %) | sonnet high, claude/co-46 6b01c976 | session_016iS3kPkq3PWcVkMRxyrwRU 15:16 |
 | flake-k1-r1.md (F5, rc 3: FLK-K1; 0.6 %) | sonnet medium, claude/flake-k1 6b01c976 | session_016iS3kLrYViY6AbWZ3NAnes 15:39 |
-| mc-scale-r1.md (F5, rc 3, 9: FLK-MC-SCALE; 0.8 %) | sonnet medium, claude/mc-scale 6b01c976 | starting |
-| xp-minor-r1.md (rc 1, 3: ti-43, 44, xp-28; 1 %) | sonnet medium, claude/xp-minor a1f3c8d7 | starting |
+| mc-scale-r1.md (F5, rc 3, 9: FLK-MC-SCALE; 0.8 %) | sonnet medium, claude/mc-scale 6b01c976 | session_016iS3kP1gjagETR7McCFgR3 17:03 |
+| xp-minor-r1.md (rc 1, 3: ti-43, 44, xp-28; 1 %) | sonnet medium, claude/xp-minor a1f3c8d7 | session_016iS3kNvJ2wFCmVZo2S7KCe 17:11 |
 
 ## Queue (% week; 5 % reserve)
 3. DOCS-RC r2 (pr-1..5) on the Thu head.
