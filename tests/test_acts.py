@@ -1174,8 +1174,9 @@ sys.path.insert(0, str(ROOT / "tests" / "persona"))
 import check  # noqa: E402
 
 
-def ctx(look="xp", hist=(), calls=(), probe=None, keys=(), entries=(), left=()):
+def ctx(look="xp", hist=(), calls=(), probe=None, keys=(), entries=(), left=(), config=None):
     more = {"left": list(left)} if left else {}
+    more |= {"config": config} if config else {}
     return check.Ctx(look, list(hist), list(calls), probe, list(keys), list(entries), **more)
 
 
@@ -1449,9 +1450,11 @@ class PersonaContracts(unittest.TestCase):
         self.assertIn("the focus", verdict("L1", ctx(), before, elsewhere)[0])
 
     def test_l2_the_look_holds_the_focus(self):
-        self.assertEqual(verdict("L2", ctx(), snap(), snap()), [])
+        changed = ctx(config=("a", "b"))
+        self.assertEqual(verdict("L2", changed, snap(), snap()), [])
         lost = snap(states={"xp": {"windows": [window("s1")], "focus": {"holder": "mc"}}})
-        self.assertIn("the focus", verdict("L2", ctx(), snap(), lost)[0])
+        self.assertIn("the focus", verdict("L2", changed, snap(), lost)[0])
+        self.assertIn("did not change", verdict("L2", ctx(config=("a", "a")), snap(), snap())[0])
 
     def test_l3_windows_shown_again_with_the_focus(self):
         self.assertEqual(verdict("L3", ctx(), snap(), snap()), [])
@@ -1488,6 +1491,7 @@ class PersonaContracts(unittest.TestCase):
     def test_end_reads_the_begin_of_the_goal_and_never_start(self):
         with tempfile.TemporaryDirectory() as tmp:
             run = object.__new__(check.Run)
+            run.dir = pathlib.Path(tmp)
             run.state_dir = pathlib.Path(tmp)
             run.calls = pathlib.Path(tmp) / "calls.log"
             run.calls.write_text("")
