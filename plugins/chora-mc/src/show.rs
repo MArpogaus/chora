@@ -5,6 +5,12 @@ use super::{
 };
 
 impl Mc {
+    /// The y below which a panel of the scene is out of the page.
+    fn page_edge(&self, name: &str) -> Option<f64> {
+        let g = self.geometry(name)?;
+        Some(g.text[1] + g.text[3] + self.scroll.get(name).copied().unwrap_or(0.0))
+    }
+
     /// Writes the text of the panels of a scene anew: the effect starts at
     /// 0 and the core animates it to 1. Nothing when the setting is off.
     /// at most 4 KiB of lines
@@ -17,6 +23,7 @@ impl Mc {
             return Vec::new();
         }
         let mut commands = Vec::new();
+        let below = self.page_edge(name);
         for panel in panels {
             let effect = |rows: [f64; 3], progress: f64| {
                 let write = ShaderEffect {
@@ -39,6 +46,11 @@ impl Mc {
             else {
                 continue;
             };
+            if let (Some(edge), Some(rect)) = (below, self.place(name, panel))
+                && rect[1] >= edge
+            {
+                continue;
+            }
             let line = self.ty("body", panel.style.as_ref()).line;
             let rows = [
                 self.lines_top(panel).max(line) / h,
