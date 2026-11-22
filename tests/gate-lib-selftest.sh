@@ -10,6 +10,10 @@
 # busy machine (F21), it takes the socket of the new session, not the
 # gone one of the old file.
 #
+# A cell that ends in any way leaves no compositor of its run: it fails,
+# it fails in a subshell, the timeout ends it, SIGKILL ends it, the group of
+# the cell is killed with SIGKILL (the stop of merge-gate after its grace).
+#
 # Usage: tests/gate-lib-selftest.sh
 # shellcheck disable=SC2016 # the inner gate expands its own arguments
 set -u
@@ -231,6 +235,54 @@ if ! kill -0 "$bystander" 2>/dev/null; then
     failures=$((failures + 1))
 fi
 kill "$bystander" 2>/dev/null
+ghost=$work/ghost
+mkdir -p "$ghost"
+printf '#!/bin/bash\necho $$ >>"$(dirname "$0")/pids"\nmkdir -p "$XDG_RUNTIME_DIR/chora"\ntouch "$XDG_RUNTIME_DIR/chora/wayland-1.sock"\nsleep 300 & wait\n' >"$ghost/chora"
+printf '#!/bin/sh\necho "[]"\n' >"$ghost/choractl"
+chmod +x "$ghost/chora" "$ghost/choractl"
+cat >"$ghost/cell.sh" <<'CELL'
+. "$1/tests/gate-lib.sh"
+temp_config
+session_start 800x600
+echo ready >"$2/ready"
+case $3 in
+fail) fail "a cell that fails" ;;
+subshell) (fail "a failure in a subshell"); sleep 300 ;;
+hang) sleep 300 ;;
+kill) kill -KILL $$ ;;
+group) sleep 300 ;;
+esac
+CELL
+leaks=0
+for ending in fail subshell hang kill group; do
+    rm -f "$ghost/ready"
+    export BIN=$ghost CHORA_BIN=$ghost
+    case $ending in
+    hang) CHORA_GATE_LOCK=$ghost/lock.$ending timeout -k 1 4 bash "$ghost/cell.sh" "$repo" "$ghost" "$ending" >/dev/null 2>&1 ;;
+    group)
+        (CHORA_GATE_LOCK=$ghost/lock.$ending exec setsid bash "$ghost/cell.sh" "$repo" "$ghost" "$ending" >/dev/null 2>&1) &
+        cellpid=$!
+        until [ -e "$ghost/ready" ]; do sleep 0.1; done
+        kill -KILL -- "-$cellpid"
+        wait "$cellpid" 2>/dev/null
+        ;;
+    *) CHORA_GATE_LOCK=$ghost/lock.$ending timeout -k 1 20 bash "$ghost/cell.sh" "$repo" "$ghost" "$ending" >/dev/null 2>&1 ;;
+    esac
+    mapfile -t ghosts <"$ghost/pids"
+    for _ in $(seq 30); do
+        kill -0 "${ghosts[@]}" 2>/dev/null || break
+        sleep 0.1
+    done
+    if kill -0 "${ghosts[@]}" 2>/dev/null; then
+        echo "FAIL: a compositor outlives a cell that ends by $ending: $(ps -o pid,pgid,args -p "${ghosts[@]}" | tail -n 1)"
+        kill -KILL "${ghosts[@]}" 2>/dev/null
+        leaks=$((leaks + 1))
+    fi
+    rm -f "$ghost/pids"
+done
+unset BIN CHORA_BIN
+failures=$((failures + leaks))
+echo "leak cases: $((5 - leaks))/5 leave no compositor"
 stub=$work/fuzzel-stub
 mkdir -p "$stub/old" "$stub/new" "$stub/none"
 printf '#!/bin/sh\necho "fuzzel version: 1.9.2 +cairo +png +svg(nanosvg) -assertions"\n' >"$stub/old/fuzzel"
