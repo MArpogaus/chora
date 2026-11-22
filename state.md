@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-22 21:26 UTC)
+## Now (2026-11-22 21:39 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 21:24 PM 4.9 % (Bangkok 11-22) + 1.2 % (11-23), week about 14 % (lanes est.) vs 28 % pace; under pace: 6 lanes
-session branch: 6b01c976 (t108 green 13:01); 63 greens. t109g red: FLK-CUBE-SETTLE; t109h red 19:30 construct-extra K1 fly-out pose 2 px (FLAKE-K1 fixes). t110 red 20:00 xp-chat-idle (FLK-CHAT-IDLE, XP-MINOR cell race, 3/3 alone); t110b 20:12 without XP-MINOR (9ee1cef1).
+budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 21:38 PM 4.9 % (Bangkok 11-22) + 1.3 % (11-23), week about 14 % (lanes est.) vs 28 % pace; under pace: 6 lanes
+session branch: 6b01c976 (t108 green 13:01); 63 greens. Reds: t109g FLK-CUBE-SETTLE; t109h K1 pose (FLAKE-K1); t110 FLK-CHAT-IDLE; t110b 21:20 FLK-PIX-CAPSULE (1/4 under load, 3/3 alone). t110c 21:38 = 9ee1cef1 + core-fix + mc-helper (40a2ba92).
 burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series, hint act red twice; closes on flake-hint + haiku series 5 at 2 jobs on t109 head); F7 open.
 
 ## RC
@@ -24,15 +24,15 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 |---|---|---|
 | flake-hint-r1.md (F5, rc 3: hint act; 0.8 %) | sonnet medium, claude/flake-hint 3b14c825 | session_016iS3kLq6SXjYGB7qdMUEni 12:46 |
 | cube-settle-r2.md (F5, rc 3: float steps under load; 0.6 %) | sonnet medium, claude/cube-settle ffb197f3 | session_016iS3kPndgfMBpzaRMa6JGf 20:12 (r1 PARTIAL) |
-| mc-helper-r1.md (rc 1: mc-57, 56, 55; 1 %) | sonnet medium, claude/mc-helper 42585079 | done 21:23, PM review MERGE-OK (mh-1, mh-2 MINOR) |
+| mc-helper-r1.md (rc 1: mc-57, 56, 55; 1 %) | sonnet medium, claude/mc-helper 42585079 | in t110c; slot free |
 | tiling-fix-r1.md (rc 3, 1: ti-37, 27, 25c; 1 %) | sonnet medium, claude/tiling-fix 4e46028b | session_016iS3kLAsJPbPUQ193bX8zu 19:25 |
-| core-fix-r1.md (rc 9: mch-1..4; 0.8 %) | sonnet medium, claude/core-fix 4fedd240 | done 20:52, PM review MERGE-OK (ck-1, ck-2 MINOR); slot free for record-v9 r2 after t110b |
-| xp-idle-r1.md (F5, rc 3: FLK-CHAT-IDLE, xh-1; 0.5 %) | sonnet medium, claude/xp-idle bd5af4b3 | starting 21:3x (xp-helper r2 MERGE-OK, rides in it) |
+| core-fix-r1.md (rc 9: mch-1..4; 0.8 %) | sonnet medium, claude/core-fix 4fedd240 | in t110c; slot free for record-v9 r2 |
+| xp-idle-r1.md (F5, rc 3: FLK-CHAT-IDLE, xh-1; 0.5 %) | sonnet medium, claude/xp-idle bd5af4b3 | session_016iS3kM1upUA2pS1qWuZ3JY 21:38 (xp-helper r2 MERGE-OK, rides in it) |
 
 ## Queue (% week; 5 % reserve)
 3. (rc 8) DOCS-RC r2 (pr-1..5) on the Thu head.
 4. (F7, rc 11) record-v9 r2 after ti-38.
-5. (rc 1, 3, 8, 9) t110b running: 10 of t109h list (9ee1cef1); t111: CORE-FIX 4fedd240, MC-HELPER 42585079, XP-IDLE (carries XP-MINOR, XP-HELPER). Then: eprintln ratchet; haiku series 5 (F5).
+5. (rc 1, 3, 8, 9) t110c running: t110b list + CORE-FIX, MC-HELPER (40a2ba92); t111: XP-IDLE (carries XP-MINOR, XP-HELPER), TILING-FIX, CUBE-SETTLE, FLAKE-HINT as they pass. Then: eprintln ratchet; haiku series 5 (F5).
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
