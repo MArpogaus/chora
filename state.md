@@ -26,6 +26,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 | cube-settle-r1.md (F5, rc 3: FLK-CUBE-SETTLE; 0.8 %) | sonnet medium, claude/cube-settle 6b01c976 | session_016iS3kLPse7BU4Uz4qMNKqV 18:53 ok |
 | mc-scale-r1.md (F5, rc 3: FLK-MC-SCALE; 0.8 %) | sonnet medium, claude/mc-scale 6b01c976 | session_016iS3kP1gjagETR7McCFgR3 17:03 |
 | core-diag-r3.md (F5, rc 3: FLK-TX-STALL; 0.6 %) | sonnet medium, claude/core-diag 788605f4 | session_016iS3kLKNX1cM4LDH1m9k8n 17:51 |
+| tiling-fix-r1.md (rc 3, 1: ti-37, 27, 25c; 1 %) | sonnet medium, claude/tiling-fix 4e46028b | starting |
 | xp-helper-r1.md (rc 1: xp-29, 30, 28b; 1 %) | sonnet medium, claude/xp-helper 3bec0cbf | session_016iS3kNEm1QH3CTUkUd1EkK 18:30 |
 
 ## Queue (% week; 5 % reserve)
