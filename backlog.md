@@ -378,3 +378,4 @@ DB20 | 11-22 | later | tour v10: the three xp cube acts (demo/tour/chapters/xp.p
 DB7 d | 11-22 | later | voice mc.rs shows(): count wrapped screen lines, not only newlines (ask-one review ao-1, MINOR).
 DB21 | 11-22 | later | gate-tiling-motion.sh: restore the deep (focused) vs light (other) shadow split, two thresholds (gate-alive review ga-1, MINOR); name the source of the thin-space 0.56 in gate-tiling-keys.sh (ga-2). oi-2: gate-lib session_start leaves /tmp/gate-env.* (5 per run); oi-4: gate-demo GIFs at 9.49 MB of the 10 MB limit (reports/opt-in.md r1).
 - lm-1 (MINOR, review-looks1-mc): mc region/items.rs question_pending has no unit test (act rows cover it).
+- mch-1 (MEDIUM, review-mesh-churn r1): drop_left runs only on a vacant key; a second same-scale view (two outputs, output plus capture) keeps old layer sizes for UNUSED_FOR. Fix lane after RC 9 recheck (sonnet medium, ~0.6 %).
