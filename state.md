@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-22 02:22 UTC)
+## Now (2026-11-22 02:23 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 02:20 week 7.8 % (6.1 + 1.7 Bkk days; 0.35 %/h, under pace 13.4 %: more lanes)
 session branch: 1c9e64f7; 60 greens; t104 red 23:59 acts tiling I14 (sh-32); t104b red 00:36 only in tiling-look bar-font: clock 120 wide (limit 119), date-dependent check (Sunday); CLOCK-WIDTH, then t104c.
@@ -25,7 +25,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 |---|---|---|
 | clock-width-r1.md (F5, rc 3: t104b date-dependent clock check) | sonnet medium, claude/clock-width 1c9e64f7 | session_016iS3kLT7bZFcwTSG5m6Srg 00:38 |
 | tour-fix-r2.md (F7, rc 11: review r1 FIX rw-1..3 MAJOR) | sonnet high, claude/tour-fix faf958fe | session_016iS3kMNfyagdg57Hy78L29 00:47 |
-| ti-r4-r1.md (F7, rc 2: ti-32 MAJOR verify, ti-33) | sonnet high, claude/ti-r4 1c9e64f7 | starting 02:22 |
+| ti-r4-r1.md (F7, rc 2: ti-32 MAJOR verify, ti-33) | sonnet high, claude/ti-r4 1c9e64f7 | session_016iS3kM7GXTMuqxfoDNWLxn 02:23 |
 
 ## Queue (% week; 5 % reserve)
 4. (F7, rc 2-3) RECORD-V9 r1 blocked 18:25; TOUR-FIX done 00:33 faf958fe (90 to 66 red, 9 findings); REVIEW r1 FIX 00:45 (3 MAJOR); TOUR-FIX r2 0.8 %, then train, RECORD r2.
