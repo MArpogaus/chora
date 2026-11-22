@@ -1878,19 +1878,19 @@ a notification server it writes the same words to its log:
   without directory and arguments, for example `thunar` or `libreoffice`.
   Other commands, such as `./app`, `VAR=1 app`, `env VAR=1 app`,
   `cd dir && app`, a quoted program or a shell builtin, run as they are:
-  the shell finds the program, or the limit of 30 seconds speaks.
+  the shell finds the program, or does not.
 - A program that is still starting after 2 seconds shows "Starting NAME".
-  The balloon closes when the window shows. A program that shows no window
-  within 30 seconds gets "Cannot open NAME" with the number of seconds,
-  unless a window of another start opened meanwhile: a launcher such as
-  `xdg-open` or a browser may hand its work to a program that runs
-  already, and exit. A program that opens in less than 2 seconds shows
-  no balloon. A program that ends with an error before its window
-  shows gets "Cannot open NAME" at once; the same exception holds: a window
-  of another start that opened meanwhile explains the end. A program that
-  ends without an error may have handed its work to a running instance and
-  has the 30 seconds. The wait for the limit is checked once a second, so a
-  message of the limit can come up to a second late.
+  The balloon stays until the window shows or the program ends; a
+  program that runs without a window is neither served nor failed, and no
+  timer ends the wait for it. A program that opens in less than 2 seconds
+  shows no balloon. A program that ends with an error before its window
+  shows gets "Cannot open NAME" at once, unless a window of another start
+  opened meanwhile: a launcher such as `xdg-open` or a browser may hand
+  its work to a program that runs already, and exit. A program that ends
+  without an error may have done that too, so it has 30 seconds after its
+  end to show a window, or the same balloon says that it ended without
+  one. The end is checked once a second, so a message can come up to a
+  second late.
 - For a file of the desktop, NAME is the name of the file, not `xdg-open`.
 
 The balloon of the start needs `chora-notify`, which the unit
@@ -2287,7 +2287,7 @@ that the file leaves out takes its default:
 | `terminal` | `foot` | the terminal of Terminal at the top of the start menu; `CMD -e` runs the programs with `Terminal=true` |
 | `launcher` | `fuzzel` | Run in the start menu, and All Programs when no desktop file lists a program. With `fuzzel` alone, Run is a box in the look of XP that lists the installed programs, sorted by name; text that matches no row finds programs by their keywords or runs as a command when its program is installed, and after any other text the list shows again under the row `Nothing found for "TEXT"`. Another command runs as it is |
 | `file_manager` | `thunar` | the file manager of the places of the start menu and of the folder icons; `chora-xp` adds the folder to the command |
-| `editor` | none | the shell command of the plain text editor: **Notepad**, the first program below the two pinned rows of the start menu and an entry of All Programs > Accessories. Notepad tries this command, then lowriter, mousepad, gedit, gnome-text-editor, kwrite, kate, xed, pluma, featherpad, leafpad, l3afpad and geany, and skips what is not installed. A terminal editor (nano, vim, `VISUAL`, `EDITOR`) never serves unless you set it here, for example `foot -e nano`; Notepad opens only a window of an editor with a window. When an editor is not installed, or ends with an error before it shows a window, the next one starts, and once its window shows a notice names the editor that serves and why the one before did not. An editor that ends without an error may hand its work to a running instance, so it has 30 seconds to show a window. When none opens, a notice says Notepad cannot open. Without an editor with a window, Notepad stays in the menu and a click says "Cannot open Notepad: no text editor installed (for example mousepad)" and opens no window; the packages recommend mousepad. The left column of the start menu is filled with Notepad and programs that do not run in a terminal and have no raw suffix in parentheses in their title. All Programs lists only desktop files whose program is installed |
+| `editor` | none | the shell command of the plain text editor: **Notepad**, the first program below the two pinned rows of the start menu and an entry of All Programs > Accessories. Notepad tries this command, then lowriter, mousepad, gedit, gnome-text-editor, kwrite, kate, xed, pluma, featherpad, leafpad, l3afpad and geany, and skips what is not installed. A terminal editor (nano, vim, `VISUAL`, `EDITOR`) never serves unless you set it here, for example `foot -e nano`; Notepad opens only a window of an editor with a window. When an editor is not installed, or ends with an error before it shows a window, the next one starts, and once its window shows a notice names the editor that serves and why the one before did not. An editor that ends without an error may hand its work to a running instance, so it has 30 seconds after its end to show a window; an editor that runs without a window is waited for. When none opens, a notice says Notepad cannot open. Without an editor with a window, Notepad stays in the menu and a click says "Cannot open Notepad: no text editor installed (for example mousepad)" and opens no window; the packages recommend mousepad. The left column of the start menu is filled with Notepad and programs that do not run in a terminal and have no raw suffix in parentheses in their title. All Programs lists only desktop files whose program is installed |
 | `programs` | none | the programs at the top left of the start menu below the two pinned rows, each with `title`, `command` and `icon`, the name of an icon of the icon theme |
 | `clock_format` | `%-I:%M %p` | the clock of the taskbar, in the format of strftime, at most 64 characters |
 | `wallpaper` | Bliss if installed, else Bløff | `picture`: `default`, `none` or `{file: PATH}` with an absolute path of a PNG, JPEG or SVG file; `position`: `center`, `tile`, `stretch` or `fill`; `color`: red, green and blue of the desktop |
