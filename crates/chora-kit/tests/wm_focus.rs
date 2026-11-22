@@ -247,3 +247,19 @@ fn holder_and_state_agree_for_an_own_node_that_is_not_tracked() {
         Holder::Window("t1".into())
     );
 }
+
+/// co-i3 r3, rv-2: when a window takes the keys from a node of another
+/// client, the core tells `focus.node` null (`tell_key_node`, chora
+/// `state.rs`) and `focus.changed`; `moved` needs no clearing of its own,
+/// the look holds the window again.
+#[test]
+fn a_window_taking_the_keys_from_a_foreign_node_ends_the_loss() {
+    let mut tiling = Look::new("tiling", &["t1", "t2"]);
+    tiling.focus.sent(Some("t1".into()));
+    tiling.focus.hear(&changed(Some("t1")));
+    tiling.focus.hear(&node_event(Some("xp-menu"), Some("xp")));
+    assert_eq!(tiling.state(), state::Focus::default());
+    tiling.focus.hear(&node_event(None, None));
+    tiling.focus.hear(&changed(Some("t2")));
+    assert_eq!(tiling.state(), holds("tiling", Some("t2")));
+}

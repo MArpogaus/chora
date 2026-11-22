@@ -612,6 +612,8 @@ struct Construct {
     /// The surface with the keyboard as `focus.changed` last told: read by
     /// `state.get`, and by `regrab` for a pane whose window has it.
     core_focus: Option<String>,
+    /// The node of another client with the keyboard, as `focus.node` told.
+    kit_focus: chora_kit::wm::focus::Focus,
     /// Whether the walk took the keyboard with `focus_node` since a window
     /// of a pane got it: the core keeps the focus of that surface then, but
     /// its keys go to the look (`keys_with_pane`).
@@ -719,6 +721,7 @@ impl Construct {
             cube: None,
             managed: Vec::new(),
             core_focus: None,
+            kit_focus: chora_kit::wm::focus::Focus::default(),
             walk_keys: true,
             voiced: chora_kit::helper::Helper::default(),
             book: chora_kit::wm::Book::new(NAME, false),
@@ -740,7 +743,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// The events of the plugin.
-const EVENTS: [&str; 23] = [
+const EVENTS: [&str; 24] = [
     "voice.*",
     "assistant.ready",
     "assistant.chat",
@@ -755,6 +758,7 @@ const EVENTS: [&str; 23] = [
     "surface.destroyed",
     "surface.detached",
     "focus.changed",
+    "focus.node",
     "output.changed",
     "output.removed",
     "node.key",
