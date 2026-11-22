@@ -105,7 +105,8 @@ pub trait Plugin {
 
     /// Called before `state.get` answers, so that a plugin brings up to
     /// date what only the core knows, such as which node has the keyboard
-    /// (the core tells no look when a node of another client takes it);
+    /// (the core tells a look that listens to `focus.node` which node of
+    /// another client takes it, and no other look);
     /// nothing by default.
     fn refresh(&mut self) {}
 
