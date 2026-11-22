@@ -353,3 +353,4 @@ Range 788605f4..03e17809 (red 50ca5899, green 93e9af7b, 03e17809), 2 files +67/-
 - lint-ratchet allow 360 -> 361: one `#[allow(unsafe_code, reason = ...)]` on the clock call. The brief asked for libc clock_gettime, so the raise is the PM's; accepted once. Backlog TX-CPU-SAFE: read /proc/thread-self/stat instead and lower allow back to 360.
 - Gate: full --jobs 2, 57 PASS, EXIT 0 (lane).
 Verdict (computed): 0 open MAJOR -> MERGE-OK. Joins t110 with 03e17809.
+Amend 19:42: merged with mesh-churn dc6a266d (t109h) the ratchet is red (allow 362, list 361). CORE-DIAG leaves t110 and lands through core-fix r1 (base 46e98b3e = 03e17809 + dc6a266d), which also takes TX-CPU-SAFE.
