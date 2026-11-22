@@ -223,6 +223,21 @@ class CompareDirs(unittest.TestCase):
         toml.write_text("")
         self.assertEqual(run_tool("tour-diff.py", self.base, self.cand, "--intended", toml)[0], 1)
 
+    def test_the_cli_reads_baseline_none_json_of_the_base_folder(self):
+        """rv-3: the names that run.py wrote (`baseline-none.json` of the take on the old build) are not
+        regressions; a name only in the capture and not in the json still is."""
+        write_capture(self.cand, "x1.Q")
+        write_capture(self.cand, "x2.Q")
+        self.base.mkdir()
+        listing = [{"chapter": "xp", "reason": "no method", "names": ["x1.Q"], "trace": ""}]
+        (self.base / "baseline-none.json").write_text(json.dumps(listing))
+        code, out = run_tool("tour-diff.py", self.base, self.cand)[:2]
+        self.assertEqual(code, 1, out)
+        self.assertIn("x2", out)
+        self.assertNotIn("x1       Q     regression", out)
+        (self.base / "baseline-none.json").write_text(json.dumps([{"names": ["x1.Q", "x2.Q"]}]))
+        self.assertEqual(run_tool("tour-diff.py", self.base, self.cand)[0], 0)
+
     def test_a_check_red_on_cand_and_new_is_a_regression(self):
         write_capture(self.base, "x1.Q", data='{"nodes": [], "checks": {"I4": "green"}}')
         write_capture(self.cand, "x1.Q", data='{"nodes": [], "checks": {"I4": "green", "I9": "red"}}')
