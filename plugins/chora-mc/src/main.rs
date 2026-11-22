@@ -652,8 +652,9 @@ impl Plugin for Mc {
     }
 
     /// Drops the node that mc holds the keyboard with when the core does
-    /// not focus it: the core sends no event for the focus of a node
-    /// (backlog rw-3), so the answer of `state.get` depends on this call.
+    /// not focus it: `focus.node` names the node that another client
+    /// takes (heard, `Focus::away`), but not that the node of mc lost the
+    /// keyboard to a surface, so `state.get` still asks the core.
     fn refresh(&mut self) {
         let Some(node) = self.focus.node().map(str::to_owned) else {
             return;
@@ -1953,6 +1954,23 @@ mod tests {
         assert_eq!(mc.state().unwrap()["focus"], json!({"holder": "mc"}));
         xp_takes_the_keyboard(&model);
         mc.refresh();
+        assert_eq!(mc.state().unwrap()["focus"], json!({"holder": null}));
+    }
+
+    /// rd-5: mc hears `focus.node`, so a node of another client that takes
+    /// the keyboard leaves mc no holder (one holder, I3).
+    #[test]
+    fn a_focus_node_of_another_client_leaves_mc_no_holder() {
+        use chora_kit::runtime::Plugin as _;
+        assert!(super::EVENTS.contains(&"focus.node"));
+        let (mut mc, _model) = crate::testing::mc("node-heard", [1280, 800]);
+        let command = mc.focus.to_node(Some(crate::page_id("agenda")));
+        mc.apply(vec![command]).unwrap();
+        mc.event(chora_scene::Event::FocusNode {
+            node: Some("xp-icons".into()),
+            owner: Some("xp".into()),
+        })
+        .unwrap();
         assert_eq!(mc.state().unwrap()["focus"], json!({"holder": null}));
     }
 
