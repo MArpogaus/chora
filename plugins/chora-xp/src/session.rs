@@ -384,21 +384,25 @@ fn at([x, y]: [i32; 2]) -> PropsUpdate {
 
 /// Runs a shell command of the settings in a thread, since polkit may ask
 /// first and the loop must go on. A failure only logs.
-#[allow(
-    clippy::cognitive_complexity,
-    reason = "the tracing macros count as branches"
-)]
 pub fn run(command: String) {
     drop(std::thread::spawn(
         move || match std::process::Command::new("sh")
             .args(["-c", &command])
             .status()
         {
-            Ok(status) if !status.success() => tracing::warn!("{command}: {status}"),
+            Ok(status) if !status.success() => warn_status(&command, &status),
             Ok(_) => {}
-            Err(err) => tracing::error!("{command}: {err}"),
+            Err(err) => error_start(&command, &err),
         },
     ));
+}
+
+fn warn_status(command: &str, status: &dyn std::fmt::Display) {
+    tracing::warn!("{command}: {status}");
+}
+
+fn error_start(command: &str, err: &dyn std::fmt::Display) {
+    tracing::error!("{command}: {err}");
 }
 
 #[cfg(test)]

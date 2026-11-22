@@ -31,7 +31,7 @@ impl Wm {
             self.reserved.insert(output.clone(), height);
             let edges = json!({"output": output, "edges": {"bottom": height}});
             if let Err(err) = self.rt.conn.call::<_, Value>("output.reserve", edges) {
-                tracing::warn!("output.reserve: {err}");
+                warn_reserve(&err);
             }
         }
     }
@@ -100,10 +100,6 @@ impl Wm {
 
     /// Shows a dialog in the middle of the output of the start menu, and
     /// lets the desktop behind it fade to gray.
-    #[allow(
-        clippy::cognitive_complexity,
-        reason = "the tracing macros count as branches"
-    )]
     pub(super) fn open_dialog(&mut self, mode: Mode, output: Option<&str>) -> Vec<Command> {
         let bar = output
             .and_then(|o| self.bars.iter().find(|b| b.output == o))
@@ -125,7 +121,7 @@ impl Wm {
         if self.fade_shader.is_none() {
             match self.theme.cache_file("fade.frag", session::FADE_SHADER) {
                 Ok(path) => self.fade_shader = Some(path.to_string_lossy().into_owned()),
-                Err(err) => tracing::warn!("the shader of the fade: {err}"),
+                Err(err) => warn_shader(&err),
             }
         }
         if self.fade_shader.is_some() && self.effects_on() {
@@ -258,4 +254,12 @@ impl Wm {
         let body = format!("The file {script}.sh of the shared scripts is not installed.");
         self.notice(None, "Cannot do that", &body, 10_000);
     }
+}
+
+fn warn_reserve(err: &dyn std::fmt::Display) {
+    tracing::warn!("output.reserve: {err}");
+}
+
+fn warn_shader(err: &dyn std::fmt::Display) {
+    tracing::warn!("the shader of the fade: {err}");
 }

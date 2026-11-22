@@ -356,10 +356,6 @@ impl Wm {
     /// after the core refused, as it does for an injected drag: then the
     /// window stays with chora-xp.
     #[allow(clippy::cast_possible_truncation, reason = "scene coordinates")]
-    #[allow(
-        clippy::cognitive_complexity,
-        reason = "the tracing macros count as branches"
-    )]
     pub(super) fn pull_out(
         &mut self,
         surface: &str,
@@ -384,7 +380,7 @@ impl Wm {
         match self.give_dragged(surface, &to, Some(grab)) {
             Ok((_, commands)) => Some(commands),
             Err(err) => {
-                tracing::debug!("{surface} stays on its face: {}", err.message);
+                debug_stays_on_face(surface, &err.message);
                 if let Some(drag) = &mut self.drag {
                     drag.kept = true;
                 }
@@ -397,10 +393,6 @@ impl Wm {
     /// window manager whose claim holds the drop point, which places it by
     /// its own rules (D55). Without one there, or when the core refuses,
     /// the window stays.
-    #[allow(
-        clippy::cognitive_complexity,
-        reason = "the tracing macros count as branches"
-    )]
     pub(super) fn hand_over(&mut self, surface: &str, point: [f64; 2]) -> Vec<Command> {
         let given = match self.rt.conn.claimant_at(point) {
             Ok(Some(to)) => self.give(surface, &to),
@@ -411,7 +403,7 @@ impl Wm {
             Ok((_, commands)) => return commands,
             Err(err) => err,
         };
-        tracing::info!("{surface} stays: {}", err.message);
+        info_stays(surface, &err.message);
         let area = self.bars.first().map_or([0, 0, 1280, 770], Bar::usable);
         match self.index(surface) {
             Some(i) => self.keep_inside(&[i], area),
@@ -553,6 +545,14 @@ impl Wm {
             self.tell(change);
         }
     }
+}
+
+fn debug_stays_on_face(surface: &str, why: &str) {
+    tracing::debug!("{surface} stays on its face: {why}");
+}
+
+fn info_stays(surface: &str, why: &str) {
+    tracing::info!("{surface} stays: {why}");
 }
 
 #[cfg(test)]

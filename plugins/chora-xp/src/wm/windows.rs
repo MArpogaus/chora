@@ -22,10 +22,6 @@ impl Wm {
     /// menu does not cover a window that came (sd-h2). It shows once it
     /// has a size. True when the window is xp's now; false when the core
     /// refused it.
-    #[allow(
-        clippy::cognitive_complexity,
-        reason = "the tracing macros count as branches"
-    )]
     pub(super) fn adopt(
         &mut self,
         surface: &str,
@@ -54,7 +50,7 @@ impl Wm {
         }
         commands.extend(self.focus(Some(surface)));
         if let Some(err) = self.try_apply(commands)? {
-            tracing::error!("{surface}: {err}");
+            error_adopt(surface, &err);
             self.windows.retain(|w| w.surface != surface);
             self.opened.retain(|s| s != surface);
             self.focused = previous;
@@ -645,4 +641,8 @@ impl Wm {
             },
         })
     }
+}
+
+fn error_adopt(surface: &str, err: &dyn std::fmt::Display) {
+    tracing::error!("{surface}: {err}");
 }
