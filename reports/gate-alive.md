@@ -32,3 +32,11 @@ T2: gate-construct-hud.sh has no pinned row count since 2c5d810a; green in const
 
 tests/merge-gate.sh --jobs 1 (no --only) on a7ffdf22: every step PASS up to tiling-audit, then tiling-look FAIL (foreign, not caused: tests/gate-tiling-bar-spec.sh, 4 lines such as "FAIL: ink-1280x800 bar-font: the clock is 120.0 wide, not Inter 14 px weight 500 (100-119)" in /tmp/merge-gate.bDvQm6/tiling-look.log; this is ti-37, seen by tour-fix r2 on 87fdbeb9; not rerun). The gate stops at the first red, so the remaining 34 steps ran as a second run with --only (tiling-empty to e2e, run dir /tmp/merge-gate.fiFgB0): all PASS, including the eight new ones.
 Added wall time, from that run: tiling-keys-more 50 s, tiling-windows 153 s, tiling-system 15 s, handover 25 s, mc-scale 18 s, watchdog-starved 53 s, xp-run 14 s, demo 218 s = 546 s (9 min), at --jobs 1.
+
+## Review r1 (PM 07:04 UTC; seeded by the brief; PM is not the builder)
+
+Diff 1c9e64f7..a7ffdf22, one commit, 9 files, +48 -29 (tests only).
+Checks: (1) each new step runs a script the head did not run: yes, 8 steps, 546 s; (2) the known-red-* filter lives in the parent before step dispatch, so --worker lists never see them, --only and --list still do: yes (merge-gate.sh:321-331, 339-343); (3) each known-red step names a finding: ti-39..42 in findings/tiling.md, mc-57 in findings/mc.md; (4) gate-0.7-7 deleted only because the step test runs the same unit test: yes; (5) the foreign red tiling-look is ti-37, fixed by CLOCK-WIDTH in t106 (7a6c0eb8): the train checks it.
+- ga-1 MINOR: gate-tiling-motion.sh drops the deep/light split (spots 12 and 6 become 6 and 6); the message still says "deep shadow". To DB21.
+- ga-2 NIT: gate-tiling-keys.sh counts a thin space as 0.56 glyph, a measured constant without a source line.
+Verdict (computed): no open MAJOR, MERGE-OK on a7ffdf22. Harness branch: own train t108 after t107.
