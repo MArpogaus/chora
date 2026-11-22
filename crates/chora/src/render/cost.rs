@@ -578,3 +578,26 @@ fn a_layer_on_two_outputs_of_other_scales_stays_still() {
     assert_eq!(after.passes, before.passes, "no pass reruns");
     assert_eq!(after.damaged_frames, before.damaged_frames, "no damage");
 }
+
+#[test]
+fn a_layer_that_changes_size_keeps_one_texture_per_slot() {
+    let mut core = Core::with_renderer();
+    let mut wm = core.named("wm");
+    wm.ok(&mut core, "output.add", json!({"spec": "128x96"}));
+    let rect = json!({"create": {"id": "r", "kind": "rect", "parent": "root",
+        "props": {"size": [20, 20], "color": [1, 0, 0, 1], "radius": 4}}});
+    wm.ok(&mut core, "scene.apply", json!({"commands": [rect]}));
+    frames(&mut core, 1);
+    let first = stats(&core);
+    for side in 21..31 {
+        let update = json!({"commands": [
+            {"update": {"id": "r", "props": {"size": [side, side]}}},
+        ]});
+        wm.ok(&mut core, "scene.apply", update);
+        frames(&mut core, 1);
+    }
+    let sizes = core.state.assets.layers.sizes("r");
+    assert!(sizes.len() <= 2, "old sizes stay: {sizes:?}");
+    let made = stats(&core).textures_allocated - first.textures_allocated;
+    assert!(made <= 10, "{made} textures for 10 sizes");
+}
