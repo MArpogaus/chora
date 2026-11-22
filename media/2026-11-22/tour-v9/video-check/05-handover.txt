@@ -1,0 +1,10 @@
+freeze          0.00    2.50
+freeze          2.50    5.17
+freeze          5.17    6.93
+freeze          6.93   15.47
+freeze         15.47   17.73
+freeze         18.93   23.33
+freeze         27.13   28.90
+freeze         30.10   34.43
+freeze         34.43   37.43
+tour-video-check: 9 flagged
