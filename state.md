@@ -24,14 +24,14 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 | Lane | Model, branch | State |
 |---|---|---|
 | ti-38-r2.md (F7, rc 2: ti-38 MAJOR; r1 4441f1d4 done, merge 7a6c0eb8 conflicts, construct act rerun; 1.5 %) | opus high, claude/ti-38 4441f1d4 | session_016iS3kMg9i8mAmHNyiis9cz 07:34 |
-| flake-hint-r1.md (F5, rc 3: ldm-2 construct hint-click act; 0.8 %) | sonnet medium, claude/flake-hint 3b14c825 | starting 12:48 |
+| flake-hint-r1.md (F5, rc 3: ldm-2 hint-click act; 0.8 %) | sonnet medium, claude/flake-hint 3b14c825 | session_016iS3kLq6SXjYGB7qdMUEni 12:46 |
 | core-diag-r2.md (rc 9: sl-3 band, unlink; sl-1 mallopt; 2 %) | opus high, claude/core-diag fc779a76 | session_016iS3kQcXW93puoYVHWyYxt 10:40 |
 | mesh-churn-r1.md (rc 9: sl-1 texture churn; 1.5 %) | opus high, claude/mesh-churn 96e5c804 | session_016iS3kLrku4JTjEeufgN2oV 11:31 |
 | log-down-xp-r1.md (rc 9: xp eprintln 18; 0.9 %) | sonnet medium, claude/log-down-xp 70cbf9bd | session_016iS3kPYbLrqZVkcAvctZ1S 11:36 |
 | flake-series-r5.md (F5, rc 3: 5 gates at 2 jobs; 1 %) | haiku high, claude/flake-series-r5 3b14c825 | session_016iS3kPEG2bDTyKBSQgj5BM 08:49 |
 
 ## Queue (% week; 5 % reserve)
-4. (F7, rc 2-3) next tour round after ti-38 r2 merges (t107 had TOUR-FIX r3, ASK-ONE).
+4. (F7, rc 2-3) next tour round after ti-38 r2 merges.
 5. t108 10:50 on 3b14c825: GATE-ALIVE a7ffdf22 alone; lanes merge head; t109 LAUNCH-TIMER 629faf7b + TEST-GAPS 89dc32c4 + LOG-DOWN-CO b974134e + SIM-LONG ce451499 + LOOKS1-MC b0453e19 + SPLIT-C 96e5c804 + SPLIT-B 2af7801c + LOG-DOWN-MC b843bf5f (PM OK); then RECORD r2.
 6. OPT-IN r1 done (six PASS; oi-2, oi-4 to DB21). FLAKE-SERIES r5 (rc 3, F5; 1 %) runs on 3b14c825.
 
