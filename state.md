@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-22 04:14 UTC)
+## Now (2026-11-22 04:16 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 02:20 week 7.8 % (6.1 + 1.7 Bkk days; 0.35 %/h, under pace 13.4 %: more lanes)
+budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 04:16 week 8.1 % (6.1 + 2.0 Bkk days; 0.33 %/h, under pace 14.6 %: more lanes)
 session branch: 1c9e64f7; 60 greens; t104 red 23:59 acts tiling I14 (sh-32); t104b red 00:36 only in tiling-look bar-font: clock 120 wide (limit 119), date-dependent check (Sunday); CLOCK-WIDTH, then t104c.
 burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at 2 jobs, one host; rc 9 rows open); F7 open, carried.
 
