@@ -394,3 +394,5 @@ DB21 | 11-22 | later | gate-tiling-motion.sh: restore the deep (focused) vs ligh
 - TX-CPU-SAFE (core-diag r3 PM review, 11-22): sl-3 test thread_cpu() uses unsafe clock_gettime (allow 361); read /proc/thread-self/stat (utime+stime) instead and lower allow to 360. Cost 0.2 %.
 - CK-1 (MINOR, core-fix review r1): render/cost.rs a_resized_layer_on_two_outputs_of_the_same_scale_drops_old_sizes bars sizes < 11; bar <= 2 like its sibling. Next core round.
 - MH-1, MH-2 (MINOR, mc-helper review r1): mc-host check rewrites without a product sha; no mouse doors while the chat is open. Next mc round.
+- XH-1 (MINOR, xp-helper review r2): gate-xp-helper.sh xp29-none bare sleep 1 before the click. Next xp round (with FLK-CHAT-IDLE).
+- H-RF (harness): red-first per finding id: each fix commit naming an id needs an earlier test commit naming the same id in the range.

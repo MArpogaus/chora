@@ -59,3 +59,10 @@ Head bd5af4b3 on claude/xp-helper (82588a07 red, 4c20c21d words+state dir, bd5af
 - 5/5 each cell in a row: xp29-click, xp29-none, xp30-helper, xp30-none, xp30-once, xp28-editor all ok (xp-28: editor at x 116, icons end x 88).
 - Full gate `merge-gate.sh --jobs 2`: 59 PASS, 0 red, EXIT 0 (/tmp/gate.log, run dir /tmp/merge-gate.KZMIE4; xp-helper PASS 33s).
 - Greeting capture: /tmp/gate-xp-helper.*/xp-30-helper.png (last run of the cell, in the lane container).
+
+## Review r2 (PM, own commits 82588a07, 4c20c21d, bd5af4b3 on eda60a6b, +97 -26, under 200 lines; PM not the builder)
+
+Checks against r1: rx-1 MAJOR closed (words.rs:355, :358, :455, :458 name no X; cell greets() fails on a word X; red line pasted); rx-2 (no-helper text "Click me to see what to do"; xp29-none opens the chat whose header names no helper: honest); rx-3 (voice.rs:67 private_dir); rx-4, rx-5 (desktop_icons.rs strip(area): 0 off the icon area, the right edge of the last column; place() takes it at press.rs:408, windows.rs:103; unit tests for 9 and 3 icons and a second area); rx-6, rx-7 (polls, header, need bc); rx-8 (Sie). Gate 59 PASS EXIT 0.
+- xh-1 MINOR tests/gate-xp-helper.sh:98: the new xp29-none cell has a bare `sleep 1` before the click (rx-6 kind); a slow start clicks before the figure exists, then `ctl wait` fails false. Fix: wait for hud-figure, then click.
+- xh-2 MINOR (process, rules.md 8): the rx-4/5 unit tests are in the fix commit bd5af4b3 (red shown as compile errors in the report). Second time today (core-fix ck-2): friction entry, guard in briefs.
+Verdict (computed): 0 BLOCK, 0 MAJOR, 2 MINOR: MERGE-OK. Joins t111.
