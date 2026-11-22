@@ -101,3 +101,50 @@ Seeded review of claude/tour-fix faf958fe against base 892d035c (cargo check --w
 - rw-8 | NIT | tests/test_tour.py:694, tests/acts/known-red.toml:15, .pre-commit-config.yaml:98 | (a) the mc notify test asserts a string of mc.py, not the start of chora-notify; (b) the tray exemption (floor 3.0) rests on its own reason "authentic Luna tray, vision card", no design page says it (product-briefs.md:49 is the size only) and the tour now applies it; (c) ruff is not run on demo/ and tests/ by pre-commit | fix: (a) check the argv in `launch` with a fake `L.start`; (b) cite the owner decision in design/looks/xp.md; (c) leave or widen `files:`.
 
 Counts: BLOCK 0, MAJOR 3 (rw-1, rw-2, rw-3), MINOR 4, NIT 1.
+
+## r2 (F7, rc 11: fix round after review r1; 2026-11-22)
+
+Branch `claude/tour-fix` from faf958fe, merged with origin/claude/autonomous-dev-session-3w-i33pg7 (87fdbeb9). Head **87fdbeb9** (pushed). Step 0 green (unshallow, cargo check --workspace, cargo build --workspace). Lane files only: demo/tour, tests/test_tour.py, tests/test_acts.py, tests/acts/harness.py, tests/tiling-audit.py (reverted); no product code.
+
+### Closed (red commit, then fix commit)
+| rw | red | fix | what |
+|---|---|---|---|
+| rw-1 | ba72f129 | a53c835f | `dump` takes the picture again unless it is the H50 frame that `copy_held` took in this take; an old png is removed first, so a failed capture leaves none. Tests: stale `x1.Q.png` and stale H50 get the new picture; a failed capture leaves no old file |
+| rw-2 | e55aa1e9, fbbab3d7 | 9478ea71 | every `t.act` of the five chapters names its scene of design/tour-v9.md (`scene="h2"`); the row id is the scene id, a later act of the scene takes a letter (`h1`, `h1b`, `h1c`); an act without `scene=` keeps letter+number. Send To is `h2` (was act h5), Click Start is `h1`. Tests: every act has a scene; Send To is h2; letters; every `act` of intended.toml is a scene used by a chapter |
+| rw-3 | 9262e8ba | 8e665374 | `Checker(baseline=)`; `Checker.attach` wraps `OldCore` and `judge` drops "missing boxes" only with TOUR_BASELINE. Tests: the candidate keeps "I8: missing boxes ..." red, prints I5/I6/I8/I9 planted lines, attaches no OldCore |
+| rw-4 | 7d7fdaf7 | dd8505d1 | run.py: with TOUR_BASELINE only a RuntimeError that `NO_METHOD` matches is `baseline: none`; a TypeError or a dead core is BROKE (exit 1). baseline-none.json per chapter: chapter, reason, `names` = the `<act>.<capture>` the chapter plans (`tour.planned`, from the chapter file, a `for` over a literal list counted per item) minus those taken (`tour.TAKEN`) |
+| rw-7 | f245d0b9 | 14f34409 | `settled_scene` prints `harness: the scene did not settle in N reads of <look> ...` on stderr after its last try; silent when settled |
+
+rw-5 (tests/tiling-audit.py, gap 10 against the 4 px grid): **not decided.** Reverted both r1 commits (b86e3ffb test, 98cee862 fix) in 6343c36e, so the audit is the 4 px unit of design/looks/tiling.md again. **Question for the owner:** is the inner gap 10 the one off-grid value (design/looks/tiling-v2.md "grid 4 px ... inner gap 10", gate-tiling-gaps.sh asserts 10), or is ti-31 a product fault (design/looks/tiling.md "widths and gaps on one grid")? ti-31 stays open; no commit closes it. Cost of the revert: see counts. The `tiling-audit` gate step passes with the 4 px check.
+
+rw-6 (findings rows, claude/session-log): ti-35 (act "Scrolls on the volume word of the bar", now id `t10`, was t26, fixed pixel 1018,24) and ti-36 ("Clicks the row Screenshot", now `t10c`, was t28, TOUR_SHOT_X/Y 640,476). Both are aim, not product, and I did not look at a capture. Evidence: on faf958fe in this round both are red (`the mixer is at 40 percent, expected 45`, `no new notice in chora-notify`); in the run on the r2 head with the same product code both hold. So they flake. ti-31 got the r2 evidence. ti-37: see Gate.
+
+Not in this round: rw-8 (NIT) not asked.
+
+### Counts: `python3 demo/tour/run.py --check`, same binaries (cargo build on the r2 tree)
+| | before (faf958fe) | after (r2 head 9478ea71..dd8505d1 + revert, run before the merge) |
+|---|---|---|
+| tour: | 66 red, 0 broken | **84 red, 0 broken** |
+| xp | 30 red (I6 97 lines) | 30 (I6 97) |
+| tiling | 5 (I6 108 lines in 3 acts, expect 2 acts) | 23 (I2 62 lines in 23 acts, I6 110 lines in 4 acts, expect 0) |
+| mc | 2 (I10 2, I6 4) | 2 (I10 2, I6 4) |
+| construct | 18 (I6 440, I2 28) | 18 (I6 440, I2 28) |
+| handover | 11 (I6 34) | 11 (I6 34, I3 1) |
+
+New reds, each with a findings row, none a known-red row:
+- **tiling I2: +18 red acts** (23 acts, 62 lines `tb-s1 and tb-s5 are 10 apart, no whole number of 4`; 0 before): the effect of rw-5, row **ti-31**.
+- tiling expect: -2 acts (t26, t28 held this run): rows ti-35, ti-36.
+- tiling I6: +2 lines (the screenshot path of the notice card differs per run; same cause, sh-31), 4 acts instead of 3 (one more act holds the card).
+- handover I3: +1 line, act h1 "Two screens" (`construct and xp each say they hold the focus`); not a new red act (h1 was red by I6 already); the breach is co-43 (I3), it is on a different act of the chapter than the `known` row in "Click Start".
+- "missing boxes" on the candidate: 0 lines (rw-3 turns nothing red here: the candidate has `scene.boxes`).
+- Note (not changed): the `known` I5 rows of mc acts 4-6 say `drop known` in the after run (green); r1 had the same rows.
+
+### Gate
+Full `tests/merge-gate.sh --jobs 1` (no --only) on 87fdbeb9 (claude/tour-fix merged with origin/claude/autonomous-dev-session-3w-i33pg7): stopped at the first red step, **tiling-look** (/tmp/merge-gate.jFbLpl/tiling-look.log):
+```
+FAIL: ink-1280x800 bar-font: the clock is 120.0 wide, not Inter 14 px weight 500 (100-119)   (also ink-2560x1600@2, paper-1280x800, paper-2560x1600@2)
+FAIL: the bar differs from the spec of tiling-v2 (see the lines above)
+```
+Not caused by this lane: no gate script and no product file is in the diff of claude/tour-fix against its base (the 2 lines of flavors/tiling/waybar/waybar.sh come from the autonomous-dev merge); cause not found; finding **ti-37**; not rerun to green. Steps before it passed: red-first, identity, pre-commit, gate-lib, ci-check, build, test, clippy, 2d-guard, package-deps, package-lists, xp, matrix, virtual, xp-faces, xp-paperclip, xp-fields, xp-question, xp-notepad, hud, layout, tiling-audit (287 s). Because a failed step stops the gate, the steps after it ran as one more call, `--only tiling-empty,chat-keys,doors,acts,last-words,cube,pull,placed,construct-hud,construct-extra,out,winit,wm-pane,pane-keys,walk,keys,pixels,mc-paths,mc-sofa,mc-column,mc-handover,launcher-click,voice-acp,voice-events,agent,e2e` (/tmp/merge-gate.EX5XoM, exit 0, all PASS, acts 1413 s, e2e 300 s). That is not a full gate on one run, and the full gate is not green: tiling-look is red.
+
+Commits carry no attribution lines. Author and committer Marcel Arpogaus.
