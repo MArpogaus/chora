@@ -41,7 +41,12 @@ driver here gives it exactly that.
   `$PERSONA_DIR/fake/calls.log` (`PERSONA_CALLS` in `session.env`) and none
   reaches the host. `tests/persona-selftest.sh` shows it.
 - `session.sh tiling+xp` starts a second look beside the first, as the
-  looks of a handover are (`PERSONA_FLAVORS` in `session.env`).
+  looks of a handover are (`PERSONA_FLAVORS` in `session.env`). The first
+  look is where the person is: the session clicks once on the empty claim of
+  the first look, so that its keys and the windows they start (Super+Return
+  of tiling) stay with it, and the desktop of the look that joined last does
+  not hold the keyboard. The click chooses a look only with
+  `CHORA_TEST_FLAGS=--test-injected-press-is-real` (`round.sh` sets it).
 - `act.py` is the only command of the persona: `look`, `click`, `move`,
   `drag`, `type`, `key`, `scroll`. It logs every action.
 - `smoke.sh` checks the driver on a tiling session and that each of the four

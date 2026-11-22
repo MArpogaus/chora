@@ -372,6 +372,33 @@ for line in "${companions[@]}"; do
     fi
 done
 
+first_look_takes_the_keyboard() {
+    local ctl=("$bin/choractl") claims point
+    for _ in $(seq 100); do
+        claims=$(CHORA_SOCKET=$socket XDG_RUNTIME_DIR=$runtime "${ctl[@]}" query '*' |
+            jq -c '[.[] | select(.claim) | {owner, claim}]')
+        jq -e --arg a "${flavors[0]}" --arg b "${flavors[1]}" \
+            'any(.[]; .owner == $a) and any(.[]; .owner == $b)' <<<"$claims" >/dev/null && break
+        sleep 0.2
+    done
+    point=$(jq -r --arg a "${flavors[0]}" '
+        (map(select(.owner == $a)) | first | .claim) as $c
+        | [$c[0] + $c[2] / 2, $c[1] + $c[3] / 2] as $p
+        | [.[] | select(.claim as $r | $p[0] >= $r[0] and $p[0] < $r[0] + $r[2]
+                and $p[1] >= $r[1] and $p[1] < $r[1] + $r[3])]
+        | sort_by(.claim[2] * .claim[3]) | first
+        | select(.owner == $a) | $p | "\(.[0]) \(.[1])"' <<<"$claims" 2>/dev/null) || true
+    if [[ -z $point ]]; then
+        echo "the first look ${flavors[0]} has no spot of its own claim: it does not take the keyboard" >>"$dir/companions.log"
+        return 0
+    fi
+    CHORA_SOCKET=$socket XDG_RUNTIME_DIR=$runtime "${ctl[@]}" --name persona inject >/dev/null <<<"[{\"pointer_move\": {\"position\": [${point// /, }]}}, {\"button\": {\"button\": 272, \"state\": \"pressed\"}}, {\"button\": {\"button\": 272, \"state\": \"released\"}}]"
+    sleep 1
+}
+if ((${#flavors[@]} == 2)); then
+    first_look_takes_the_keyboard
+fi
+
 {
     echo "PERSONA_ENV=$env_file"
     echo "PERSONA_DIR=$dir"
