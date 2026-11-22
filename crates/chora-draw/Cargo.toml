@@ -1,7 +1,7 @@
 [dependencies]
 chora-kit.workspace = true
 chora-scene.workspace = true
-resvg = { version = "0.48", default-features = false, features = ["memmap-fonts", "system-fonts", "text"] }
+resvg = { version = "0.50", default-features = false, features = ["memmap-fonts", "system-fonts", "text"] }
 schemars.workspace = true
 serde.workspace = true
 serde-saphyr.workspace = true
