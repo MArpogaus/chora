@@ -24,7 +24,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 |---|---|---|
 | flake-hint-r1.md (F5, rc 3: hint act; 0.8 %) | sonnet medium, claude/flake-hint 3b14c825 | session_016iS3kLq6SXjYGB7qdMUEni 12:46 |
 | co-46-r1.md (rc 1: hidden keys; 1 %) | sonnet high, claude/co-46 6b01c976 | session_016iS3kPkq3PWcVkMRxyrwRU 15:16 |
-| flake-k1-r2.md (F5, rc 3: FLK-K1b; 0.6 %) | sonnet medium, claude/flake-k1 308f0915 | starting |
+| flake-k1-r2.md (F5, rc 3: FLK-K1b; 0.6 %) | sonnet medium, claude/flake-k1 308f0915 | session_016iS3kNr7GYRx24ttW9gkp2 17:13 |
 | mc-scale-r1.md (F5, rc 3, 9: FLK-MC-SCALE; 0.8 %) | sonnet medium, claude/mc-scale 6b01c976 | session_016iS3kP1gjagETR7McCFgR3 17:03 |
 | xp-minor-r1.md (rc 1, 3: ti-43, 44, xp-28; 1 %) | sonnet medium, claude/xp-minor a1f3c8d7 | session_016iS3kNvJ2wFCmVZo2S7KCe 17:11 |
 
