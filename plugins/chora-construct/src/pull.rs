@@ -260,7 +260,7 @@ impl Construct {
             return Ok(false);
         };
         if let Err(err) = self.give(&surface, &to) {
-            eprintln!("chora-construct: {surface} stays a pane: {err}");
+            crate::log::log_warn!("chora-construct: {surface} stays a pane: {err}");
             return Ok(false);
         }
         if let Some(moving) = self.moving.take() {
@@ -275,7 +275,7 @@ impl Construct {
         let placed: Result<Value, _> =
             (self.rt.conn).call_within("methods.call", place, PLACE_WAIT);
         if let Err(err) = placed {
-            eprintln!(
+            crate::log::log_warn!(
                 "chora-construct: {surface} is a window of {to}, not at the drop point: {err}"
             );
         }

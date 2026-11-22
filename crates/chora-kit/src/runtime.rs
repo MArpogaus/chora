@@ -668,6 +668,7 @@ pub fn run(
     name: &str,
     mut session: impl FnMut() -> Result<(), Box<dyn std::error::Error>>,
 ) -> ExitCode {
+    crate::log::init();
     let mut failing = Duration::ZERO;
     loop {
         let start = Instant::now();

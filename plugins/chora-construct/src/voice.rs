@@ -119,7 +119,7 @@ impl Construct {
                     }
                     let fitted = self.fitted(|s| s.styled().neighbour_label(k, &name));
                     let (drawn, w) = fitted.unwrap_or_else(|err| {
-                        eprintln!("chora-construct: measure the label: {err}");
+                        crate::log::log_warn!("chora-construct: measure the label: {err}");
                         self.styled().neighbour_label(k, &name)
                     });
                     commands.extend(drawn);
@@ -164,7 +164,7 @@ impl Construct {
         let name = self.pane_title(k);
         let fitted = self.fitted(|s| s.styled().label(&name, fresh, drawn));
         let (label, pill) = fitted.unwrap_or_else(|err| {
-            eprintln!("chora-construct: measure the label: {err}");
+            crate::log::log_warn!("chora-construct: measure the label: {err}");
             self.styled().label(&name, fresh, drawn)
         });
         let pane = &self.panes[k];
