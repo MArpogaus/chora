@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-22 06:16 UTC)
+## Now (2026-11-22 06:20 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 06:16 week 8.4 % (6.1 + 2.3 Bkk days; under pace 15.6 %: 5th lane; WM-TESTS after ti-38, same xp wm files)
 session branch: 1c9e64f7; 60 greens; t104 red 23:59 acts tiling I14 (sh-32); t104b red 00:36 only in tiling-look bar-font: clock 120 wide (limit 119), date-dependent check (Sunday); CLOCK-WIDTH, then t104c.
@@ -24,13 +24,12 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 | Lane | Model, branch | State |
 |---|---|---|
 | ti-38-r1.md (F7, rc 2: ti-38 MAJOR, joining look takes the keyboard) | opus high, claude/ti-38 e86b3cfa | session_016iS3kP4PwZqxBu9ivmLzFw 04:14 |
-| tour-fix-r3.md (F7, rc 11: ti-31 check fault, rv-1..6; 0.8 %) | sonnet medium, claude/tour-fix 87fdbeb9 | session_016iS3kLmmWXNrtoZ7Tpjrjx 04:22 |
 | ask-one-r1.md (rc 6 security: DB7 a-c, RF3; 1.2 %) | sonnet high, claude/ask-one 1c9e64f7 | session_016iS3kNummjLTbC6uiUi5PU 04:24 |
 | gate-alive-r1.md (F6, D91: B4, H3, T2, T3; 1.3 %) | sonnet medium, claude/gate-alive 1c9e64f7 | session_016iS3kNRAqJWwcFQdn1C6Nz 04:25 |
 | launch-timer-r1.md (slice 39: F-2, GIVE_UP, StatusFile; 1.6 %) | sonnet high, claude/launch-timer 1c9e64f7 | session_016iS3kNfazT1Ae2LVddkKvB 06:17 |
 
 ## Queue (% week; 5 % reserve)
-4. (F7, rc 2-3) TOUR-FIX r2 done 03:40 87fdbeb9 (66 to 84 red, +18 ti-31; gate red only tiling-look clock = ti-37, fixed by t105); REVIEW r2 MERGE-OK 03:50; r3 lane (ti-31, rv-1..6); then train, RECORD r2.
+4. (F7, rc 2-3) TOUR-FIX r3 done 06:20 85c5f3bc (84 to 66 red, tiling I2 23 to 0); PM review r3 MERGE-OK; joins t107 after t106; then RECORD r2.
 5. t105 killed at the 2 h task limit 04:33 (48/49 PASS, e2e PASS alone 04:37; --only never pushes); t106 04:38 on 7a6c0eb8 detached (no limit): t105 f9e2f3f6 + TI-R4 e86b3cfa, KEYS-ROUTE e16d558e, CO-HINT 51475800, KIT-COV 619da642, SPLIT-A a3c14590, CO-I3 042a9c77; TOUR-FIX after r3.
 
 ## Needs owner
