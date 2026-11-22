@@ -731,12 +731,14 @@ impl State {
             .spot(self.pointer_layout)
             .map_or([f64::NAN; 2], |s| [s.scene.x, s.scene.y]);
         let focused = self.focused_surface().map(String::from);
+        let first = self.first_manager();
         let (ipc, scene) = (&self.ipc, &self.scene);
         let new = chora_scene::NewToplevel {
             parent: None,
             focused: focused.as_deref(),
             chosen: self.chosen_manager(),
             point: pointer,
+            first: first.as_deref(),
         };
         // A client socket manages only the windows of its own name.
         let manager = |n: &str| {
@@ -927,6 +929,19 @@ impl State {
     fn focus_now(&self) -> [Option<String>; 2] {
         let node = self.scene.focused_node().map(String::from);
         [self.focused_surface().map(String::from), node]
+    }
+
+    /// The connected window manager with a claim whose connection is the
+    /// oldest (D55): with the pointer in no claim and no focus, a new
+    /// window goes there, so that the look that joined last does not get
+    /// it by coming (ti-38).
+    pub fn first_manager(&self) -> Option<String> {
+        (self.scene.nodes())
+            .filter(|n| n.props.claim.is_some())
+            .filter_map(|n| n.owner.as_deref())
+            .filter_map(|owner| Some((self.ipc.conns_of(owner).into_iter().min()?, owner)))
+            .min()
+            .map(|(_, owner)| owner.to_owned())
     }
 
     /// The window manager that a click of the user chose for a new

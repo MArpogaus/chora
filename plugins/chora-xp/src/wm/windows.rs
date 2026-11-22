@@ -116,6 +116,7 @@ impl Wm {
     /// Moves the focus: the old and the new window change their look.
     pub(super) fn focus(&mut self, target: Option<&str>) -> Vec<Command> {
         let previous = std::mem::replace(&mut self.focused, target.map(String::from));
+        self.arrival = super::Arrival::Settled;
         self.grab_system_key(target.is_some());
         let mut commands = self.close_context();
         commands.extend(

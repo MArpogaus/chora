@@ -250,6 +250,9 @@ pub struct NewToplevel<'a> {
     pub chosen: Option<&'a str>,
     /// The pointer in scene coordinates.
     pub point: [f64; 2],
+    /// The window manager that connected first, for a pointer in no
+    /// claim: a look that joins later takes no window by coming (ti-38).
+    pub first: Option<&'a str>,
 }
 
 /// The owner of the smallest claim that contains `[px, py]`, among the
@@ -440,7 +443,8 @@ impl Scene {
     /// parent toplevel; else the manager that a click of the user chose,
     /// if it holds a claim; else the owner of the focused node, else of
     /// the focused surface, if it holds a claim; else the owner of the
-    /// smallest claim that contains the pointer. Only owners that `live`
+    /// smallest claim that contains the pointer; else the manager that
+    /// connected first, if it holds a claim. Only owners that `live`
     /// accepts count, so a claim of a client that is gone reserves
     /// nothing.
     #[must_use]
@@ -462,6 +466,7 @@ impl Scene {
             .or_else(|| new.chosen.filter(claims))
             .or_else(focus)
             .or_else(pointer)
+            .or_else(|| new.first.filter(claims))
     }
 
     /// Whether a client name holds a claim.

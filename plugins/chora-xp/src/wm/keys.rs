@@ -338,11 +338,13 @@ impl Wm {
     /// window of `chora-xp` has it either. When the focus leaves a window of
     /// another look and no node of another client has the keys, the desktop
     /// icons get them again: a click on the desktop could not give them
-    /// while that window still had the focus.
+    /// while that window still had the focus. Not while xp has had no
+    /// keys since it joined beside another look: the keys stay there.
     pub(super) fn focus_moved(&mut self, surface: Option<&str>) -> Vec<Command> {
         let left_foreign = self.focus_away();
         let mut commands = self.window_focus_moved(surface);
-        if left_foreign && self.focused.is_none() && !self.focus_away() && !self.node_away() {
+        let free = !self.focus_away() && !self.node_away() && !self.joined();
+        if left_foreign && self.focused.is_none() && free {
             commands.push(self.desktop_keys());
         }
         commands

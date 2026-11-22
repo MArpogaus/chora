@@ -5,7 +5,8 @@
 # person only types. Cells:
 #
 #   tiling-first  tiling starts, xp joins: Super+Return opens a tile of
-#                 tiling, not a floating window of xp
+#                 tiling, not a floating window of xp; once the tile closed,
+#                 the next Super+Return opens a tile again
 #   xp-first      xp starts, tiling joins: the keyboard stays with xp, and
 #                 the window of Super+Return opens in xp
 #
@@ -72,6 +73,14 @@ cell() {
     if [ "$first" = tiling ]; then
         until_ok "ctl state tiling | jq -e '.windows | length == 1 and (.[0].floating | not)' >/dev/null" 40 ||
             fail "$name: tiling shows no tile: $(ctl state tiling | jq -c .windows)"
+        mapfile -t left < <(session_pids -x foot)
+        kill "${left[@]}" 2>/dev/null
+        until_ok '[ -z "$(surface_owner)" ]' 80 || fail "$name: the tile stays after its foot ended"
+        echo '[{"shortcut": {"keys": "Super+Return"}}]' | ctl inject >/dev/null || fail "$name: inject Super+Return"
+        until_ok '[ -n "$(surface_owner)" ]' 80 || fail "$name: the second Super+Return opened no window"
+        owner=$(surface_owner)
+        echo "$name: after the tile closed and a second key: $(holders), window of $owner"
+        [ "$owner" = tiling ] || fail "$name: after the tile closed, Super+Return opened a window of $owner"
     fi
     ok "$name: $joins joined and left the keyboard with $first; Super+Return opened a window of $first"
     end_session

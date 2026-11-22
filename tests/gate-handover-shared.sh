@@ -1,7 +1,9 @@
 #!/bin/bash
 # Two looks on one output, as the persona session tiling+xp has them (p2r2
 # ricer, T7 and I3): tiling starts first and holds the give keys, xp joins
-# on the same output without `--output`. A foot starts with xp. Cells:
+# on the same output without `--output`, and leaves the keyboard with
+# tiling (ti-38); a click on the desktop of xp gives xp the keyboard, and a
+# foot starts with xp. Cells:
 #
 #   keys  xp focuses its window, and the key list of tiling takes the
 #         keyboard: one look says it holds the focus
@@ -79,7 +81,16 @@ holds() {
     [ -z "$breaches" ] || fail "$1: $breaches"
 }
 
+click() {
+    echo "[{\"pointer_move\": {\"position\": [$1, $2]}}, {\"button\": {\"state\": \"pressed\"}}, {\"button\": {\"state\": \"released\"}}]" |
+        ctl inject >/dev/null || fail "inject click $1,$2"
+    sleep 0.5
+}
+holder_of() { ctl state "$1" | jq -r '.focus.holder // "none"'; }
 ctl capture "$shots/before.png" >/dev/null || fail "capture before"
+[ "$(holder_of xp)" = none ] || fail "xp joined and took the keyboard: $(ctl state xp | jq -c .focus)"
+click 5 400
+[ "$(holder_of xp)" = xp ] || fail "a click on the desktop of xp gives xp no keyboard: $(ctl state xp | jq -c .focus)"
 foot -f "DejaVu Sans Mono:size=10" -a probe -o colors.background=c81e1e sh -c 'sleep 900' >"$shots/foot.log" 2>&1 &
 run_pid $!
 w=$(ctl wait "app_id:probe kind:surface owner:xp" --timeout 20 | jq -r '.[0].id') ||
@@ -108,12 +119,6 @@ now=$(pixel "$shots/give.png" "$cx" "$cy")
 [ "$now" != "$was" ] || fail "give: $w is not on the screen: at $cx,$cy the desktop of xp ($now), capture $shots/give.png"
 ok "give: Super+Alt+1 hands $w to tiling, focused and on the screen ($now at its centre)"
 
-click() {
-    echo "[{\"pointer_move\": {\"position\": [$1, $2]}}, {\"button\": {\"state\": \"pressed\"}}, {\"button\": {\"state\": \"released\"}}]" |
-        ctl inject >/dev/null || fail "inject click $1,$2"
-    sleep 0.5
-}
-holder_of() { ctl state "$1" | jq -r '.focus.holder // "none"'; }
 click 5 400
 [ "$(holder_of xp)" = xp ] || fail "click: the desktop of xp is clicked and xp holds no focus: $(ctl state xp | jq -c .focus)"
 click "$cx" "$cy"
