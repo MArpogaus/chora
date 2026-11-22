@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-22 04:24 UTC)
+## Now (2026-11-22 04:25 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 04:16 week 8.1 % (6.1 + 2.0 Bkk days; 0.33 %/h, under pace 14.6 %: more lanes)
 session branch: 1c9e64f7; 60 greens; t104 red 23:59 acts tiling I14 (sh-32); t104b red 00:36 only in tiling-look bar-font: clock 120 wide (limit 119), date-dependent check (Sunday); CLOCK-WIDTH, then t104c.
@@ -26,7 +26,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 | ti-38-r1.md (F7, rc 2: ti-38 MAJOR, joining look takes the keyboard) | opus high, claude/ti-38 e86b3cfa | session_016iS3kP4PwZqxBu9ivmLzFw 04:14 |
 | tour-fix-r3.md (F7, rc 11: ti-31 check fault, rv-1..6; 0.8 %) | sonnet medium, claude/tour-fix 87fdbeb9 | session_016iS3kLmmWXNrtoZ7Tpjrjx 04:22 |
 | ask-one-r1.md (rc 6 security: DB7 a-c, RF3; 1.2 %) | sonnet high, claude/ask-one 1c9e64f7 | session_016iS3kNummjLTbC6uiUi5PU 04:24 |
-| gate-alive-r1.md (F6, D91: B4, H3, T2, T3; 1.3 %) | sonnet medium, claude/gate-alive 1c9e64f7 | starting |
+| gate-alive-r1.md (F6, D91: B4, H3, T2, T3; 1.3 %) | sonnet medium, claude/gate-alive 1c9e64f7 | session_016iS3kNRAqJWwcFQdn1C6Nz 04:25 |
 
 ## Queue (% week; 5 % reserve)
 4. (F7, rc 2-3) TOUR-FIX r2 done 03:40 87fdbeb9 (66 to 84 red, +18 ti-31; gate red only tiling-look clock = ti-37, fixed by t105); REVIEW r2 MERGE-OK 03:50; r3 lane (ti-31, rv-1..6); PM 11-22: inner gap 10 of tiling-v2 holds, ti-31 a check fault for r3; then train, RECORD r2.
