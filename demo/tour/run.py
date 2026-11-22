@@ -20,6 +20,8 @@ import traceback
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import tour  # noqa: E402
+
 CHAPTERS = {
     "xp": ["rows-xp.json"],
     "tiling": ["rows-tiling.json"],
@@ -57,8 +59,11 @@ def rows_of(out, files):
 
 def main(argv):
     """With TOUR_BASELINE set (the replay on 733967aa) a chapter that stops at an act the old build
-    cannot do is `baseline: none` from there on, with its reason (design/tour-v9.md section 6), and
-    no BROKE; `baseline-none.json` in the folder of the take lists them."""
+    cannot do, a RuntimeError that says the method is missing (`tour.NO_METHOD`), is `baseline: none`
+    from there on, with its reason (design/tour-v9.md section 6), and no BROKE; any other error is
+    BROKE as on the candidate. `baseline-none.json` in the folder of the take lists, per chapter, its
+    reason and the `<act>.<capture>` names that the chapter planned and did not take: the
+    `baseline_none` of intended.toml."""
     check = "--check" in argv
     names = [a for a in argv if not a.startswith("--")] or list(CHAPTERS)
     unknown = [n for n in names if n not in CHAPTERS]
@@ -73,6 +78,7 @@ def main(argv):
         os.makedirs(out, exist_ok=True)
     os.environ["TOUR_OUT"] = out
     baseline = bool(os.environ.get("TOUR_BASELINE"))
+    tour.TAKEN.clear()
     red = 0
     broke = 0
     none = []
@@ -80,10 +86,11 @@ def main(argv):
         try:
             importlib.import_module(f"chapters.{name}").run(Ctx(out, check))
         except Exception as err:  # noqa: BLE001
-            if baseline:
+            if baseline and isinstance(err, RuntimeError) and tour.NO_METHOD.search(str(err)):
                 reason = " ".join(str(err).split())
-                none.append({"chapter": name, "reason": reason, "trace": traceback.format_exc()})
-                print(f"chapter {name}: baseline: none from the act that stopped it: {reason}")
+                names = [n for n in tour.planned(name) if n not in tour.TAKEN]
+                none.append({"chapter": name, "reason": reason, "names": names, "trace": traceback.format_exc()})
+                print(f"chapter {name}: baseline: none from the act that stopped it: {reason} ({len(names)} captures)")
                 continue
             broke += 1
             print(f"chapter {name}: BROKE\n{traceback.format_exc()}")

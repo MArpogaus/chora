@@ -7,6 +7,7 @@ the state of the session (queries), so that the next act aims at what is
 on the screen. Frames become an H.264 chunk and are deleted at once.
 """
 
+import ast
 import json
 import math
 import os
@@ -80,6 +81,42 @@ def act_id(slug, number, scene=None, seen=None):
     else:
         letter = LOOK_LETTERS.get(slug, slug[:1])
     return f"{letter}{number}"
+
+
+TAKEN = set()
+"""The `<id>.<capture>` names of the captures this process took (run.py: what a stopped chapter did reach)."""
+
+
+def planned(chapter):
+    """The `<id>.<capture>` of every capture that a chapter file plans, in file order: the `t.act(...)`
+    calls with a `capture=`, their `scene=` letters as `act_id` gives them, a call in a `for` over a
+    literal list repeated once per item. What tests/tour-diff.py needs for `baseline_none`: the
+    captures of the candidate that a stopped chapter of the baseline replay never reached."""
+    tree = ast.parse(open(os.path.join(HERE, "chapters", f"{chapter}.py"), encoding="utf-8").read())
+    names, seen = [], {}
+
+    def repeats(node):
+        it = node.iter
+        if isinstance(it, ast.Call) and getattr(it.func, "id", "") == "enumerate" and it.args:
+            it = it.args[0]
+        return len(it.elts) if isinstance(it, (ast.List, ast.Tuple)) else 1
+
+    def visit(node, times):
+        if isinstance(node, ast.For):
+            for child in [*node.body, *node.orelse]:
+                visit(child, times * repeats(node))
+            return
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "act":
+            kw = {k.arg: k.value.value for k in node.keywords if isinstance(k.value, ast.Constant)}
+            for _ in range(times):
+                ident = act_id("", 0, kw.get("scene"), seen)
+                if kw.get("capture"):
+                    names.append(f"{ident}.{kw['capture']}")
+        for child in ast.iter_child_nodes(node):
+            visit(child, times)
+
+    visit(tree, 1)
+    return names
 
 
 def text_masks(boxes, output=None):
@@ -570,11 +607,14 @@ class Tour:
         the frame in the middle of the act (taken by `run_segment`; the pointer is masked). Nothing
         is written by `--check`. Only the held frame that `copy_held` took in this take is kept; any other
         picture is taken again, and an old one in the folder is never left beside the new json."""
-        if checking() or not row.get("capture"):
+        if not row.get("capture"):
+            return
+        name = f"{row['id']}.{row['capture']}"
+        TAKEN.add(name)
+        if checking():
             return
         folder = os.path.join(self.out, CAPTURES)
         os.makedirs(folder, exist_ok=True)
-        name = f"{row['id']}.{row['capture']}"
         png = os.path.join(folder, f"{name}.png")
         masks = text_masks(after.boxes, self.pointer_output or self.output)
         if row["capture"] == "H50":
