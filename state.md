@@ -24,7 +24,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 |---|---|---|
 | ti-38-r2.md (F7, rc 2: ti-38 MAJOR; r1 4441f1d4, merge conflicts; 1.5 %) | opus high, claude/ti-38 4441f1d4 | session_016iS3kMg9i8mAmHNyiis9cz 07:34 |
 | flake-hint-r1.md (F5, rc 3: ldm-2 hint-click act; 0.8 %) | sonnet medium, claude/flake-hint 3b14c825 | session_016iS3kLq6SXjYGB7qdMUEni 12:46 |
-| flake-wait-r1.md (F5, rc 3, 9: FLK-PULL-DRAG, FLK-GIVE-POINT, gate leaks; 1 %) | sonnet medium, claude/flake-wait 6b01c976 | starting 14:45 |
+| flake-wait-r1.md (F5, rc 3, 9: FLK-PULL-DRAG, FLK-GIVE-POINT, gate leaks; 1 %) | sonnet medium, claude/flake-wait 6b01c976 | session_016iS3kLfksC26x7cKnd3hBR 14:42 |
 | mc-focus-r1.md (rc 9, I3: rd-5 MEDIUM, mc misses focus.node; 0.8 %) | sonnet medium, claude/mc-focus 6b01c976 | session_016iS3kNytLH7EhG5sJybjcm 13:37 |
 | record-v9-r1.md (F7, rc 11: v9 take vs v8; 1.2 %) | sonnet medium, claude/record-v9 6b01c976 | session_016iS3kPEnmatu6w5XewDQLy 13:33 |
 | docs-rc-r1.md (rc 8: CHANGELOG, known issues, mc keys; 0.8 %) | sonnet low, claude/docs-rc 6b01c976 | session_016iS3kLAuHWp9BSjW4taJuA 13:55 |
