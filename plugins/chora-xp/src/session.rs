@@ -390,11 +390,19 @@ pub fn run(command: String) {
             .args(["-c", &command])
             .status()
         {
-            Ok(status) if !status.success() => eprintln!("chora-xp: {command}: {status}"),
+            Ok(status) if !status.success() => warn_status(&command, &status),
             Ok(_) => {}
-            Err(err) => eprintln!("chora-xp: {command}: {err}"),
+            Err(err) => error_start(&command, &err),
         },
     ));
+}
+
+fn warn_status(command: &str, status: &dyn std::fmt::Display) {
+    tracing::warn!("{command}: {status}");
+}
+
+fn error_start(command: &str, err: &dyn std::fmt::Display) {
+    tracing::error!("{command}: {err}");
 }
 
 #[cfg(test)]

@@ -31,7 +31,7 @@ impl Wm {
             self.reserved.insert(output.clone(), height);
             let edges = json!({"output": output, "edges": {"bottom": height}});
             if let Err(err) = self.rt.conn.call::<_, Value>("output.reserve", edges) {
-                eprintln!("chora-xp: output.reserve: {err}");
+                warn_reserve(&err);
             }
         }
     }
@@ -121,7 +121,7 @@ impl Wm {
         if self.fade_shader.is_none() {
             match self.theme.cache_file("fade.frag", session::FADE_SHADER) {
                 Ok(path) => self.fade_shader = Some(path.to_string_lossy().into_owned()),
-                Err(err) => eprintln!("chora-xp: the shader of the fade: {err}"),
+                Err(err) => warn_shader(&err),
             }
         }
         if self.fade_shader.is_some() && self.effects_on() {
@@ -254,4 +254,12 @@ impl Wm {
         let body = format!("The file {script}.sh of the shared scripts is not installed.");
         self.notice(None, "Cannot do that", &body, 10_000);
     }
+}
+
+fn warn_reserve(err: &dyn std::fmt::Display) {
+    tracing::warn!("output.reserve: {err}");
+}
+
+fn warn_shader(err: &dyn std::fmt::Display) {
+    tracing::warn!("the shader of the fade: {err}");
 }

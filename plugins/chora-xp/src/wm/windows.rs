@@ -50,7 +50,7 @@ impl Wm {
         }
         commands.extend(self.focus(Some(surface)));
         if let Some(err) = self.try_apply(commands)? {
-            eprintln!("chora-xp: {surface}: {err}");
+            error_adopt(surface, &err);
             self.windows.retain(|w| w.surface != surface);
             self.opened.retain(|s| s != surface);
             self.focused = previous;
@@ -641,4 +641,8 @@ impl Wm {
             },
         })
     }
+}
+
+fn error_adopt(surface: &str, err: &dyn std::fmt::Display) {
+    tracing::error!("{surface}: {err}");
 }

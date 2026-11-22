@@ -80,7 +80,7 @@ impl Wm {
         let mut events: Vec<String> = EVENTS.iter().map(|e| (*e).to_owned()).collect();
         events.extend(heard.map(|h| cube::event(&h.client)));
         if let Err(err) = self.rt.subscribe(&events) {
-            eprintln!("chora-xp: events.subscribe: {err}");
+            warn_subscribe(&err);
         }
     }
 
@@ -113,7 +113,7 @@ impl Wm {
             ..cube::Turn::default()
         };
         if let Err(err) = cube::turn(&mut self.rt.conn, &host.client, turn) {
-            eprintln!("chora-xp: {} {}: {err}", host.client, cube::TURN);
+            warn_turn(&host.client, &err);
         }
         Vec::new()
     }
@@ -263,6 +263,14 @@ impl Wm {
         commands.extend(self.pagers());
         commands
     }
+}
+
+fn warn_subscribe(err: &dyn std::fmt::Display) {
+    tracing::warn!("events.subscribe: {err}");
+}
+
+fn warn_turn(client: &str, err: &dyn std::fmt::Display) {
+    tracing::warn!("{client} {}: {err}", cube::TURN);
 }
 
 #[cfg(test)]
