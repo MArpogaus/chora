@@ -31,7 +31,7 @@ impl Wm {
             self.reserved.insert(output.clone(), height);
             let edges = json!({"output": output, "edges": {"bottom": height}});
             if let Err(err) = self.rt.conn.call::<_, Value>("output.reserve", edges) {
-                eprintln!("chora-xp: output.reserve: {err}");
+                tracing::warn!("output.reserve: {err}");
             }
         }
     }
@@ -100,6 +100,10 @@ impl Wm {
 
     /// Shows a dialog in the middle of the output of the start menu, and
     /// lets the desktop behind it fade to gray.
+    #[allow(
+        clippy::cognitive_complexity,
+        reason = "the tracing macros count as branches"
+    )]
     pub(super) fn open_dialog(&mut self, mode: Mode, output: Option<&str>) -> Vec<Command> {
         let bar = output
             .and_then(|o| self.bars.iter().find(|b| b.output == o))
@@ -121,7 +125,7 @@ impl Wm {
         if self.fade_shader.is_none() {
             match self.theme.cache_file("fade.frag", session::FADE_SHADER) {
                 Ok(path) => self.fade_shader = Some(path.to_string_lossy().into_owned()),
-                Err(err) => eprintln!("chora-xp: the shader of the fade: {err}"),
+                Err(err) => tracing::warn!("the shader of the fade: {err}"),
             }
         }
         if self.fade_shader.is_some() && self.effects_on() {

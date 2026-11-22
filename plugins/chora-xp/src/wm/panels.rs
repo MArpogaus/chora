@@ -37,7 +37,7 @@ impl Wm {
     /// Dismisses a notice of chora-xp; a server that is gone is logged.
     pub(super) fn dismiss_notice(&mut self, id: u32) {
         if let Err(err) = notice::dismiss(&mut self.rt.conn, id) {
-            eprintln!("{NAME}: notice {id}: {err}");
+            tracing::debug!("notice {id}: {err}");
         }
     }
 
@@ -357,7 +357,7 @@ impl Wm {
         }
         let commands = self.configure();
         if let Err(err) = self.settings.save() {
-            eprintln!("chora-xp: the change applies but is not saved: {err}");
+            tracing::error!("the change applies but is not saved: {err}");
         }
         commands
     }

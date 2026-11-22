@@ -79,7 +79,7 @@ impl Host for Acting<'_> {
             Failure::NotStarted(name) => format!("{name} did not start"),
             Failure::NotGiven { to, why } => format!("give to {to}: {why}"),
         };
-        eprintln!("chora-xp: {line}");
+        tracing::warn!("{line}");
         Ok(())
     }
 

@@ -62,6 +62,10 @@ impl Wm {
     /// hears its event, which tells when it came back after it went. A
     /// host that removes its faces one by one stays the host until the
     /// last one went.
+    #[allow(
+        clippy::cognitive_complexity,
+        reason = "the tracing macros count as branches"
+    )]
     pub(super) fn find_host(&mut self) {
         let outputs: Vec<String> = self.bars.iter().map(|b| b.output.clone()).collect();
         let outputs: Vec<&str> = outputs.iter().map(String::as_str).collect();
@@ -80,7 +84,7 @@ impl Wm {
         let mut events: Vec<String> = EVENTS.iter().map(|e| (*e).to_owned()).collect();
         events.extend(heard.map(|h| cube::event(&h.client)));
         if let Err(err) = self.rt.subscribe(&events) {
-            eprintln!("chora-xp: events.subscribe: {err}");
+            tracing::warn!("events.subscribe: {err}");
         }
     }
 
@@ -113,7 +117,7 @@ impl Wm {
             ..cube::Turn::default()
         };
         if let Err(err) = cube::turn(&mut self.rt.conn, &host.client, turn) {
-            eprintln!("chora-xp: {} {}: {err}", host.client, cube::TURN);
+            tracing::warn!("{} {}: {err}", host.client, cube::TURN);
         }
         Vec::new()
     }
