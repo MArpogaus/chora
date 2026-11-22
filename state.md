@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-22 00:02 UTC)
+## Now (2026-11-22 00:04 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 23:37 week 7.3 % (6.1 + 1.2 Bkk days; 0.37 %/h, under pace 11.8 %); disk: one train at a time
 session branch: 1c9e64f7; 60 greens; t103 green 22:45; t104 red 23:59 only in acts tiling I14 (sh-32, 2nd hit, same act as t103); t104b rerun 00:04 (4 branches). F5 r4 5/5 green (16:21).
@@ -23,7 +23,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 met by flake-series r4 16:21 (5/5 at
 ## Lanes (cloud; model effort; brief briefs/<lane>.md)
 | Lane | Model, branch | State |
 |---|---|---|
-| sh-32-r1.md (F5, rc 9: acts tiling I14 flake, 2 of 3 trains) | sonnet high, claude/sh-32 1c9e64f7 | starting 00:08 |
+| sh-32-r1.md (F5, rc 9: acts tiling I14 flake, 2 of 3 trains) | sonnet high, claude/sh-32 1c9e64f7 | session_016iS3kP3XbvGgWDcqL8QrGn 00:03 |
 | p2-harness-m.md (rc 2: known-red filter, L2, T7 vacuous; r4 harness check) | sonnet medium, claude/p2-harness-m 1c9e64f7 | session_016iS3kMxK3mijyHf3skqCwg 23:38 |
 | co-i3-r3.md (rc 2: review r2 rv-1 MAJOR, state.rs:65 owned-surface arm) | sonnet medium, claude/co-i3 2b571478 | session_016iS3kQftQgVnSgb4hmQy5h 21:51 |
 | tour-fix-r1.md (F7: tour dumps, old replay, 90 reds) | sonnet high, claude/tour-fix 892d035c | session_016iS3kQ73xbF6fr8jWty7bN 18:26 |
