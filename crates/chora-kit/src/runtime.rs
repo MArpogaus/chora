@@ -1132,4 +1132,262 @@ mod tests {
             serde_json::from_value(json!({"event": "pointer.entered", "node": "a"})).unwrap();
         assert!(hears_pointer(&person, false));
     }
+
+    #[test]
+    fn from_person_takes_the_persons_events_and_the_injected_ones_only_when_accepted() {
+        let injected = key(true);
+        assert!(!from_person(&injected, false));
+        assert!(from_person(&injected, true));
+        assert!(from_person(&key(false), false));
+        let other = Event::ClientConnected {
+            name: "panel".into(),
+        };
+        assert!(from_person(&other, false), "an event without the flag");
+    }
+
+    #[test]
+    fn hears_pointer_takes_a_key_as_judged_by_the_plugin() {
+        assert!(hears_pointer(&key(true), false));
+    }
+
+    /// A plugin with settings that hides nothing and applies nothing new:
+    /// the defaults of [`Plugin`] for the settings methods.
+    struct Bare {
+        settings: File<Demo>,
+    }
+
+    impl Plugin for Bare {
+        type Action = ();
+
+        fn runtime(&mut self) -> &mut Runtime<()> {
+            unreachable!("answer_call needs no connection")
+        }
+
+        fn event(&mut self, _: Event) -> Result<(), ClientError> {
+            Ok(())
+        }
+
+        fn method(&mut self, method: &str, _: Value) -> Result<Value, RpcError> {
+            Err(RpcError::new(RpcError::METHOD_NOT_FOUND, method))
+        }
+
+        fn settings(&mut self) -> Option<&mut dyn Store> {
+            Some(&mut self.settings)
+        }
+    }
+
+    #[test]
+    fn a_plugin_without_settings_or_state_answers_no_such_method() {
+        let mut plugin = recorder();
+        for method in ["settings.get", "state.get"] {
+            let err = answer_call(&mut plugin, method, Value::Null).unwrap_err();
+            assert_eq!(err.code, RpcError::METHOD_NOT_FOUND, "{method}");
+        }
+        let err = set_settings(&mut plugin, json!({})).unwrap_err();
+        assert_eq!(err.code, RpcError::METHOD_NOT_FOUND);
+        let err = reload_settings(&mut plugin).unwrap_err();
+        assert_eq!(err.code, RpcError::METHOD_NOT_FOUND);
+    }
+
+    #[test]
+    fn a_plugin_with_settings_shows_them_all_and_applies_them_by_default() {
+        let dir = dir("runtime-bare");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("demo.yaml");
+        let settings = File::<Demo>::load(path.clone(), DEFAULT).unwrap();
+        let mut plugin = Bare { settings };
+        let shown = answer_call(&mut plugin, "settings.get", Value::Null).unwrap();
+        assert_eq!(shown, plugin.settings.get(), "nothing is hidden");
+        let set = set_settings(&mut plugin, json!({"gap": 7})).unwrap();
+        assert_eq!(set["gap"], 7);
+        assert!(std::fs::read_to_string(&path).unwrap().contains("gap: 7"));
+        std::fs::write(&path, "gap: 3\n").unwrap();
+        let reloaded = answer_call(&mut plugin, "settings.reload", Value::Null).unwrap();
+        assert_eq!(reloaded["gap"], 3);
+        assert_eq!(plugin.settings.value.gap, 3);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn accept_injected_sets_the_setting_unless_it_is_a_test_session() {
+        let mut plugin = recorder();
+        plugin.rt.accept_injected(true);
+        assert!(plugin.rt.accepts_injected());
+        plugin.rt.accept_injected(false);
+        assert_eq!(plugin.rt.accepts_injected(), test_session());
+    }
+
+    #[test]
+    fn holds_names_the_bindings_that_the_plugin_grabbed() {
+        use crate::conn::fake_core::{self, Answer};
+
+        let (path, _core) = fake_core::serve(|_, params| Answer::Result(params["binding"].clone()));
+        let conn = Conn::connect_at("tiling", &path).unwrap();
+        let mut rt: Runtime<u8> = Runtime::with(conn, "tiling", Vec::new());
+        rt.grab("Alt+Super+1".parse::<Binding>().unwrap(), 1)
+            .unwrap();
+        assert!(rt.holds("Alt+Super+1"));
+        assert!(!rt.holds("Alt+Super+9"), "a binding not grabbed");
+        assert!(
+            !rt.holds("no key of this name"),
+            "a text that is no binding"
+        );
+    }
+
+    #[test]
+    fn announce_subscribes_to_the_events_and_exports_the_methods() {
+        use std::sync::{Arc, Mutex};
+
+        use crate::conn::fake_core::{self, Answer};
+
+        let sent = Arc::new(Mutex::new(Vec::new()));
+        let seen = Arc::clone(&sent);
+        let (path, _core) = fake_core::serve(move |method, params| {
+            seen.lock()
+                .unwrap()
+                .push((method.to_owned(), params.clone()));
+            Answer::Result(Value::Null)
+        });
+        let conn = Conn::connect_at("panel", &path).unwrap();
+        let mut rt: Runtime<()> = Runtime::with(conn, "panel", Vec::new());
+        rt.announce(&["output.removed"], vec![state_method()])
+            .unwrap();
+        let sent = sent.lock().unwrap();
+        let subscribe = sent.iter().find(|(m, _)| m == "events.subscribe").unwrap();
+        assert_eq!(subscribe.1["events"], json!(["output.removed"]));
+        let export = sent.iter().find(|(m, _)| m == "methods.export").unwrap();
+        assert_eq!(export.1["names"][0]["name"], "state.get");
+    }
+
+    #[test]
+    fn regrab_tries_the_missing_give_keys_once_per_interval() {
+        use std::sync::{Arc, Mutex};
+
+        use crate::conn::fake_core::{self, Answer};
+
+        let grabbed: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let seen = Arc::clone(&grabbed);
+        let (path, _core) = fake_core::serve(move |method, params| {
+            if method != "input.grab" {
+                return Answer::Result(Value::Null);
+            }
+            let binding = params["binding"].as_str().unwrap_or_default().to_owned();
+            seen.lock().unwrap().push(binding.clone());
+            if binding == "Alt+Super+2" {
+                Answer::Error("held by another client")
+            } else {
+                Answer::Result(params["binding"].clone())
+            }
+        });
+        let conn = Conn::connect_at("mc", &path).unwrap();
+        let mut rt: Runtime<&'static str> = Runtime::with(conn, "mc", Vec::new());
+        let asked = || grabbed.lock().unwrap().len();
+        let held_by_other = || {
+            grabbed
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|b| b.as_str() == "Alt+Super+2")
+                .count()
+        };
+        rt.grab_give_keys().unwrap();
+        assert_eq!(asked(), 0, "no give keys, nothing asked");
+        rt.regrab_give_keys().unwrap();
+        assert_eq!(asked(), 0, "no give keys, nothing asked");
+
+        rt.give_keys(Some(|to| to));
+        rt.regrab_give_keys().unwrap();
+        let first = asked();
+        assert!(first > 1, "every give key is asked: {first}");
+        assert_eq!(held_by_other(), 1);
+        rt.regrab_give_keys().unwrap();
+        assert_eq!(asked(), first, "a second try within the interval waits");
+
+        rt.give_tried = Some(Instant::now().checked_sub(REGRAB * 2).unwrap());
+        rt.regrab_give_keys().unwrap();
+        assert_eq!(asked(), first + 1, "only the key that is still missing");
+        assert_eq!(held_by_other(), 2);
+    }
+
+    #[test]
+    fn a_new_set_of_grabs_lets_go_the_others_but_keeps_the_give_keys() {
+        use crate::conn::fake_core::{self, Answer};
+
+        let (path, _core) = fake_core::serve(|_, params| Answer::Result(params["binding"].clone()));
+        let conn = Conn::connect_at("mc", &path).unwrap();
+        let mut rt: Runtime<&'static str> = Runtime::with(conn, "mc", Vec::new());
+        rt.give_keys(Some(|to| to));
+        rt.grab("Alt+Super+2".parse::<Binding>().unwrap(), "xp")
+            .unwrap();
+        rt.grab("Super+t".parse::<Binding>().unwrap(), "tiling")
+            .unwrap();
+        rt.start_grabs();
+        rt.grab("Alt+Super+2".parse::<Binding>().unwrap(), "xp")
+            .unwrap();
+        rt.end_grabs().unwrap();
+        assert!(rt.holds("Alt+Super+2"), "a give key stays with the plugin");
+        assert!(!rt.holds("Super+t"), "another binding goes");
+    }
+
+    #[test]
+    fn dispatch_answers_a_call_and_hands_on_only_the_events_of_managed_outputs() {
+        let mut plugin = recorder();
+        plugin.rt.set_outputs(vec!["DP-1".into()]);
+        let gone: Event =
+            serde_json::from_value(json!({"event": "output.removed", "name": "HDMI-1"})).unwrap();
+        dispatch(&mut plugin, gone).unwrap();
+        assert!(
+            plugin.seen.is_empty(),
+            "an output of another is left to others"
+        );
+        let kept: Event =
+            serde_json::from_value(json!({"event": "output.removed", "name": "DP-1"})).unwrap();
+        dispatch(&mut plugin, kept).unwrap();
+        assert_eq!(plugin.seen.len(), 1);
+        let call: Event = serde_json::from_value(json!({
+            "event": "method.called", "call": 7, "caller": "panel", "method": "ping",
+            "params": {}, "confined": true
+        }))
+        .unwrap();
+        dispatch(&mut plugin, call).unwrap();
+        assert_eq!(
+            (plugin.rt.caller.as_str(), plugin.rt.confined_call),
+            ("panel", true)
+        );
+        assert_eq!(plugin.seen.len(), 1, "a call is answered, not handed on");
+    }
+
+    #[test]
+    fn a_method_names_its_schema_and_privileged_marks_it() {
+        let described = method(
+            "run.it",
+            "Runs it.",
+            json!({"n": {"type": "integer"}}),
+            &["n"],
+        );
+        let ExportMethod::Described(d) = described.clone() else {
+            panic!("a described method");
+        };
+        assert_eq!(d.input_schema.as_ref().unwrap()["required"], json!(["n"]));
+        assert!(!d.privileged);
+        let ExportMethod::Described(p) = privileged(described) else {
+            panic!("a described method");
+        };
+        assert!(p.privileged && p.description.is_some());
+        let ExportMethod::Described(q) = privileged(ExportMethod::Plain("run.it".into())) else {
+            panic!("a described method");
+        };
+        assert!(q.privileged && q.name == "run.it" && q.description.is_none());
+    }
+
+    #[test]
+    fn run_ends_at_once_when_a_session_ends_without_an_error() {
+        let mut sessions = 0;
+        let code = run("panel", || {
+            sessions += 1;
+            Ok(())
+        });
+        assert_eq!(code, ExitCode::SUCCESS);
+        assert_eq!(sessions, 1);
+    }
 }
