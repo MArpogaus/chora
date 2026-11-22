@@ -130,6 +130,23 @@ stop_session
 
 rm -rf "$dir"
 mkdir "$dir"
+CHORA_TEST_FLAGS=--test-injected-press-is-real start tiling+xp
+until_ok "client_names | grep -qw xp && client_names | grep -qw tiling" 80 ||
+    fail "tiling+xp: the clients are $(client_names)"
+until_ok "admin state tiling >/dev/null 2>&1 && admin state xp >/dev/null 2>&1" 80 ||
+    fail "tiling+xp: a look does not answer state.get"
+sleep 3
+PERSONA_ENV=$dir/session.env python3 -I "$repo/tests/persona/act.py" key Super+Return >/dev/null || fail "tiling+xp: Super+Return failed"
+until_ok "admin query kind:surface | jq -e 'length > 0' >/dev/null" 80 || fail "tiling+xp: Super+Return opened no window"
+owner=$(admin query kind:surface | jq -r '.[0].owner')
+[ "$owner" = tiling ] || fail "tiling+xp: Super+Return opened a window of $owner, not of tiling (the first look)"
+admin state tiling | jq -e '.windows | length == 1 and (.[0].floating | not)' >/dev/null ||
+    fail "tiling+xp: tiling shows no tile: $(admin state tiling | jq -c .windows)"
+ok "tiling+xp: Super+Return opens a tile of tiling, the first look"
+stop_session
+
+rm -rf "$dir"
+mkdir "$dir"
 start xp
 calls=$(env_value PERSONA_CALLS)
 session_path=$(env_value PATH)
