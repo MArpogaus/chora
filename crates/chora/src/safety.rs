@@ -159,8 +159,9 @@ impl FrameClock {
             .and_then(|before| {
                 waits_in(tasks)?
                     .into_iter()
-                    .map(|(thread, wait)| {
-                        wait.saturating_sub(before.get(&thread).copied().unwrap_or_default())
+                    .filter_map(|(thread, wait)| {
+                        let before = before.get(&thread)?;
+                        Some(wait.saturating_sub(*before))
                     })
                     .max()
             })
