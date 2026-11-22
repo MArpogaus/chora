@@ -346,3 +346,10 @@ F5 (FLK-TX-STALL): the sl-3 test measured wall time on the dispatching thread, s
 - Follow-up `03e17809` (head): the lint ratchet counted my eprintln and a print_stderr allow; the test writes with `writeln!(stderr)`, the one `allow(unsafe_code, reason)` stays, list allow 361 (`ratchet-raise:` line). The first gate run was red on exactly this (allow 362 vs 360, eprintln 132 vs 131), caused by me, fixed.
 - 10 runs of the lib test under 4 spinners + CHORA_TX_LOAD=1, 0 red. CPU / wall: 0.73/4.51, 0.72/4.47, 0.70/4.32, 0.70/3.97, 0.72/4.10, 0.71/4.24, 0.69/4.05, 0.76/4.50, 0.72/4.19, 0.68/3.98 s (the wall bar would have been red in all 10). The final head ran 10 more under load: CPU 0.69 to 0.77 s, 0 red.
 - Gate: `tests/merge-gate.sh --jobs 2` (full) on claude/core-diag 03e17809 merged with fresh origin/claude/autonomous-dev-session-3w-i33pg7 (detached cb7fd55a): 57 cells PASS, EXIT 0, nothing pushed.
+
+## PM review r3 (2026-11-22 19:34 UTC)
+Range 788605f4..03e17809 (red 50ca5899, green 93e9af7b, 03e17809), 2 files +67/-4 (PM review, PM not the builder; test code only).
+- FLK-TX-STALL: the sl-3 test now bars thread CPU time (clock_gettime CLOCK_THREAD_CPUTIME_ID) at 3 s, wall 60 s only as hang guard; comment says why. CHORA_TX_LOAD=1 spawns 4 per core spinners, dropped before the asserts. Red 3.03 s wall under load, green 10/10 at 0.68-0.77 s CPU. Matches the brief.
+- lint-ratchet allow 360 -> 361: one `#[allow(unsafe_code, reason = ...)]` on the clock call. The brief asked for libc clock_gettime, so the raise is the PM's; accepted once. Backlog TX-CPU-SAFE: read /proc/thread-self/stat instead and lower allow back to 360.
+- Gate: full --jobs 2, 57 PASS, EXIT 0 (lane).
+Verdict (computed): 0 open MAJOR -> MERGE-OK. Joins t110 with 03e17809.
