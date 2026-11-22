@@ -3,7 +3,7 @@
 ## Now (2026-11-22 13:55 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day (90.2 % in 135 h), no day cap; tokens.py 12:45 week 9.8 % (6.1 + 3.7; under pace 19.7 %; lanes wait on gates: add reviews, rc 4, 6)
-session branch: 6b01c976 (t108 green 13:01: GATE-ALIVE); 63 greens. t109 033f416f runs at --jobs 2 from 13:02.
+session branch: 6b01c976 (t108 green 13:01: GATE-ALIVE); 63 greens. t109 033f416f red 13:54 in pull (title drag does not move the window, 28 49): 3 reruns of the cell, then bisect.
 burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series, hint act red twice; closes on flake-hint + haiku series 5 at 2 jobs on t109 head); F7 open.
 
 ## RC (plans/week-3.md 1; rc.4 waiver gone)
