@@ -48,3 +48,12 @@ cell_drag and cell_return in gate-start-tap.sh use the same inject at a node poi
 `tests/merge-gate.sh --jobs 2`: 51 PASS, 1 FAIL. Foreign red: mc-scale, 22s,
 `FAIL: settings.set of the write time beside 300 panels takes 5243 ms, more than 5000 ms`
 (a timing threshold in a cell this lane did not touch; not rerun). EXIT 1.
+
+## PM review r1 (176938d1)
+
+Base 6b01c976..176938d1: 5 files +48 -5, 6 commits (PM review: under 200 lines, PM not the builder). Red before green for all three: 5e1df196 -> e7df5cb7 (leaks), 705f7664 -> 3f9921cc (pull: until_ok on a place that holds 0.3 s, then the press at the read place), b94d86bd -> 176938d1 (give: until_ok on the node point, then the click). wallpaper.sh: an absolute WAYLAND_DISPLAY now ends the loop when its socket goes. gate-lib: the mktemp env file joins tmp_dirs.
+Findings:
+- rw-1 MINOR tests/gate-start-tap.sh hold_foot: `until ...; do :; done` spins with no sleep and no bound (only under GIVE_RACE). Fix: until_ok with a bound.
+- rw-2 MINOR tests/gate-leak-selftest.sh: no step of merge-gate runs it (D91: a gate script joins merge-gate). Fix: a step or a call from gate-tiling-empty.
+- Note: the pull cause is inferred (no capture of a moving window at the press); the series in train and haiku series 5 decide.
+Gate: 51 PASS, 1 foreign red mc-scale (FLK-MC-SCALE, 5243 ms; lane mc-scale running). Verdict computed: 0 BLOCK, 0 MAJOR: MERGE-OK; joins t110. Worker archived.
