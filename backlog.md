@@ -330,7 +330,7 @@ FF1 | 11-19 | flakes r2 | flakes-f review r1 (reports/flakes-f.md): MINOR rw-1 g
 - FLK-TA1 (flake, F5, flake-series r2): tiling-audit fullscreen paper-2560x1600@2 bar does not hide within 20 s (1 of 15). Into flakes-l r2.
 - H-ID (harness, 11-20): pre-commit identity check on claude/session-log (author must be the owner); lanes.py: Queue % total vs "left - 5 %".
 - RW-3 (co-p2-fix, F5; flakes-n r1): `panel::the_layout_word_is_a_word_of_a_person` not reproduced in 20 loaded full runs and 40 at 32 threads; suspect ETXTBSY (stand-in written and run while another thread forks), named in reports/flakes-n.md. Reopen with the log when it is red again.
-- FLK-K1 (flake, F5, flakes-n r1): gate-construct-k1 "the fly-out did not return to the pose before" (up to 0.26 px) once at 17 s in construct-extra. Into flakes-m.
+- FLK-K1 (flake, F5, flakes-n r1): gate-construct-k1 "the fly-out did not return to the pose before" (up to 0.26 px) once at 17 s in construct-extra. Into flakes-m. Again t109c 11-22 15:37 (construct-extra, pose diff 0.01 px; exact float compare gate-construct-k1.sh:81): rerun t109d.
 - GATE-ORPHAN (harness, flakes-n r1): when a step fails, merge-gate exits and leaves the steps that run beside it (the matrix) alive with parent 1; a queued gate then waits for them. Wait for or end the running steps before exit.
 - MC-ACTS-OUTPUT (NIT, acts harness): tests/acts/invariants.py `shown_look` takes the focus holder per look, not per output; with two outputs the shown look is wrong on one (PM review mc-fix r5 pr5-1).
 - GATE-SILENT-NITS (NIT, harness): gate-mc-sofa.sh launcher-click-row pins the Foot row at (540, 256) (fuzzel row pitch); click_end has a no-op line (PM review gate-silent r1 pr1-1, pr1-2).

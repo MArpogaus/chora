@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-22 15:20 UTC)
+## Now (2026-11-22 15:38 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 14:56 PM day 4.3 %, week about 11.5 % (lanes est. +1.7 since 12:45); under pace: 6 lanes full
-session branch: 6b01c976 (t108 green 13:01: GATE-ALIVE); 63 greens. t109 red 13:54: pull flake FLK-PULL-DRAG (4 reruns green). t109b cd7beeac (t109 + core-diag, log-down-xp, mesh-churn) red 14:35: matrix flake FLK-GIVE-POINT (rerun green). t109c same head from 14:41.
+session branch: 6b01c976 (t108 green 13:01: GATE-ALIVE); 63 greens. t109b cd7beeac (t109 + core-diag, log-down-xp, mesh-churn) red 14:35: matrix flake FLK-GIVE-POINT (rerun green). t109c red 15:37: construct-extra FLK-K1 (2nd). t109d rerun from 15:38.
 burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series, hint act red twice; closes on flake-hint + haiku series 5 at 2 jobs on t109 head); F7 open.
 
 ## RC (plans/week-3.md 1; rc.4 waiver gone)
@@ -31,7 +31,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 ## Queue (% week; 5 % reserve)
 3. DOCS-RC r2 (pr-1..5) on the Thu head.
 4. (F7, rc 11) record-v9 r1: diff void (clock); r2 after ti-38.
-5. (rc 3; 0 %) t109c from 14:41 (cd7beeac): LAUNCH-TIMER 629faf7b, TEST-GAPS 89dc32c4, LOG-DOWN-CO b974134e, SIM-LONG ce451499, SPLIT-C 96e5c804, SPLIT-B 2af7801c, LOG-DOWN-MC b843bf5f, LOOKS1-MC b0453e19 (gates pending t109).
+5. (rc 3; 0 %) t109d from 15:38 (cd7beeac): LAUNCH-TIMER 629faf7b, TEST-GAPS 89dc32c4, LOG-DOWN-CO b974134e, SIM-LONG ce451499, SPLIT-C 96e5c804, SPLIT-B 2af7801c, LOG-DOWN-MC b843bf5f, LOOKS1-MC b0453e19 (gates pending t109).
 6. (rc 1, 8, 9) next train: MC-FOCUS e22f824d, TI-38 a1f3c8d7, DOCS-RC 54c30d16 (PM MERGE-OK) (review r2 MERGE-OK; D119 accepted at merge). After t109c: eprintln ratchet down; haiku series 5 at 2 jobs on its head (F5).
 
 ## Needs owner
