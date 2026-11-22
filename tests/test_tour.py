@@ -316,6 +316,28 @@ class CaptureDumps(unittest.TestCase):
         self.assertEqual(json.loads((self.dir / "x1.Q.json").read_text())["masks"], [])
         self.assertTrue((self.dir / "x1.Q.png").exists())
 
+    def test_a_new_take_keeps_no_stale_picture(self):
+        """rw-1: a run folder with an old `x1.Q.png` (and an old H50 one the take did not copy) gets the new pictures."""
+        t = self.tour(snaps=[snap() for _ in range(6)])
+        self.dir.mkdir(parents=True)
+        stale = b"\x89PNG stale"
+        (self.dir / "x1.Q.png").write_bytes(stale)
+        (self.dir / "x2.H50.png").write_bytes(stale)
+        self.act(t)
+        self.assertNotEqual((self.dir / "x1.Q.png").read_bytes(), stale)
+        t.act("look", "another", "something", capture="H50")
+        t.done()
+        t.flush()
+        self.assertNotEqual((self.dir / "x2.H50.png").read_bytes(), stale)
+
+    def test_a_failed_capture_leaves_no_old_picture_behind(self):
+        t = self.tour()
+        self.dir.mkdir(parents=True)
+        (self.dir / "x1.Q.png").write_bytes(b"old")
+        self.session.capture = lambda path, output=None: (_ for _ in ()).throw(RuntimeError("no screen"))
+        self.act(t)
+        self.assertFalse((self.dir / "x1.Q.png").exists())
+
     def test_the_check_run_writes_no_dump(self):
         import os
 
