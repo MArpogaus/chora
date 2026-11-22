@@ -16,7 +16,7 @@
 3. MERGE-OK with incomplete lane gates (split-b, log-down-mc, looks1-mc): procedures Seeded review: a failed Done-when line is INCOMPLETE; these are "gates pending t109" (the full train gate).
 4. F5 claimed met on one series: reopened in state.md; closes after flake-hint and an independent haiku series (5 at --jobs 2) on the t109 head.
 5. Pace line wrong (0.6): now 0.67 %/h; token-heavy work added (reviews, CI-HEAD, REVIEW-DELTA).
-6. PM reviews of big diffs: split-c and split-b are pure moves, checked mechanically with --color-moved (kept as PM OK, rule: PM review only under 200 lines or a pure move). looks1-mc changes design behaviour: opus seeded review before it trains; out of t109.
+6. PM reviews of big diffs: split-c and split-b are pure moves, checked mechanically with --color-moved (kept as PM OK, rule: PM review only under 200 lines or a pure move). looks1-mc is +42 -101 on 7a6c0eb8 (the critic counted against 3b14c825): under 200 lines, PM OK stands, stays in t109.
 7. RC table stale: state.md now carries the week-3 table (waiver gone, rows 1-8 open).
 8. Queue without criterion and %: rewritten; every line names its row and %.
 9. Lanes not in RC order: next free slots go to CI-HEAD (rc 4, 5) and REVIEW-DELTA (rc 6).

@@ -31,8 +31,8 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 
 ## Queue (% week; 5 % reserve)
 3. Next free slots: CI-HEAD (rc 4, 5; 0.7 %), REVIEW-DELTA (rc 6; 1.5 %), then RECORD-V9 (rc 11, F7; 1.2 %), DOCS-RC (rc 8).
-4. (rc 1, F7) tour round after ti-38 r2 merges; REVIEW-LOOKS1-MC (opus 0.5 %) before it trains.
-5. (rc 3; 0 %) t109 at --jobs 2 after t108: LAUNCH-TIMER 629faf7b, TEST-GAPS 89dc32c4, LOG-DOWN-CO b974134e, SIM-LONG ce451499, SPLIT-C 96e5c804, SPLIT-B 2af7801c, LOG-DOWN-MC b843bf5f (gates pending t109).
+4. (rc 1, F7) tour round after ti-38 r2 merges;
+5. (rc 3; 0 %) t109 at --jobs 2 after t108: LAUNCH-TIMER 629faf7b, TEST-GAPS 89dc32c4, LOG-DOWN-CO b974134e, SIM-LONG ce451499, SPLIT-C 96e5c804, SPLIT-B 2af7801c, LOG-DOWN-MC b843bf5f, LOOKS1-MC b0453e19 (gates pending t109).
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
