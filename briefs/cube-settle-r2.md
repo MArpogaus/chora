@@ -1,0 +1,13 @@
+# cube-settle r2 (F5, rc 3 and 9: FLK-CUBE-SETTLE, the rest of the cube cell under load)
+
+Model: sonnet, effort medium (two wall polls in one gate script; the r1 pattern applies)
+Lane: cloud, claude/cube-settle at ffb197f3 (r1 head). Cost at most 0.6 %; stop at 250 k context. One area: tests/gate-construct-cube.sh; plugins/chora-construct read-only unless a step shows a product cost.
+Why: reports/cube-settle.md "## r1" on claude/session-log: under CUBE_LOAD=1 the settle and turn-key bars are 10/10, the cell 8/10: run 2 "floating windows: the face after the step in differs from the face before the step back", run 8 "the window does not float during a turn" (until_ok ... 6 after sleep 0.4, near gate-construct-cube.sh:694); at 8/CPU also "the hint Step back names the keys". The full gate was not run.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`; a failure: send_message the PM "cube-settle BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1) For each of the three lines: cause with file:line (wall poll, bare sleep, a read during a turn, or a product change under load). Paste the split.
+2) Red first (one commit, red under CUBE_LOAD=1 at 4/CPU), then the fix: wait on the state the step asserts (a turn in progress, the face rebuilt), a wall bound only as a hang guard. No raised bar, no bare sleep, no known row.
+3) After: the whole cube cell under CUBE_LOAD=1 (4/CPU) 10 times: 10/10 green; paste the counts.
+Gate: full `tests/merge-gate.sh --jobs 2` (no --only) on claude/cube-settle merged with fresh origin/claude/autonomous-dev-session-3w-i33pg7, detached: `setsid nohup bash -c '(tests/merge-gate.sh --jobs 2 > /tmp/gate.log 2>&1; echo EXIT $? >> /tmp/gate.log)' >/dev/null 2>&1 </dev/null &`, poll /tmp/gate.log in the same turn; never end a turn to wait. A red cell you did not cause: name it with its log line; do not rerun to green.
+Done when: the split with lines, red then green commits, 10/10 whole cell under load, the gate green or its foreign reds named.
+Report: reports/cube-settle.md "## r2" on claude/session-log (shas, split, red and green lines, counts, gate summary); send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 4 lines with the head sha.
+Rules: push claude/cube-settle and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).

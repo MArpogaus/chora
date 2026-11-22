@@ -23,7 +23,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 | Lane | Model, branch | State |
 |---|---|---|
 | flake-hint-r1.md (F5, rc 3: hint act; 0.8 %) | sonnet medium, claude/flake-hint 3b14c825 | session_016iS3kLq6SXjYGB7qdMUEni 12:46 |
-| cube-settle-r1.md (F5, rc 3: FLK-CUBE-SETTLE; 0.8 %) | sonnet medium, claude/cube-settle 6b01c976 | session_016iS3kLPse7BU4Uz4qMNKqV 18:53 ok |
+| cube-settle-r2.md (F5, rc 3: float steps under load; 0.6 %) | sonnet medium, claude/cube-settle ffb197f3 | starting 20:15 (r1 PARTIAL ffb197f3) |
 | mc-helper-r1.md (rc 1: mc-57, 56, 55; 1 %) | sonnet medium, claude/mc-helper ac538e82 | session_016iS3kPf9yfyEu48CsZyHxX 19:37 |
 | tiling-fix-r1.md (rc 3, 1: ti-37, 27, 25c; 1 %) | sonnet medium, claude/tiling-fix 4e46028b | session_016iS3kLAsJPbPUQ193bX8zu 19:25 |
 | core-fix-r1.md (rc 9: mch-1..4, ratchet 362; 0.8 %) | sonnet medium, claude/core-fix 46e98b3e | session_016iS3kLGtC2Po7TiyJVrWmQ 19:35 ok |
