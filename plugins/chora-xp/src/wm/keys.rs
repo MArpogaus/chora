@@ -336,13 +336,19 @@ impl Wm {
     /// it looks active again and takes Alt+Space. Without a focused
     /// surface, as when a node of another client takes the keyboard, no
     /// window of `chora-xp` has it either. When the focus leaves a window of
-    /// another look and no node of another client has the keys, the desktop
-    /// icons get them again: a click on the desktop could not give them
-    /// while that window still had the focus.
+    /// another look and no node has the keys, of another client or of xp
+    /// itself, as its open Start menu, the desktop icons get them again: a
+    /// click on the desktop could not give them while that window still
+    /// had the focus.
     pub(super) fn focus_moved(&mut self, surface: Option<&str>) -> Vec<Command> {
         let left_foreign = self.focus_away();
         let mut commands = self.window_focus_moved(surface);
-        if left_foreign && self.focused.is_none() && !self.focus_away() && !self.node_away() {
+        if left_foreign
+            && self.focused.is_none()
+            && !self.focus_away()
+            && !self.node_away()
+            && !self.own_node()
+        {
             commands.push(self.desktop_keys());
         }
         commands

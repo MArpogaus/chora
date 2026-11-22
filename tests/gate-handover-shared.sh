@@ -48,6 +48,13 @@ pids+=($!)
 ctl wait id:xp-icons --timeout 20 >/dev/null || fail "xp does not start: $(tail -n 3 "$shots/xp.log")"
 sleep 1
 
+until_ok() {
+    for _ in $(seq "${2:-40}"); do
+        eval "$1" && return 0
+        sleep 0.25
+    done
+    return 1
+}
 key() { echo "[{\"shortcut\": {\"keys\": \"$1\"}}]" | ctl inject >/dev/null || fail "inject $1"; }
 focused() {
     for _ in $(seq $(($1 * 5))); do
@@ -81,7 +88,8 @@ holds() {
 
 ctl capture "$shots/before.png" >/dev/null || fail "capture before"
 foot -f "DejaVu Sans Mono:size=10" -a probe -o colors.background=c81e1e sh -c 'sleep 900' >"$shots/foot.log" 2>&1 &
-run_pid $!
+foot_pid=$!
+run_pid "$foot_pid"
 w=$(ctl wait "app_id:probe kind:surface owner:xp" --timeout 20 | jq -r '.[0].id') ||
     fail "foot does not show in xp: $(ctl query kind:surface | jq -c '[.[] | {id, owner}]')"
 focused 10 || fail "xp does not focus $w"
@@ -130,4 +138,16 @@ ctl call xp start_menu '{"open": false}' >/dev/null || fail "node: close the Sta
 sleep 0.5
 holds node-desktop
 ok "node: the Start menu of xp opens and closes over the window of tiling, one holder"
+start_menu_open() { ctl query id:xp-item-0 | jq -e '.[0].rects != null and (.[0].rects | length) > 0' >/dev/null; }
+ctl call xp start_menu '{"open": true}' >/dev/null || fail "rx-1: open the Start menu of xp"
+until_ok start_menu_open 20 || fail "rx-1: the Start menu of xp does not open"
+kill "$foot_pid"
+window_gone() { [ "$(ctl query "id:$w" | jq length)" = 0 ]; }
+until_ok window_gone 40 || fail "rx-1: $w does not go away"
+icons_focused() { [ "$(ctl query id:xp-icons | jq -r '.[0].focused')" = true ]; }
+if until_ok icons_focused 8; then
+    fail "rx-1: the window of tiling went and the desktop icons of xp took the keys from its open Start menu"
+fi
+start_menu_open || fail "rx-1: the Start menu of xp closed with the window of tiling"
+ok "rx-1: a window of tiling that exits leaves the keys with the open Start menu of xp"
 ok "gate-handover-shared: tiling and xp on one output hand over with one holder (${SECONDS}s)"

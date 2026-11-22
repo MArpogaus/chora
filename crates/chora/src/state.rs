@@ -289,8 +289,9 @@ pub struct State {
     /// The window manager that the user chose for the next new windows
     /// with a click on its empty claim, and the keyboard focus, of a
     /// surface and of a node, at that click: the choice holds while the
-    /// focus stays (D55).
-    chosen_manager: Option<(String, [Option<String>; 2])>,
+    /// focus stays (D55), and whether a key of its manager made the
+    /// choice, not a click.
+    chosen_manager: Option<(String, [Option<String>; 2], bool)>,
     /// The core runs the events of an `input.inject` request: the moves
     /// and the releases of a node drag carry `injected`.
     pub injecting: bool,
@@ -932,7 +933,7 @@ impl State {
     /// The window manager that a click of the user chose for a new
     /// window, while the keyboard focus is the one at that click.
     pub fn chosen_manager(&self) -> Option<&str> {
-        let (manager, focus) = self.chosen_manager.as_ref()?;
+        let (manager, focus, _) = self.chosen_manager.as_ref()?;
         (*focus == self.focus_now()).then_some(manager.as_str())
     }
 
@@ -974,7 +975,7 @@ impl State {
                 self.update_focus();
             }
         }
-        self.chosen_manager = claimant.map(|manager| (manager, self.focus_now()));
+        self.chosen_manager = claimant.map(|manager| (manager, self.focus_now(), false));
     }
 
     /// A key of the user that the window manager of `conn` grabbed
@@ -982,7 +983,11 @@ impl State {
     /// does (D55), when its claim holds the pointer or the keyboard focus:
     /// the window that the key starts opens where the person is. A
     /// manager that has the keyboard focus anyway is chosen by the focus,
-    /// so the key changes nothing then, nor anywhere else.
+    /// so the key changes nothing then, nor anywhere else, except that it
+    /// ends a choice that a key made: a chord of the manager that has the
+    /// keyboard takes the place back, as Super+e of the Start menu of a
+    /// face does after a chord of the screen's manager. The grabs of the
+    /// manager that has the keyboard are never held back for that choice.
     pub fn choose_manager_of(&mut self, conn: u64) {
         let Some(name) = self.ipc.name(conn).map(String::from) else {
             return;
@@ -993,6 +998,13 @@ impl State {
             .focused_node_owner()
             .or_else(|| scene.node(focused?)?.owner.as_deref());
         if focus_owner == Some(name.as_str()) {
+            if self
+                .chosen_manager
+                .as_ref()
+                .is_some_and(|(.., by_key)| *by_key)
+            {
+                self.chosen_manager = None;
+            }
             return;
         }
         let pointer = self
@@ -1013,7 +1025,7 @@ impl State {
             })
         };
         if pointer.into_iter().chain(focus).any(claims) {
-            self.chosen_manager = Some((name, self.focus_now()));
+            self.chosen_manager = Some((name, self.focus_now(), true));
         }
     }
 

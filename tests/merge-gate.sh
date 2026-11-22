@@ -13,7 +13,7 @@
 # look for the shared keys and one visible door per action. `acts` runs the act contracts of
 # tests/acts with the invariants I1 to I14 (no I11 yet) on state.get and scene.boxes against tests/acts/known-red.toml. `matrix` runs tiling and xp on one output too (gate-handover-shared.sh), the Super tap of xp beside tiling on two outputs (gate-start-tap.sh) and ends with the click that
 # chooses a window manager for a new window; `virtual` hands a window over between window
-# managers on a screen and on virtual outputs; `xp-faces` runs one xp on
+# managers on a screen and on virtual outputs, and a chord of the screen manager chooses it over a face window (gate-keys-route.sh); `xp-faces` runs one xp on
 # four virtual outputs; `cube` shows that xp on the faces of a cube in the
 # construct; `pull` drags a window out of a face of that cube and back; `out` turns the stood-back cube by a drag on a window, shows its keys and closes it.
 # `winit` runs a virtual output with xp in a chora nested on the winit
@@ -240,7 +240,7 @@ package-deps|tests/gate-package-deps.sh
 package-lists|tests/gate-package-lists.sh
 xp|tests/xp.sh "$repo/target/debug"
 matrix|tests/gate-handover-matrix.sh && tests/gate-give-holders.sh && tests/gate-handover-shared.sh && BIN=$repo/target/debug tests/gate-click-routes.sh && BIN=$repo/target/debug tests/gate-injected-presses.sh && BIN=$repo/target/debug tests/gate-start-tap.sh
-virtual|BIN=$repo/target/debug tests/gate-handover-virtual.sh
+virtual|BIN=$repo/target/debug tests/gate-handover-virtual.sh && BIN=$repo/target/debug tests/gate-keys-route.sh
 xp-faces|BIN=$repo/target/debug tests/gate-xp-faces.sh
 xp-paperclip|BIN=$repo/target/debug tests/gate-xp-paperclip.sh
 xp-fields|BIN=$repo/target/debug tests/gate-xp-fields.sh
