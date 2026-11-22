@@ -455,7 +455,7 @@ mod tests {
     #[test]
     fn the_look_has_the_gaps_and_the_radius_of_the_design() {
         let config = parse::<Config>(DEFAULT).unwrap();
-        assert_eq!(config.gaps(), (12, 10));
+        assert_eq!(config.gaps(), (12, 12), "I2: a whole number of 4");
         assert_eq!(config.look.radius, 10);
         let old = DEFAULT.replace("gap_outer: 12", "gap_outer: null");
         let old = old.replace("gap_inner: 10", "gap_inner: null");
