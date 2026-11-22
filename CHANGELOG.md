@@ -1,5 +1,13 @@
 ## Unreleased
 
+### Feat
+
+- **mc**: default keys changed: Super+a opens the chat (was the agenda), Super+Return goes to the terminal scene (was the drawer), Super+Home goes to the agenda (R4, 89807480)
+- **tiling**: the bar has a 1 px line hairline and radius 10, like the rest of the look (ti-21, bbb105ba)
+- **tiling**: notices go through chora-notify, not mako (f4e03e75)
+- **construct**: notices go through chora-notify (0a615ccc)
+- **core**: the root groups draw by their order (D89, 72920499)
+
 ### Fix
 
 - **security**: refuse an XDG_RUNTIME_DIR that another user owns or that
@@ -19,6 +27,32 @@ check with its path and mode, not at the next write
 at the next start; one that group or other can write stays refused
 - **voice**: refuse to start without XDG_DATA_HOME or an absolute HOME,
 not a relative `~/.local/share` below the current directory
+- **tiling**: chora-tiling starts its bar and wallpaper by default, also in two panes (ccf7ebab, 91e6a114)
+- **tiling**: a failed screenshot notice names the reason (ti-22, c9ed1cfd)
+- **tiling**: the clock island keeps its width (ti-21, 3a9a426f)
+- **mc**: Home alone goes to the first page, XF86Back and XF86HomePage reach mc from a window (mc-38, mc-46, fa7faabd, 28a22452)
+- **mc**: the page of a window keeps the column and the keys; the key list follows who holds the keyboard (mc-42, mc-46, b9198b8e, 45fcc3f1)
+- **mc**: the launcher says "Nothing found" for an unknown name (mc-44, 12f97cd3)
+- **mc**: mc no longer stays busy after a panel is removed, and says busy while a cross-fade runs (mc-48, mc-49, bb3de644, 55f75baa)
+- **kit**: the launcher gives a notice when it cannot start, and the notice times out like the others (xp-36, f19beb56, 3290f1d4)
+- **xp**: icons take the keys when the focus leaves a window (rw-2, 7ab31a10)
+- **construct**: F1 and the hint Keys open the key list; the hint names a key that works (co-40, co-41, f5bdc61f, f70d564f)
+- **construct**: Escape and Close close the key sheet first; the sheet gives keys back to the front face (b62c2a83, ea501689)
+- **construct**: a placed pane steps aside for the cube (co-21, db4d703b)
+- **construct**: panes swallow unbound Super chords only when no cube is open (co-25, 851e8960)
+- **core**: focus.node is told before focus.changed (co-38, e6365f50); an injected key follows the keyboard place (sh-24, cc940fec)
+- **core**: a click into the claim of another look takes the keyboard (363276e8)
+- **core**: the watchdog forgets an output that went away (9a9351ef)
+- **tiling**: the scripts make their runtime directories mode 0700 and use mktemp for fallbacks (6fa066c6, 29b5611b)
+
+### Perf
+
+- **construct**: cube.open adds its outputs in one round trip (f075a20d)
+- **core**: mesh sizes of a resized layer leave after their time (dc6a266d; the review finding on two views of one scale stays open)
+
+### Refactor
+
+- **core**: chora-mc, chora-tiling and chora-xp main.rs are split into modules (mv2-mc, mv2-tiling, mv2-xp, F4)
 
 ## v0.9.0-rc.3 (2026-11-01)
 
