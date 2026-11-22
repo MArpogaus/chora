@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-22 12:46 UTC)
+## Now (2026-11-22 13:02 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: new week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day (90.2 % in 135 h), no day cap; tokens.py 12:45 week 9.8 % (6.1 + 3.7; under pace 19.7 %; lanes wait on gates: add reviews, rc 4, 6)
-session branch: 3b14c825 (t107 green 08:47: TOUR-FIX r3 + ASK-ONE); 62 greens. t108 GATE-ALIVE a7ffdf22: 45 PASS 12:45.
+session branch: 6b01c976 (t108 green 13:01: GATE-ALIVE); 63 greens. t109 033f416f runs at --jobs 2 from 13:02.
 burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series, hint act red twice; closes on flake-hint + haiku series 5 at 2 jobs on t109 head); F7 open.
 
 ## RC (plans/week-3.md 1; rc.4 waiver gone)
@@ -32,7 +32,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 ## Queue (% week; 5 % reserve)
 3. Next free slots: CI-HEAD (rc 4, 5; 0.7 %), REVIEW-DELTA (rc 6; 1.5 %), then RECORD-V9 (rc 11, F7; 1.2 %), DOCS-RC (rc 8).
 4. (rc 1, F7) tour round after ti-38 r2 merges;
-5. (rc 3; 0 %) t109 at --jobs 2 after t108: LAUNCH-TIMER 629faf7b, TEST-GAPS 89dc32c4, LOG-DOWN-CO b974134e, SIM-LONG ce451499, SPLIT-C 96e5c804, SPLIT-B 2af7801c, LOG-DOWN-MC b843bf5f, LOOKS1-MC b0453e19 (gates pending t109).
+5. (rc 3; 0 %) t109 at --jobs 2 from 13:02 (033f416f): LAUNCH-TIMER 629faf7b, TEST-GAPS 89dc32c4, LOG-DOWN-CO b974134e, SIM-LONG ce451499, SPLIT-C 96e5c804, SPLIT-B 2af7801c, LOG-DOWN-MC b843bf5f, LOOKS1-MC b0453e19 (gates pending t109).
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
