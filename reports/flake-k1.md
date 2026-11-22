@@ -11,3 +11,9 @@ Fix: after the walk the gate waits `until_ok quiet 80` (state.get busy empty), t
 Gate: full tests/merge-gate.sh --jobs 2: all steps passed, EXIT 0 (construct-extra PASS).
 
 Foreign flake, same gate, not fixed: "FAIL: the walk during the drag was lost: width N, then <empty>" (gate-construct-k1.sh ~line 125; width() empty after the drag back + 0.3 s sleep). Seen 2/10 before and 5/10 after, under load: sleeps again. Propose FLK-K1b.
+
+## PM review r1 (diff 6b01c976..308f0915: tests/gate-construct-k1.sh +5 -1; PM not the builder)
+Checks: red first (ebb8dcb2 K1_RACE before 308f0915); the wait names a real rest state (state.get busy, state.rs:97-109), not a sleep alone; no product change (camera.rs fly-out lands on flown.back exactly, as the report says); full gate EXIT 0.
+- rw-1 MINOR gate-construct-k1.sh:52: the 0.6 s sleep stays in the normal path; with the busy wait it is dead time. Fix: drop it in r2.
+- rw-2 MINOR gate-construct-k1.sh:103-123: the mouse part (wheel, drag, walk in a drag) still reads after bare sleeps 0.6/0.3/0.5/0.3; FLK-K1b "the walk during the drag was lost: width N, then <empty>" 2/10 before, 5/10 under heavier load. Fix: lane flake-k1 r2.
+Verdict (computed): 0 BLOCK, 0 MAJOR, 2 MINOR: MERGE-OK; joins train t110.
