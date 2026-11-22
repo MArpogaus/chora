@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-22 15:18 UTC)
+## Now (2026-11-22 15:20 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 14:56 PM day 4.3 %, week about 11.5 % (lanes est. +1.7 since 12:45); under pace: 6 lanes full
 session branch: 6b01c976 (t108 green 13:01: GATE-ALIVE); 63 greens. t109 red 13:54: pull flake FLK-PULL-DRAG (4 reruns green). t109b cd7beeac (t109 + core-diag, log-down-xp, mesh-churn) red 14:35: matrix flake FLK-GIVE-POINT (rerun green). t109c same head from 14:41.
@@ -15,7 +15,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 | 4, 5 | CI green on a PR; packaging | pre-commit green on 6b01c976; CI PR at release |
 | 6 | Review per area | r1 MERGE-OK 13:35 (0 MAJOR, rd-5 MEDIUM: MC-FOCUS); Thu round |
 | 7 | deny, machete; updates | clean; 7 bumps (DEPS) |
-| 8 | Docs, CHANGELOG, known issues | open: DOCS-RC |
+| 8 | Docs, CHANGELOG, known issues | DOCS-RC r1 MERGE-OK (next train); r2 pr-1..5 |
 | 9 | Flakes, window loss | open: core-diag (t110), mesh-churn, sim-long |
 | 11 | Tour v9 | open = F7 |
 
@@ -27,13 +27,12 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 | xp-38-r1.md (rc 1, 3: notify card 1.04:1; 0.8 %) | sonnet medium, claude/xp-38 6b01c976 | session_016iS3kLMbUMw4vZ3TDqcxR6 15:03 |
 | co-46-r1.md (rc 1: hidden window keeps keys; 1 %) | sonnet high, claude/co-46 6b01c976 | session_016iS3kPkq3PWcVkMRxyrwRU 15:16 |
 | ti-minor-r1.md (rc 1, 3: ti-40, 41, 42, 45; 0.8 %) | sonnet medium, claude/ti-minor a1f3c8d7 | session_016iS3kPQNjDTWEE7rCPBjtm 15:18 |
-| docs-rc-r1.md (rc 8; 0.8 %) | sonnet low, claude/docs-rc 6b01c976 | session_016iS3kLAuHWp9BSjW4taJuA 13:55 |
 
 ## Queue (% week; 5 % reserve)
-3. DOCS-RC r1 now (under pace); r2 on the Thu head.
+3. DOCS-RC r2 (pr-1..5) on the Thu head.
 4. (F7, rc 11) record-v9 r1: diff void (clock); r2 after ti-38.
 5. (rc 3; 0 %) t109c from 14:41 (cd7beeac): LAUNCH-TIMER 629faf7b, TEST-GAPS 89dc32c4, LOG-DOWN-CO b974134e, SIM-LONG ce451499, SPLIT-C 96e5c804, SPLIT-B 2af7801c, LOG-DOWN-MC b843bf5f, LOOKS1-MC b0453e19 (gates pending t109).
-6. (rc 1, 9) next train: MC-FOCUS e22f824d, TI-38 a1f3c8d7 (review r2 MERGE-OK; D119 accepted at merge). After t109c: eprintln ratchet down; haiku series 5 at 2 jobs on its head (F5).
+6. (rc 1, 8, 9) next train: MC-FOCUS e22f824d, TI-38 a1f3c8d7, DOCS-RC 54c30d16 (PM MERGE-OK) (review r2 MERGE-OK; D119 accepted at merge). After t109c: eprintln ratchet down; haiku series 5 at 2 jobs on its head (F5).
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
