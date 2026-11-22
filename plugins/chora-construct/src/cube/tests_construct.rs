@@ -1027,3 +1027,38 @@ fn the_key_sheet_does_not_focus_a_pane_that_is_out_of_sight_on_close() {
     let focuses = core.model().lock().unwrap().focuses.clone();
     assert_eq!(focuses.len(), before, "{focuses:?}");
 }
+
+/// co-46 r1: a cube that opens over the window that has the keyboard, so
+/// that the window shows no more (the pane is behind the front face), lets
+/// the keyboard go at once: the focus is a window that shows, never one no
+/// one sees, so a key stays out of it until a face takes the keyboard. The
+/// state says the same: no window that `shown: false` is the holder.
+#[test]
+fn a_cube_that_covers_the_focused_window_takes_the_keyboard_from_it() {
+    let (mut construct, core, _lines) = on_core("cover-keys", cube_core(json!([])));
+    construct.settings.value.cube_manager = RUNS.into();
+    construct.panes.push(crate::Pane {
+        name: "foot".into(),
+        source: "s1".into(),
+        content: crate::Content::Window { command: None },
+        at: [0.0, 1500.0],
+        yaw: 0.0,
+        size: [640.0, 400.0],
+        taken: false,
+        attached: true,
+        placed: false,
+    });
+    construct.core_focus = Some("s1".into());
+    construct.walk_keys = false;
+    construct.open_cube(1).unwrap();
+    let state = chora_kit::runtime::Plugin::state(&construct).unwrap();
+    let window = state["windows"][0].clone();
+    assert_eq!(window["shown"], json!(false), "the cube covers it: {state}");
+    assert_ne!(
+        state["focus"]["surface"],
+        json!("s1"),
+        "a window that shows no more holds no keys: {state}"
+    );
+    let last = core.model().lock().unwrap().focuses.last().cloned();
+    assert_eq!(last, Some(None), "no surface keeps the keyboard");
+}
