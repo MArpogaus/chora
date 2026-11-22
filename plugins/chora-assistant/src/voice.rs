@@ -64,7 +64,7 @@ fn remember_greeting() {
     let Some(file) = greeted_file() else {
         return;
     };
-    let dir = file.parent().map(std::fs::create_dir_all);
+    let dir = file.parent().map(chora_scene::paths::private_dir);
     if dir.is_some_and(|made| made.is_ok()) {
         let _ = std::fs::write(&file, b"1\n");
     }

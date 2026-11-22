@@ -352,10 +352,10 @@ impl Word {
             Self::TypedYes => "Typing does not answer. Press {yes} or {no}, or click Yes or No.",
             Self::TypingNoAnswer => "Typing does not answer.",
             Self::Greeting => {
-                "Hi, I am your helper. Click me to ask for something. Click the X on my balloon to close it."
+                "Hi, I am your helper. Click me to ask for something. This balloon closes by itself."
             }
             Self::GreetingNoHelper => {
-                "Hi, I am your helper, but no helper is set up yet, so you cannot ask anything. Click me to see how. Click the X to close my balloon."
+                "Hi, I am your helper, but no helper is set up yet, so you cannot ask anything. Click me to see what to do. This balloon closes by itself."
             }
             Self::Waiting => "A question is waiting.",
             Self::FieldHint => "Type a message, then Enter.",
@@ -452,10 +452,10 @@ impl Word {
             }
             Self::TypingNoAnswer => "Tippen beantwortet die Frage nicht.",
             Self::Greeting => {
-                "Hallo, ich bin dein Helfer. Klick mich an, um etwas zu fragen. Mit dem X am Ballon schließt du ihn."
+                "Hallo, ich bin Ihr Helfer. Klicken Sie mich an, um etwas zu fragen. Dieser Ballon schließt sich von selbst."
             }
             Self::GreetingNoHelper => {
-                "Hallo, ich bin dein Helfer, aber es ist noch keiner eingerichtet, du kannst nichts fragen. Klick mich an. Mit dem X schließt du den Ballon."
+                "Hallo, ich bin Ihr Helfer, aber es ist noch keiner eingerichtet, Sie können nichts fragen. Klicken Sie mich an, um zu sehen, was zu tun ist. Dieser Ballon schließt sich von selbst."
             }
             Self::Waiting => "Eine Frage wartet.",
             Self::FieldHint => "Nachricht eingeben, dann Enter.",
