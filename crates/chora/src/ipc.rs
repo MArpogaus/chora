@@ -2342,6 +2342,21 @@ mod tests {
         assert_eq!(reserved_for(&core, "s3").as_deref(), Some("a"), "the focus");
     }
 
+    /// With no focus and the pointer in no claim, a new toplevel goes to
+    /// the window manager that connected first, not to the one that joined
+    /// last nor to the first name (ti-38).
+    #[test]
+    fn a_new_toplevel_with_the_pointer_in_no_claim_goes_to_the_first_manager() {
+        let mut core = Core::new();
+        core.add_output("A", (800, 600));
+        let _first = claimer(&mut core, "tiling", [0.0, 40.0, 800.0, 530.0]);
+        let _joined = claimer(&mut core, "a-look", [0.0, 40.0, 800.0, 560.0]);
+        let mut wayland = Wayland::connect(&mut core);
+        core.state.pointer_layout = (0.0, 0.0).into();
+        wayland.toplevel(&mut core, "one");
+        assert_eq!(reserved_for(&core, "s1").as_deref(), Some("tiling"));
+    }
+
     /// A click of a button at a point of the scene, real or injected.
     fn click_at(core: &mut Core, at: (f64, f64), injected: bool) {
         use smithay::backend::input::{ButtonState, InputTime};

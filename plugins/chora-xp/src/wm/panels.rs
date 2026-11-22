@@ -628,7 +628,14 @@ impl Wm {
 
     /// A click on the desktop takes the focus from the windows and the
     /// selection from the icons; a drag draws the selection rectangle.
+    /// While xp has had no keys since it joined beside another look, a
+    /// click on the wallpaper in a smaller claim of that look does nothing:
+    /// the core chose that look for the press (D55), and the keys stay
+    /// with it (ti-38).
     pub(super) fn press_wallpaper(&mut self, position: [f64; 2]) -> Vec<Command> {
+        if self.joined() && self.claim_of_another_look(position) {
+            return Vec::new();
+        }
         let mut commands = self.focus(None);
         commands.extend(self.sync_tasks());
         commands.extend(
