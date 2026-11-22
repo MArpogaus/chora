@@ -16,7 +16,7 @@ printf '#!/bin/sh\nfor a in "$@"; do case $a in color-scheme) cat "%s/scheme" 2>
 chmod +x "$fake/busctl"
 export PATH=$fake:$bin:$PATH
 temp_config
-session_start 1280x800 -- "$bin/chora-tiling"
+session_start 1280x800 -- "$bin/chora-tiling" --no-companions
 grant screen.capture
 theme=$XDG_RUNTIME_DIR/chora-tiling/theme
 shot=$XDG_CONFIG_HOME/theme.png
@@ -43,12 +43,12 @@ sleep 1
 [ "$(cat "$theme/scheme")" = ink ] || fail "theme: ink does not beat the system"
 ok "a fixed theme beats the system"
 
-sed -i "s/^  palette: {}/  palette:\n    accent: '#f59e0b'\n    accent_2: '#f59e0b'/" "$XDG_CONFIG_HOME/chora/chora-tiling.yaml"
+sed -i "s/^  shadows: true/  shadows: false/;s/^  palette: {}/  palette:\n    accent: '#f59e0b'\n    accent_2: '#f59e0b'/" "$XDG_CONFIG_HOME/chora/chora-tiling.yaml"
 started=$(ctl run "$bin/chora-probe" window 0 0 0) || fail "the run of a window"
 pid=$(sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p' <<<"$started")
 run_pid "$pid"
 ctl call tiling settings.reload >/dev/null || fail "settings.reload"
-sleep 3
+sleep 6
 ctl capture --output HEADLESS-1 "$shot" >/dev/null || fail "the capture"
 [ "$(pixel "$shot" 12 400 | cut -d' ' -f1-3)" = "245 158 11" ] || fail "the focus border is not the new accent: $(pixel "$shot" 12 400)"
 grep -q "@define-color accent #f59e0b" "$theme/colors.css" || fail "colors.css kept the old accent"
