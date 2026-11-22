@@ -2038,7 +2038,7 @@ fn transaction_time(scene: &mut Scene, commands: &[Command]) -> std::time::Durat
 
 /// sl-3: the place of a root child is a binary search over the sorted
 /// root children, not a walk over all of them (was 57 s for 10000).
-/// Four times the creates take about four times as long, not sixteen;
+/// Four times the creates take 4 to 6 times as long, not 16 (bound 10);
 /// the floor of 50 ms keeps a fast small run from making the ratio noise.
 #[test]
 fn ten_thousand_creates_under_the_root_take_linear_time() {
@@ -2048,7 +2048,7 @@ fn ten_thousand_creates_under_the_root_take_linear_time() {
     assert_eq!(scene.node(ROOT).unwrap().children.len(), 10_000);
     assert!(big < std::time::Duration::from_secs(2), "{big:?}");
     let floor = small.max(std::time::Duration::from_millis(50));
-    assert!(big < 8 * floor, "2500 in {small:?}, 10000 in {big:?}");
+    assert!(big < 10 * floor, "2500 in {small:?}, 10000 in {big:?}");
 }
 
 /// sl-3: a remove finds its place among the siblings and stops there

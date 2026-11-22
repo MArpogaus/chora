@@ -918,7 +918,10 @@ impl Scene {
 
     /// The places among the children of `parent` where `id` may go: for
     /// the root, from the first to after the last root of the same
-    /// [`Order`] (D89); anywhere under another parent.
+    /// [`Order`] (D89); anywhere under another parent. The root children
+    /// stay sorted by order, since `link` puts a root child only inside its
+    /// band and `set_order` links it again, so a binary search finds the
+    /// band (a walk over all of them was quadratic for many creates, sl-3).
     fn band(&self, id: &str, parent: &str) -> [usize; 2] {
         let Some(siblings) = self.nodes.get(parent).map(|p| &p.children) else {
             return [0, 0];
@@ -927,14 +930,8 @@ impl Scene {
             return [0, siblings.len()];
         }
         let order = self.order_of(id);
-        let low = siblings
-            .iter()
-            .take_while(|s| self.order_of(s) < order)
-            .count();
-        let high = siblings
-            .iter()
-            .take_while(|s| self.order_of(s) <= order)
-            .count();
+        let low = siblings.partition_point(|s| self.order_of(s) < order);
+        let high = siblings.partition_point(|s| self.order_of(s) <= order);
         [low, high]
     }
 
@@ -962,8 +959,10 @@ impl Scene {
         let Some(parent) = self.nodes.get_mut(id).and_then(|n| n.parent.take()) else {
             return;
         };
-        if let Some(p) = self.nodes.get_mut(&parent) {
-            p.children.retain(|c| c != id);
+        if let Some(p) = self.nodes.get_mut(&parent)
+            && let Some(at) = p.children.iter().position(|c| c == id)
+        {
+            p.children.remove(at);
         }
     }
 
