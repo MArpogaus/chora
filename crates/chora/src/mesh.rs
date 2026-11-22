@@ -101,6 +101,20 @@ struct Slot {
     tracker: Option<(u64, OutputDamageTracker)>,
     /// How many renders drew into the texture.
     version: u64,
+    /// The views that use the texture, each with the frame of its last
+    /// use, so that a view that moves to another size drops the old one.
+    users: Vec<(String, u64)>,
+}
+
+impl Slot {
+    /// Notes a use of the texture by a view in a frame.
+    fn use_in(&mut self, view: &str, frame: u64) {
+        self.used = Instant::now();
+        match self.users.iter_mut().find(|(name, _)| name == view) {
+            Some(user) => user.1 = frame,
+            None => self.users.push((view.to_owned(), frame)),
+        }
+    }
 }
 
 /// How a mesh element looked in the last frame, so that its commit counts
@@ -184,6 +198,11 @@ pub struct Layers {
     /// slots, so that a texture that the cap evicted and made again never
     /// repeats the version of the texture before it.
     versions: u64,
+    /// The frame of the view that renders now: one more for each view
+    /// that begins.
+    frame: u64,
+    /// Textures were dropped since the last [`Self::retain`].
+    dropped: bool,
 }
 
 impl Layers {
@@ -191,9 +210,13 @@ impl Layers {
     /// used for a while; starts the budget of a new frame.
     pub fn retain(&mut self, mut keep: impl FnMut(&str) -> bool) {
         let now = Instant::now();
+        let before = self.textures.len();
         self.textures
             .retain(|(id, ..), slot| keep(id) && now - slot.used < UNUSED_FOR);
         self.evict_over_cap();
+        if std::mem::take(&mut self.dropped) || self.textures.len() < before {
+            trim_heap();
+        }
         self.ids.retain(|(_, id, _), _| keep(id));
         self.passed.retain(|(_, id), _| keep(id));
         self.steps.retain(|(_, id), _| keep(id));
@@ -266,6 +289,7 @@ impl Layers {
     /// Names the view that renders next: an output, or the capture of one.
     pub fn set_view(&mut self, view: String) {
         self.view = view;
+        self.frame += 1;
     }
 
     /// Starts the budget of a new frame or capture.
@@ -356,6 +380,9 @@ impl Layers {
     ) -> Result<&mut Slot, GlesError> {
         let (node, slot, size) = key;
         let key = (node.to_string(), slot, size.w, size.h);
+        if !self.textures.contains_key(&key) {
+            self.drop_left(&key);
+        }
         let slot = match self.textures.entry(key) {
             Entry::Occupied(entry) => entry.into_mut(),
             Entry::Vacant(entry) => {
@@ -366,11 +393,29 @@ impl Layers {
                     used: Instant::now(),
                     tracker: None,
                     version: 0,
+                    users: Vec::new(),
                 })
             }
         };
-        slot.used = Instant::now();
+        slot.use_in(&self.view, self.frame);
         Ok(slot)
+    }
+
+    /// Before the texture of a new size for a slot of a node: the current
+    /// view leaves the textures of other sizes of that slot that it used
+    /// in an earlier frame, and those that no other view uses go now, not
+    /// after `UNUSED_FOR`. A view of another scale keeps its own size.
+    fn drop_left(&mut self, key: &(String, usize, i32, i32)) {
+        let (view, frame) = (&self.view, self.frame);
+        let before = self.textures.len();
+        self.textures.retain(|other, slot| {
+            if other.0 != key.0 || other.1 != key.1 {
+                return true;
+            }
+            (slot.users).retain(|(name, at)| name != view || *at == frame);
+            !slot.users.is_empty()
+        });
+        self.dropped |= self.textures.len() < before;
     }
 
     /// A texture of a slot of a layer of a size, the one of an earlier
@@ -396,7 +441,7 @@ impl Layers {
         let slot = self
             .textures
             .get_mut(&(node.to_string(), slot, size.w, size.h))?;
-        slot.used = Instant::now();
+        slot.use_in(&self.view, self.frame);
         Some(slot.texture.clone())
     }
 
@@ -474,6 +519,18 @@ impl Layers {
             });
         }
         (entry.id.clone(), entry.commit)
+    }
+}
+
+/// Gives freed heap back to the system after layer textures were dropped
+/// (sim-long sl-1): a software GL keeps the pixels of a texture on the
+/// heap, and glibc keeps a freed arena for later until it is trimmed, so
+/// the resident memory stayed at its peak after a relayout.
+#[allow(unsafe_code, reason = "a glibc call that takes and returns a number")]
+fn trim_heap() {
+    #[cfg(all(target_os = "linux", target_env = "gnu"))]
+    unsafe {
+        libc::malloc_trim(0);
     }
 }
 
