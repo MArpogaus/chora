@@ -610,8 +610,9 @@ if not n or "HEADLESS-1" not in n[0]["rects"]:
 else:
     print(round(1000 * n[0]["rects"]["HEADLESS-1"][2] / (n[0]["size"][0] * face / 1280)))' "$(width construct-cube-face-0)"
 }
+hint_gone='test "$(prop construct-hint-step-back visible)" != True'
 floats() {
-    sleep 1
+    until_ok "$hint_gone" 40 || { echo "the hint Step back stays after the step in: $(prop construct-hint-step-back visible)"; return 1; }
     hint_flat=$(prop construct-hint-step-back visible)
     ctl capture "$work/flat.png" >/dev/null || return 1
     call view.step_back >/dev/null || return 1
@@ -630,7 +631,7 @@ floats() {
     until_ok "$stepped_in" 20 || return 1
     until_ok 'test "$(prop "construct-cube-float-0-$surface" visible)" = gone && test "$(opacity "$surface")" = 1 && test "$(opacity "$upper")" = 1' 20 ||
         { echo "the windows did not land: plane $(prop "construct-cube-float-0-$surface" visible), opacity $(opacity "$surface") $(opacity "$upper")"; return 1; }
-    sleep 0.5
+    until_ok "$hint_gone" 40 || { echo "the hint Step back stays after the landing: $(prop construct-hint-step-back visible)"; return 1; }
     hint_landed=$(prop construct-hint-step-back visible)
     ctl capture "$work/landed.png" >/dev/null || return 1
     cmp -s "$work/flat.png" "$work/landed.png" || { echo "the face after the step in differs from the face before the step back (hint Step back: $hint_flat before, $hint_landed after)"; return 1; }
