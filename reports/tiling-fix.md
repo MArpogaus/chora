@@ -9,3 +9,11 @@ Head claude/tiling-fix `011db749` (base 4e46028b; tests 4774e302, 011db749). No 
 - Counts: clock selftest 5/5, tiling-scripts-selftest 5/5, bar-spec 5/5, power gate 5/5.
 - Gate: full tests/merge-gate.sh --jobs 2 on the branch merged with fresh origin/claude/autonomous-dev-session-3w-i33pg7 (already up to date): all steps passed, EXIT 0, no foreign reds.
 - Capture: reports/tiling-fix-r1-bar.png (bar, ink 1280x800).
+
+## Review r1 (PM)
+
+Base 4e46028b..011db749, 3 files +47 -1, tests only (PM review: under 200 lines, PM not the builder). Checks: ti-37 red (old fixed bound) then green in the selftest, run by ci-check; ti-27 cell polls state with a wall bound only as a hang guard; ti-25c absent with the wm.rs clamp test named; full gate EXIT 0.
+- tf-1 MINOR tests/tiling-scripts-selftest.sh:95: the clock selftest is skipped without a word when PIL or Inter is missing; print a skip line so a silent pass is visible.
+- tf-2 MINOR (product, open): ti-27 one Escape leaves the key list under a cancelled power menu; a dismiss needs a core layer-focus event (backlog TI-27B).
+- tf-3 NIT: 4774e302 and 011db749 share one subject.
+Verdict: 0 BLOCK, 0 MAJOR: MERGE-OK (joins t111).

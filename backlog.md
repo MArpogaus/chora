@@ -397,3 +397,5 @@ DB21 | 11-22 | later | gate-tiling-motion.sh: restore the deep (focused) vs ligh
 - MH-1, MH-2 (MINOR, mc-helper review r1): mc-host check rewrites without a product sha; no mouse doors while the chat is open. Next mc round.
 - XH-1 (MINOR, xp-helper review r2): gate-xp-helper.sh xp29-none bare sleep 1 before the click. Next xp round (with FLK-CHAT-IDLE).
 - H-RF (harness): red-first per finding id: each fix commit naming an id needs an earlier test commit naming the same id in the range.
+- TF-1 (MINOR, tiling-fix review r1): tiling-scripts-selftest.sh:95 clock selftest skips silently without PIL or Inter; print a skip line. Next tiling round.
+- TI-27B (MINOR, tiling, core): one Escape leaves the key list under a cancelled power menu; tiling gets no layer-focus event from the core. Needs a core event; after the RC unless a review raises it.
