@@ -460,8 +460,8 @@ impl Mc {
             return Ok(());
         };
         scene.chapter.running_head = Some(match &focused {
-            Some(agent) => format!("Agents  ·  {}", crate::title_of(&agent.name)),
-            None => format!("Agents  ·  {running} running"),
+            Some(agent) => format!("Helpers  ·  {}", crate::title_of(&agent.name)),
+            None => format!("Helpers  ·  {running} running"),
         });
         let slots = (scene.panels.iter())
             .filter(|p| p.id.starts_with("agent-"))
