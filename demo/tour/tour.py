@@ -554,7 +554,8 @@ class Tour:
         (the nodes of `scene.query`, the rects of the text boxes of `scene.boxes` as masks, the colour
         of every check) and `<id>.<capture>.png`: the picture of the quiet read (Q, Q+t) or, for H50,
         the frame in the middle of the act (taken by `run_segment`; the pointer is masked). Nothing
-        is written by `--check`."""
+        is written by `--check`. Only the held frame that `copy_held` took in this take is kept; any other
+        picture is taken again, and an old one in the folder is never left beside the new json."""
         if checking() or not row.get("capture"):
             return
         folder = os.path.join(self.out, CAPTURES)
@@ -566,7 +567,9 @@ class Tour:
             at = self.held.get(name)
             if at:
                 masks.append([round(at[0]) - 2, round(at[1]) - 2, 28, 36])
-        if not os.path.exists(png):
+        if not (row["capture"] == "H50" and name in self.held):
+            if os.path.exists(png):
+                os.remove(png)
             try:
                 self.s.capture(png, self.pointer_output or self.output)
             except Exception as err:  # noqa: BLE001
