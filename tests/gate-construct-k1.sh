@@ -124,8 +124,8 @@ width() { node "id:$pane" 'round(list(n[0]["rects"].values())[0][2])'; }
 wide=$(width)
 from=$(rects)
 echo '[{"pointer_move": {"position": [100, 700]}}, {"button": {"state": "pressed"}},
-  {"pointer_move": {"position": [130, 700]}}]' | ctl inject || fail "inject drag"
-rest_after_move "the drag right" "$from"
+  {"pointer_move": {"position": [70, 700]}}]' | ctl inject || fail "inject drag"
+rest_after_move "the drag left" "$from"
 step w
 step w
 from=$(rects)
