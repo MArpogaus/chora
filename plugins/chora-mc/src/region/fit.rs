@@ -108,6 +108,17 @@ pub fn fit(items: &[Item], heights: &[f64], room: f64, baseline: f64) -> Vec<boo
     keep
 }
 
+/// The number of letters of `count` that a share of the width keeps.
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_precision_loss,
+    reason = "a line of a screen"
+)]
+fn kept(count: usize, share: f64) -> usize {
+    (count as f64 * share).floor().max(0.0) as usize
+}
+
 /// Shortens a clock of the end of a line that does not fit the `room` left
 /// by the head and the middle; its width is then the room.
 pub(super) fn clock_gives_way(end: &mut [(&Item, f64, f64)], room: f64) -> Vec<Command> {
@@ -127,13 +138,7 @@ pub(super) fn clock_gives_way(end: &mut [(&Item, f64, f64)], room: f64) -> Vec<C
 pub(super) fn shorten_front(item: &Item, share: f64) -> Command {
     let text = item.props.text.as_deref().unwrap_or_default();
     let count = text.chars().count();
-    #[allow(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        clippy::cast_precision_loss,
-        reason = "a line of a screen"
-    )]
-    let keep = (count as f64 * share).floor().max(0.0) as usize;
+    let keep = kept(count, share);
     let mut rest = text;
     while rest.chars().count() > keep {
         match rest.split_once(char::is_whitespace) {
@@ -157,13 +162,7 @@ pub(super) fn shorten_front(item: &Item, share: f64) -> Command {
 pub(super) fn shorten(item: &Item, share: f64) -> Command {
     let text = item.props.text.as_deref().unwrap_or_default();
     let count = text.chars().count();
-    #[allow(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        clippy::cast_precision_loss,
-        reason = "a line of a screen"
-    )]
-    let keep = (count as f64 * share).floor().max(0.0) as usize;
+    let keep = kept(count, share);
     let short = if keep < 4 {
         " ".to_owned()
     } else {
