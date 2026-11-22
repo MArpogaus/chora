@@ -39,3 +39,11 @@ Before: the one red doors run was `check mc header-1024x768 fail`, "header: the 
 - Green: build, test, clippy, ci-check, gate-lib (with the new selftest), xp, matrix, virtual, xp-faces, xp-paperclip, xp-fields, xp-question, xp-notepad, hud, layout, tiling-audit, and, run alone after the stop: tiling-empty, chat-keys, doors, last-words, cube, pull, placed, construct-hud, construct-extra, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, mc-column, mc-handover, launcher-click, voice-acp, voice-events, agent, e2e.
 
 So the full gate is not green today: two red steps, neither from this change. Done-when: sleep count falls (yes), each cell 10 of 10 after (yes), full gate green (no: the clock limit of the bar spec and the acts flake).
+
+## Review r1 (PM; 1c599c74..6366f2f3, head 3c5b29c9; 12 files +84 -68)
+- Done-when: sleeps 762 to 715 (yes); each touched cell 10/10 under load (yes); full gate: red only in tiling-look bar-font (clock date, CLOCK-WIDTH) and acts I14 (SH-32), both not from this diff (same reds on 1c9e64f7).
+- session_start waits on `owner:<plugin>` nodes (core scene if none), fails after 30 s: a real check in place of sleep 2.
+- gw-1 MINOR gate-lib.sh `settled`: ends `|| true`, so a scene that never settles goes on silently to the capture; a note on stderr would show it.
+- gw-2 MINOR doors/lib.sh `doors_window`: no keyboard only echoes; the next got_key fails later, with a less direct reason.
+- gw-3 NIT: `pace` is a plain sleep; the reason lives only in this report (the hook forbids inline comments).
+Counts: BLOCK 0, MAJOR 0, MINOR 2. Verdict: MERGE-OK; joins t105.
