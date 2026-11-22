@@ -18,3 +18,6 @@ Gate on claude/test-gaps at 89dc32c4 (already contains claude/autonomous-dev-ses
 - `tests/merge-gate.sh --jobs 1`: EXIT 0, all steps PASS, no foreign reds
 
 Left for a later round: grab_action (crates/chora/src/input, lane ti-38) and SA9 (plugins/chora-xp).
+
+## PM review r1 (09:06 UTC; PM is not the builder; small diff, owner 11-19 06:12)
+Range 7a6c0eb8..89dc32c4, 3 files, +80 -10. Checks: WD2 tests read schedstat from a temp task tree (waits_in, wait_of, growth between reads); WD3 red first (5a3cbff7) then fix 92245e0e: a thread missing in the first read is skipped (filter_map), not credited its whole wait; secfix-b asserts a parse failure applies nothing (runtime.rs:870); SA10 docstring now says a plain `injected: name` is reported like `_`. Lane gate: merge-gate --jobs 1 EXIT 0. Findings: none MAJOR; LOW tr-1 the growth tests sleep 40 ms (timing only asserted as >=). Verdict (computed): MERGE-OK; joins t109.
