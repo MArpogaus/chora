@@ -1734,14 +1734,6 @@ class GuideGaps(unittest.TestCase):
     def test_tiles_off_the_grid_fail(self):
         self.assertTrue(any("gap" in b for b in breaches("I2", snap(), self.tiles(7))))
 
-    def test_the_inner_gap_of_tiling_is_ten(self):
-        """design/looks/tiling-v2.md: the grid is 4 px, the outer gap 12, the inner gap 10 between tiles."""
-        self.assertEqual(breaches("I2", snap(), self.tiles(10)), [])
-
-    def test_a_gap_next_to_the_inner_gap_fails(self):
-        for gap in (9, 11):
-            self.assertTrue(any("gap" in b for b in breaches("I2", snap(), self.tiles(gap))), gap)
-
 
 class GuideHeld(unittest.TestCase):
     """I2 held: a screen-fixed surface stays on its pixel in a held act."""

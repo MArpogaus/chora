@@ -83,13 +83,9 @@ def near(a, b, tolerance=TOLERANCE):
     return sum(abs(p - q) for p, q in zip(a, b)) <= tolerance
 
 
-INNER_GAP = 10.0
-
-
 def gap_findings(nodes, output, unit=4.0):
     """The tiles (`tb-` borders) of an output whose gap is no whole number
-    of the grid unit (4), or the inner gap of the look (10, design/looks/tiling-v2.md):
-    the rule of hud-audit.py `gaps`."""
+    of the grid unit (4): the same rule as hud-audit.py `gaps`."""
     spec = importlib.util.spec_from_file_location(
         "hud_audit", pathlib.Path(__file__).with_name("hud-audit.py")
     )
@@ -100,11 +96,7 @@ def gap_findings(nodes, output, unit=4.0):
         for n in nodes
         if n.get("id", "").startswith("tb-") and output in (n.get("rects") or {})
     }
-    return [
-        f"gaps: {output}: {a} and {b} are {gap:g} apart, no whole number of {unit:g}"
-        for a, b, gap in hud.facing_gaps(rects, unit)
-        if abs(gap - INNER_GAP) > 0.5
-    ]
+    return hud.gap_findings(output, rects, unit)
 
 
 def surfaces(nodes):
