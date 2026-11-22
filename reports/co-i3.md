@@ -37,3 +37,16 @@ Head 042a9c77 on claude/co-i3 (r2 head 2b571478, merged with origin/claude/auton
 - rv-2: pinned, no code change. The core sends `focus.node` null when a window takes the keys (crates/chora/src/state.rs:1119 `tell_key_node`, emitted whenever the key node changes, `key_node()` is None with no focused node), and `Focus::hear` clears `away` on it. Kit test 'f6c8a853' `a_window_taking_the_keys_from_a_foreign_node_ends_the_loss` (tests/wm_focus.rs).
 - cargo test -p chora-construct 267 ok, -p chora-kit all ok.
 - Gate: full `tests/merge-gate.sh --jobs 1` on the merge, NOT green. Run 1 stopped at construct-extra (my first i3 step: probe args, fixed). Run 2 (042a9c77): everything before acts PASS (red-first, identity, pre-commit, gate-lib, ci-check, build, test, clippy, 2d-guard, package-*, xp, matrix, virtual, xp-faces, xp-*, hud, layout, tiling-*, chat-keys, doors); acts FAIL: `FAIL: tiling I14: in act 'the helper asks': choractl disconnected, the act did not declare it (evidence /tmp/acts-run-rxmyizxo/tiling-I14)`, 230 pass, 6 known red, 1 blocking. That act passed in run 1 on the same code, tiling and acts code are untouched here: a flake in tiling I14, not caused by this lane, not rerun. The steps after acts (cube, pull, placed, construct-hud, construct-extra, ...) did not run in run 2; construct-extra's other cells passed in run 1 up to the i3 step.
+
+## Review r3 (PM, small diff; the PM is not the builder)
+
+Base 2b571478..042a9c77, own commits 4a93f0a9 (red), 8da08b91 (fix), f6c8a853 (kit pin), 398ca2a8, 042a9c77 (gate step).
+- rv-1 closed: 8da08b91 returns holder null whenever `kit_focus.taken_by_other(NAME)` before the match (state.rs:64), the
+  same rule as `Focus::holder`; red test 4a93f0a9 first (rules.md 8). The None arm keeps active and overlay. Sound.
+- rv-2 closed by pin: f6c8a853 pins that `focus.node` null ends the loss (core tell_key_node, chora state.rs:1119). Sound.
+- rw3-1 MINOR tests/gate-construct-i3.sh: the step is not red on the pre-fix binary (4 of 4), so it guards the face-click
+  path, not rv-1; the unit test carries rv-1. Accept; no fix needed for the merge.
+- rw3-2 MINOR tests/gate-construct-i3.sh: `until_ok 'false' 1` used as a one-step wait; fine, but a named helper reads better.
+- Not run on 042a9c77: the steps after acts (construct-extra holds the i3 step); the train runs them.
+- New, not caused by the lane: co-46 (window shown false keeps the keys while the cube is open), findings/construct.md.
+Verdict (computed): 0 BLOCK, 0 MAJOR in the diff: MERGE-OK; joins the next train.
