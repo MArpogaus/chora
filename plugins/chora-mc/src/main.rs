@@ -1910,20 +1910,28 @@ mod tests {
         items.filter(|i| i.id.contains("-doors-")).count()
     }
 
-    /// The doors of the column, with their hit areas, are not under the
-    /// chat panel: they go while the chat is open and come back with the
-    /// close (mc-56).
+    /// The doors of the column stay while the chat is open: lock, power,
+    /// programs and volume keep their mouse door, and the box of the chat
+    /// ends above them, so that the chat covers none (MH-2).
     #[test]
-    fn the_doors_of_the_column_go_while_the_chat_is_open() {
+    fn the_doors_of_the_column_stay_beside_the_open_chat() {
         use chora_kit::runtime::Plugin as _;
         let (mut mc, _) = crate::testing::mc("chat-doors", [1920, 1080]);
         let first = mc.settings.value.default_scene.clone();
         mc.show(&first, false).unwrap();
-        assert!(door_items(&mc, &first) > 0, "the doors show");
+        let doors = door_items(&mc, &first);
+        assert!(doors > 0, "the doors show");
         mc.event(chat_event("assistant", true, "test")).unwrap();
-        assert_eq!(door_items(&mc, &first), 0, "no door under the chat");
+        assert_eq!(door_items(&mc, &first), doors, "the doors stay");
+        let rect = mc.chat_slot().expect("the chat has a box");
+        let column = mc.boxes_of(&first)[&crate::region::Region::Right];
+        let baseline = mc.settings.value.scale.baseline;
+        assert!(
+            rect[1] + rect[3] + 2.0 * baseline <= column[1] + column[3],
+            "the chat ends above the doors"
+        );
         mc.event(chat_event("assistant", false, "test")).unwrap();
-        assert!(door_items(&mc, &first) > 0, "the doors are back");
+        assert_eq!(door_items(&mc, &first), doors, "the doors are back");
     }
 
     /// Another output or another client than the host changes nothing.
