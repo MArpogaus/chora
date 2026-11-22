@@ -57,25 +57,24 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-22T02:24:00Z",
+  updated: "2026-11-22T07:35:00Z",
   start: "2026-11-21T04:00:00Z",   // budget reset (owner)
   end: "2026-11-28T03:59:00Z",     // next reset; F5, F7 carried over
-  budget: 7.8,                       // % of the new week used (reset 04:00)
+  budget: 8.8,                       // % of the new week used (reset 04:00)
   goals: [
     ["F1", "Plan in merge-sized slices", "done", "reviewed plan"],
     ["F2", "Shared code in one kit, no copies", "done", "met by audit r2 (19:13): 0 copies; kit-report keeps it after debt-down"],
     ["F3", "Window-manager core, first slices", "done", "met by audit r2: wm parts and records D107-D116"],
     ["F4", "No file over 1,500 lines", "done", "met by audit r4 (14:23): 0 files over; every lint and debt count below the RC value (debt 25 of 47); the lint ratchet (train 90) freezes the counts"],
     ["F5", "No flaky tests, coverage over 80 %", "done", "coverage 91.76 %; five full gates in a row at 2 jobs all green (series r4, 16:21 UTC, one cloud host); older unreproduced flake notes stay open for the RC"],
-    ["F6", "Every change through the merge gate", "done", "61 green merges, all reviewed; train 106 green 06:42 UTC (13:42 Bangkok)"],
+    ["F6", "Every change through the merge gate", "done", "61 green merges, all reviewed; train 106 green 06:42 UTC (13:42 Bangkok); train 107 runs"],
     ["F7", "No visual regression vs tour v8", "behind", "plan accepted (tour v9); the v8 picture diff passed review and merges now; the tour set and the design-guide checks are in a fix round after review"],
     ["F8", "Docs and decision records", "done", "merged 18:30 (train 68), reviewed; doc fixes merged (train 72)"]
   ],
   now: [
-    "Three test-only fixes are reviewed and ready: the flaky tiling test is explained (one-shot tools counted as lost clients; 7 of 30 runs failed before, 0 of 30 after), fixed waits replace 47 sleeps in the gate, and the simulated-user checks are stricter. They join the Sunday clock-width check fix in train 105, one gate run.",
-    "Train 104 (key routing, the 3D-look face hint, shared-kit tests, the mc and helper-chat file split) follows train 105.",
-    "New lane: the tiling major from simulated-user round 4 (Super+Return in a mixed tiling and XP session opened an XP window, not a tile) is being reproduced and fixed, with the chat-input check.",
-    "The tour fix round for the v9 recording runs (3 major faults from review). Spending is under pace (7.8 % used at 02:20 UTC, the line is at 13.4 %); more lanes start as trains free the queue."
+    "Train 107 runs the full gate (about half done, all green so far): the tour fix round 3 (tour reds 84 to 66, tiling 23 to 0) and the one-question helper fix. The gate-health harness follows alone in train 108.",
+    "Six lanes run: the tiling major (a joining look took the keyboard) is fixed and now merges the latest session branch with a full gate; honest launch states (no 30 s fake failure); 10 known-red mc look rows; a 3-hour leak and stall run; construct logging to the log system; missing tests for the watchdog and reload.",
+    "Spending is under pace (8.8 % used at 07:34 UTC, 14:34 Bangkok; the line is at 16.5 %). All six lane slots are full; more start as lanes hand back."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
 };
