@@ -174,3 +174,36 @@ Seeded review of claude/tour-fix head 87fdbeb9 (`git diff 1c9e64f7 87fdbeb9`, 14
 - rv-6 | NIT | demo/tour/run.py:91 | `names = [...]` inside `for name in names:` shadows the chapter list (iteration is unaffected, the loop holds the first list; the name is wrong afterwards) | fix: call it `missing`.
 
 Counts: BLOCK 0, MAJOR 0, MINOR 5 (rv-1..rv-5), NIT 1 (rv-6).
+
+## r3 (F7, rc 11: ti-31 and the MINORs of review r2; 2026-11-22)
+
+Lane claude/tour-fix, 87fdbeb9 -> 85c5f3bc (8 commits, harness only: tests/tiling-audit.py, tests/tour-diff.py, tests/test_acts*.py, tests/test_tour*.py, demo/tour/run.py). `git fetch --unshallow`, `cargo check --workspace` green. The autonomous-dev branch (fetched fresh) is already in the lane: "Already up to date".
+
+| line | red (fails alone) | fix |
+|---|---|---|
+| rv-4 | none (move, same 284 tests) | b9ce3ddb: `KnownRed`, `GuideSize`, `GuideHeld`, `GuideWords` move to tests/test_acts_guide.py; tests/test_acts.py 1839 -> 1495 lines |
+| ti-31 | c4b38029 (`GuideGaps`: tiles 10 apart pass, 9 and 11 fail) | 6d751587: `tiling-audit.gap_findings` drops a gap equal to `look.gap_inner` that `inner_gap()` reads from plugins/chora-tiling/tiling.yaml (10, not hard-coded); every other gap stays a multiple of 4 |
+| rv-1 | b1382ed4 | test only: every scene id of the 5 chapters must be an id of the tables of design/tour-v9.md (read from the checkout, else `git show origin/claude/session-log:design/tour-v9.md`). **No id fits for the three cube acts of xp**: c3 (turn by key, by drag) is the one that means them, but 8 acts of the construct chapter already are `c3`, `c3b` .. and a take writes all chapters into one `captures/` folder, so xp's `c3`, `c3b`, `c3c` would overwrite the same files. They keep `x12`, named in the test as `OFF_DESIGN` (it fails if the design names x12 or the three acts change). PM: name x12 in design/tour-v9.md section 1, or give the cube acts of xp their own letter |
+| rv-2 | 622334da (an old png of a renamed act is gone; a `--check` keeps the folder) | 92695718: run.py removes `<out>/captures` at the start of every non-check take |
+| rv-3 | 944bff91 (a name only in the json is not a regression) | 85c5f3bc: tour-diff adds the `names` of `baseline-none.json` (BASE, or the folder above it where `captures/` lies) to `baseline_none` of intended.toml |
+| rv-6 | NIT | 92695718: `names` -> `missing` in run.py |
+| rv-5 | | this section (below) |
+
+Tests: `python3 -m pytest tests/test_acts*.py tests/test_tour.py -q`: 290 passed, 123 subtests (284 on 87fdbeb9: +2 ti-31, +2 rv-1, +2 rv-2); with tests/test_tour_diff.py (+1 rv-3) 335 passed.
+
+### Red count of `python3 demo/tour/run.py --check`
+- Before (87fdbeb9, r2 report and the partial run of this lane with only the red tests): 84 red = xp 30, tiling 23, mc 2, construct 18, handover 11. I2 in tiling: 23 acts with `tb-s1 and tb-s5 are 10 apart` (the partial run on c4b38029 again showed it in tiling acts 6-12). I2 in xp, mc, handover: 0; construct: 14 acts (below).
+- After (85c5f3bc, whole run): **66 red** = xp 30, tiling 5, mc 2, construct 18, handover 11, 0 broken. Tiling I2 is 0 (23 -> 0), so 84 - 18 = 66: the count is back to what it was before r2 added the audit.
+- By invariant, acts after: xp I6 30. tiling I6 3 (acts 17, 19, 21) and the pair ti-35/ti-36 (act 26 "mixer at 40 percent, expected 45", act 28 "no new notice in chora-notify"; no I2). mc I6 1, I10 1. construct I6 18, **I2 14**. handover I6 11.
+- rv-5: I2 per act, not as a net: r2's tiling I2 was 23 acts (+20 over the old 3 red acts), the pair ti-35/ti-36 is its own flaky line (red in this run on acts 26 and 28, green in the run of r2; the count is 66 with them red, 64 without), and tiling I6 is 3 acts (17, 19, 21). The 14 construct I2 acts are not ti-31: `gaps: construct-mode-step-in and construct-mode-turn-left` and `... turn-right` are N apart, no whole number of 4 (HUD surfaces, hud-audit rule, 28 lines in all). They are in the 18 red acts of construct already before r2 (construct 18 in both counts); I did not change them and found no row of findings for them: PM, new finding if wanted.
+
+### Gate
+`tests/merge-gate.sh --jobs 1` on 85c5f3bc (= claude/tour-fix merged with origin/claude/autonomous-dev-session-3w-i33pg7, no merge needed): red-first, identity, pre-commit, gate-lib, ci-check, build, test, clippy, 2d-guard, package-deps, package-lists, xp, matrix, virtual, xp-faces, xp-paperclip, xp-fields, xp-question, xp-notepad, hud, layout, tiling-audit PASS. **tiling-look FAIL** (/tmp/merge-gate.mAcdAM/tiling-look.log, 436 s): `FAIL: ink-1280x800 bar-font: the clock is 120.0 wide, not Inter 14 px weight 500 (100-119)` and the same for ink-2560x1600@2 (120.5), paper-1280x800, paper-2560x1600@2, then `FAIL: the bar differs from the spec of tiling-v2`. This is ti-37, as on 87fdbeb9: not caused by this lane (no file of the gate, of chora-tiling or of the flavors is in the diff 87fdbeb9..85c5f3bc); not rerun to green. The gate stops at the first failed step, so tiling-empty .. e2e did not run in this gate; step `acts` was run alone (`--only acts`): `acts` PASS (1383 s, /tmp/merge-gate.cmE8oj/acts.log). The other steps after tiling-look (tiling-empty, chat-keys, doors, last-words, cube .. e2e) are not run: the full gate is red at ti-37, a foreign red; PM: they need a gate with ti-37 closed or listed.
+
+## Review r3 (PM, 2026-11-22; PM not the builder; harness diff 87fdbeb9..85c5f3bc, 7 files +514 -361)
+Checks: ti-31 red c4b38029, fix 6d751587: `inner_gap()` reads `look.gap_inner` from plugins/chora-tiling/tiling.yaml; `gap_findings` zips `hud.facing_gaps` with `hud.gap_findings`, which build one line per pair of the same list (hud-audit.py:177), so the filter is aligned. rv-2 rmtree of captures only on a non-check take. rv-3 `none_of` adds the json names of BASE and its parent. rv-4 pure move (test_acts.py 1495 lines). rv-6 rename. rv-1: x12 stays OFF_DESIGN (test pins it).
+Counts: 84 -> 66; tiling I2 23 -> 0; construct I2 14 acts are co-44 (COSMETIC, mode chips), already a row.
+Gate: red only tiling-look bar-font = ti-37, fixed by CLOCK-WIDTH in t106; the steps after it run in the train.
+Findings: none BLOCK or MAJOR. rv-7 NIT tiling-audit.py: `gap_findings` computes facing_gaps twice (once inside hud.gap_findings); fine at this size.
+PM decision rv-1: the xp cube acts keep x12 off the design for v9; tour v10 gives them a letter (backlog).
+Verdict (computed): MERGE-OK on 85c5f3bc.
