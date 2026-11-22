@@ -267,7 +267,7 @@ impl Default for Look {
     fn default() -> Self {
         Self {
             gap_outer: Some(12),
-            gap_inner: Some(10),
+            gap_inner: Some(12),
             radius: 10,
             border: 2,
             animations: true,
@@ -458,9 +458,9 @@ mod tests {
         assert_eq!(config.gaps(), (12, 12), "I2: a whole number of 4");
         assert_eq!(config.look.radius, 10);
         let old = DEFAULT.replace("gap_outer: 12", "gap_outer: null");
-        let old = old.replace("gap_inner: 10", "gap_inner: null");
+        let old = old.replace("gap_inner: 12", "gap_inner: null");
         assert_eq!(parse::<Config>(&old).unwrap().gaps(), (4, 8));
-        let wide = DEFAULT.replace("gap_inner: 10", "gap_inner: 900");
+        let wide = DEFAULT.replace("gap_inner: 12", "gap_inner: 900");
         assert!(parse::<Config>(&wide).unwrap_err().contains("gap_inner"));
         let round = DEFAULT.replace("radius: 10", "radius: 900");
         assert!(parse::<Config>(&round).unwrap_err().contains("radius"));
