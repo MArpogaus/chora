@@ -125,14 +125,14 @@ round() {
       {\"button\": {\"state\": \"released\"}}]" | ctl inject || fail "inject drag"
     until_ok 'test "$(node id:construct-label-body-text "n[0][\"text\"]")" = "a white pane"' ||
         fail "$tag: the pane under the pointer has no label: $(node id:construct-label-body-text 'n[0]["text"]')"
-    sleep 0.3
+    settle
     shot "$shots/construct-hud-$tag-label-pointer.png"
     ok "$tag: the label names the pane ahead, then the pane under the pointer"
 
     call pane.fly '{"name": "black"}'
     until_ok 'ctl call construct construct.list | python3 -I -c "import json, sys; c = json.load(sys.stdin)[\"camera\"]; sys.exit(c[\"z\"] == 0.0 and c[\"x\"] == 0.0)"' ||
         fail "$tag: no flight into the black pane"
-    sleep 0.5
+    settle
     key Alt+Escape
     until_ok 'ctl call construct construct.list | python3 -I -c "import json, sys; c = json.load(sys.stdin)[\"camera\"]; sys.exit(not (c[\"z\"] == 0.0 and c[\"x\"] == 0.0))"' ||
         fail "$tag: no flight back out of the black pane"
@@ -141,7 +141,7 @@ round() {
     foot -a "$long-$long" -f "$font" sh -c 'sleep 600' &
     pids+=($!)
     until_ok "ctl call construct window.list | grep -q Donaudampf" || fail "$tag: no long window"
-    sleep 0.5
+    settle
     fits construct-label-body-text construct-label-body-glass || fail "$tag: the label runs out of its pill"
     shot "$shots/construct-hud-overflow-$tag-label.png"
     # Behind the camera, its pane is a row of the list.
@@ -175,7 +175,7 @@ for theme in ${THEMES:-light dark}; do
     ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
     until_ok 'test "$(node id:construct-fog "n[0].get(\"shader\")")" = None' 80 ||
         fail "$theme: the watchdog took no shader"
-    sleep 0.5
+    settle
     shot "$shots/construct-hud-$theme-1280x720-plain.png"
     ok "$theme: after the watchdog, the space stays plain"
     kill "$session"
@@ -204,7 +204,7 @@ at = next(p["at"] for p in json.load(sys.stdin)["panes"] if p["name"] == f)
 print(json.dumps({"name": f, "right": x - at[0], "ahead": z - at[1]}))' "$f" "$x" "$z" >"$work/move.json"
         call pane.move "$(cat "$work/move.json")"
     done
-    sleep 1
+    settle
     focused=$(ctl query id:construct-focus | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(n[0]["visible"] if n else "")')
     [ "$focused" = True ] || fail "$theme: no glow under the focused pane"
     shot "$shots/construct-hud-focus-$theme.png"
@@ -230,7 +230,7 @@ pids+=($!)
 listed() { ctl call construct window.list | python3 -I -c 'import json, sys; print(next((w["pane"] for w in json.load(sys.stdin)["windows"] if w["name"] == "third"), "missing"))'; }
 until_ok 'test "$(listed)" = none' || fail "the third window is not in the list: $(listed)"
 until_ok 'notices | grep -q "No room in view"' || fail "no notice of the full view: $(notices)"
-sleep 0.3
+settle
 shot "$shots/construct-hud-light-1280x720-noroom.png"
 call window.show '{"name": "third"}'
 until_ok 'ctl call construct construct.list | grep -q "\"name\": \"third\""' || fail "window.show made no pane"
