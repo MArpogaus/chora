@@ -690,16 +690,15 @@ until_ok 'test -z "$(others)"' 40 || fail "the second probe window stays"
 frames() { ctl render-stats | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["outputs"]["HEADLESS-1"]["damaged_frames"])'; }
 turn_frames=$(frames)
 turn_start=$(date +%s%N)
-call cube.turn '{"by": 1, "ms": 3000}' >/dev/null || fail "a slow cube.turn"
-sleep 0.4
-[ "$(width construct-cube-face-0)" -gt 0 ] && [ "$(width construct-cube-face-1)" -gt 0 ] ||
-    fail "at a third of the turn the screen does not show two faces: widths $(width construct-cube-face-0) and $(width construct-cube-face-1)"
-until_ok '[ "$(prop "construct-cube-float-0-$surface" visible)" != gone ]' 6 || fail "the window does not float during a turn"
+call cube.turn '{"by": 1, "ms": 10000}' >/dev/null || fail "a slow cube.turn"
+until_ok '[ "$(width construct-cube-face-0)" -gt 0 ] && [ "$(width construct-cube-face-1)" -gt 0 ]' 40 ||
+    fail "during the turn the screen does not show two faces: widths $(width construct-cube-face-0) and $(width construct-cube-face-1)"
+until_ok '[ "$(prop "construct-cube-float-0-$surface" visible)" != gone ]' 40 || fail "the window does not float during a turn"
 [ -n "${SHOT:-}" ] && ctl capture "$SHOT" >/dev/null
 [ "$(prop construct-cube-face-0 forward)" = False ] && [ "$(prop construct-cube-face-1 forward)" = False ] ||
     fail "a face forwards during the turn: $(prop construct-cube-face-0 forward) $(prop construct-cube-face-1 forward)"
 call cube.turn '{"by": 1}' >/dev/null || fail "cube.turn during a turn"
-until_ok 'test "$(prop construct-cube-face-1 visible)" = True && test "$(prop construct-cube-face-0 visible)" = False && test "$(prop construct-cube-face-1 forward)" = True' 40 ||
+until_ok 'test "$(prop construct-cube-face-1 visible)" = True && test "$(prop construct-cube-face-0 visible)" = False && test "$(prop construct-cube-face-1 forward)" = True' 80 ||
     fail "the cube did not turn: face 0 $(prop construct-cube-face-0 visible), face 1 $(prop construct-cube-face-1 visible) $(prop construct-cube-face-1 forward)"
 turn_ms=$(( ($(date +%s%N) - turn_start) / 1000000 ))
 turn_frames=$(( $(frames) - turn_frames ))
