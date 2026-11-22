@@ -11,7 +11,11 @@
 #
 # When the IPC socket is up, it prints lines KEY=VALUE for the clients:
 # XDG_RUNTIME_DIR, WAYLAND_DISPLAY (an absolute path) and CHORA_SOCKET.
-# Then it waits until the core ends or until a signal; either way it
+# A watcher in a session of its own ends the core and removes the temp dir
+# when this script or its parent is gone without a trap (SIGKILL: the end of
+# a gate step after its grace, timeout -k); the core leads its own group, so
+# a group kill of the script does not reach it. Then it waits until the
+# core ends or until a signal; either way it
 # stops the process group of the core and removes the temp dir. An end of
 # the core is the exit status of the script, with the last log lines on
 # stderr; a signal of the script itself answers 130 or 143.
@@ -45,9 +49,11 @@ fi
 runtime=$(mktemp -d /tmp/chora-hl.XXXXXX)
 log=${CHORA_LOG:-$runtime/chora.log}
 pid=
+watcher=
 # shellcheck disable=SC2329 # runs as the EXIT trap
 cleanup() {
     trap - EXIT INT TERM HUP
+    [[ -z $watcher ]] || kill "$watcher" 2>/dev/null || true
     if [[ -n $pid ]]; then
         # chora leads its process group, which holds its startup command
         # and the programs that its plugins started without a user
@@ -76,6 +82,16 @@ env -u WAYLAND_DISPLAY -u DISPLAY -u WAYLAND_SOCKET "${no_bus[@]}" -u CHORA_TEST
     XDG_RUNTIME_DIR="$runtime" XDG_STATE_HOME="$runtime/state" \
     setsid "$bin/chora" --headless "$outputs" "${test_flags[@]}" -- "$@" >"$log" 2>&1 &
 pid=$!
+
+# shellcheck disable=SC2016 # the watcher expands its own arguments
+setsid bash -c 'tail --pid="$1" -f /dev/null 2>/dev/null &
+tail --pid="$4" -f /dev/null 2>/dev/null &
+wait -n
+kill -TERM -- "-$2" 2>/dev/null
+for _ in $(seq 50); do kill -0 "$2" 2>/dev/null || break; sleep 0.1; done
+kill -KILL -- "-$2" 2>/dev/null
+rm -rf "$3"' watcher $$ "$pid" "$runtime" "$PPID" >/dev/null 2>&1 </dev/null &
+watcher=$!
 
 for _ in $(seq 100); do
     socket=$(compgen -G "$runtime/chora/wayland-*[0-9].sock" || true)
