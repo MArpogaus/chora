@@ -245,6 +245,7 @@ xp-faces|BIN=$repo/target/debug tests/gate-xp-faces.sh
 xp-paperclip|BIN=$repo/target/debug tests/gate-xp-paperclip.sh
 xp-fields|BIN=$repo/target/debug tests/gate-xp-fields.sh
 xp-question|BIN=$repo/target/debug tests/gate-xp-question.sh
+xp-chat-idle|BIN=$repo/target/debug tests/gate-xp-chat-idle.sh
 xp-notepad|BIN=$repo/target/debug tests/gate-xp-notepad.sh && BIN=$repo/target/debug tests/gate-xp-notepad-fallback.sh && BIN=$repo/target/debug tests/gate-xp-notepad-gui-only.sh
 hud|BIN=$repo/target/debug tests/gate-hud.sh
 layout|BIN=$repo/target/debug tests/gate-construct-layout.sh
