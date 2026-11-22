@@ -1140,7 +1140,7 @@ mod tests {
     fn set_call(call: u64, params: Value) -> chora_scene::Event {
         chora_scene::Event::MethodCalled {
             call,
-            caller: "chora-assistant".into(),
+            caller: "hud".into(),
             method: "settings.set".into(),
             params,
             confined: false,
