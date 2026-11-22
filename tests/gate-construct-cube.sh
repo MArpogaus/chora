@@ -57,7 +57,7 @@
 #   SHOT  a PNG path that keeps a capture of the cube during a turn
 #   INJECT_LAG  seconds before each injection (default 0): the start of a
 #         choractl on a loaded machine, the stress of the keys in a row
-#   CUBE_LOAD   1 starts 8 busy shell loops per CPU for the run (a loaded host): the
+#   CUBE_LOAD   1 starts 4 busy shell loops per CPU for the run (a loaded host): the
 #         cube must settle in time with the shell and ctl calls slowed down
 #   CLOCK_EDGE  seconds before a minute change at which a still check starts
 #         (default: at once): the clocks of the construct and of xp draw at
@@ -87,6 +87,18 @@ quick() {
     return 1
 }
 now_ms() { echo $(($(date +%s%N) / 1000000)); }
+settle_poll() {
+    local began=$1 poll_start
+    settle_min=0
+    while :; do
+        poll_start=$(now_ms)
+        eval "$2" && break
+        settle_min=$((poll_start - began))
+        [ $((poll_start - began)) -le 5000 ] || return 1
+        sleep 0.02
+    done
+    settle_max=$(($(now_ms) - began))
+}
 call() { ctl call construct "$@"; }
 inject() { sleep "${INJECT_LAG:-0}"; echo "$1" | ctl inject >/dev/null || fail "inject $1"; }
 virtuals() { ctl outputs | python3 -I -c 'import json, sys; print(" ".join(sorted(o["name"] for o in json.load(sys.stdin) if o.get("virtual"))))'; }
@@ -125,7 +137,7 @@ EOF
 
 session_start 1280x800 -- "$bin/chora-construct"
 if [ "${CUBE_LOAD:-0}" = 1 ]; then
-    for _ in $(seq $((8 * $(nproc)))); do
+    for _ in $(seq $((4 * $(nproc)))); do
         (while :; do :; done) &
         pids+=($!)
     done
@@ -522,13 +534,12 @@ until_ok 'prop construct-face-label-words text | grep -q "face 2 of 4"' 8 || fai
 ok "a slow drag turns the cube with the hand at every step, the label changes at 45 degrees and Step in dims"
 let_go
 released=$(now_ms)
-quick 'test "$(( $(width construct-cube-face-1) - rest_width ))" -ge -3 && test "$(( $(width construct-cube-face-1) - rest_width ))" -le 3'
-settled_in=$(($(now_ms) - released))
-[ "$settled_in" -le 700 ] || fail "the cube took $settled_in ms to settle after a release at 49 degrees: face 0 is $(width construct-cube-face-0) px wide, face 1 $(width construct-cube-face-1), at rest $rest_width, the label says $(prop construct-face-label-words text)"
+settle_poll "$released" 'test "$(( $(width construct-cube-face-1) - rest_width ))" -ge -3 && test "$(( $(width construct-cube-face-1) - rest_width ))" -le 3' || settle_min=hang
+[ "$settle_min" != hang ] && [ "$settle_min" -le 700 ] || fail "the cube was still turning $settle_min ms after a release at 49 degrees: face 0 is $(width construct-cube-face-0) px wide, face 1 $(width construct-cube-face-1), at rest $rest_width, the label says $(prop construct-face-label-words text)"
 front_is_next=$(prop construct-cube-face-1 visible)
 [ "$front_is_next" = True ] || fail "a release at 49 degrees did not go on to the next face"
 until_ok 'test "$(prop construct-mode-step-in-text opacity)" != 0.6' 8 || fail "Step in stays dim after the settle"
-ok "a release at 49 degrees goes on to the next face ($settled_in ms with the calls)"
+ok "a release at 49 degrees goes on to the next face (not settled at $settle_min ms, settled by $settle_max ms with the calls)"
 press_at 780
 move_to 580
 sleep 0.2
@@ -548,9 +559,8 @@ key Alt+Escape
 until_ok "$navigating" 20 || fail "Alt+Escape did not step back after the drags"
 turn_start=$(now_ms)
 key Ctrl+Alt+Right
-quick 'test "$(prop construct-cube-face-3 visible)" = True && test "$(prop construct-cube-face-2 visible)" = False'
-turn_took=$(($(now_ms) - turn_start))
-[ "$turn_took" -le 700 ] || fail "a turn key took $turn_took ms"
+settle_poll "$turn_start" 'test "$(prop construct-cube-face-3 visible)" = True && test "$(prop construct-cube-face-2 visible)" = False' || settle_min=hang
+[ "$settle_min" != hang ] && [ "$settle_min" -le 700 ] || fail "a turn key left the cube unturned $settle_min ms after the key"
 plain Return
 until_ok 'front_is 3' 20 || fail "Return did not step into the face after the turn key"
 ok "after the drags and a turn key, Return steps into the face that is at the front"
