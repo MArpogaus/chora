@@ -291,8 +291,8 @@ slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
 act = "Right of a remote turns the page in dark mc"
-capture = "mc-r1-footer-next"
-finding = "guide-checks r2: mc-r1-footer-next: a word of the builders"
+capture = "mc-r0-footer-next"
+finding = "guide-checks r2: mc-r0-footer-next: a word of the builders"
 id = "I10"
 look = "mc"
 match = "a word of the builders"
@@ -300,8 +300,8 @@ slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
 act = "a second Right of a remote turns on"
-capture = "mc-r0-header-head"
-finding = "guide-checks r2: mc-r0-header-head: a word of the builders"
+capture = "mc-r1-header-head"
+finding = "guide-checks r2: mc-r1-header-head: a word of the builders"
 id = "I10"
 look = "mc"
 match = "a word of the builders"
