@@ -9,8 +9,7 @@
 repo=$(cd "$(dirname "$0")/.." && pwd)
 [ $# -gt 0 ] || set -- "$repo/tests/gate-tiling-empty-output.sh" flag
 count_env() { find /tmp -maxdepth 1 -name 'gate-env.*' 2>/dev/null | wc -l; }
-# shellcheck disable=SC2009 # counts only; pgrep -f by name is barred in tests
-count_wall() { ps -eo args= | grep -c '[w]allpaper\.sh' || true; }
+count_wall() { ps -eo args= | awk '$1 ~ /(^|\/)(ba)?sh$/ && $2 ~ /wallpaper\.sh$/' | wc -l; }
 env_before=$(count_env)
 wall_before=$(count_wall)
 "$@" >/dev/null 2>&1
