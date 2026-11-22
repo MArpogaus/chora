@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-22 19:34 UTC)
+## Now (2026-11-22 19:35 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 19:01 PM 4.9 % (Bangkok 11-22) + 0.6 % (11-23), week about 13 % (lanes est.) vs 24 % pace; under pace: 6 lanes
 session branch: 6b01c976 (t108 green 13:01: GATE-ALIVE); 63 greens. t109b-f red on flakes (f: FLK-TX-STALL). t109g red 18:38: FLK-CUBE-SETTLE (load). t109h same head 18:45.
