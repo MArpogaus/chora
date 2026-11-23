@@ -533,6 +533,16 @@ mod tests {
     }
 
     #[test]
+    fn super_s_opens_the_settings_in_an_editor() {
+        let config = parse::<Config>(DEFAULT).unwrap();
+        assert_eq!(
+            config.common.bindings["MOD+s"],
+            Action::System(System::Run("chora-tiling --launch settings".into()))
+        );
+        assert_eq!(config.labels["MOD+s"], "Edit settings");
+    }
+
+    #[test]
     fn the_media_keys_change_the_volume() {
         let config = parse::<Config>(DEFAULT).unwrap();
         for (key, change) in [

@@ -1138,6 +1138,24 @@ mod tests {
     }
 
     #[test]
+    fn edit_settings_stands_beside_the_reload_key() {
+        let groups = groups();
+        let system = &groups[groups.len() - 1].1;
+        let at = system
+            .iter()
+            .position(|(_, words)| words == "Edit settings")
+            .expect("a row Edit settings in the system group");
+        assert_eq!(system[at].0, "Super+S");
+        assert_eq!(
+            system[at + 1],
+            (
+                "Super+Ctrl+R".to_owned(),
+                "Read the settings again".to_owned()
+            )
+        );
+    }
+
+    #[test]
     fn the_give_keys_have_a_group_of_their_own_next_to_the_windows() {
         let groups = groups();
         assert_eq!(groups[1].0, "Other looks");
