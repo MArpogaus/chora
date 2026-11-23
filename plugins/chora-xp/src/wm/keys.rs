@@ -212,13 +212,16 @@ impl Wm {
     }
 
     /// Ctrl+Escape and Super alone: opens or closes the start menu, but
-    /// not under the shade of Log Off or Turn Off.
+    /// not under the shade of Log Off or Turn Off. On a hosted cube it
+    /// opens on the face at the front (rcf-7), else on the first bar.
     pub(super) fn toggle_start(&mut self) -> Vec<Command> {
         if self.dialog.is_some() {
             return Vec::new();
         }
         let mut commands = self.close_context();
-        if let Some(output) = self.bars.first().map(|b| b.output.clone()) {
+        let output = (self.front_face().map(String::from))
+            .or_else(|| self.bars.first().map(|b| b.output.clone()));
+        if let Some(output) = output {
             commands.extend(self.press_taskbar(taskbar::Part::Start(output)));
         }
         commands

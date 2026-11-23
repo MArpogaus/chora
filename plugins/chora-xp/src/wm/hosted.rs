@@ -127,11 +127,18 @@ impl Wm {
         (self.host.as_ref()).is_some_and(|h| event == cube::event(&h.client))
     }
 
+    /// The output of the face at the front of the cube of the host; none
+    /// without a host.
+    pub(super) fn front_face(&self) -> Option<&str> {
+        (self.host.as_ref())
+            .and_then(|h| h.faces.get(self.front))
+            .map(String::as_str)
+    }
+
     /// Whether the window `surface` lies on the face at the front of the
     /// cube of the host; every window does without a host.
     pub(super) fn on_front(&self, surface: &str) -> bool {
-        let front = (self.host.as_ref()).and_then(|h| h.faces.get(self.front));
-        front.is_none_or(|output| self.output_of(surface).as_ref() == Some(output))
+        (self.front_face()).is_none_or(|output| self.output_of(surface).as_deref() == Some(output))
     }
 
     /// The host turned its cube (`NAME.cube`). At rest on a face, the
@@ -139,7 +146,8 @@ impl Wm {
     /// that xp holds on a window of another face, which does not show,
     /// or on its own nodes, go to the topmost window of the front face,
     /// else to its icons (co-50); keys on the icons go to the topmost
-    /// window of the face. Keys that another client holds stay there.
+    /// window of the face. Keys that another client holds stay there, also
+    /// when a menu shuts (rcf-9).
     pub(super) fn host_turned(&mut self, turned: cube::Turned) -> Vec<Command> {
         if turned.turning {
             return Vec::new();
@@ -165,8 +173,7 @@ impl Wm {
     /// Shuts the Start menu and a context menu that are open on a face out
     /// of sight: the keys that they hold would go there.
     fn shut_menus_off_front(&mut self) -> Vec<Command> {
-        let front = (self.host.as_ref()).and_then(|h| h.faces.get(self.front).cloned());
-        let Some(front) = front else {
+        let Some(front) = self.front_face().map(String::from) else {
             return Vec::new();
         };
         let mut commands = Vec::new();
