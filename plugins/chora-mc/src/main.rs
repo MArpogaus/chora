@@ -1940,6 +1940,23 @@ mod tests {
         assert_eq!(door_items(&mc, &first), doors, "the doors are back");
     }
 
+    /// On a small output too the box of the chat ends above the doors
+    /// (mc-56).
+    #[test]
+    fn the_chat_ends_above_the_doors_on_a_small_output() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, _) = crate::testing::mc("chat-doors-small", [1280, 720]);
+        mc.show("agenda", false).unwrap();
+        mc.event(chat_event("assistant", true, "test")).unwrap();
+        let rect = mc.chat_slot().expect("the chat has a box");
+        let column = mc.boxes_of("agenda")[&crate::region::Region::Right];
+        let baseline = mc.settings.value.scale.baseline;
+        assert!(
+            rect[1] + rect[3] + 2.0 * baseline <= column[1] + column[3],
+            "the chat {rect:?} ends above the doors of {column:?}"
+        );
+    }
+
     /// Another output or another client than the host changes nothing.
     #[test]
     fn only_the_host_opens_the_chat_on_the_output_of_mc() {
