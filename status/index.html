@@ -57,7 +57,7 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-23T03:01:00Z",
+  updated: "2026-11-23T03:05:00Z",
   start: "2026-11-21T04:00:00Z",   // budget reset (owner)
   end: "2026-11-28T03:59:00Z",     // next reset; F5, F7 carried over
   budget: 16,                       // % of the new week used (reset 04:00)
@@ -68,12 +68,12 @@ const S = {
     ["F4", "No file over 1,500 lines", "done", "met by audit r4 (14:23): 0 files over; every lint and debt count below the RC value (debt 25 of 47); the lint ratchet (train 90) freezes the counts"],
     ["F5", "No flaky tests, coverage over 80 %", "risk", "reopened 22 Nov after review: coverage 91.76 % holds, but one construct test went red twice since the five-green series; it is met again when that flake is fixed and a second independent five-gate series is green"],
     ["F6", "Every change through the merge gate", "done", "65 green merges, all reviewed; train 111 (the harness fix) green 03:00 UTC (10:00 Bangkok); train 112 with eight reviewed branches runs"],
-    ["F7", "No visual regression vs tour v8", "behind", "plan accepted (tour v9); the v8 picture diff passed review and merges now; the tour set and the design-guide checks are in a fix round after review"],
+    ["F7", "No visual regression vs tour v8", "behind", "tour v9 retake reviewed 03:05 UTC: the comparison is now fair (clock and launcher pinned), but 109 of 110 acts still differ from v8, mostly text under 12 px and gaps flagged by the design checks; next round names each failing element, then one fix lane per look"],
     ["F8", "Docs and decision records", "done", "merged 18:30 (train 68), reviewed; doc fixes merged (train 72)"]
   ],
   now: [
     "Train 111 merged green at 03:00 UTC (10:00 Bangkok): a gate cell that is killed no longer leaves a compositor behind. Train 112 runs now with eight reviewed branches: xp idle, tiling fix and the tiling round (inner gap 12, a whole number of 4), cube settle, flake hint, mc round, the watchdog hang fix and the construct capsule capture.",
-    "Running: the tour v9 retake with a fair comparison (pinned clock, one launcher environment) and a tiling round on a layout flake and the bar's key focus (T1b).",
+    "Running: a tiling round on a layout flake and the bar's key focus (T1b), and a new construct user test with three simulated users (round 6). The tour v9 retake is done and reviewed; its tool fixes join train 113.",
     "Spending is under pace (about 16 % of the week at 03:01 UTC, 10:01 Bangkok; the line is at 32 %). Merging is the bottleneck; after train 112 the haiku series and the construct persona retest start."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
