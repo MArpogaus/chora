@@ -1208,7 +1208,11 @@ class PersonaContracts(unittest.TestCase):
         self.assertEqual(verdict("T6", ctx(), snap(), snap(blocks=notify(1))), [])
 
     def test_t7_no_window_lost(self):
-        self.assertEqual(verdict("T7", ctx(), snap(), snap()), [])
+        given = snap(nodes=[surface("s1", "tiling", focused=True)])
+        self.assertEqual(verdict("T7", ctx(), given, snap()), [])
+        stays = verdict("T7", ctx(), snap(), snap())
+        self.assertEqual(len(stays), 1)
+        self.assertIn("no window changed look", stays[0])
         gone = snap(nodes=[], toplevels=set())
         self.assertIn("windows lost ['s1']", verdict("T7", ctx(), snap(), gone)[0])
 
