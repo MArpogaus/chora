@@ -123,10 +123,36 @@ impl Wm {
         (self.host.as_ref()).is_some_and(|h| event == cube::event(&h.client))
     }
 
-    /// The host turned its cube (`NAME.cube`); xp does nothing with it.
-    #[expect(clippy::unused_self, reason = "the red of co-50: xp ignores the turn")]
-    pub(super) fn host_turned(&mut self, _turned: cube::Turned) -> Vec<Command> {
-        Vec::new()
+    /// Whether the window `surface` lies on the face at the front of the
+    /// cube of the host; every window does without a host.
+    pub(super) fn on_front(&self, surface: &str) -> bool {
+        let front = (self.host.as_ref()).and_then(|h| h.faces.get(self.front));
+        front.is_none_or(|output| self.output_of(surface).as_ref() == Some(output))
+    }
+
+    /// The host turned its cube (`NAME.cube`). At rest on a face, keys
+    /// that xp holds on a window of another face, which does not show,
+    /// go to the topmost window of the front face, else to its icons
+    /// (co-50); keys on the icons go to the topmost window of the face.
+    /// Keys that another client holds stay there.
+    pub(super) fn host_turned(&mut self, turned: cube::Turned) -> Vec<Command> {
+        if turned.turning {
+            return Vec::new();
+        }
+        self.front = turned.front;
+        let window = (self.focused.clone())
+            .filter(|s| !self.node_away() && self.core_focus.as_deref() == Some(s));
+        if window.is_none() && !self.own_node() {
+            return Vec::new();
+        }
+        if window.as_deref().is_some_and(|s| self.on_front(s)) {
+            return Vec::new();
+        }
+        let next = self.topmost_except("");
+        if next.is_none() && window.is_none() {
+            return Vec::new();
+        }
+        self.focus(next.as_deref())
     }
 
     /// A client went: when it hosted the faces, `chora-xp` goes flat on

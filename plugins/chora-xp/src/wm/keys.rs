@@ -359,6 +359,9 @@ impl Wm {
     /// The part of [`Self::focus_moved`] about the windows of `chora-xp`.
     fn window_focus_moved(&mut self, surface: Option<&str>) -> Vec<Command> {
         self.core_focus = surface.map(Into::into);
+        if surface.is_some() {
+            self.dropped = None;
+        }
         if let Some(surface) = surface.filter(|s| self.index(s).is_some()) {
             if self.focused.is_some() {
                 return Vec::new();
@@ -372,6 +375,7 @@ impl Wm {
         let Some(previous) = self.focused.take() else {
             return Vec::new();
         };
+        self.dropped = surface.is_none().then(|| previous.clone());
         self.grab_system_key(false);
         let mut commands = self.restyle(&previous);
         commands.extend(self.sync_tasks());

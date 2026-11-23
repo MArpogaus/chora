@@ -26,7 +26,7 @@ until_ok() {
     return 1
 }
 core_focus() { ctl query '*' | python3 -I -c 'import json, sys; print("\n".join(n["id"] for n in json.load(sys.stdin) if n.get("focused")))'; }
-xp_focus() { ctl call xp state.get '{}' | python3 -I -c 'import json, sys; f = json.load(sys.stdin)["focus"]; print(f.get("holder") or "-", f.get("surface") or "-")'; }
+xp_focus() { ctl call xp state.get '{}' 2>/dev/null | python3 -I -c 'import json, sys; f = json.load(sys.stdin)["focus"]; print(f.get("holder") or "-", f.get("surface") or "-")' 2>/dev/null || echo "- -"; }
 quiet() { ctl call construct state.get '{}' | python3 -I -c 'import json, sys; sys.exit(1 if json.load(sys.stdin)["busy"] else 0)'; }
 dump() { echo "core: $(core_focus | tr '\n' ' ') xp: $(xp_focus) construct: $(ctl call construct state.get '{}' | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["focus"])')"; }
 
@@ -44,8 +44,8 @@ ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV"
 ctl call construct cube.open >/dev/null || fail "cube.open failed"
 until_ok 'ctl query id:xp-bar-VIRTUAL-1 | grep -q xp-bar' 80 || fail "xp shows no taskbar on the front face"
 until_ok quiet 80 || fail "the cube is still busy: $(ctl call construct state.get "{}")"
-echo '[{"pointer_move": {"position": [640, 300]}}, {"click": {}}]' | ctl inject >/dev/null
-until_ok 'xp_focus | grep -q "^xp"' 40 || fail "a click on face 0 gave xp no keys: $(dump)"
+click_face() { echo '[{"pointer_move": {"position": [640, 300]}}, {"click": {}}]' | ctl inject >/dev/null; }
+until_ok 'xp_focus | grep -q "^xp" || { click_face; false; }' 40 || fail "a click on face 0 gave xp no keys: $(dump)"
 
 "$bin/chora-probe" window 200 100 50 --report >"$XDG_CONFIG_HOME/face0.log" 2>&1 &
 pids+=($!)

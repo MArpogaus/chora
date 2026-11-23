@@ -327,12 +327,54 @@ class Ctx:
         return any(re.match(pattern, line) for line in self.calls)
 
 
+def flavor_looks(look, snap):
+    """The looks whose focus and windows are those of `look`: the look and,
+    while the cube of the construct is open in use mode, the window manager
+    of its faces. In use mode the pointer and the keys of the front face
+    reach that manager and its windows (docs/cube-modes.md, States), so a
+    window that it opens there and focuses is the person's (co-48, co-49)."""
+    listing = snap.cube or {}
+    if look != "construct" or listing.get("mode") != "use":
+        return {look}
+    return {look} | {f.get("manager") for f in listing.get("faces") or [] if f.get("manager")}
+
+
+def focus_with_flavor(ctx, after_):
+    """The one holder of the focus is the look, or the manager of the front
+    face on a window that shows or on its own nodes; else the holders."""
+    held = holders_of(after_)
+    looks = flavor_looks(ctx.look, after_)
+    if len(held) != 1 or not set(held) <= looks:
+        return sorted(held)
+    ((holder, sid),) = held.items()
+    windows = (after_.states.get(holder) or {}).get("windows") or []
+    if (
+        holder == ctx.look
+        or sid is None
+        or any(w.get("surface") == sid and w.get("shown") for w in windows)
+    ):
+        return None
+    return sorted(held)
+
+
+def verify_flavor_focus(ctx):
+    """C3: the look holds the focus, or the manager of its front face does."""
+
+    def verify(after_):
+        held = focus_with_flavor(ctx, after_)
+        return [] if held is None else [f"expected the focus with {ctx.look}, holders {held}"]
+
+    return verify
+
+
 def verify_new_window(ctx, before):
-    """A new toplevel of the look that has the focus."""
+    """A new toplevel of the look, or of the manager of its front face, that
+    has the focus."""
 
     def verify(after_):
         new = new_windows(before, after_)
-        if not any(n.get("owner") == ctx.look and n.get("focused") for n in new):
+        looks = flavor_looks(ctx.look, after_)
+        if not any(n.get("owner") in looks and n.get("focused") for n in new):
             return [f"no new focused window of {ctx.look}; new: {[n['id'] for n in new]}"]
         return []
 
@@ -364,9 +406,10 @@ def verify_helper(ctx):
             out.append("no agent entry answers in the transcript of the helper")
         if words[-1:] != ["idle"]:
             out.append(f"the helper ends {words[-1:]}, not idle")
-        holder = (after_.states.get(ctx.look) or {}).get("focus", {}).get("holder")
-        if holder != ctx.look:
-            out.append(f"the focus is with {holder}, not back with {ctx.look}")
+        if focus_with_flavor(ctx, after_) is not None:
+            holder = (after_.states.get(ctx.look) or {}).get("focus", {}).get("holder")
+            held = sorted(holders_of(after_)) or [holder]
+            out.append(f"the focus is with {', '.join(map(str, held))}, not back with {ctx.look}")
         return out
 
     return verify
@@ -683,7 +726,7 @@ def contracts(task, ctx, before):
         "M2": Expect(open=ctx.left, focus="mc"),
         "C1": Expect(cube={}),
         "C2": Expect(verify=verify_no_window_lost(ctx, before)),
-        "C3": Expect(focus=ctx.look),
+        "C3": Expect(verify=verify_flavor_focus(ctx)),
     }
     return table.get(name)
 
