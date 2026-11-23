@@ -253,3 +253,6 @@ Nothing was fixed in the product. The comparison is now fair on launchers (same 
 - Done-when: replay, take, diff, video check on the merged head; 110 verdict rows; every regression listed with its first diff line; counts r1 vs r2. Met.
 - Open for r3 (not findings of this branch): RV9-1 the tiling bar clock is an unmasked pixel diff (t1, rect 12,8,399,32); RV9-2 the fa3e20a6 rows (tiling boxes) rest on one 20 px diff, verify on a second act; RV9-3 no cause for tiling window rects, mc agenda today rows, construct-mode-*, xp-item rects; RV9-4 the flipped checks (I6 63 rows, I2 14) need the element and check line per row, the take keeps none.
 - Verdict (computed, 0 MAJOR): MERGE-OK ec45efbb (tour tools and intended rows only). Joins the next train.
+
+## Train t112b (PM, 03:51 UTC)
+Red: acts cell, tests/test_tour.py:464 test_the_chapters_use_each_scene_of_intended_toml: 81 change rows of intended.toml name a row id with its letter (c2b, c3b, ... x9b), not a scene of the chapters. Verdict FIX (RV9-5); the r2 review missed that the acts cell was not in the lane's run. record-v9 is out of t112c; r3 fixes it with the full gate.
