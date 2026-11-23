@@ -420,6 +420,24 @@ preflight_tools
 . "$repo/tests/gate-lock.sh"
 gate_lock merge-gate || die "cannot take the gate lock"
 
+refuse_leftover_compositors() {
+    local cmdline pid left=
+    [ -z "${MERGE_GATE_NESTED:-}" ] || return 0
+    for cmdline in /proc/[0-9]*/cmdline; do
+        pid=${cmdline#/proc/}
+        pid=${pid%/cmdline}
+        [ "$pid" != "$$" ] || continue
+        if tr '\0' ' ' <"$cmdline" 2>/dev/null | grep -Eq '(^|/)chora --headless '; then
+            left+="  pid $pid: $(tr '\0' ' ' <"$cmdline")"$'\n'
+        fi
+    done
+    [ -n "$left" ] || return 0
+    echo "merge-gate: a chora --headless of an earlier run lives and takes CPU from the cells; end it, then run again:" >&2
+    printf '%s' "$left" >&2
+    exit 1
+}
+refuse_leftover_compositors
+
 runs=${MERGE_GATE_RUNS:-/tmp}
 mkdir -p "$runs" || die "no run directory"
 run_dir=$(mktemp -d "$runs/merge-gate.XXXXXX") || die "no run directory"

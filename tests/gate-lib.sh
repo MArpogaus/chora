@@ -122,6 +122,8 @@ session_start() {
     "$repo/tests/headless-session.sh" "$@" >"$env_file" 2>&1 &
     pids+=($!)
     trap gate_cleanup EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
     for _ in $(seq 60); do
         grep -q CHORA_SOCKET "$env_file" && break
         sleep 0.5
