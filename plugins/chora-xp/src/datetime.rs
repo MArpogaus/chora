@@ -185,9 +185,9 @@ impl DateDialog {
             );
         }
         controls.extend([
-            Control::push("ok", "OK", [156, 287]).default(),
-            Control::push("cancel", "Cancel", [237, 287]),
-            Control::push("apply", "Apply", [318, 287]).enabled(false),
+            Control::push("ok", "OK", [156, 285]).default(),
+            Control::push("cancel", "Cancel", [237, 285]),
+            Control::push("apply", "Apply", [318, 285]).enabled(false),
         ]);
         Page {
             body: Some(body),

@@ -21,7 +21,9 @@ use crate::{
     context::{Act, Entry},
     control::{self, SCALES, Toggles},
     decoration::{self, BORDER, TITLE},
-    dialog::{self, BLACK, Control, Dialog, Hit, Page, SCROLL, bar_click, scroll_bar, thumb},
+    dialog::{
+        self, BLACK, BUTTON, Control, Dialog, Hit, Page, SCROLL, bar_click, scroll_bar, thumb,
+    },
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
     wallpaper::{self, Position},
@@ -223,9 +225,9 @@ impl DisplayDialog {
         let [_, h] = SIZE;
         let changed = self.shown != self.applied || self.scale != self.screen.scale;
         controls.extend([
-            Control::push("ok", "OK", [156, h - 29]).default(),
-            Control::push("cancel", "Cancel", [237, h - 29]),
-            Control::push("apply", "Apply", [318, h - 29]).enabled(changed),
+            Control::push("ok", "OK", [156, h - 31]).default(),
+            Control::push("cancel", "Cancel", [237, h - 31]),
+            Control::push("apply", "Apply", [318, h - 31]).enabled(changed),
         ]);
         Page {
             body: Some(body),
@@ -850,8 +852,8 @@ impl EffectsDialog {
                 ),
                 Control::check("cube", "Turn between desktops on a cube", row(2), t.cube),
                 Control::check("sounds", "Play Windows XP's sounds", row(3), t.sounds),
-                Control::push("ok", "OK", [w - 2 * 73 - 6 - 11, h - 32]).default(),
-                Control::push("cancel", "Cancel", [w - 73 - 11, h - 32]),
+                Control::push("ok", "OK", [w - 2 * BUTTON[0] - 6 - 11, h - 34]).default(),
+                Control::push("cancel", "Cancel", [w - BUTTON[0] - 11, h - 34]),
             ],
         }
     }

@@ -67,9 +67,9 @@ impl TaskbarDialog {
         }
         let [_, h] = SIZE;
         controls.extend([
-            Control::push("ok", "OK", [156, h - 29]).default(),
-            Control::push("cancel", "Cancel", [237, h - 29]),
-            Control::push("apply", "Apply", [318, h - 29]).enabled(self.shown != self.applied),
+            Control::push("ok", "OK", [156, h - 31]).default(),
+            Control::push("cancel", "Cancel", [237, h - 31]),
+            Control::push("apply", "Apply", [318, h - 31]).enabled(self.shown != self.applied),
         ]);
         Page {
             body: Some(body),
