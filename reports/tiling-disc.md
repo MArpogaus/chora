@@ -113,3 +113,10 @@ Counts: BLOCK 0, MAJOR 0, MINOR 1, NIT 1. Verdict: MERGE-OK 7adb149c, train119.
 - Red on 7adb149c: `FAIL: a click on the Zebra row did not start zebra` (tests/gate-tiling-apps-click.sh). Cause: chora-settings.desktop (Edit settings) makes four rows (alpha, Edit settings, Screenshot, Zebra); the fixed zebra_row_y=533 was row 3 of 3.
 - Fix (test only): Zebra y = first_row_y 477 + index 3 * row_h 28 (line-height of fuzzel.ini); header updated. Branch head ca165f7b on claude/tiling-disc (fix commit ca165f7b).
 - Gate: tests/merge-gate.sh --jobs 2 full, exit 0, 64 cells PASS, e2e PASS, acts PASS.
+
+## PM review r4 (2026-11-23 23:14 UTC)
+Base 7adb149c..ca165f7b, 1 file, +8/-3 (tests/gate-tiling-apps-click.sh only).
+- rtd-6 closed: Zebra y = 477 + 3*28 = 561 for four rows (alpha, Edit settings, Screenshot, Zebra); worker reports red on 7adb149c, gate-tiling-apps-click green, full gate EXIT 0 (64 PASS) on the branch merged with the session head.
+- Red first: the fix is to the test itself; the red is the failing cell on the base, reproduced. Accepted.
+- rtd-7 MINOR: zebra_index=3 is a constant; the next .desktop in flavors/tiling/applications shifts it again. Derive it from the sorted Name= list. Backlog, after the RC.
+Verdict (computed): 0 open MAJOR -> MERGE-OK ca165f7b, train122.
