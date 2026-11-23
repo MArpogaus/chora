@@ -2,6 +2,7 @@
 
 Model: opus, effort high, because the diff moves key focus between the construct host and xp faces (stray keys, rc bar) and loosens three persona contract checks; the builder never reviews itself (rules.md 7)
 Lane: cloud, read-only on code: claude/co-focus head 866382dd, base 86e619f3 (10 files, +358 -10). One round.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`; a failure: send_message the PM "review co-focus BLOCKED: <line>" and stop.
 Stop at 120 k context; cost at most 0.5 %; at most 8 findings. No merge gate run (the lane ran it green: 60 PASS).
 Read briefs/co-focus-r1.md (done criteria), reports/co-focus.md "## r1" and findings/construct.md co-48..co-51 on claude/session-log; `git diff 86e619f3..866382dd`.
 Checks, each with its command and files:
