@@ -468,6 +468,12 @@ class SceneIds(unittest.TestCase):
             seen = {}
             for number, (_, scene) in enumerate(self.acts(chapter), 1):
                 ids.add(tour.act_id(chapter, number, scene, seen))
+        for chapter in self.CHAPTERS:
+            tree = ast.parse((ROOT / "demo" / "tour" / "chapters" / f"{chapter}.py").read_text())
+            for loop in (n for n in ast.walk(tree) if isinstance(n, ast.For)):
+                for call in (n for n in ast.walk(loop) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "act"):
+                    scene = next((k.value.value for k in call.keywords if k.arg == "scene" and isinstance(k.value, ast.Constant)), None)
+                    ids |= {f"{scene}{letter}" for letter in "bcdefghij"} if scene else set()
         self.assertEqual([c["act"] for c in table["change"] if c["act"] not in ids], [])
 
     def test_the_first_row_of_h2_is_the_send_to_act(self):
