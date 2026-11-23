@@ -45,7 +45,7 @@ groups() {
 import json, sys
 for n in json.load(sys.stdin):
     if n["id"].startswith("tw-"):
-        print(n["id"], round(n["transform"]["matrix"][12]), round(n["opacity"], 3))
+        print(n["id"], round(n["transform"]["matrix"][12]), round(n["opacity"], 3), int(n["visible"]))
 ' <<<"$all" | sort
 }
 shown=$(groups) || fail "the query of the groups"
@@ -69,16 +69,25 @@ PY
 ok "a layout change slides the windows and they end at their places"
 
 ctl call tiling view_tag '{"tag": 2}' >/dev/null || fail "view_tag 2"
-sleep 1
-ctl call tiling view_tag '{"tag": 1}' >/dev/null || fail "view_tag 1"
-coming=$(groups) || fail "the query of the groups"
-sleep 1
-there=$(groups) || fail "the query of the groups"
-python3 -I - "$coming" "$there" <<'PY' || fail "a tag switch does not bring the windows in from the side"
-import sys
-a, b = ({l.split()[0]: float(l.split()[1]) for l in s.splitlines()} for s in sys.argv[1:])
-assert a and all(abs(a[k] - b[k]) > 200 for k in a), f"first sample {a}, settled {b}"
-PY
+for _ in $(seq 60); do
+    left=$(groups) && [ -n "$left" ] && [ "$(awk '$4 != 0' <<<"$left" | wc -l)" = 0 ] && break
+    sleep 0.25
+done
+[ "$(awk '$4 != 0' <<<"$left" | wc -l)" = 0 ] || fail "the windows of tag 1 stay shown on tag 2: $left"
+frames=$XDG_CONFIG_HOME/frames
+mkdir -m 700 "$frames"
+printf '{"frame": 1, "method": "methods.call", "params": {"client": "tiling", "method": "view_tag", "params": {"tag": 1}}}\n' >"$frames/script"
+"$bin/choractl" grant choractl methods.call >/dev/null || fail "the grant"
+timeout 60 "$bin/choractl" record --frames 24 --out "$frames" --script "$frames/script" >/dev/null || fail "the recording"
+for _ in $(seq 60); do
+    there=$(groups) && [ "$(awk '$4 != 1' <<<"$there" | wc -l)" = 0 ] && break
+    sleep 0.25
+done
+ctl capture --output HEADLESS-1 "$shot" >/dev/null || fail "the capture"
+for x in 330 960; do
+    [ "$(pixel "$frames/frame-00024.png" "$x" 400)" = "$(pixel "$shot" "$x" 400)" ] || fail "the last frame does not show the window at $x,400 as it stands"
+    [ "$(pixel "$frames/frame-00002.png" "$x" 400)" != "$(pixel "$shot" "$x" 400)" ] || fail "a tag switch does not bring the windows in from the side: the window at $x,400 stands there in the second frame"
+done
 ok "a tag switch brings the windows in from the side"
 
 mkdir -p "$XDG_CONFIG_HOME/chora"
