@@ -31,7 +31,7 @@ ctl call tiling settings.reload >/dev/null || fail "settings.reload"
 keys Super+slash
 sleep 2
 shown=$(list)
-for word in "Next window" "Super+J" "Say hello" "Super+X" "Closes it" ; do
+for word in "Move focus" "Super+J" "Say hello" "Super+X" "Closes it" ; do
     case $word in "Closes it") word="Esc closes it" ;; esac
     grep -q "$word" <<<"$shown" || fail "the key list does not show '$word'"
 done
@@ -82,7 +82,7 @@ ok "the key list stays clear of the bar"
 
 keys Escape
 sleep 1
-grep -q "Next window" <<<"$(list)" && fail "Esc did not close the key list"
+grep -q "Move focus" <<<"$(list)" && fail "Esc did not close the key list"
 [ ! -s "$log" ] || fail "Esc reached the window while the list was open"
 keys Escape
 sleep 1

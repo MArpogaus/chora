@@ -1095,13 +1095,51 @@ mod tests {
     fn the_rows_follow_the_order_of_a_person_not_of_the_keys() {
         let groups = groups();
         let names: Vec<&str> = groups.iter().map(|(n, _)| *n).collect();
-        assert_eq!(names, ["Windows", "Layouts", "Tags", "Programs", "System"]);
+        assert_eq!(
+            names,
+            [
+                "Focus",
+                "Other looks",
+                "Windows",
+                "Layouts",
+                "Tags",
+                "Programs",
+                "System"
+            ]
+        );
         let first = |g: usize| groups[g].1[0].1.clone();
-        assert_eq!(first(0), "Next window");
-        assert_eq!(first(1), "Next layout");
-        assert_eq!(first(2), "Show tag 1-9");
-        assert_eq!(first(3), "Open a terminal");
-        assert_eq!(groups[0].1[1].1, "Previous window");
+        assert_eq!(first(0), "Move focus");
+        assert_eq!(first(2), "Move window down");
+        assert_eq!(first(3), "Next layout");
+        assert_eq!(first(4), "Show tag 1-9");
+        assert_eq!(first(5), "Open a terminal");
+        assert_eq!(groups[0].1[1].1, "Window before");
+    }
+
+    #[test]
+    fn the_focus_keys_are_the_first_row_in_plain_words() {
+        let groups = groups();
+        let (keys, words) = &groups[0].1[0];
+        assert_eq!(words, "Move focus");
+        for key in ["Super+J", "Super+K", "Alt+Tab"] {
+            assert!(keys.split(" / ").any(|k| k == key), "{key} in {keys}");
+        }
+    }
+
+    #[test]
+    fn the_give_keys_have_a_group_of_their_own_near_the_top() {
+        let groups = groups();
+        assert_eq!(groups[1].0, "Other looks");
+        assert_eq!(
+            groups[1].1,
+            [(
+                "Super+Alt+1-4".to_owned(),
+                "Give window to a look".to_owned()
+            )]
+        );
+        let de = rows(&parse::<Config>(DEFAULT).unwrap(), Language::De);
+        assert_eq!(de[0].0, "Fokus");
+        assert_eq!(de[1].0, "Andere Fenstermanager");
     }
 
     fn words_of(commands: &[Command]) -> Vec<String> {

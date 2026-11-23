@@ -433,6 +433,23 @@ mod tests {
     use super::*;
 
     #[test]
+    fn alt_tab_moves_the_focus_and_gives_way_to_mod_tab_under_alt() {
+        let config = parse::<Config>(DEFAULT).unwrap();
+        assert_eq!(
+            config.common.bindings["Alt+Tab"],
+            Action::Look(Own::FocusNext)
+        );
+        let alt = DEFAULT.replace("modifier: Super", "modifier: Alt");
+        assert_ne!(alt, DEFAULT);
+        let config = parse::<Config>(&alt).unwrap();
+        assert!(!config.common.bindings.contains_key("Alt+Tab"));
+        assert_eq!(
+            config.common.bindings["MOD+Tab"],
+            Action::Look(Own::FocusBack)
+        );
+    }
+
+    #[test]
     fn a_key_twice_and_a_step_without_a_number_fail() {
         let twice = DEFAULT.replace(
             "  MOD+Ctrl+r: reload\n",
