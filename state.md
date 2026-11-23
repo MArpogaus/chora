@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-23 14:50 UTC)
+## Now (2026-11-23 14:52 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 14:50 PM 4.9 % (11-22) + 4.8 % (11-23), week about 20 % vs 35 % pace
 session branch: bc153929 (t115 green 12:46); 69 greens.
@@ -15,14 +15,14 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 | 4, 5 | CI green on a PR; packaging | pre-commit green; CI PR at release |
 | 6 | Review per area | r1 MERGE-OK (0 MAJOR; MC-FOCUS) |
 | 7 | deny, machete; updates | open: RUSTSEC-2026-0592 url 2.5.8 (GUARD-3) |
-| 8 | Docs, CHANGELOG, known issues | DOCS-RC r1 merged (54c30d16); r2 pr-1..5 |
+| 8 | Docs, CHANGELOG, known issues | DOCS-RC r2 MERGE-OK 37730187 (pr-1..5) |
 | 9 | Flakes, window loss | sh-33 harness cause, fixed (leak, train117); sl-9 MAJOR soak rerun on 84c8c5d2; sl-1, sl-2 |
 | 11 | Tour v9 | open = F7 |
 
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| docs-rc-r2.md (rc 8; 0.5 %) | sonnet medium, claude/docs-rc-r2 bc153929 | session_016iS3kN9ocLnwiwQ9UmSdQR 13:31 |
+| docs-rc-r2.md (rc 8; 0.5 %) | sonnet medium, claude/docs-rc-r2 bc153929 | 37730187 MERGE-OK (PM review); train118 |
 | guard-3-r1.md (rc 7, F8, F5; 0.4 %) | sonnet medium, claude/guard-3 bc153929 | session_016iS3kQXc6CfmWM1E25AtoY 13:21 |
 | tiling-disc-r2.md (rc 2; 0.5 %) | sonnet medium, 8df47cc8 | rtd-2 MAJOR, session_016iS3kQ5NkvrDUTB6RZrnrd 14:50 |
 | xp-readable-r2.md (F7; 1 %; rxr-1, rxr-2 MAJOR) | sonnet high, claude/xp-readable 2d2413f6 | session_016iS3kNgMdxh6qSY3pspBtZ 14:17 |
