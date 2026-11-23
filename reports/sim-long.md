@@ -82,3 +82,50 @@ lane does not change product code.
 - Checks: run 3 h 05 min, 89 passes, tables match the per-pass logs named; brief done criteria met (report, findings with log lines, no product change).
 - Findings go to the ledger: sl-3 MAJOR (core abort, 18/18, any client can trigger it: core must stay safe); sl-1 MAJOR (W9 core RSS +236 % in under 3 min, 18/18); sl-2 MEDIUM; sl-4 MEDIUM (voice, nine items, fakes vs flow open); sl-5 MEDIUM; sl-6 LOW unconfirmed; sl-7 method LOW (3 h single core next round); sl-8 LOW env noise.
 - Verdict on the branch (doc only): MERGE-OK; joins t109. Next: CORE-DIAG r1 (opus high) pins causes of sl-3 and sl-1 with repro and red-test plan; fix round after split-c merges (same core files).
+
+## r2
+
+Head: `claude/sim-long-r2` 84c8c5d2 (on `230ea0e5`; scripts `081a9890` frame-p99, `84c8c5d2` soak-core). Build: `cargo check` and `cargo build --workspace` (debug) green on `230ea0e5`. Not run: the merge of `5b34d4b1` and the gate (PM: skipped). Raw data: `/tmp/sim-long-r2/` (not in git).
+
+**Repros** (r1 method, 5 runs each):
+
+| repro | runs | result | r1 |
+|---|---|---|---|
+| repro-sl3: 10000 creates in one scene.apply | 5 | 5/5 green, 0.8 to 1.1 s, no watchdog line | red, 15.0 s and core abort 18/18 |
+| repro-sl1: RSS after last close vs start (bar +60 MB) | 5 | 5/5 green, start 149 to 152 MB, after last close 159 to 168 MB (+10 to +19 MB) | after last close 243 MB (+89 MB) in the r1 fix lane |
+| repro-sl1: peak, 12 windows, cycle 3 | 5 | 206 to 211 MB; anon 94 MB, other 101 MB, shared 7 MB | 376 MB peak, bar 266 MB |
+
+repro-sl3 covers only the 10000-create step; the 1 MiB line and the 5000-nested-groups step from r1 are not in it.
+
+**Full workflows, end RSS of chora:**
+
+| workflow | passes | start | end | core-diag / r1 | in-session growth |
+|---|---|---|---|---|---|
+| W9 | 3 | 152.6 to 153.2 MB | 240.1, 240.1, 240.3 MB | 288 MB (core-diag) | +57 % |
+| W11 | 3 | 136.8 to 142.1 MB | 215.1, 215.7, 220.0 MB | 243 MB (r1) | +52 to +55 % |
+
+**Frame time p99** (`chora-probe live 400`, its frame callback intervals, 3 passes each; source `tests/probe`, `live`): relayout (set_layout cycling over 12 steps) p99 107.6, 109.9, 109.9 ms (mean 24 to 26 ms). Master-width sweep 0.30 to 0.70 by `settings.set` (no pointer drag injected) p99 25.8, 23.1, 28.6 ms (mean 19.3 to 19.6 ms). No baseline in r1 or core-diag; recorded only.
+
+**3 h soak** (sl-7 follow-up): one core for the whole run, one session (chora-tiling on output 2, chora-mc with `--manage-windows`, confined client box0). Rounds of W9/W11/W12-style steps, 85 rounds, 10:10:22 to 13:19 UTC; sampler by pid every 600 s to `/tmp/sim-long-r2/samples.csv`. Not in it: W10 (xp) and W16 (voice), which need their own session. Method flaw, found during the run: the churn step's 6 extra windows were never closed, so 6 windows stayed open per round (6 at round 1, 510 at round 85). The run used the old script; the fix is in `84c8c5d2`.
+
+| process | first sample (0 s) | last sample (11301 s) | linear fit over the run |
+|---|---|---|---|
+| chora RSS | 173 MB | 1838 MB | +449 MB/h (mean 1178 MB) |
+| chora fds | 32 | 1050 | +291 fds/h |
+| chora-tiling RSS | 13.5 MB | 27 MB (round 85: 26.8 MB) | not fitted |
+| chora-mc RSS | 17.6 MB | 33 MB (round 85: 29.3 MB) | not fitted |
+
+Round-end RSS of chora (after every window is closed in the script; includes the windows still open, see above): round 1 273 MB, round 10 366 MB, round 20 616 MB, round 30 975 MB, round 40 1249 MB, round 50 1533 MB, round 60 2001 MB, round 70 530 MB, round 80 1686 MB, round 85 1838 MB. The round 70 drop is not explained: the core stayed alive and the rise resumed (2.1 GB by round 74).
+
+First hour vs last hour, chora RSS samples (MB): first hour 169, 592, 485, 1096, 1364, 450, 462; last hour 1667, 887, 2493, 1019, 2221, 1795. The series is a sawtooth, not a monotone rise.
+
+**Deaths:** none; the core is alive to DONE. **Stalls:** the core log has 114 "frames are slow" lines. The first: `chora::safety`, 10:10:23 (host busy, took 28 ms). The first watchdog drop: 10:10:57 "frames are slow; no client alone reaches the owner budget; the watchdog drops all effects load=2377". Tiling is disconnected by the watchdog (code 6) at least 11 times, and `chora-mc` drops its effects repeatedly (first at 10:13:02). Also `chora::mesh`, 10:10:34: "layers exceed 67108864 pixels in a frame; some stay out". Client errors on tiling restart: "socket: Broken pipe (os error 32); I come back" (13 times), "Connection reset by peer (os error 104)". Soak wrong findings: `set_layout tile_left refused (round 70)`, `settings.set gap refused (round 72)`; neither is verified.
+
+**Findings:**
+
+- **sl-1** (W9 growth), open. Repro closed (5/5 green, +10 to +19 MB). W9 end 240 MB is below core-diag 288 MB, but in-session growth is +57 % (over the 5 % bar). Look: W9, log `/tmp/sim-long-r2/run-w9-N.run`.
+- **sl-2** (W11 growth), open. W11 end 215 to 220 MB is below r1 243 MB, but in-session growth +52 to +55 % and chora-mc +95 %. Look: W11, log `/tmp/sim-long-r2/run-w11-N.run`.
+- **sl-3** (W12 core death), closed for the 10000-create step (repro-sl3 5/5 green, 0.8 to 1.1 s, no abort). Open for the 1 MiB line and the nested-groups step, which are not reproduced here.
+- **sl-9** (soak, MAJOR, new): core RSS and fds grow over the 3 h soak: linear fit +449 MB/h and +291 fds/h, round-end RSS 273 MB to 2.25 GB by round 67 (over the 5 %/h bar many times over). Look: soak in one core, log `/tmp/sim-long-r2/chora-soak.log` (first error lines above), samples `/tmp/sim-long-r2/samples.csv`. Attribution not settled: the RSS rise tracks the count of open windows, which the soak itself left open (a script fault, now fixed in `84c8c5d2`), and the round 70 drop coincides with tiling being dropped by the watchdog (not verified). The next soak run must use `84c8c5d2`, and then the RSS slope per hour with the windows count fixed is the measurement that closes or confirms sl-9.
+- **sl-4..sl-8:** not in this round.
+- **frame p99:** recorded only (no bar yet). Relayout p99 of about 108 ms on a debug build under llvmpipe is the number to beat.
