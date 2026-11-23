@@ -175,12 +175,19 @@ impl Wm {
         commands
     }
 
-    /// The topmost window of the desktop that shows, other than one.
+    /// The topmost window of the desktop that shows, other than one; on
+    /// the faces of a host, of the face at the front.
     pub(super) fn topmost_except(&self, surface: &str) -> Option<String> {
         self.windows
             .iter()
             .rev()
-            .find(|w| w.surface != surface && w.shown && !w.minimized && w.desktop == self.desktop)
+            .find(|w| {
+                w.surface != surface
+                    && w.shown
+                    && !w.minimized
+                    && w.desktop == self.desktop
+                    && self.on_front(&w.surface)
+            })
             .map(|w| w.surface.clone())
     }
 
@@ -248,12 +255,22 @@ impl Wm {
             id: decoration::group_id(surface),
             to: None,
         });
-        if self.is_active(surface) {
+        if self.is_active(surface) || self.dropped_by_its_close(surface) {
             let next = self.topmost_except(surface);
             commands.extend(self.focus(next.as_deref()));
         }
         commands.extend(self.sync_tasks());
         commands
+    }
+
+    /// Whether the core stopped focusing the window `surface` as it closed:
+    /// it focuses nothing since and no node of another client took the
+    /// keys, so the keys would go nowhere (co-51).
+    fn dropped_by_its_close(&mut self, surface: &str) -> bool {
+        self.dropped.take_if(|d| d == surface).is_some()
+            && self.focused.is_none()
+            && self.core_focus.is_none()
+            && !self.node_away()
     }
 
     pub(super) fn retitle(
