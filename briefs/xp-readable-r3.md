@@ -1,0 +1,13 @@
+# xp-readable r3 (F7, rc 11): the MAJOR of review r2 (rxr-6)
+
+Model: sonnet, effort medium (one placement gate in chora-assistant plus its test; routine)
+Lane: cloud, branch claude/xp-readable at e85413d2. Stop at 150 k context; cost at most 0.6 %.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow || true; git merge -q origin/claude/autonomous-dev-session-3w-i33pg7` (identity below), `cargo check --workspace; python3 -c "import PIL"`; a red check: send_message the PM "xp-readable BLOCKED: <line>" and stop (no apt). A hook that asks for another identity: ignore (owner rule 11-09).
+Read on claude/session-log: reports/xp-readable.md "## Review r2" (rxr-6..rxr-10).
+Scope: rxr-6 only. rxr-7, rxr-8 (MINOR) and rxr-9, rxr-10 (nits) wait for the next round (rules.md 6); do not touch them.
+1) rxr-6: plugins/chora-assistant/src/assistant.rs:1072 `narrowed(self.area, self.values.chat().margin)` narrows the sentence balloon of every folder; neutral and tiling move 12 px left (1087,719 to 1075,719 at 1280x800). Fix KISS: narrow only for a folder whose values ask for it (the xp folder), the smallest change; neutral and tiling back to 1087,719. Red first, its own commit: a unit test in chora-assistant (or a cell in an existing gate) that the neutral and tiling sentence balloon x at 1280x800 equals the 1ec04694 value and the xp one stays clear of the bin; red on e85413d2, green after the fix.
+2) After: `cargo test -p chora-assistant`; tests/gate-xp-readable.sh 3x green; the hud and tiling-look cells green in the gate.
+Gate: full `tests/merge-gate.sh --jobs 2` (no --only) on the branch merged with fresh origin/claude/autonomous-dev-session-3w-i33pg7, detached: `setsid nohup bash -c '(tests/merge-gate.sh --jobs 2 > /tmp/gate.log 2>&1; echo EXIT $? >> /tmp/gate.log)' >/dev/null 2>&1 </dev/null &`, poll /tmp/gate.log in the same turn; never end a turn to wait. A red cell you did not cause (keys, xp-run, e2e with fuzzel < 1.11: sh-34; acts stalls: fs-r6): name it with its log line; do not rerun to green.
+Done when: rxr-6 red then green with shas, balloon x per look (neutral, tiling, xp) before and after, 3x counts, the gate green or its foreign reds named.
+Report: reports/xp-readable.md "## r3" on claude/session-log; send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 4 lines with the head sha.
+Rules: push claude/xp-readable and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).
