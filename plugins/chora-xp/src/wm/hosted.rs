@@ -508,6 +508,139 @@ mod tests {
         );
     }
 
+    /// rcf-3: the Start menu is open on face 0 and holds the keys when the
+    /// host turns to face 2: the menu shuts, out of sight it takes no
+    /// keys, and the keys go to `s2` of the front face.
+    #[test]
+    fn a_turn_at_rest_shuts_the_start_menu_of_a_face_out_of_sight() {
+        let mut wm = hosted("host-turn-menu");
+        let _ = wm.press_taskbar(crate::taskbar::Part::Start("V-1".into()));
+        assert_eq!(wm.menu.output(), Some("V-1"), "the menu opens on face 0");
+        wm.key_node = Some(super::super::NAME.into());
+        let commands = wm.host_turned(turned(2));
+        assert_eq!(wm.menu.output(), None, "the menu stays open: {commands:?}");
+        assert!(
+            commands.contains(&chora_kit::wm::focus::give("s2")),
+            "{commands:?}"
+        );
+    }
+
+    /// rcf-3: the Start menu that the icons opened on face 0 holds the
+    /// keys when the host turns to face 1, which has no window: the menu
+    /// shuts and the keys go to the icons, not to the menu out of sight.
+    #[test]
+    fn a_turn_at_rest_to_a_face_without_windows_takes_the_keys_off_the_menu() {
+        let mut wm = hosted("host-turn-menu-icons");
+        wm.focused = None;
+        wm.core_focus = None;
+        let _ = wm.press_taskbar(crate::taskbar::Part::Start("V-1".into()));
+        wm.key_node = Some(super::super::NAME.into());
+        let commands = wm.host_turned(turned(1));
+        assert_eq!(wm.menu.output(), None, "the menu stays open: {commands:?}");
+        assert!(
+            commands.contains(&icons()),
+            "the icons get no keys: {commands:?}"
+        );
+    }
+
+    /// A fake core with the four faces of a construct whose front is
+    /// `front`, as `cube.list` tells, and with `screen` besides them.
+    fn construct_core(front: usize, screen: bool) -> chora_kit::testing::FakeCore {
+        let core = chora_kit::testing::FakeCore::start();
+        let mut outputs: Vec<OutputInfo> = (0..4)
+            .map(|i| face_output(&format!("V-{}", i + 1), i))
+            .collect();
+        if screen {
+            let mut x = face_output("X", 0);
+            x.position = [0, 0];
+            x.work_area = [0, 0, 1280, 800];
+            x.default_work_area = [0, 0, 1280, 800];
+            x.is_virtual = None;
+            x.owner = None;
+            outputs.insert(0, x);
+        }
+        core.outputs(serde_json::json!(outputs));
+        let mut faces = listing(&["V-1", "V-2", "V-3", "V-4"]);
+        faces.front = front;
+        let faces = serde_json::to_value(faces).unwrap();
+        core.respond(move |method, params| match method {
+            "methods.list" => Some(serde_json::json!([
+                {"name": cube::LIST, "client": "construct"}
+            ])),
+            "methods.call" if params["method"] == cube::LIST => Some(faces.clone()),
+            _ => None,
+        });
+        core
+    }
+
+    /// A window `surface` on the work area of `output`.
+    fn window_on(wm: &mut Wm, surface: &str, output: &str, desktop: usize) {
+        let usable = wm
+            .bars
+            .iter()
+            .find(|b| b.output == output)
+            .unwrap()
+            .usable();
+        let mut w = Window::new(surface, None, None);
+        w.size = Some([200, 100]);
+        w.shown = true;
+        w.desktop = desktop;
+        w.pos = [usable[0] + 40, usable[1] + 40];
+        wm.windows.push(w);
+    }
+
+    /// rcf-4: the construct starts xp again on its faces (its retry) while
+    /// face 1 is at the front. xp reads the front from the listing: when
+    /// the focused window of face 1 closes, the keys go to the icons, not
+    /// to `s0` of face 0, which does not show.
+    #[test]
+    fn xp_started_on_a_hosted_cube_reads_its_front_from_the_listing() {
+        let core = construct_core(1, false);
+        let mut wm = super::super::tests::wm_on_kit_core(&core, "host-retry-front");
+        assert!(wm.host.is_some(), "xp finds no host");
+        assert_eq!(wm.front, 1, "the front is not the listing's");
+        window_on(&mut wm, "s1", "V-2", 0);
+        window_on(&mut wm, "s0", "V-1", 0);
+        wm.focused = Some("s1".into());
+        wm.core_focus = Some("s1".into());
+        let commands = wm.forget("s1");
+        assert!(
+            !commands.contains(&chora_kit::wm::focus::give("s0")),
+            "{commands:?}"
+        );
+    }
+
+    /// rcf-4: the host comes back with face 1 at the front: xp reads the
+    /// front from the listing, and a close of the focused window of face
+    /// 1 gives no keys to `s0` of face 0.
+    #[test]
+    fn a_host_that_comes_back_gives_xp_its_front() {
+        let core = construct_core(1, true);
+        let mut wm = super::super::tests::wm_on_kit_core(&core, "host-back-front");
+        for face in ["V-1", "V-2", "V-3", "V-4"] {
+            let _ = wm.leave_output(face, None);
+        }
+        wm.host = None;
+        wm.front = 0;
+        wm.left = Some(Host {
+            client: "construct".into(),
+            faces: (1..=4).map(|i| format!("V-{i}")).collect(),
+        });
+        window_on(&mut wm, "s1", "X", 1);
+        window_on(&mut wm, "s0", "X", 0);
+        let _ = wm.host_back(&cube::event("construct"));
+        assert!(wm.host.is_some(), "the host is not back");
+        assert_eq!(wm.front, 1, "the front is not the listing's");
+        assert_eq!(wm.output_of("s1").as_deref(), Some("V-2"));
+        wm.focused = Some("s1".into());
+        wm.core_focus = Some("s1".into());
+        let commands = wm.forget("s1");
+        assert!(
+            !commands.contains(&chora_kit::wm::focus::give("s0")),
+            "{commands:?}"
+        );
+    }
+
     #[test]
     fn a_host_lists_every_output_as_a_face() {
         let faces = listing(&["V-1", "V-2", "V-3", "V-4"]);
