@@ -86,3 +86,11 @@ and xp-fields have.
   turn is not explained. It is bounded and given back, not a leak.
 - Not covered by this cell: the soak's "tiling watchdog disconnects" and
   the round-70 drop in r2.
+
+## PM review r1
+- 11-23 14:55 PM (seeded rule: diff 172 lines, PM not the builder): MERGE-OK 677790dc, 0 BLOCK, 0 MAJOR.
+- Red first holds: a1ac013c, 196d8408 (test(leak) sh-33) before 978b1673 (fix(battle) sh-33).
+- sh-33 cause is the harness (un-kept probe windows), not the product; gate-leak.sh asserts slope <= 1024 kB/round, fds +1/10 rounds, windows and clients back to base.
+- NIT: gate-leak.sh waits by sleep 0.5/1/3; a later round may poll instead.
+- Lane gate reds keys, xp-run, e2e: fuzzel 1.9.2 in the lane container (sh-34), foreign.
+- Joins train117 (sim-long-r2, mc-tidy, leak).
