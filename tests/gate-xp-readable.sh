@@ -6,17 +6,19 @@
 #                      taskbar (our own element, not Luna) have 4.5:1 in
 #                      every state: at rest, under the pointer, and dimmed
 #                      behind Turn off computer
-#   session-labels     the five captions of Turn off computer (Lock .. Restart)
-#                      have the contrast of the floor of the exemption of
-#                      known-red.toml, 3.0:1 (white on the Luna panel alone is
-#                      2.1:1 at its light middle; the caption has the shadow
-#                      that XP gives its captions)
+#   session-labels     the captions of Lock, Log Off and Restart of Turn off
+#                      computer (our own buttons) have 4.5:1 as white on their
+#                      backing; Stand By and Turn Off are Luna's and lie on its
+#                      panel fill, exempt in known-red.toml (white on it 2.1:1)
 #   cancel-target      Cancel of Turn off computer is 24 px high or more
 #   inactive-title     the title of a window that is not active has 4.5:1
 #   bin-clear          the Recycle Bin is not under the chat balloon
 #   datetime-metrics   the push buttons of Date and Time are the 75 x 23 of XP
 #
 # Every cell runs and prints; the gate fails when one is red.
+# The captions have a shadow, so the own ones are measured as white (--text=FFFFFF), not as the
+# farthest colour, which is the shadow; Stand By and Turn Off lie on the dialog.svg fill #92B1F3 to
+# #95B4F5 at their place (2.1:1 white), exempt in known-red.toml, the fill is checked.
 # at_least RATIO MIN LABEL is red below the minimum; contrast FILE X Y W H prints the ratio alone;
 # pager_digits FILE LABEL measures the digit of each pager button; the title text of a window follows
 # the icon of the application and the edge of the frame, so its first 110 px are measured.
@@ -75,7 +77,13 @@ read -r x y w h <<<"$(rect xp-session-button-5)"
 [ "${h:-0}" -ge 24 ] || red "cancel-target: Cancel of Turn off computer is ${w:-?} x ${h:-?}, wants 24 px high or more"
 for n in 0 1 2 3 4; do
     read -r x y w h <<<"$(rect "xp-session-button-$n")"
-    at_least "$(contrast "$shots/turnoff.png" "$x" "$((y + h - 16))" "$w" 15)" 3.0 "session-labels: caption $n of Turn off computer"
+    if [ "$n" = 2 ] || [ "$n" = 3 ]; then
+        read -r r g b <<<"$(python3 -I "$repo/tests/png-contrast.py" "$shots/turnoff.png" "$x" "$((y + h - 16))" "$w" 15 --text=FFFFFF | sed 's/.* on (\(.*\))/\1/; s/,//g')"
+        { [ "${r:-0}" -ge 144 ] && [ "$r" -le 151 ] && [ "${g:-0}" -ge 175 ] && [ "$g" -le 182 ] && [ "${b:-0}" -ge 241 ] && [ "$b" -le 247 ]; } ||
+            red "session-labels: caption $n of Turn off computer lies on (${r:-?}, ${g:-?}, ${b:-?}), not the Luna fill (148, 179, 244) of its exemption"
+    else
+        at_least "$(contrast "$shots/turnoff.png" "$x" "$((y + h - 16))" "$w" 15 --text=FFFFFF)" 4.5 "session-labels: caption $n of Turn off computer"
+    fi
 done
 key Escape
 sleep 1

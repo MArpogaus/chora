@@ -31,10 +31,16 @@ node = "xp-menu-frame"
 reason = "authentic Luna Start menu header: white on #2779DD, a fill of startmenu-header in winxp/winxp.svg, exact (4.32:1)"
 
 [[exempt]]
-floor = 3.0
+floor = 2.0
 look = "xp"
-node = "xp-session-button-"
-reason = "captions of Turn off computer: white as in Luna on the dialog.svg panel with the shadow of the title text; 7:1 is out of reach on that panel (black on its darkest edge is 5.6:1), the floor is the tray's"
+node = "xp-session-button-2"
+reason = "authentic Luna caption Stand By of Turn off computer: white as in XP on the panel fill of winxp/dialog.svg, measured (148, 179, 244) between its stops #92B1F3 and #95B4F5, within 2 per channel (2.1:1 white; tests/gate-xp-readable.sh keeps the fill)"
+
+[[exempt]]
+floor = 2.0
+look = "xp"
+node = "xp-session-button-3"
+reason = "authentic Luna caption Turn Off of Turn off computer: white as in XP on the panel fill of winxp/dialog.svg, measured (148, 179, 244) between its stops #92B1F3 and #95B4F5, within 2 per channel (2.1:1 white; tests/gate-xp-readable.sh keeps the fill)"
 
 [[red]]
 act = "a drag with the modifier on the front face turns the cube"
