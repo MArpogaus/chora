@@ -87,3 +87,15 @@ PASS. An earlier full run on 043af297 had lint-ratchet red (361: a second
 - mr-1 NIT: clock_gives_way sets the clock width to the share of the room, but shorten_front cuts whole words, so the kept text can be wider than that width; with only the time left it can still touch the head. Known issues; the 1024x768 cell passes.
 - Gate: all PASS but tiling-windows "the layout word took 291 ms to follow the change" (foreign; new FLK-TILING-LAYOUT in backlog).
 Verdict: MERGE-OK (0 MAJOR); joins t112.
+
+## r2
+
+- merge 4f64e247 (origin 86e619f3 into 9ed1fbc8), resolve 8ba700f5.
+- red after merge: plugins/chora-mc/src/main.rs:1693 the_doors_leave_while_the_chat_is_open, left: 5 right: 0.
+- resolve: doors stay (MH-2); door_items doc says so; that test removed (MH-2's test supersedes).
+- chora-mc 195 passed, 0 failed. Gate: full merge-gate --jobs 2, 60 cells PASS, EXIT 0 (acts and mc cells green). No headless chora left.
+
+## Review r2 (PM, 2-file diff 4f64e247..8ba700f5)
+- Brief done criteria: merge and resolve commits named; red line pasted; chora-mc 195/195; full gate 60 PASS EXIT 0. Gap: gate-mc-column 5/5 light and dark not reported (the full gate ran it once green); not a MAJOR.
+- The removed test asserted the I6 rule the PM decision overrides (MH-2 holds); door_items doc matches the code.
+- Verdict (computed): 0 MAJOR, MERGE-OK 8ba700f5; joins t113.
