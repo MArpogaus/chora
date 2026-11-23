@@ -82,3 +82,16 @@ Findings:
 - rtd-3 | MAJOR | plugins/chora-tiling/src/keys.rs (r1: groups Windows, Layouts, Tags, Programs, System) | acts red in the lane gate: tiling "the keys key opens the key list" I5 overlap 'Start a program or run a command' / 'System', I6 contrast 6.51:1 on 'Windows'. Not foreign: acts PASS on 1ec04694 (train117b, 2491 s); train116 stopped before acts, so r1 never ran it. Fix: lay out and colour the key list so I5 and I6 hold; acts is the red.
 - rtd-4 | MINOR | tests/gate-persona-keep.sh | rtd-1's test came in the fix commit and was never shown red. Fix: show it red against the old round.sh (paste the line) in the r3 report.
 - rtd-2 holds: Aa/Ab/Ac rows, launcher-click 3/3 alone, PASS in the gate.
+
+## r3
+
+- Head 7adb149c on claude/tiling-disc (merged with origin/claude/autonomous-dev-session-3w-i33pg7 at f952fa50, then one test fix).
+- rtd-3 red: `BIN=target/debug python3 -I tests/acts/run.py --no-selftest tiling` on 3b32b9b4 (the acts runner has no per-act filter; the tiling look alone, 31 cells):
+  `FAIL: tiling I5: ... 'Start a program or run a command' (tiling-keys-body-38-l) overlaps 'System' (tiling-keys-body-87) at [641.0, 595.0, 51.0, 17.0]`
+  `FAIL: tiling I6: ... 'Windows' (tiling-keys-body-3) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1`
+- Red first ac62a53d: keys.rs tests `no_box_of_the_list_overlaps_another` (En, De; "Start a program or run a command" over "System") and `the_titles_and_the_header_read_at_7_to_1_on_the_panel` (Ink 6.51) failed on 3b32b9b4's code.
+- Fix (a611c08a, fa076e7b, 658119d7): COLUMN 416 to 536 and PANEL_WIDTH 880 to 1000 (the long Programs row ran into column 2); group titles and the header use the text token (7:1+) instead of muted (the muted token stays 4.5:1 elsewhere); keycaps 13 to 14 px (I6 floor, MONO_ADVANCE 8.4, CAP_TEXT_DY 0). Five groups and "Edit settings" kept. Raised no bar.
+- known-red.toml (0a44f6af, 658119d7): 52 rows of tiling "the keys key opens the key list" (I6, captures tiling-keys-body-*: contrast and 13 px) now pass, and acts blocks a listed pass, so those rows are removed; none added. tests/gate-tiling-keys.sh keycap width check 7.8 to 8.4 per key (7adb149c); it was the one red of the first gate run (keys-more).
+- Counts: chora-tiling unit tests 191 pass. acts tiling alone after the fix: 30 pass, 1 known red, 0 blocking (the key-list act pass).
+- rtd-4 red: tests/gate-persona-keep.sh against round.sh of c9d57fb9^ (git show c9d57fb9^:tests/persona/round.sh copied in place, restored after): `FAIL: a session that ignores TERM is still running after round.sh stop`. The test fails there, so no commit.
+- Gate (merge-gate.sh --jobs 2, full, on f952fa50 plus 7adb149c): first run 1 red, tiling-keys-more (mine, fixed above). Second run (7adb149c): 58 PASS incl. acts (2010 s) PASS, keys PASS, xp-run PASS; 1 FAIL: leak: `FAIL: the RSS of the core grows 1848 kB per round (bound 1024)` (rounds 3..8, fds 24 to 24). Not mine: the core RSS over a tiling+xp+mc round loop; this lane changes only the key list layout of chora-tiling (keys.rs constants and colours) and test scripts, and the log shows fds flat. Not rerun. The gate stops at the first red, so cells after leak did not run in this run.
