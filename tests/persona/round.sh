@@ -118,7 +118,10 @@ stop() {
         kill "$(cat "$dir/run/$name.probe.pid")" 2>/dev/null || true
         rm -f "$dir/run/$name.probe.pid"
     fi
-    "$repo/tests/persona/session.sh" --stop "$env_file" || echo "session $name did not end in 40 s" >&2
+    "$repo/tests/persona/session.sh" --stop "$env_file" || {
+        echo "session $name did not end in 40 s; killing it" >&2
+        kill -KILL "$(sed -n 's/^PERSONA_SESSION_PID=//p' "$env_file")" 2>/dev/null || true
+    }
     local waited
     for waited in $(seq "$((${ROUND_STOP_WAIT:-30} * 2))"); do
         [[ -z $(ls -A "$keep/$name" 2>/dev/null) ]] || break

@@ -33,6 +33,16 @@ status=$?
 grep -q "$ROUND_DIR/keep/gone" <<<"$out" || fail "the failure does not name the folder: $out"
 ok "stop fails and names the capture folder when the session kept nothing"
 
+(trap '' TERM; exec sleep 300) &
+deaf=$!
+pids+=("$deaf")
+echo "PERSONA_SESSION_PID=$deaf" >"$dir/deaf.env"
+echo "$dir/deaf.env" >"$ROUND_DIR/run/deaf.env"
+"$repo/tests/persona/round.sh" stop deaf >/dev/null 2>&1
+sleep 0.5
+! kill -0 "$deaf" 2>/dev/null || fail "a session that ignores TERM is still running after round.sh stop"
+ok "round.sh stop ends a session that ignores TERM with KILL"
+
 rm -rf "$ROUND_DIR"
 mkdir -p "$ROUND_DIR/run"
 export ROUND_STOP_WAIT=30 CHORA_BIN=$bin
