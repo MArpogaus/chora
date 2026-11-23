@@ -760,7 +760,7 @@ fn header(body: &str, colors: &Colors, lang: Language) -> Vec<Command> {
              power icon: lock, log out, screenshot",
         )
     };
-    let muted = channels(&colors.muted);
+    let muted = channels(&colors.text);
     vec![
         text(
             &format!("{body}-t"),
@@ -1366,7 +1366,7 @@ mod tests {
     }
 
     #[test]
-    fn a_group_title_reads_at_7_to_1_on_the_panel() {
+    fn the_titles_and_the_header_read_at_7_to_1_on_the_panel() {
         let luminance = |rgb: [f64; 3]| {
             let [r, g, b] = rgb.map(|c| {
                 if c <= 0.039_28 {
@@ -1386,19 +1386,25 @@ mod tests {
                 &colors,
                 Language::En,
             );
-            let title = list
-                .iter()
-                .find_map(|c| match c {
-                    Command::Create { id, props, .. } if id == "tiling-keys-body-3" => props.color,
-                    _ => None,
-                })
-                .expect("a title");
-            let (a, b) = (
-                luminance([title[0], title[1], title[2]]),
-                luminance(channels(&colors.surface)),
-            );
-            let ratio = (a.max(b) + 0.05) / (a.min(b) + 0.05);
-            assert!(ratio >= 7.0, "{scheme:?}: {ratio:.2}");
+            for want in [
+                "tiling-keys-body-3",
+                "tiling-keys-body-h",
+                "tiling-keys-body-m",
+            ] {
+                let title = list
+                    .iter()
+                    .find_map(|c| match c {
+                        Command::Create { id, props, .. } if id == want => props.color,
+                        _ => None,
+                    })
+                    .expect("a text");
+                let (a, b) = (
+                    luminance([title[0], title[1], title[2]]),
+                    luminance(channels(&colors.surface)),
+                );
+                let ratio = (a.max(b) + 0.05) / (a.min(b) + 0.05);
+                assert!(ratio >= 7.0, "{scheme:?} {want}: {ratio:.2}");
+            }
         }
     }
 
