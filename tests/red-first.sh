@@ -95,13 +95,17 @@ branch_test_ids() {
 
 id_verdict() {
     local missing id
-    provable_base || return 0
-    missing=$(missing_ids "$1" "$(branch_test_ids)")
+    missing=$(missing_ids "$1" "$2")
     [ -n "$missing" ] || return 0
     for id in $missing; do
-        echo "red-first: no commit before this one names $id and changes a test"
+        echo "red-first: $3 misses a test commit before it that names $id"
     done
     return 1
+}
+
+hook_id_verdict() {
+    provable_base || return 0
+    id_verdict "$1" "$(branch_test_ids)" "this commit"
 }
 
 red_first_hook() {
@@ -115,7 +119,7 @@ red_first_hook() {
     ids=""
     ! is_fix "$subject" || ids=$(finding_ids "$message")
     if [ -n "$ids" ]; then
-        notes=$(id_verdict "$ids") && {
+        notes=$(hook_id_verdict "$ids") && {
             [ -z "$notes" ] || echo "$notes"
             return 0
         }

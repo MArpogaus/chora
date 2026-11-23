@@ -185,7 +185,7 @@ done
 . "$repo/tests/red-first.sh"
 
 red_first() {
-    local missing=0 seen=0 sha subject body ids test_ids="" miss id
+    local missing=0 seen=0 sha subject body ids test_ids="" notes
     git -C "$repo" rev-parse --verify -q "$base" >/dev/null || die "no base ref $base"
     while read -r sha; do
         [ -n "$sha" ] || continue
@@ -202,12 +202,9 @@ red_first() {
         ids=""
         ! is_fix "$subject" || ids=$(cd "$repo" && commit_ids "$sha")
         if [ -n "$ids" ]; then
-            miss=$(missing_ids "$ids" "$test_ids")
-            [ -n "$miss" ] || continue
+            notes=$(id_verdict "$ids" "$test_ids" "$(git -C "$repo" log -1 --format=%h "$sha")") && continue
             echo "RED-FIRST MISSING: $(git -C "$repo" log -1 --format='%h %s' "$sha")"
-            for id in $miss; do
-                echo "red-first: $(git -C "$repo" log -1 --format=%h "$sha") misses a test commit before it that names $id"
-            done
+            echo "$notes"
             missing=1
             continue
         fi
