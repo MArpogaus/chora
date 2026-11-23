@@ -320,3 +320,157 @@ Base 230ea0e5..088d36de: 8 files, +1079 -10; code: tests/tour-diff.py +26, demo/
 - Slip: test fix folded into merge 05fa9abb by --amend (no force); no rule broken that a gate checks; noted.
 - F7 not met: 108 regressions remain (r4).
 Verdict: 0 BLOCK, 0 MAJOR in the diff: MERGE-OK; harness branch, own train t114 at 07:41.
+
+## r4 (record-v9, F7, RC 11)
+
+Head claude/record-v9 6949cddb (merge of origin/claude/autonomous-dev-session-3w-i33pg7 at the fresh tip, already contained: "Already up to date"). Commits: a88073e7 stub terminal, f3c05f1e date stub, 6949cddb intended rows. Step 0 green (unshallow, cargo check and build, foot ffmpeg waybar swaybg dbus-daemon, PIL). Replay baseline 733967aa in a worktree (built), takes of all chapters on both builds after the fixes.
+
+### 1 tiling terminal text (a88073e7, red first in tests/test_tour.py `StubTerminal`, 3 tests failed, then green)
+The bytes of the shell terminal and of the notes window were already equal (the r3 theory). What differed was the code window: it reads its size when it starts, while its tile still animates, so the baseline showed lines 110 to 119 and the candidate 118 to 126 of the same sample.rs (status line `NORMAL 99:1` equal, scroll not). Fix: `launch.foot_stub` writes the one `foot` of the chapter: the shell gets a fixed `PS1='$ '`, `bash --norc`, `cd /home/user/notes`; every content window waits `TILE_WAIT` 3 s for its tile (`sleep 3; python3 -I content.py ...`). After the retake, t3c: terminal, code and notes windows are pixel-equal in both builds.
+
+### 2 the clock (f3c05f1e, red first `FixedClock`, 3 tests)
+The product reads the time for mc by running `date` (plugins/chora-mc/src/region.rs `date`: clock contents, `since` of the agent), so a `date` first on PATH pins it: `launch.date_stub` (2026-11-23 18:51 UTC, any format), written next to the wpctl stub of both launchers. No node-id mask needed for mc. Note: the r3 theory "footer-next follows the wall clock" is wrong: `footer-next` is the line to the next page (manage.rs `next_page_line`), it reads no clock; the mc diffs come from page divergence (below).
+
+### 3 flipped checks (element and cause per family; scripts: pixel crop of the element rect on both takes)
+Why they flip at all: 733967aa has no `scene.boxes` (tour.py `OldCore`: "a snapshot without boxes"), and I6 (tests/acts/invariants.py `guide_breaches`) judges only the text boxes of `scene.boxes`: on the baseline I6 is green because it has nothing to read, not because the text passes. Where the crop of the element is pixel-identical in both builds the red is old and was never measurable on the baseline; no sha introduced it.
+
+| check | element | line | acts | crop of the element on 733967aa vs head | cause |
+|---|---|---|---|---|---|
+| I6 | xp-pager-N-HEADLESS-N | contrast 2.57:1 (white on 111,162,247), wants 4.5 | 84 | identical in 84 of 84 | none: present at 733967aa |
+| I6 | xp-pager-N-VIRTUAL-N | the same, 2.57:1 | 132 | differs | same colours, 2.57:1 as on HEADLESS; the position diff is not separated |
+| I6 | xp-task-sN-VIRTUAL-N / -HEADLESS-N | 3.60:1 and 3.86:1 (white on 56,126,242), wants 4.5 | 80 / 1 | identical in 69 of 80, 1 of 1 | none: present at 733967aa |
+| I6 | xp-title-sN | 2.16:1 (217,228,247 on 123,155,223), wants 4.5 | 52 | identical in 39 of 52 | none: present at 733967aa |
+| I6 | xp-icon-N, xp-session-button-N | 1.67:1, 3.56:1 (wants 7) | 1 / 5 | identical | none: present at 733967aa |
+| I6 | xp-menu-frame | 4.32:1 (white on 39,121,221) | 1 | differs | no commit found by `git log -S` on the colour; stays a regression, reason: the menu is open in the replay and shut in the take at x12c (20e4ad6e menus shut on a new window), the crops are of other states |
+| I2 | construct-mode-step-in / -turn-left | 9 apart, no whole number of 8 | 16 | differs | 1e7cc905 (co-39) |
+| I6 | construct-help-body-scope, -head-N, -head-N-every | 11 px, wants 14 | 1, 6, 3 | element absent in the replay | 918d4a3c (key sheet takes the keyboard, Close): new element |
+| I6 | tiling-keys-body-h, -m, -N | 6.50:1 on 26,29,40, wants 7 | 2, 2, 10 | differs | b8872054 (one key list, kit::keysheet) |
+| I6 | tiling-keys-body-N-k | 13 px, wants 14 | 92 | differs | b8872054 |
+| I6 | notify-card-body | 11 px, wants 14 | 2 (t7, t10c) | absent in the replay | 675ebd55 (chora-notify shows the notices) |
+
+Finding lines for the PM to file (checks that are red at the head; no intended row hides them):
+- rv9-1 | xp | MAJOR (design/rc.md row 1: readability) | I6 pager, task, title chrome: xp-pager-N 2.57:1, xp-task-sN 3.60:1, xp-title-sN 2.16:1, want 4.5:1 | no sha: identical at 733967aa, the baseline cannot measure it
+- rv9-2 | construct | MAJOR | I2 construct-mode-step-in and -turn-left are 9 apart (no whole number of 8), 16 acts | 1e7cc905
+- rv9-3 | tiling | MAJOR | I6 keys list: tiling-keys-body-h/-m/-N 6.50:1 (wants 7), tiling-keys-body-N-k 13 px (wants 14) | b8872054
+- rv9-4 | tiling, xp | MAJOR | I6 notify-card-body 11 px, wants 14 (the card of chora-notify outside mc, t7, t10c) | 675ebd55
+- rv9-5 | construct | MAJOR | I6 construct-help-body-scope, -head-N, -head-N-every 11 px, wants 14 | 918d4a3c
+- rv9-6 | xp | MINOR | I6 xp-menu-frame 4.32:1 (wants 4.5), xp-session-button 3.56:1 (wants 7), xp-icon-2 1.67:1 | no sha found
+(Severity read by me from design/rc.md row 1 "no BLOCK or MAJOR open"; the PM may rate them differently.)
+Elements of the same table with the full per-act numbers: /tmp is lost with the container; the table above is the record.
+
+### 4 rect families
+- Tiling windows and every text of the right tile column: the inner gap 10 to 12 (573496e5, I2 whole number of 4): tiles 1 px narrower, right column 2 px right. Proof, a controlled take: the candidate with `look: {gap_inner: 10}` matches the replay to the pixel outside the bar in 16 acts (no blob below y 48 except t8 and t10), and I2 then flips red (gap 10 is no whole number of 4). 16 acts got a pixel row (cause 573496e5 plus the bar commits of r3).
+- xp windows (`Notepad:None`, xp-frame, xp-title, min, max, close) +88 px in x: 09ff8ff9, bd5af4b3 (xp-28, new windows start right of the icons). hud-chat taller with a meta greeting: 4fec75c3 (xp-30). xp-item names shifted ('UXTerm' to 'Foot'): 29281054. A row only where every diff of that kind in the act comes from the family (checked per element id): 38 rows. Flipped I6 acts stay regressions (the check decides).
+- xp-item rect (17 acts, x12c) and xp-menu rect/visible: the replay has the Start menu open at x12c, the head has it shut: 20e4ad6e (menus shut on a new window) is the likely cause; no row (not proven by a controlled take).
+- notify-card rect (x2, x2b): card 83 px high against 70 (the head wraps the text): 675ebd55 shows the notices with chora-notify. No row: the I6 flip decides.
+- mc, everything after m4c: cause fa7faabd (mc-38, Home alone goes to the first page): at m4c the replay stays on its page (boil), the head goes to the agenda, so every later capture shows another page (m5 to m9b: boil/agents in the replay, agenda at the head): the scene ids, rects of mc-s-* and footers are of different pages. Not a clock effect. The chapter cannot make both builds land on the same page without product help; it stays a regression with this cause.
+- fa3e20a6 rows: there are none in demo/tour/intended.toml at the head (grep: 0; also 0 at ec45efbb); nothing to drop. No row of the file covers nothing (checked: every row has a diff of its act and kind in this take, handover rows by baseline_none).
+
+### 5 counts (r3 to r4; rows are captures)
+| chapter | same | change | regression |
+|---|---|---|---|
+| xp (31) | 0 to 0 | 0 to 0 | 31 to 31 |
+| tiling (28) | 1 to 1 (t5b) | 4 to 20 | 23 to 7 |
+| mc (22) | 0 to 0 | 1 to 1 (m7) | 21 to 21 |
+| construct (18) | 0 to 0 | 0 to 0 | 18 to 18 |
+| handover (11) | 0 to 0 | 0 to 0 | 11 to 11 |
+Total 1 same, 21 change, 88 regression (r3: 1, 1, 108). (r3 counted t1..t2 as regression; their rows now hold. The handover baseline stops at handover.py:190 as designed, TypeError after h1, `baseline_none` covers the rest.)
+
+### Remaining regression rows (all 88: chapter, act, unnamed kinds, flipped checks, first diff)
+| chapter | act | unnamed | flipped | first diff |
+|---|---|---|---|---|
+| construct | c1 | - | I6 | missing construct-hud in the baseline only |
+| construct | c2 | rect,pixel | I2,I6 | rect construct-focus HEADLESS-1 [585.3310000306703, 106.79326668349354, |
+| construct | c2b | rect,pixel | I2,I6 | rect construct-hints-construct-mode-step-in-keys-0 HEADLESS-1 [579.0, 656.0, 59.0, 24.0] -> [493.0, 6 |
+| construct | c3 | rect | I2,I6 | rect construct-hints-construct-mode-step-in-keys-0 HEADLESS-1 [579.0, 656.0, 59.0, 24.0] -> [493.0, 6 |
+| construct | c3b | rect,pixel | I2,I6 | rect construct-hints-construct-mode-step-in-keys-0 HEADLESS-1 [579.0, 656.0, 59.0, 24.0] -> [493.0, 6 |
+| construct | c3c | rect,pixel | I2,I6 | rect construct-hints-construct-mode-step-in-keys-0 HEADLESS-1 [579.0, 656.0, 59.0, 24.0] -> [493.0, 6 |
+| construct | c3d | rect,pixel | I2,I6 | rect construct-hints-construct-mode-step-in-keys-0 HEADLESS-1 [579.0, 656.0, 59.0, 24.0] -> [493.0, 6 |
+| construct | c3e | - | I2,I6 |  |
+| construct | c3f | - | I2,I6 |  |
+| construct | c3g | - | I2,I6 |  |
+| construct | c3h | - | I2,I6 |  |
+| construct | c4 | missing,rect,visible,pixel | I2,I6 | missing construct-door-clock in the baseline only |
+| construct | c4b | rect,pixel | I2,I6 | rect construct-hints-construct-mode-step-in-keys-0 HEADLESS-1 [579.0, 656.0, 59.0, 24.0] -> [493.0, 6 |
+| construct | c5 | - | I6 | missing construct-hud in the baseline only |
+| construct | c5b | - | I6 | missing construct-hud in the baseline only |
+| construct | c5c | rect | I2,I6 | rect construct-hints-construct-mode-step-in-keys-0 HEADLESS-1 [579.0, 656.0, 59.0, 24.0] -> [493.0, 6 |
+| construct | c5d | rect,pixel | I2,I6 | rect construct-hints-construct-mode-step-in-keys-0 HEADLESS-1 [579.0, 656.0, 59.0, 24.0] -> [493.0, 6 |
+| construct | c5e | rect,visible,missing,pixel | I6 | rect construct-cube-face-0 HEADLESS-1 [416.3970041360827, 229.3871119422142,  |
+| handover | h1 | missing,rect,added | I6 | missing construct-hud in the baseline only |
+| handover | h1b | missing,rect,added | I6 | missing construct-hud in the baseline only |
+| handover | h1c | missing,rect,added,pixel | I6 | missing construct-hud in the baseline only |
+| handover | h1d | missing,rect,added,pixel | I6 | missing construct-hud in the baseline only |
+| handover | h2 | - | I6 |  |
+| handover | h3 | - | I6 |  |
+| handover | h3b | - | I6 |  |
+| handover | h4 | - | I6 |  |
+| handover | h5 | - | I6 |  |
+| handover | h6 | - | I6 |  |
+| handover | h7 | - | I6 |  |
+| mc | m1 | rect | - | rect mc-r0-right-chat-door HEADLESS-1 [888.0, 194.0, 204.0, 28.0] -> [888.0,  |
+| mc | m10 | rect,visible,pixel | - | missing mc-r0-right-chat-door in the baseline only |
+| mc | m1b | rect | - | rect mc-r0-right-chat-door HEADLESS-1 [888.0, 194.0, 204.0, 28.0] -> [888.0,  |
+| mc | m1c | rect | - | missing mc-r0-right-notify in the baseline only |
+| mc | m2 | rect,visible,added,pixel | - | rect mc-r0-footer-hud HEADLESS-1 [287.5, 672.0, 111.0, 28.0] -> None |
+| mc | m2b | rect,visible,added,pixel | - | rect mc-r0-footer-hud HEADLESS-1 [287.5, 672.0, 158.0, 28.0] -> None |
+| mc | m3 | rect,visible,added,pixel | - | rect mc-r0-footer-hud HEADLESS-1 [287.5, 672.0, 63.0, 28.0] -> None |
+| mc | m3b | rect,missing,visible,added,pixel | - | rect mc-r0-footer-hud HEADLESS-1 [287.5, 672.0, 158.0, 28.0] -> [340.5,  |
+| mc | m4 | rect,visible | - | rect mc-r0-footer-hud HEADLESS-1 None -> [337.5, 672.0, 158.0, 28.0] |
+| mc | m4b | rect,visible | - | rect mc-r0-footer-hud HEADLESS-1 [287.5, 672.0, 158.0, 28.0] -> None |
+| mc | m4c | rect,visible,pixel | - | rect mc-r0-footer-hud HEADLESS-1 [287.5, 672.0, 158.0, 28.0] -> [340.5,  |
+| mc | m5 | rect,visible,pixel | - | missing mc-r0-right-notify-0 in the baseline only |
+| mc | m5b | rect,visible,pixel | - | rect mc-r0-footer-hud HEADLESS-1 [287.5, 672.0, 158.0, 28.0] -> [340.5,  |
+| mc | m6 | rect,visible,pixel | - | missing mc-r0-right-notify-0 in the baseline only |
+| mc | m6b | rect,visible,pixel | - | rect mc-r0-footer-hud HEADLESS-1 [287.5, 672.0, 158.0, 28.0] -> [340.5,  |
+| mc | m7b | rect | - | missing mc-r0-right-notify in the baseline only |
+| mc | m7c | rect,visible,pixel | - | rect mc-r0-footer-next HEADLESS-1 None -> [711.0, 672.0, 121.0, 28.0] |
+| mc | m8 | rect,visible,pixel | - | rect mc-r0-footer-next HEADLESS-1 None -> [711.0, 672.0, 121.0, 28.0] |
+| mc | m8b | rect,visible,pixel | - | rect mc-r0-footer-next HEADLESS-1 None -> [711.0, 672.0, 121.0, 28.0] |
+| mc | m9 | rect,visible,added,pixel | - | rect mc-r0-footer-next HEADLESS-1 [692.0, 672.0, 140.0, 28.0] -> [711.0,  |
+| mc | m9b | rect,visible,pixel | - | missing mc-r0-right-chat-door in the baseline only |
+| tiling | t10 | pixel | - | blob [12, 8, 475, 32] |
+| tiling | t10c | added,pixel | I6 | added notify-card in the candidate only |
+| tiling | t6 | rect,pixel | I6 | rect tiling-keys-body-0 HEADLESS-1 [198.0, 142.0, 63.0, 17.0] -> [225.0, 1 |
+| tiling | t6c | rect,pixel | I6 | rect tiling-keys-body-0 HEADLESS-1 [198.0, 142.0, 63.0, 17.0] -> [225.0, 1 |
+| tiling | t7 | added,pixel | I6 | added notify-card in the candidate only |
+| tiling | t8 | pixel | - | blob [12, 8, 475, 32] |
+| tiling | t9 | rect,pixel | - | rect shell:None HEADLESS-1 [14.0, 387.0, 1252.0, 319.0] -> [14.0,  |
+| xp | x1 | - | I6 | meta xp-item-3 'UXTerm' -> 'Foot' |
+| xp | x10 | pixel | I6 | rect Notepad:None HEADLESS-1 [288.0, 119.0, 700.0, 500.0] -> [376.0, |
+| xp | x10b | added,pixel | I6 | rect Notepad:None HEADLESS-1 [288.0, 119.0, 700.0, 500.0] -> [376.0, |
+| xp | x10c | pixel | I6 | rect Notepad:None HEADLESS-1 [288.0, 119.0, 700.0, 500.0] -> [376.0, |
+| xp | x11 | - | I6 | rect Notepad:None HEADLESS-1 [288.0, 119.0, 700.0, 500.0] -> [376.0, |
+| xp | x11b | pixel | I6 | rect Notepad:None HEADLESS-1 [288.0, 119.0, 700.0, 500.0] -> [376.0, |
+| xp | x12 | - | I6 | meta xp-item-3 'UXTerm' -> 'Foot' |
+| xp | x12b | pixel | I6 | rect Notepad:None HEADLESS-1 [288.0, 119.0, 700.0, 500.0] -> [376.0, |
+| xp | x12c | rect,visible | I6 | rect xp-item-0 HEADLESS-1 [4.0, 419.0, 186.0, 42.0] -> None |
+| xp | x2 | rect,pixel | I6 | rect notify-card-body HEADLESS-1 [935.0, 628.0, 257.0, 70.0] -> [935.0,  |
+| xp | x2b | rect,pixel | I6 | rect notify-card-body HEADLESS-1 [935.0, 628.0, 257.0, 70.0] -> [935.0,  |
+| xp | x2c | pixel | I6 | rect Notepad:None HEADLESS-1 [28.0, 49.0, 700.0, 500.0] -> [116.0, 4 |
+| xp | x3 | - | I6 | rect Notepad:None HEADLESS-1 [28.0, 49.0, 700.0, 500.0] -> [116.0, 4 |
+| xp | x4 | - | I6 | rect Notepad:None HEADLESS-1 [288.0, 119.0, 700.0, 500.0] -> [376.0, |
+| xp | x5 | rect | I6 | rect hud-chat HEADLESS-1 [932.0, 437.0, 340.0, 141.0] -> [932.0, |
+| xp | x5b | rect,pixel | I6 | rect hud-chat HEADLESS-1 [932.0, 395.0, 340.0, 183.0] -> [932.0, |
+| xp | x5c | rect,pixel | I6 | rect hud-chat HEADLESS-1 [932.0, 395.0, 340.0, 183.0] -> [932.0, |
+| xp | x5d | rect,pixel | I6 | rect hud-chat HEADLESS-1 [932.0, 332.0, 340.0, 246.0] -> [932.0, |
+| xp | x5e | pixel | I6 | rect Notepad:None HEADLESS-1 [288.0, 119.0, 700.0, 500.0] -> [376.0, |
+| xp | x5f | rect,pixel | I6 | rect hud-chat HEADLESS-1 [932.0, 248.0, 340.0, 330.0] -> [932.0, |
+| xp | x5g | pixel | I6 | rect Notepad:None HEADLESS-1 [288.0, 119.0, 700.0, 500.0] -> [376.0, |
+| xp | x6 | rect,pixel | I6 | rect hud-chat HEADLESS-1 [932.0, 290.0, 340.0, 288.0] -> [932.0, |
+| xp | x6b | rect,pixel | I6 | rect hud-chat HEADLESS-1 [932.0, 175.0, 340.0, 403.0] -> [932.0, |
+| xp | x6c | rect,pixel | I6 | rect hud-chat HEADLESS-1 [932.0, 290.0, 340.0, 288.0] -> [932.0, |
+| xp | x6d | rect,pixel | I6 | rect hud-chat HEADLESS-1 [932.0, 248.0, 340.0, 330.0] -> [932.0, |
+| xp | x6e | - | I6 | rect Notepad:None HEADLESS-1 [288.0, 119.0, 700.0, 500.0] -> [376.0, |
+| xp | x7 | pixel | I6 | rect Notepad:None HEADLESS-1 [288.0, 119.0, 700.0, 500.0] -> [376.0, |
+| xp | x7b | pixel | I6 | rect Notepad:None HEADLESS-1 [288.0, 119.0, 700.0, 500.0] -> [376.0, |
+| xp | x8 | pixel | I6 | rect Notepad:None HEADLESS-1 [288.0, 119.0, 700.0, 500.0] -> [376.0, |
+| xp | x9 | - | I6 | rect Notepad:None HEADLESS-1 [288.0, 119.0, 700.0, 500.0] -> [376.0, |
+| xp | x9b | pixel | I6 | rect Notepad:None HEADLESS-1 [288.0, 119.0, 700.0, 500.0] -> [376.0, |
+
+
+### Gate
+Full `tests/merge-gate.sh --jobs 2` (no --only), detached, on claude/record-v9 6949cddb merged with origin/claude/autonomous-dev-session-3w-i33pg7: 62 cells PASS, "all steps passed", EXIT 0. No foreign red. `pgrep -fa 'chora --headless'` empty.
+
+### Next
+F7 is not met: 88 regressions remain. What is left is mostly not a harness defect: the I6 flips are breaches the baseline could not measure (rv9-1 to rv9-6), the mc chapter diverges by page after Home (fa7faabd), and the xp rows wait for those I6 findings to be fixed. Suggest: the baseline replay learns to say "I6: not measured" (no green) so that it is not a flip, and a build between 733967aa and head that has `scene.boxes` but not the look changes (bisect) as a second baseline for I6.
