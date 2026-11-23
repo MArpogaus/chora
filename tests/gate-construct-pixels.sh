@@ -14,12 +14,23 @@
 #
 # Usage: tests/gate-construct-pixels.sh   needs target/debug (cargo build
 # --workspace), python3 with PIL. LIT_TRIES=1 turns the wait for the
-# paint off: the 2x cell must then fail.
+# paint off: the 2x cell must then fail. PIX_LOAD=1 runs 4 busy shell loops
+# per CPU for the run (a loaded host): the captures must still show the
+# settled state. PIX_LAG=N adds N seconds before each capture (the slow look
+# of a loaded host).
 # shellcheck disable=SC2016,SC2034 # cell evaluates its code later
 set -u
 repo=$(cd "$(dirname "$0")/.." && pwd)
 work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+loads=()
+trap 'kill "${loads[@]}" 2>/dev/null; rm -rf "$work"' EXIT
+if [ "${PIX_LOAD:-0}" = 1 ]; then
+    for _ in $(seq $((4 * $(nproc)))); do
+        (while :; do :; done) &
+        loads+=($!)
+    done
+fi
+export CAPTURE_LAG=${PIX_LAG:-0}
 failed=0
 cell() {
     if eval "$2"; then
