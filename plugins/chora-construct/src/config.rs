@@ -307,7 +307,7 @@ impl<'de> Deserialize<'de> for VoiceHud {
             }
         };
         if own {
-            eprintln!(
+            crate::log::log_warn!(
                 "chora-construct: voice_hud: the own voice HUD is gone; \
                  the HUD host draws it (read as host)"
             );
@@ -656,7 +656,7 @@ impl Config {
 /// Logs the [`Config::warnings`] of a configuration, one line each.
 pub fn log_warnings(config: &Config) {
     for warning in config.warnings() {
-        eprintln!("chora-construct: {warning}");
+        crate::log::log_warn!("chora-construct: {warning}");
     }
 }
 

@@ -9,6 +9,9 @@
 # Usage: tests/gate-construct-k1.sh   BIN: directory with the binaries
 #   THEME  light (default) or dark
 #   SHOTS  a directory that keeps the captures as construct-THEME-*.png
+#   K1_RACE  1 (test only) skips the wait for the pane to move and the walk
+#            to rest after each key, the wheel and the drag: the read
+#            after it is then the race the waits close
 set -u
 . "$(dirname "$0")/gate-lib.sh"
 need_bins chora choractl chora-construct
@@ -46,8 +49,21 @@ before=$(node "id:$pane" 'n[0]["rects"]')
 shot "$shots/construct-$theme-pane.png"
 ok "foot is the pane $pane at $before"
 
-for k in e e e a a s s; do key "$k"; done
-sleep 0.6
+quiet() { ctl call construct state.get "{}" | python3 -I -c "import json, sys; sys.exit(1 if json.load(sys.stdin)['busy'] else 0)"; }
+rects() { node "id:$pane" 'n[0]["rects"]'; }
+rest_after_move() {
+    [ -n "${K1_RACE:-}" ] && return
+    # shellcheck disable=SC2016
+    until_ok '[ "$(rects)" != "$2" ]' 80 || fail "$1 did not move the pane from $2"
+    until_ok quiet 80 || fail "$1 did not come to rest: $(ctl call construct state.get '{}')"
+}
+step() {
+    local from
+    from=$(rects)
+    key "$1"
+    rest_after_move "the walk after $1" "$from"
+}
+for k in e e e a a s s; do step "$k"; done
 after=$(node "id:$pane" 'n[0]["rects"]')
 [ "$after" != "$before" ] || fail "the walk did not move the pane: $after"
 shot "$shots/construct-$theme-walk.png"
@@ -95,27 +111,27 @@ shot "$shots/construct-$theme-out.png"
 ok "Alt+Escape flew out, and the walk has the keyboard again"
 
 # The mouse: the wheel walks, a drag looks, a click on the pane flies in.
-before=$(node "id:$pane" 'n[0]["rects"]')
+before=$(rects)
 echo '[{"pointer_move": {"position": [100, 700]}}, {"scroll": {"dy": -60}}]' | ctl inject || fail "inject scroll"
-sleep 0.6
-after=$(node "id:$pane" 'n[0]["rects"]')
+rest_after_move "the wheel" "$before"
+after=$(rects)
 [ "$after" != "$before" ] || fail "the wheel did not walk"
 echo '[{"pointer_move": {"position": [100, 700]}}, {"button": {"state": "pressed"}},
   {"pointer_move": {"position": [160, 700]}}, {"button": {"state": "released"}}]' | ctl inject ||
     fail "inject drag"
-sleep 0.3
-# A walk during a drag stays: drag right, walk with w, drag back. The
-# view turns back, and the pane is nearer, so wider, than before.
+rest_after_move "the drag" "$after"
 width() { node "id:$pane" 'round(list(n[0]["rects"].values())[0][2])'; }
 wide=$(width)
+from=$(rects)
 echo '[{"pointer_move": {"position": [100, 700]}}, {"button": {"state": "pressed"}},
-  {"pointer_move": {"position": [130, 700]}}]' | ctl inject || fail "inject drag"
-key w
-key w
-sleep 0.5
+  {"pointer_move": {"position": [70, 700]}}]' | ctl inject || fail "inject drag"
+rest_after_move "the drag left" "$from"
+step w
+step w
+from=$(rects)
 echo '[{"pointer_move": {"position": [100, 700]}}, {"button": {"state": "released"}}]' | ctl inject ||
     fail "inject drag back"
-sleep 0.3
+rest_after_move "the drag back" "$from"
 [ "$(width)" -gt "$wide" ] || fail "the walk during the drag was lost: width $wide, then $(width)"
 ok "a walk during a drag stays: the pane grew from $wide to $(width)"
 centre=$(node "id:$pane" '"%d, %d" % (lambda r: (r[0] + r[2] / 2, r[1] + r[3] / 2))(list(n[0]["rects"].values())[0])')

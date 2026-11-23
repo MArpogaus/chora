@@ -43,7 +43,7 @@ impl Construct {
         let words = match failure {
             Failure::NoScript(_) | Failure::NotStarted(_) => not_started(language).to_owned(),
             Failure::NotGiven { to, why } => {
-                eprintln!("chora-construct: give to {to}: {why}");
+                crate::log::log_warn!("chora-construct: give to {to}: {why}");
                 crate::input::refusal(language, &to, &why)
             }
         };

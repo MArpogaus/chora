@@ -8,6 +8,7 @@ resvg = { version = "0.48", default-features = false, features = ["memmap-fonts"
 schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
 chora-kit = { workspace = true, features = ["testing"] }

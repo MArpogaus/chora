@@ -66,11 +66,11 @@ impl Mc {
         let Some(err) = self.try_apply(&all)? else {
             return Ok(());
         };
-        eprintln!("chora-mc: {err}; the scenes go one by one");
+        tracing::warn!("{err}; the scenes go one by one");
         self.apply(base)?;
         for (name, commands) in scenes {
             if let Some(err) = self.try_apply(&commands)? {
-                eprintln!("chora-mc: scene {name}: {err}; left out");
+                tracing::warn!("scene {name}: {err}; left out");
                 self.scenes.remove(&name);
                 self.windows.remove(&name);
             }
@@ -244,7 +244,7 @@ impl Mc {
         self.fade = FADE;
         fades.extend(regions?);
         if let Some(err) = self.try_apply(&fades)? {
-            eprintln!("chora-mc: {err}; the theme builds anew");
+            tracing::warn!("{err}; the theme builds anew");
             return Ok(false);
         }
         Ok(true)
@@ -343,7 +343,7 @@ impl Mc {
         config
             .resolve(name, local)
             .or_else(|err| {
-                eprintln!("chora-mc: {err}");
+                tracing::warn!("{err}");
                 config.resolve(name, None)
             })
             .expect("the settings check their styles")

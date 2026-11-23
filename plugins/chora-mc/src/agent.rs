@@ -246,7 +246,7 @@ impl Mc {
             self.agent_focus = None;
         }
         if let Err(err) = self.show_agents() {
-            eprintln!("chora-mc: voice gone: {}", err.message);
+            tracing::warn!("voice gone: {}", err.message);
         }
     }
 
@@ -410,7 +410,7 @@ impl Mc {
         }
         let call = json!({"client": "assistant", "method": "chat.show", "params": params});
         if let Err(err) = self.rt.conn.call::<_, Value>("methods.call", call) {
-            eprintln!("chora-mc: chat.show {}: {err}", chat_who(name));
+            tracing::warn!("chat.show {}: {err}", chat_who(name));
             self.notice(
                 "Chat",
                 "The chat does not open. The chat host does not answer.",
@@ -422,7 +422,7 @@ impl Mc {
     pub fn chat_close(&mut self) {
         let call = json!({"client": "assistant", "method": "chat.hide", "params": {}});
         if let Err(err) = self.rt.conn.call::<_, Value>("methods.call", call) {
-            eprintln!("chora-mc: chat.hide: {err}");
+            tracing::warn!("chat.hide: {err}");
         }
     }
 

@@ -44,7 +44,7 @@ impl Construct {
         if !start.is_empty() {
             match file::dir().and_then(|d| file::load(&d, &start)) {
                 Ok(file) => self.load(&start, file)?,
-                Err(err) => eprintln!("chora-construct: start: {err}"),
+                Err(err) => crate::log::log_warn!("chora-construct: start: {err}"),
             }
         }
         Ok(())
@@ -251,13 +251,13 @@ impl Construct {
     pub(crate) fn show_manager(&mut self, file: PaneFile) -> Result<Option<PaneFile>, ClientError> {
         let manager = file.manager.clone().unwrap_or_default();
         if let Some(reason) = super::wm::unknown_manager(&self.settings.value.managers, &manager) {
-            eprintln!("chora-construct: the pane of {manager} goes: {reason}");
+            crate::log::log_warn!("chora-construct: the pane of {manager} goes: {reason}");
             return Ok(None);
         }
         match self.open_manager(&manager, None, Some(&file)) {
             Ok(_) => Ok(None),
             Err(ClientError::Rpc(err)) if err.code == super::RpcError::REJECTED => {
-                eprintln!(
+                crate::log::log_warn!(
                     "chora-construct: the pane of {manager} waits: {}",
                     err.message
                 );

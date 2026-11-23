@@ -90,7 +90,7 @@ impl Construct {
             }
             Err(err) => {
                 if host.owes(face, true) {
-                    eprintln!("chora-construct: {} {output}: {err}", float::METHOD);
+                    crate::log::log_warn!("chora-construct: {} {output}: {err}", float::METHOD);
                 }
                 None
             }
@@ -159,7 +159,7 @@ impl Construct {
         match self.set_planes(face, windows)? {
             None => Ok(true),
             Some(err) => {
-                eprintln!("chora-construct: the planes of face {face}: {err}");
+                crate::log::log_warn!("chora-construct: the planes of face {face}: {err}");
                 self.flatten(face)
             }
         }
@@ -221,7 +221,7 @@ impl Construct {
         };
         let client = self.face_manager();
         if let Some(err) = self.set_planes(face, valid(floated.windows, size, &client))? {
-            eprintln!("chora-construct: the planes of face {face}: {err}");
+            crate::log::log_warn!("chora-construct: the planes of face {face}: {err}");
             self.flatten(face)?;
         }
         Ok(())

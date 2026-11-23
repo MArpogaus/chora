@@ -11,7 +11,7 @@
 # the layout of the construct HUD in each state. `tiling-empty` shows that an output and a pane of tiling with no window have the bar and the wallpaper. `chat-keys` opens the
 # chat in tiling with Super+a and types into its field. `doors` asks every
 # look for the shared keys and one visible door per action. `acts` runs the act contracts of
-# tests/acts with the invariants I1 to I14 (no I11 yet) on state.get and scene.boxes against tests/acts/known-red.toml. `matrix` runs tiling and xp on one output too (gate-handover-shared.sh), the Super tap of xp beside tiling on two outputs (gate-start-tap.sh) and ends with the click that
+# tests/acts with the invariants I1 to I14 (no I11 yet) on state.get and scene.boxes against tests/acts/known-red.toml. `matrix` runs tiling and xp on one output too (gate-handover-shared.sh), a look that joins and leaves the keyboard with the one there (gate-join-keys.sh), the Super tap of xp beside tiling on two outputs (gate-start-tap.sh) and ends with the click that
 # chooses a window manager for a new window; `virtual` hands a window over between window
 # managers on a screen and on virtual outputs, and a chord of the screen manager chooses it over a face window (gate-keys-route.sh); `xp-faces` runs one xp on
 # four virtual outputs; `cube` shows that xp on the faces of a cube in the
@@ -23,7 +23,7 @@
 # checks the grabs after a flight into a pane.  `pixels` reads the labels, a pane
 # beside a cube and the 2x step-in from captures. `mc-paths` runs the cells of the main paths of chora-mc. `mc-sofa` runs the cells of the sofa and kitchen scenarios of chora-mc. `mc-column` runs the margin column of chora-mc at 1280x720 and 1920x1080. `mc-handover` runs the cells of a window that goes to mc. `launcher-click` clicks a row of the Apps launcher of tiling and of the Programs launcher of the construct with the hands of a persona (act.py) and asks for the program of that row. `construct-extra` runs the construct gates K1 (a pane at 1:1), mcpane, nested, k2a, windows, 3d (K5, direct input on the 3D base) and i3 (one focus holder after a click in the xp face of the cube). `e2e` runs the scripts of the e2e job of
 # .github/workflows/ci.yaml in its order (tests/e2e-sequence.sh); a skip fails the step unless tests/e2e-skips.txt lists it.
-# `tiling-keys-more`, `tiling-windows` and `tiling-system` run the tiling gates that the other tiling steps do not (key list, keycaps, bar Keys, chip, programs; focus, follow, doors, swallow, gaps, motion; reload, system); `handover` the handover between window managers (D55), `mc-scale` the 300-panel scene of mc, `watchdog-starved` the frame watchdog on a starved host, `xp-run` the Run box of xp, `demo` the demo scenes. A step `known-red-NAME` is a gate script whose red is filed in findings/: --list shows it, a full run leaves it out, `--only known-red-NAME` runs it.
+# `tiling-bar`, `tiling-keys-more`, `tiling-windows` and `tiling-system` run the tiling gates that the other tiling steps do not (bar look, spacing, screenshot and launch notices; key list, keycaps, bar Keys, chip, programs; focus, follow, doors, swallow, gaps, motion; reload, system), `tiling-theme` the theme gate (Ink, Paper, accent of the focus border); `handover` the handover between window managers (D55), `mc-scale` the 300-panel scene of mc, `watchdog-starved` the frame watchdog on a starved host, `xp-run` the Run box of xp, `demo` the demo scenes. A step `known-red-NAME` is a gate script whose red is filed in findings/: --list shows it, a full run leaves it out, `--only known-red-NAME` runs it.
 # `voice-acp` runs the ACP sub-agent smoke test (a question that edits a file is answered by a HUD button, not by a spoken yes), `voice-events` the voice.state events, and `agent` the agent interface in a headless sway (tests/agent.sh).
 # `identity` fails when any commit of BASE..HEAD, merges included, has an author or
 # a committer other than the identity in `expected_identity` below (a lane hook has
@@ -240,7 +240,7 @@ clippy|cargo clippy --workspace --all-targets --locked -- -D warnings
 package-deps|tests/gate-package-deps.sh
 package-lists|tests/gate-package-lists.sh
 xp|tests/xp.sh "$repo/target/debug"
-matrix|tests/gate-handover-matrix.sh && tests/gate-give-holders.sh && tests/gate-handover-shared.sh && BIN=$repo/target/debug tests/gate-click-routes.sh && BIN=$repo/target/debug tests/gate-injected-presses.sh && BIN=$repo/target/debug tests/gate-start-tap.sh
+matrix|tests/gate-handover-matrix.sh && tests/gate-give-holders.sh && tests/gate-handover-shared.sh && BIN=$repo/target/debug tests/gate-join-keys.sh && BIN=$repo/target/debug tests/gate-click-routes.sh && BIN=$repo/target/debug tests/gate-injected-presses.sh && BIN=$repo/target/debug tests/gate-start-tap.sh
 virtual|BIN=$repo/target/debug tests/gate-handover-virtual.sh && BIN=$repo/target/debug tests/gate-keys-route.sh
 xp-faces|BIN=$repo/target/debug tests/gate-xp-faces.sh
 xp-paperclip|BIN=$repo/target/debug tests/gate-xp-paperclip.sh
@@ -284,11 +284,9 @@ mc-scale|BIN=$repo/target/debug tests/gate-mc-scale.sh
 watchdog-starved|BIN=$repo/target/debug tests/gate-watchdog-starved.sh
 xp-run|BIN=$repo/target/debug tests/gate-xp-run.sh
 demo|BIN=$repo/target/debug tests/gate-demo.sh
+tiling-bar|BIN=$repo/target/debug tests/gate-tiling-bar.sh && BIN=$repo/target/debug tests/gate-tiling-spacing.sh && BIN=$repo/target/debug tests/gate-tiling-notice.sh
+tiling-theme|BIN=$repo/target/debug tests/gate-tiling-theme.sh
 mc-host|BIN=$repo/target/debug tests/gate-mc-host.sh
-known-red-tiling-theme|BIN=$repo/target/debug tests/gate-tiling-theme.sh
-known-red-tiling-bar|BIN=$repo/target/debug tests/gate-tiling-bar.sh
-known-red-tiling-spacing|BIN=$repo/target/debug tests/gate-tiling-spacing.sh
-known-red-tiling-notice|BIN=$repo/target/debug tests/gate-tiling-notice.sh
 e2e|tests/e2e-sequence.sh "$repo/target/debug"
 STEPS
 }
@@ -421,6 +419,24 @@ preflight_tools
 
 . "$repo/tests/gate-lock.sh"
 gate_lock merge-gate || die "cannot take the gate lock"
+
+refuse_leftover_compositors() {
+    local cmdline pid left=
+    [ -z "${MERGE_GATE_NESTED:-}" ] || return 0
+    for cmdline in /proc/[0-9]*/cmdline; do
+        pid=${cmdline#/proc/}
+        pid=${pid%/cmdline}
+        [ "$pid" != "$$" ] || continue
+        if tr '\0' ' ' <"$cmdline" 2>/dev/null | grep -Eq '(^|/)chora --headless '; then
+            left+="  pid $pid: $(tr '\0' ' ' <"$cmdline")"$'\n'
+        fi
+    done
+    [ -n "$left" ] || return 0
+    echo "merge-gate: a chora --headless of an earlier run lives and takes CPU from the cells; end it, then run again:" >&2
+    printf '%s' "$left" >&2
+    exit 1
+}
+refuse_leftover_compositors
 
 runs=${MERGE_GATE_RUNS:-/tmp}
 mkdir -p "$runs" || die "no run directory"

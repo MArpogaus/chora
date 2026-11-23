@@ -2048,7 +2048,9 @@ mod tests {
     }
 
     /// The book passes a requested look through (D58, cells in
-    /// lifecycle.rs); a relayout sends no look, so it keeps it.
+    /// lifecycle.rs); a relayout sends no look to the window, so it keeps it
+    /// (the group of the window carries the opacity 1 of a jump and is not
+    /// the window).
     #[test]
     fn a_requested_look_stays_across_a_relayout() {
         let mut tiler = tiler(&["s1"]);
@@ -2068,7 +2070,8 @@ mod tests {
             changes(None, &placed, &Dress::default())
                 .iter()
                 .all(|c| !matches!(c,
-            Command::Update { props, .. } if props.opacity.is_some() || props.effects.is_some()))
+            Command::Update { id, props }
+                if id == "s1" && (props.opacity.is_some() || props.effects.is_some())))
         );
     }
 

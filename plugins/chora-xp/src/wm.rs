@@ -266,6 +266,17 @@ fn helper_tip(helper: &chora_kit::helper::Helper, language: Language) -> String 
     helper.door(language, true)
 }
 
+/// How xp came into the session (ti-38). `Joined`: another look held a
+/// claim and xp had no window, so the keyboard stayed with that look; the
+/// desktop takes it only when the person comes, by a click, a window of
+/// xp that gets the focus or a node of xp that takes the keys. `Settled`
+/// otherwise, and from then on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Arrival {
+    Settled,
+    Joined,
+}
+
 /// The state of the window manager.
 pub struct Wm {
     rt: Runtime<KeyAction>,
@@ -285,6 +296,8 @@ pub struct Wm {
     core_focus: Option<String>,
     /// The owner of the node with the keyboard, as `focus.node` told.
     key_node: Option<String>,
+    /// Whether xp joined beside another look and has had no keys since.
+    arrival: Arrival,
     bars: Vec<Bar>,
     menu: Menu,
     drag: Option<Drag>,

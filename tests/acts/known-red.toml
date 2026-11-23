@@ -290,33 +290,6 @@ match = "the contrast"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
-act = "a helper starts"
-capture = "mc-r1-right-agents-0-sign"
-finding = "guide-checks r2: mc-r1-right-agents-0-sign: the contrast"
-id = "I6"
-look = "mc"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the helper asks"
-capture = "mc-r1-right-chat-door"
-finding = "guide-checks r2: mc-r1-right-chat-door: the contrast"
-id = "I6"
-look = "mc"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the helper asks"
-capture = "mc-r1-right-chat-title"
-finding = "guide-checks r2: mc-r1-right-chat-title: the contrast"
-id = "I6"
-look = "mc"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
 act = "a notice shows"
 capture = "notify-card-body"
 finding = "guide-checks r2: notify-card-body: guide wants 14 px"

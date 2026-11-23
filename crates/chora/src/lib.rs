@@ -12,6 +12,7 @@ mod gl;
 mod grants;
 mod handlers;
 mod hang;
+pub mod heap;
 mod image_capture;
 mod images;
 mod inject;

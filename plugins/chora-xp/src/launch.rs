@@ -2,7 +2,7 @@
 //! a start. Following a started program until its window shows is
 //! [`chora_kit::launch`].
 
-pub use chora_kit::launch::{Change, GIVE_UP, Launches};
+pub use chora_kit::launch::{Change, Launches};
 
 /// The launcher command in the look of xp: `fuzzel` with the `file` of
 /// the flavor as its configuration, unless the command names one or the

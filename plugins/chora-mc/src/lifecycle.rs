@@ -72,8 +72,8 @@ impl Mc {
     /// effect back, so the effects of the panels go once more.
     pub(crate) fn effects_dropped(&mut self) -> Result<(), ClientError> {
         if self.shaders == Shaders::On {
-            eprintln!(
-                "chora-mc: frames were slow, the core dropped the effects; the panels \
+            tracing::warn!(
+                "frames were slow, the core dropped the effects; the panels \
                  stay plain until the settings change"
             );
         }

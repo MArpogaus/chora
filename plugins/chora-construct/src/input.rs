@@ -160,7 +160,7 @@ impl Construct {
             if let Some(surface) = chosen
                 && let Err(err) = self.give(&surface, to)
             {
-                eprintln!("chora-construct: give to {to}: {err}");
+                crate::log::log_warn!("chora-construct: give to {to}: {err}");
                 let language = Language::of_session();
                 let words = refusal(language, to, &err.to_string());
                 self.tell(&words);
@@ -182,7 +182,7 @@ impl Construct {
             Some(node) => match give::window(self, Some(&node), to) {
                 Ok(_) => return Ok(()),
                 Err(err) => {
-                    eprintln!("chora-construct: give to {to}: {}", err.message);
+                    crate::log::log_warn!("chora-construct: give to {to}: {}", err.message);
                     refusal(language, to, &err.message)
                 }
             },
@@ -206,7 +206,7 @@ impl Construct {
             }
             Event::EffectsDropped { client } if client == NAME => {
                 if !self.glass.plain {
-                    eprintln!(
+                    crate::log::log_info!(
                         "chora-construct: the watchdog took the shaders; the panels stay \
                          plain until the settings change"
                     );
@@ -218,7 +218,7 @@ impl Construct {
             }
             Event::LayersDropped { nodes, .. } => {
                 if !nodes.is_empty() {
-                    eprintln!("chora-construct: layers stay out: {}", nodes.join(" "));
+                    crate::log::log_info!("chora-construct: layers stay out: {}", nodes.join(" "));
                 }
                 self.float_dropped(&nodes)
             }
@@ -532,7 +532,7 @@ impl Construct {
                 self.give(&surface, &to).map(drop)
             };
             if let Err(err) = given {
-                eprintln!("chora-construct: {surface} stays: {err}");
+                crate::log::log_warn!("chora-construct: {surface} stays: {err}");
             }
         }
         self.frame()

@@ -138,6 +138,24 @@ class KnownRed(unittest.TestCase):
         self.assertEqual(nodes[0]["id"], "n")
         self.assertIsNotNone(boxes)
 
+    def test_a_card_that_is_not_yet_on_the_capture_is_captured_again(self):
+        """xp-38: the box of the notify card is in the scene while the first capture still shows the
+        wallpaper there (text 1.04:1, green on green); the capture is repeated until it holds still."""
+        s = object.__new__(harness.Session)
+        frames = iter([{"O": (1, [b"wallpaper"])}] + [{"O": (1, [b"card"])}] * 8)
+        taken = []
+
+        def call(method, _params=None):
+            if method == "scene.boxes":
+                return {"O": {"boxes": [{"node": "notify-card-body", "rect": [0, 0, 5, 5]}]}}
+            return [{"id": "notify-card-body", "text": "x"}] if method == "scene.query" else {}
+
+        s.core = type("C", (), {"call": staticmethod(call)})()
+        s.label, s.looks = "xp", ["xp"]
+        s.shots = lambda outputs: taken.append(1) or next(frames)
+        _, _, shots = s.settled_scene([], sleep=lambda _t: None)
+        self.assertEqual(shots["O"][1], [b"card"])
+
     def test_a_scene_that_settles_logs_nothing(self):
         import contextlib
         import io

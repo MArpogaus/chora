@@ -114,13 +114,16 @@ temp_config() {
     trap gate_cleanup EXIT
 }
 session_start() {
-    local env_file=${env_file:-$(mktemp /tmp/gate-env.XXXXXX)}
+    local env_file=${env_file:-}
+    [ -n "$env_file" ] || { env_file=$(mktemp /tmp/gate-env.XXXXXX) && tmp_dirs+=("$env_file"); }
     # shellcheck disable=SC2034 # read by the gate scripts that source this file
     GATE_ENV=$env_file
     : >"$env_file"
     "$repo/tests/headless-session.sh" "$@" >"$env_file" 2>&1 &
     pids+=($!)
     trap gate_cleanup EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
     for _ in $(seq 60); do
         grep -q CHORA_SOCKET "$env_file" && break
         sleep 0.5

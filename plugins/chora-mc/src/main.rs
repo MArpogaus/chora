@@ -8,8 +8,12 @@
 //! itself.
 
 #![allow(
+    clippy::cognitive_complexity,
+    reason = "the tracing macros count as branches; the handlers are flat lists of arms"
+)]
+#![allow(
     clippy::print_stderr,
-    reason = "a plugin logs to stderr, which the session keeps"
+    reason = "the usage line of --launch is no log: the log starts in the runtime"
 )]
 
 mod acts;
@@ -603,9 +607,10 @@ const ASSISTANT: &str = "assistant";
 /// The events; `voice.*` are those of the voice agent (D65),
 /// `assistant.chat` says where the HUD host shows its chat, and
 /// `assistant.chat.keyboard` when its field takes the keyboard.
-const EVENTS: [&str; 20] = [
+const EVENTS: [&str; 21] = [
     "voice.*",
     "focus.changed",
+    "focus.node",
     "node.key",
     "assistant.chat",
     "assistant.chat.keyboard",
@@ -655,8 +660,9 @@ impl Plugin for Mc {
     }
 
     /// Drops the node that mc holds the keyboard with when the core does
-    /// not focus it: the core sends no event for the focus of a node
-    /// (backlog rw-3), so the answer of `state.get` depends on this call.
+    /// not focus it: `focus.node` names the node that another client
+    /// takes (heard, `Focus::away`), but not that the node of mc lost the
+    /// keyboard to a surface, so `state.get` still asks the core.
     fn refresh(&mut self) {
         let Some(node) = self.focus.node().map(str::to_owned) else {
             return;
@@ -1671,6 +1677,22 @@ mod tests {
         assert_eq!(volume, Some(format!("{title} 40%")));
     }
 
+    /// While the chat is open its box lies over the doors, so the column
+    /// has none; the doors come back when it shuts.
+    #[test]
+    fn the_doors_leave_while_the_chat_is_open() {
+        let mut mc = crate::testing::mc("doors-chat", [1280, 800]).0;
+        mc.show("agenda", false).unwrap();
+        let doors = |mc: &super::Mc| {
+            (right_items(mc).iter())
+                .filter(|i| i.hit.as_deref().is_some_and(|h| h.starts_with("door:")))
+                .count()
+        };
+        assert_eq!(doors(&mc), 5);
+        mc.chat = crate::Chat::Open;
+        assert_eq!(doors(&mc), 0);
+    }
+
     /// A chat that cannot open says so in a critical notice of
     /// the notification server, not only in a log.
     #[test]
@@ -2000,6 +2022,23 @@ mod tests {
         assert_eq!(mc.state().unwrap()["focus"], json!({"holder": "mc"}));
         xp_takes_the_keyboard(&model);
         mc.refresh();
+        assert_eq!(mc.state().unwrap()["focus"], json!({"holder": null}));
+    }
+
+    /// rd-5: mc hears `focus.node`, so a node of another client that takes
+    /// the keyboard leaves mc no holder (one holder, I3).
+    #[test]
+    fn a_focus_node_of_another_client_leaves_mc_no_holder() {
+        use chora_kit::runtime::Plugin as _;
+        assert!(super::EVENTS.contains(&"focus.node"));
+        let (mut mc, _model) = crate::testing::mc("node-heard", [1280, 800]);
+        let command = mc.focus.to_node(Some(crate::page_id("agenda")));
+        mc.apply(vec![command]).unwrap();
+        mc.event(chora_scene::Event::FocusNode {
+            node: Some("xp-icons".into()),
+            owner: Some("xp".into()),
+        })
+        .unwrap();
         assert_eq!(mc.state().unwrap()["focus"], json!({"holder": null}));
     }
 

@@ -222,7 +222,7 @@ impl Mc {
             .conn
             .call::<_, serde_json::Value>("events.emit", emit)
         {
-            eprintln!("chora-mc: mc.row.chosen: {err}");
+            tracing::warn!("mc.row.chosen: {err}");
         }
         true
     }

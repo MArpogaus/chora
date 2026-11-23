@@ -1157,6 +1157,7 @@ fn the_window_menu_opens_without_asking_the_core_for_the_clients() {
 #[test]
 fn a_failed_clients_list_warns_once() {
     if chora_kit::testing::in_child() {
+        chora_kit::log::init();
         let core = chora_kit::testing::FakeCore::start();
         core.outputs(json!([fake_output()]));
         core.respond(|method, _| match method {
@@ -1175,7 +1176,8 @@ fn a_failed_clients_list_warns_once() {
     let log = chora_kit::testing::stderr_of("wm::tests_moved::a_failed_clients_list_warns_once");
     let lines: Vec<&str> = log.lines().filter(|l| l.contains("clients.list")).collect();
     assert_eq!(lines.len(), 1, "one warn line: {log:?}");
-    assert!(lines[0].starts_with("chora-xp: clients.list"), "{lines:?}");
+    assert!(lines[0].contains(" WARN chora_xp::wm"), "{lines:?}");
+    assert!(lines[0].contains(": clients.list"), "{lines:?}");
 }
 
 /// xp-tidy pr3-1: a look that exports `window.give` after its connected

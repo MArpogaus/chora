@@ -47,7 +47,7 @@ pub fn play(sound: Sound) {
         .arg(&file)
         .status();
     if let Err(err) = spawned {
-        eprintln!("chora-xp: cannot play {}: {err}", file.display());
+        tracing::warn!("cannot play {}: {err}", file.display());
     }
 }
 

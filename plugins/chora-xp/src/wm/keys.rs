@@ -79,7 +79,7 @@ impl Host for Acting<'_> {
             Failure::NotStarted(name) => format!("{name} did not start"),
             Failure::NotGiven { to, why } => format!("give to {to}: {why}"),
         };
-        eprintln!("chora-xp: {line}");
+        tracing::warn!("{line}");
         Ok(())
     }
 
@@ -339,7 +339,8 @@ impl Wm {
     /// another look and no node has the keys, of another client or of xp
     /// itself, as its open Start menu, the desktop icons get them again: a
     /// click on the desktop could not give them while that window still
-    /// had the focus.
+    /// had the focus. Not while xp has had no keys since it joined beside
+    /// another look: the keys stay there.
     pub(super) fn focus_moved(&mut self, surface: Option<&str>) -> Vec<Command> {
         let left_foreign = self.focus_away();
         let mut commands = self.window_focus_moved(surface);
@@ -348,6 +349,7 @@ impl Wm {
             && !self.focus_away()
             && !self.node_away()
             && !self.own_node()
+            && !self.joined()
         {
             commands.push(self.desktop_keys());
         }

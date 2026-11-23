@@ -369,8 +369,12 @@ impl Mc {
     /// and the key of the chat flush right, under a head with the state
     /// word of the helper; while it is open the head with `Esc  Close` and
     /// the place of the box of the host, whose header says so when no
-    /// helper is set up.
+    /// helper is set up. While a helper asks, its card stands over the head
+    /// and the door, so that the column has none.
     fn chat_items(&self, slot: i32, name: &str, content: &Content, region: Region) -> Vec<Item> {
+        if self.question_pending() && self.chat == crate::Chat::Closed {
+            return Vec::new();
+        }
         let id = format!("{}-{name}", self.region_id(region));
         let head = self.content_type(content, true).props("Chat");
         let mut items = vec![Item::text(format!("{id}-title"), slot, head, true)];
@@ -406,6 +410,13 @@ impl Mc {
             .map(|(k, _)| chora_kit::keysheet::chord(k));
         items.extend(key.map(|key| end("key", &key, None)));
         items
+    }
+
+    /// Whether a helper asks: the HUD host then draws its card over the
+    /// chat section of the column.
+    fn question_pending(&self) -> bool {
+        let named = self.voiced_word.named().map(|(_, raw, _)| raw);
+        named.or_else(|| self.agents.first().map(|a| a.state.as_str())) == Some("question")
     }
 
     /// The state word of the helper door: the state of the helper that the
@@ -548,7 +559,8 @@ impl Mc {
     }
 
     /// The doors at the foot of a side: a word for each action that has a
-    /// key, three in a line, clicked like its key.
+    /// key, three in a line, clicked like its key. The box of the chat runs
+    /// to the foot of the side over them, so that none shows while it is open.
     fn door_items(&self, slot: i32, name: &str, content: &Content, region: Region) -> Vec<Item> {
         let id = format!("{}-{name}", self.region_id(region));
         let mut ty = self.content_type(content, false);

@@ -104,7 +104,7 @@ impl Mc {
             _ => Ok(()),
         };
         if let Err(e) = done {
-            eprintln!("chora-mc: {event}: {e}");
+            tracing::warn!("{event}: {e}");
         }
         Ok(())
     }
@@ -273,7 +273,7 @@ impl Mc {
         {
             let focus = self.focus.to(Some(window));
             if let Err(err) = self.apply(vec![focus]).and_then(|()| self.sync_keys()) {
-                eprintln!("chora-mc: enter window: {err}");
+                tracing::warn!("enter window: {err}");
             }
         }
     }
@@ -293,7 +293,7 @@ impl Mc {
             Some(name) if holds => {
                 let commands = self.keyboard_to(&name, window);
                 if let Err(err) = self.apply(commands).and_then(|()| self.sync_keys()) {
-                    eprintln!("chora-mc: leave window: {err}");
+                    tracing::warn!("leave window: {err}");
                 }
             }
             _ => self.back(),
@@ -307,7 +307,7 @@ impl Mc {
         if self.keys == keys::List::All {
             self.keys = keys::List::Six;
             if let Err(err) = self.render() {
-                eprintln!("chora-mc: keys: {err}");
+                tracing::warn!("keys: {err}");
             }
             return;
         }
