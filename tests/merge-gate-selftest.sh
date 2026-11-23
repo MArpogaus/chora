@@ -398,6 +398,38 @@ rr_file i.rs i
 rr_commit "fix(i): the fix for sh-1, sh-2." i.rs
 sha=$(rr_head)
 check "per id: ids split by a comma and a full stop are read" "$(red | grep -c "^red-first: $sha .*sh-2")" 1
+rr_commit_at() {
+    git -C "$rr" add -- "${@:3}"
+    GIT_COMMITTER_DATE=$1 GIT_AUTHOR_DATE=$1 git -C "$rr" commit -q -m "$2"
+}
+old_date="2026-11-01T10:00:00+00:00"
+git -C "$rr" reset -q --hard base
+rr_file tests/gate-i.sh t
+rr_commit_at "$old_date" "test(i): red, names no id" tests/gate-i.sh
+rr_file i.rs i
+rr_commit_at "$old_date" "fix(i): the fix for sh-1" i.rs
+check "in flight: a pair committed before the cut passes by the old rule" "$(red >/dev/null; echo $?)" 0
+git -C "$rr" reset -q --hard base
+rr_file tests/gate-i.sh t
+rr_commit "test(i): red, names no id" tests/gate-i.sh
+rr_file i.rs i
+rr_commit "fix(i): the fix for sh-1" i.rs
+sha=$(rr_head)
+check "in flight: the same pair committed after the cut is red" "$(red | grep -c "^red-first: $sha .*sh-1")" 1
+git -C "$rr" reset -q --hard base
+rr_file i.rs i
+rr_commit_at "$old_date" "fix(i): the fix for sh-1 without a test" i.rs
+check "in flight: a fix before the cut without any test is still red" "$(red | grep -c '^RED-FIRST MISSING: .* fix(i): the fix for sh-1 without a test$')" 1
+git -C "$rr" reset -q --hard base
+rr_file tests/gate-i.sh t
+rr_commit_at "$old_date" "test(i): red, names no id" tests/gate-i.sh
+rr_file i.rs i
+rr_commit_at "$old_date" "fix(i): the fix for sh-1" i.rs
+rr_file j.rs j
+rr_commit "fix(j): the fix for sh-2, after the cut" j.rs
+sha=$(rr_head)
+check "in flight: a fix after the cut is read per id beside an old pair" "$(red | grep -c "^red-first: $sha .*sh-2")" 1
+check "in flight: the old fix beside it is not named" "$(red | grep -c 'sh-1')" 0
 for word in utf-8 sha-256 base-64 ipv-6 gate-0.8 gtk-3.0 "(gate-0.8)." "v0.9.0-rc.3"; do
     rr_ids_start
     rr_file i.rs i
