@@ -28,8 +28,8 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 | soak-r3.md (rc 9; 1 %) | haiku high, claude/soak-r3 1ec04694 | session_016iS3kPTaTUWz9CUtmLJXzF 16:40 |
 | flake-series-r7.md (rc 3; 1 %) | sonnet high, claude/flake-series-r7 1ec04694 | session_016iS3kLkxQHS3DxoJnqt8Xk 19:00 |
 | mc-host-r1.md (rc 3; 0.8 %) | sonnet high, claude/mc-host 1ec04694 | session_016iS3kMmo33DKYdWDKzc35Q 19:07 |
-| xp-cube-faces-r1.md (rc 1, 2; 0.8 %) | sonnet high, claude/xp-cube-faces 1ec04694 | starting 20:00 |
-| notify-text-r1.md (F7; 0.5 %) | sonnet medium, claude/notify-text 1ec04694 | starting 20:00 |
+| xp-cube-faces-r1.md (rc 1, 2; 0.8 %) | sonnet high, claude/xp-cube-faces 1ec04694 | session_016iS3kN2aH631CuYmyjokHX 19:58 |
+| notify-text-r1.md (F7; 0.5 %) | sonnet medium, claude/notify-text 1ec04694 | session_016iS3kPAjwT5TkEwLEvpXQS 19:58 |
 ## Queue (% week; 5 % reserve)
 1. (rc 3, 7; 1 %) TRAIN119 running (h-rf, leak-cell, co-reach, xp-readable, tiling-disc); then train120 docs-rc-r2, guard-3.
 2. (rc 9; 1 %) SOAK-R3 running (sl-9 MAJOR); verdict closes or keeps sl-9.
