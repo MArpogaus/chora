@@ -7,7 +7,7 @@
 #                      every state: at rest, under the pointer, and dimmed
 #                      behind Turn off computer
 #   session-labels     the captions of Lock, Log Off and Restart of Turn off
-#                      computer (our own buttons) have 4.5:1 as white on their
+#                      computer (our own buttons) have 7:1, the bar of a button, as white on their
 #                      backing; Stand By and Turn Off are Luna's and lie on its
 #                      panel fill, exempt in known-red.toml (white on it 2.1:1)
 #   cancel-target      Cancel of Turn off computer is 24 px high or more
@@ -101,7 +101,7 @@ for n in 0 1 2 3 4; do
         { [ "${r:-0}" -ge 144 ] && [ "$r" -le 151 ] && [ "${g:-0}" -ge 175 ] && [ "$g" -le 182 ] && [ "${b:-0}" -ge 241 ] && [ "$b" -le 247 ]; } ||
             red "session-labels: caption $n of Turn off computer lies on (${r:-?}, ${g:-?}, ${b:-?}), not the Luna fill (148, 179, 244) of its exemption"
     else
-        at_least "$(contrast "$shots/turnoff.png" "$x" "$((y + h - 16))" "$w" 15 --text=FFFFFF)" 4.5 "session-labels: caption $n of Turn off computer"
+        at_least "$(contrast "$shots/turnoff.png" "$x" "$((y + h - 16))" "$w" 15 --text=FFFFFF)" 7.0 "session-labels: caption $n of Turn off computer"
     fi
 done
 key Escape
