@@ -31,7 +31,7 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 | h-rf-r2.md (rc 3; 0.6 %) | sonnet high | c9d8d9f0 MERGE-OK; t118 red leak (sh-35); train119
 | leak-cell-r1.md (rc 3; 0.5 %) | sonnet medium, claude/leak-cell 1ec04694 | session_016iS3kNzHeMKkwNC3gXhwFy 18:10
 | flake-series-r7.md (rc 3; 1 %) | sonnet high, claude/flake-series-r7 1ec04694 | session_016iS3kLkxQHS3DxoJnqt8Xk 19:00 |
-| mc-host-r1.md (rc 3; 0.8 %) | sonnet high, claude/mc-host 1ec04694 | starting |
+| mc-host-r1.md (rc 3; 0.8 %) | sonnet high, claude/mc-host 1ec04694 | session_016iS3kMmo33DKYdWDKzc35Q 19:07 |
 ## Queue (% week; 5 % reserve)
 1. (rc 9; 1 %) SOAK-R3 running (sl-9 MAJOR; end_probes each round); verdict closes or keeps sl-9.
 2. (rc 3, 7) LEAK-CELL r1 (sh-35); train119 h-rf + leak-cell, then train120 docs-rc-r2, guard-3.
