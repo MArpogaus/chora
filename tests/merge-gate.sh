@@ -245,6 +245,7 @@ virtual|BIN=$repo/target/debug tests/gate-handover-virtual.sh && BIN=$repo/targe
 xp-faces|BIN=$repo/target/debug tests/gate-xp-faces.sh
 xp-paperclip|BIN=$repo/target/debug tests/gate-xp-paperclip.sh
 xp-fields|BIN=$repo/target/debug tests/gate-xp-fields.sh
+xp-readable|BIN=$repo/target/debug tests/gate-xp-readable.sh
 xp-question|BIN=$repo/target/debug tests/gate-xp-question.sh
 xp-chat-idle|BIN=$repo/target/debug tests/gate-xp-chat-idle.sh
 xp-helper|BIN=$repo/target/debug tests/gate-xp-helper.sh
