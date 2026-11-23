@@ -457,11 +457,17 @@ class SceneIds(unittest.TestCase):
         self.assertEqual([r["id"] for r in t.rows], ["h1", "h1b", "h1c", "h2", "h1d"])
 
     def test_the_chapters_use_each_scene_of_intended_toml(self):
+        """intended.toml names a row by the id of the take (tour.act_id): the scene id, and for a later
+        act of the same scene the scene id and a letter (`c2b`); one id scheme for take and table."""
         import tomllib
 
         table = tomllib.loads((ROOT / "demo" / "tour" / "intended.toml").read_text())
-        scenes = {s for chapter in self.CHAPTERS for _, s in self.acts(chapter)}
-        self.assertEqual([c["act"] for c in table["change"] if c["act"] not in scenes], [])
+        ids = set()
+        for chapter in self.CHAPTERS:
+            seen = {}
+            for number, (_, scene) in enumerate(self.acts(chapter), 1):
+                ids.add(tour.act_id(chapter, number, scene, seen))
+        self.assertEqual([c["act"] for c in table["change"] if c["act"] not in ids], [])
 
     def test_the_first_row_of_h2_is_the_send_to_act(self):
         """The row that intended.toml calls h2 carries the Send To act, not the Start click."""
@@ -940,6 +946,71 @@ class ChaptersB(unittest.TestCase):
         text = (ROOT / "demo" / "tour" / "chapters" / "mc.py").read_text()
         self.assertIn('f"{BIN}/chora-notify", "--assets", f"{REPO}/plugins/chora-mc/notify"', text)
         self.assertIn('notify_config(position="bottom_left")', text)
+
+class TilingArgv(unittest.TestCase):
+    """RV9-2/3: chora-tiling starts its own bar and wallpaper (ccf7ebab) unless it gets `--no-companions`,
+    and the tiling chapter starts waybar itself: two bars on one output, tiles 40 px lower and a bar
+    without its modules. A build that does not know the flag (733967aa) must not get it."""
+
+    def binary(self, tmp, knows):
+        path = pathlib.Path(tmp, "chora-tiling")
+        path.write_text("#!/bin/sh\n" + ('echo "      --no-companions    Starts no panel"\n' if knows else 'echo "      --output <NAME>"\n'))
+        path.chmod(0o755)
+        return str(path)
+
+    def test_a_build_with_companions_gets_no_companions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            binary = self.binary(tmp, True)
+            self.assertEqual(launch.tiling_argv(binary, "--output", "A"), [binary, "--no-companions", "--output", "A"])
+
+    def test_a_build_without_the_flag_gets_none(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            binary = self.binary(tmp, False)
+            self.assertEqual(launch.tiling_argv(binary), [binary])
+
+    def test_the_chapters_start_tiling_by_tiling_argv(self):
+        for chapter in ("tiling", "handover"):
+            text = (ROOT / "demo" / "tour" / "chapters" / f"{chapter}.py").read_text()
+            self.assertIn("tiling_argv(", text, chapter)
+            self.assertNotIn('[f"{BIN}/chora-tiling"', text, chapter)
+
+
+class CodeWindow(unittest.TestCase):
+    """RV9-3: the code window of the tiling chapter showed crates/chora-kit/src/wobbly.rs of the
+    checkout, and that file differs between the baseline and the candidate: a pixel diff of the
+    window, not of the product. It shows a file of the tour."""
+
+    def test_the_code_window_shows_a_file_of_the_tour(self):
+        text = (ROOT / "demo" / "tour" / "chapters" / "tiling.py").read_text()
+        self.assertNotIn("crates/", text.split("args=")[1].split("\n")[0])
+        self.assertIn("args={SAMPLE}", text)
+        self.assertTrue((ROOT / "demo" / "tour" / "sample.rs").exists())
+
+
+class LauncherEnv(unittest.TestCase):
+    """TOUR-LAUNCH: the launchers of the xp start menu (xp-item-N) come from PATH and XDG_DATA_DIRS;
+    both runs of a comparison must get one fixed environment, not the one of the shell that ran them."""
+
+    def env_of(self, path, data_dirs):
+        old = dict(launch.os.environ)
+        try:
+            launch.os.environ["PATH"] = path
+            launch.os.environ["XDG_DATA_DIRS"] = data_dirs
+            launch.os.environ["XDG_CONFIG_DIRS"] = data_dirs
+            with mock.patch.object(launch.Launcher, "path_without_writer", lambda self, p: "FARM"):
+                with tempfile.TemporaryDirectory() as scratch, mock.patch.object(launch, "SCRATCH", scratch):
+                    return launch.Launcher("t").base_env()
+        finally:
+            launch.os.environ.clear()
+            launch.os.environ.update(old)
+
+    def test_the_launcher_environment_does_not_follow_the_shell(self):
+        a = self.env_of("/usr/bin:/opt/a/bin", "/opt/a/share")
+        b = self.env_of("/usr/local/bin:/opt/b/bin", "/opt/b/share")
+        for key in ("PATH", "XDG_DATA_DIRS", "XDG_CONFIG_DIRS"):
+            self.assertIn(key, a)
+            self.assertEqual(a[key].replace(a["XDG_DATA_HOME"][: -len("/data")], "D"), b[key].replace(b["XDG_DATA_HOME"][: -len("/data")], "D"), key)
+        self.assertNotIn("/opt/", a["PATH"] + a["XDG_DATA_DIRS"])
 
 
 if __name__ == "__main__":
