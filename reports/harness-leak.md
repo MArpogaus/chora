@@ -24,3 +24,11 @@ Refusal checked by hand with a stand-in process: `merge-gate: a chora --headless
 
 ### Gate
 Full `tests/merge-gate.sh --jobs 2` (no --only) on 7982d549: `all steps passed; no --push, nothing is pushed`, `EXIT 0`; 57 PASS, 0 FAIL, 0 SKIP. `pgrep -fa 'chora --headless'` after it: empty. cube cell PASS (119 s).
+
+## Review r1 (PM; 89 lines, 4 files, 6b01c976..7982d549)
+- Red first: 8a8f400c (gate-lib-selftest, 3/5 red), fix 8cdbb31a (5/5), refusal 7982d549. ok.
+- Watcher (headless-session.sh): watches the script and its parent, group TERM then KILL, removes the runtime dir; all callers (gate-lib, acts harness, demo, tour launch.py, 2d-guard, 3d-bench, CONTRIBUTING example) keep their parent alive while the session is used. ok.
+- INT/TERM traps in session_start map to 130/143 and run gate_cleanup through EXIT. ok.
+- hl-1 NIT: refuse_leftover_compositors is machine-wide, so a developer's own session from the CONTRIBUTING example blocks the gate; the message names the pids (POLS acceptable). Known issues.
+- Full gate EXIT 0, 57 PASS; pgrep empty after (lane report).
+Verdict: MERGE-OK (0 MAJOR). Harness branch: own train t111 first, then the lanes merge the session branch.
