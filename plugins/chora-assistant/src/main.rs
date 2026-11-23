@@ -719,7 +719,7 @@ mod tests {
         assert_eq!(hovered, None);
     }
 
-    fn cache(test: &str) -> chora_kit::testing::TempDir {
+    pub fn cache(test: &str) -> chora_kit::testing::TempDir {
         chora_kit::testing::TempDir::new(&format!("chora-assistant-{test}"))
     }
 
