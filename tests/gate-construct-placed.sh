@@ -1,7 +1,7 @@
 #!/bin/bash
 # Gate of the saved pose (B1): a pane that was moved is saved as placed.
-# After a restart the cube stands back and the pane is still drawn in
-# front of it; a pane nobody placed gives way to the cube.
+# After a restart the cube stands back and the pane is still drawn; a pane
+# nobody placed in front of the cube is drawn beside it too (co-54).
 #
 # Usage: tests/gate-construct-placed.sh   BIN: directory with the binaries
 # shellcheck disable=SC2016
@@ -66,12 +66,13 @@ YAML
 start_cube
 load_and_step_back placed
 surface=$(surface_of_pane)
-[ "$(pane_drawn "$surface")" != True ] || fail "a pane nobody placed is drawn in front of the stood-back cube"
-ok "a pane nobody placed gives way to the cube that stands back"
+until_ok '[ "$(pane_drawn "$surface")" = True ]' 20 || fail "a pane nobody placed in front of the stood-back cube is not drawn beside it (co-54)"
+ok "a pane nobody placed goes beside the cube that stands back and stays drawn"
 name=$(call construct.list | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["panes"][0]["name"])')
 call pane.move "{\"name\": \"$name\", \"right\": 10}" >/dev/null || fail "pane.move $name"
 call construct.save '{"name": "placed-saved"}' >/dev/null || fail "construct.save"
 [ -s "$work/chora/constructs/placed-saved.yaml" ] || fail "no saved file"
+grep -q 'placed: true' "$work/chora/constructs/placed-saved.yaml" || fail "the moved pane is not saved as placed: $(cat "$work/chora/constructs/placed-saved.yaml")"
 end_cube
 
 start_cube

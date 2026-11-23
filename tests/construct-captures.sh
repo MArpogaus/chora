@@ -90,7 +90,6 @@ fi
 if want cube-stood-back; then
     begin
     key Super+c 2.5
-    key Alt+Escape 2.5
     shot cube-stood-back
     stop
 fi
@@ -102,7 +101,6 @@ if want cube-stood-back-with-pane; then
     key Super+t 4
     key Alt+Escape 2.5
     key Super+c 2.5
-    key Alt+Escape 2.5
     shot cube-stood-back-with-pane
     stop
 fi
@@ -110,7 +108,6 @@ fi
 if want cube-turning; then
     begin
     key Super+c 2.5
-    key Alt+Escape 2.5
     ctl call construct cube.turn '{"by": 1, "ms": 4000}'
     sleep 1.2
     shot cube-turning
@@ -122,7 +119,8 @@ if want failed-face || want failed-face-stood-back; then
     chmod +x "$out/failing-manager.sh"
     begin
     ctl call construct settings.set "{\"cube_manager\": \"$out/failing-manager.sh\"}"
-    key Super+c 6
+    ctl call construct cube.open '{}'
+    sleep 6
     shot failed-face
     key Alt+Escape 2.5
     shot failed-face-stood-back
@@ -133,6 +131,7 @@ fi
 if want stepped-into-face; then
     begin
     key Super+c 2.5
+    key Return 2.5
     act move 100 745
     ctl wait id:construct-hints
     shot stepped-into-face

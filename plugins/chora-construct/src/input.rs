@@ -611,13 +611,16 @@ impl Construct {
         }
     }
 
-    /// The key of the cube opens one while none is open; a refusal is a
-    /// notice.
+    /// The key of the cube opens one while none is open, stood back, so
+    /// that the person sees the cube of desktops and every pane beside it
+    /// (co-52, co-54); a refusal is a notice.
     pub(crate) fn cube_key(&mut self) {
         if self.cube.is_some() {
             return;
         }
-        if let Err(err) = self.open_cube(cube::FACES) {
+        let opened = (self.open_cube(cube::FACES))
+            .and_then(|_| self.mode_act(chora_kit::modes::Act::StepBack, crate::modes::By::Person));
+        if let Err(err) = opened {
             self.tell(&err.to_string());
         }
     }
