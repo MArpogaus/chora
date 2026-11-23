@@ -29,8 +29,8 @@ mod fit;
 mod hits;
 mod items;
 
+use fit::{clock_gives_way, fit, lines_of, park, props_ink, shed_updates, shorten, trailing};
 pub use fit::{column_width, lines, place, rect};
-use fit::{fit, lines_of, park, props_ink, shed_updates, shorten, trailing};
 use hits::{close_nodes, close_place, lead, left_of};
 pub use hits::{hit_nodes, hit_place};
 pub use items::{Item, Plan, Put};
@@ -984,7 +984,12 @@ impl Mc {
         if let Some(at) = items.iter().position(|i| i.put == Put::Slot)
             && let Some((_, y)) = flow.iter().find(|(i, _)| *i == at)
         {
-            self.slot = Some([left, top + y, width, (height - y).max(baseline)]);
+            let end = if foot.is_empty() {
+                height
+            } else {
+                foot_top - baseline
+            };
+            self.slot = Some([left, top + y, width, (end - y).max(baseline)]);
         }
         for (item, y) in flow
             .into_iter()
@@ -1120,7 +1125,10 @@ impl Mc {
             let gaps = g.len().saturating_sub(1) as f64 * gap;
             g.iter().map(|(_, w, _)| w).sum::<f64>() + gaps
         };
-        let (start, middle, end) = (group(|s| s < 0), group(|s| s == 0), group(|s| s > 0));
+        let (start, middle, mut end) = (group(|s| s < 0), group(|s| s == 0), group(|s| s > 0));
+        let taken = [&start, &middle].map(|g| if g.is_empty() { 0.0 } else { span(g) + gap });
+        let over = span(&end) - (width - taken.iter().sum::<f64>());
+        let mut commands = clock_gives_way(&mut end, over);
         let end_x = (width - span(&end)).max(0.0);
         let high = if end.is_empty() { end_x } else { end_x - gap };
         let low = if start.is_empty() {
@@ -1132,7 +1140,6 @@ impl Mc {
             .round()
             .min(high - span(&middle))
             .max(low);
-        let mut commands = Vec::new();
         for (group, x0, room, flush) in [
             (start, 0.0, high, false),
             (middle, mid_x, high - mid_x, false),

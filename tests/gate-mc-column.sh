@@ -251,6 +251,25 @@ until_ok '! shown_notices | grep -qx "Update ready"' 20 || fail "notify.clear le
 column_at 1280x720 888 336 308
 column_at 1920x1080 1416 448 280
 
+head_at() {
+    local size=$1
+    kill "${pids[@]}" 2>/dev/null
+    wait 2>/dev/null
+    pids=()
+    env_file=$(mktemp /tmp/gate-env.XXXXXX) session_start "$size"
+    grant screen.capture input.inject
+    "$bin/chora-mc" >"$XDG_CONFIG_HOME/mc-head-$size.log" 2>&1 &
+    pids+=($!)
+    ctl wait owner:mc --timeout 20 >/dev/null || fail "mc does not start at $size"
+    until_ok 'has_text "AGENDA"' || fail "no first screen at $size"
+    sleep 1
+    has_text "1  AGENDA" || fail "the running head is cut at $size: $(texts | grep AGEN | tr '\n' '|')"
+    texts | grep -qE '[0-9]{2}:[0-9]{2}$' || fail "the clock lost its time at $size: $(texts | grep -E 'NOV|:' | tr '\n' '|')"
+    shot "head-$size"
+    ok "at $size the running head stands whole beside the time of the clock"
+}
+head_at 1024x768
+
 alone_session() {
     kill "${pids[@]}" 2>/dev/null
     wait 2>/dev/null
@@ -327,6 +346,16 @@ chat_session() {
     until_ok '! has_text "Back one step"' 20 || fail "the key list stays beside the open chat"
     shot "chat-$theme"
     ok "the open chat fills the column ($chat), the page is the same, and the keys go ($theme)"
+    until_ok 'has_text "Power"' 20 || fail "no door of the column beside the open chat"
+    jq -ne --argjson c "$chat" --argjson p "$(text_rect Power)" '$p[1] >= $c[1] + $c[3]' >/dev/null ||
+        fail "the door Power lies under the chat: $(text_rect Power) $chat"
+    read -r dx dy <<<"$(hit_center doors-volume)"
+    [ -n "$dx" ] || fail "the door Volume takes no pointer beside the open chat"
+    click_at "$dx" "$dy"
+    sleep 1
+    ctl call mc scene.list '{}' >/dev/null || fail "mc does not answer after a click on a door"
+    ctl query id:hud-chat | jq -e "length > 0" >/dev/null || fail "the chat closed with a click on a door"
+    ok "the doors stay below the open chat and a click on Volume reaches mc ($theme)"
     ctl call assistant chat.hide '{}' >/dev/null || fail "chat.hide"
     until_ok 'has_text "Back one step"' 40 || fail "the column does not come back"
     ok "closing the chat brings the key list back"
