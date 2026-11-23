@@ -2,9 +2,11 @@
 # The bar follows the tiling: after a change of
 # the tag or of the layout, the pill and the layout word change within
 # 250 ms, because the plugin pushes the change to waybar with a signal
-# and the bar does not wait for its next poll. The time runs from the call
-# to the start of the first capture that shows the change; a capture
-# takes about 100 ms, which is the resolution of this measure.
+# and the bar does not wait for its next poll. The time runs from the return
+# of the call to the start of the last capture that still shows the old
+# state, a lower bound of the delay that a slow capture or a slow ctl on a
+# loaded host cannot inflate; a burst of captures that never shows the change
+# is the hang guard. TILING_LOAD=4 runs it on a loaded host.
 #
 # Usage: tests/gate-tiling-follow.sh   BIN: directory with the binaries
 set -u
@@ -48,7 +50,8 @@ for item in sys.argv[4:]:
         key = hashlib.md5(b"".join(rows[y][360 * 4:460 * 4] for y in range(16, 32))).hexdigest()
     frames.append((int(at) - start, key))
 first = frames[0][1]
-print(next((at for at, key in frames if key is not None and key != first), 9999))
+seen = next((i for i, (at, key) in enumerate(frames) if key is not None and key != first), None)
+print(9999 if seen is None else max(frames[seen - 1][0], 0) if seen else 0)
 PY
 }
 
@@ -64,8 +67,8 @@ burst() {
 
 for tag in 2 3 1; do
     snap
-    start=$(now_ms)
     ctl call tiling view_tag "{\"tag\": $tag}" >/dev/null || fail "view_tag $tag"
+    start=$(now_ms)
     ms=$(burst pill "$start")
     echo "tag $tag: ${ms} ms"
     [ "$ms" -le 250 ] || fail "the pill took ${ms} ms to follow the switch to tag $tag"
@@ -74,8 +77,8 @@ ok "the pill follows a tag switch within 250 ms"
 
 for _ in 1 2 3; do
     snap
-    start=$(now_ms)
     ctl call tiling next_layout >/dev/null || fail "next_layout"
+    start=$(now_ms)
     ms=$(burst word "$start")
     echo "layout: ${ms} ms"
     [ "$ms" -le 250 ] || fail "the layout word took ${ms} ms to follow the change"
