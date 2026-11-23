@@ -405,6 +405,7 @@ impl Wm {
             })
             .collect();
         let tiles = columns.map(|c| window::tile(chosen.len(), area, c));
+        let icons = self.desk.strip(area);
         let mut places = window::Places::default();
         let mut commands = Vec::new();
         for (n, i) in chosen.into_iter().enumerate() {
@@ -415,7 +416,7 @@ impl Wm {
             } else {
                 commands.extend(w.unmaximize(active));
                 let turn = places.turn();
-                w.pos = places.place(turn, w.outer(), area);
+                w.pos = places.place(turn, w.outer(), area, icons);
             }
             commands.extend(w.style(&mut self.theme, active));
         }

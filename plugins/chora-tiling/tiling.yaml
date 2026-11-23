@@ -19,7 +19,7 @@ gap: 4
 # corners. The max and fullscreen layouts have no gap and no corners.
 look:
   gap_outer: 12
-  gap_inner: 10
+  gap_inner: 12
   radius: 10
   # The width of the border around each window, outside it; 0 for none. The
   # max and fullscreen layouts have none.

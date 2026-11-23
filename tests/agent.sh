@@ -97,13 +97,13 @@ step "2. tiling.get_layout and tiling.set_layout switch the layout"
 ctl call tiling get_layout >"$out/layout.json" || fail "get_layout failed"
 jq -e '.layout == "tile" and (.windows | length) == 2' "$out/layout.json" >/dev/null ||
     fail "layout: $(cat "$out/layout.json")"
-wait_for xs_are "14 647"
+wait_for xs_are "14 648"
 ctl call tiling set_layout '{"layout": "fair_horizontal"}' >"$out/rows.json" || fail "set_layout failed"
 jq -e '.layout == "fair_horizontal"' "$out/rows.json" >/dev/null || fail "rows: $(cat "$out/rows.json")"
 wait_for xs_are "14 14"
-wait_for ys_are "14 407"
+wait_for ys_are "14 408"
 ctl call tiling set_layout '{"layout": "fair"}' >/dev/null || fail "set_layout failed"
-wait_for xs_are "14 647"
+wait_for xs_are "14 648"
 
 step "3. bad calls fail with a reason"
 if ctl call tiling no_such_method 2>"$out/unknown.err"; then fail "an unknown method answered"; fi
@@ -396,7 +396,7 @@ WAYLAND_DISPLAY=$inner "$bin/chora-probe" window 0 0 255 >>"$out/windows.log" 2>
 pids+=($!)
 wait_for count_is 2 '.owner == "tiling"'
 ctl call tiling set_layout '{"layout": "fair"}' >/dev/null || fail "set_layout failed"
-wait_for xs_are "14 647"
+wait_for xs_are "14 648"
 "$bin/choractl" grant agent screen.capture || fail "the grant failed"
 "$bin/choractl" grant agent input.inject || fail "the grant failed"
 # choractl mcp is confined: plugin methods need the grant too.
@@ -410,7 +410,7 @@ test "$(color_at before 320 400)" = "0 0 255" || fail "before, left: $(color_at 
 test "$(color_at before 960 400)" = "255 0 0" || fail "before, right: $(color_at before 960 400)"
 test "$(color_at after 640 200)" = "0 0 255" || fail "after, top: $(color_at after 640 200)"
 test "$(color_at after 640 600)" = "255 0 0" || fail "after, bottom: $(color_at after 640 600)"
-jq -e '[.windows[].position[1]] | sort == [14, 407]' "$out/after.json" >/dev/null ||
+jq -e '[.windows[].position[1]] | sort == [14, 408]' "$out/after.json" >/dev/null ||
     fail "the description after: $(cat "$out/after.json")"
 grep -q "screen before and after" "$out/mcp.log" || fail "mcp: $(cat "$out/mcp.log")"
 grep -q "its click and its key" "$out/mcp.log" || fail "mcp: $(cat "$out/mcp.log")"

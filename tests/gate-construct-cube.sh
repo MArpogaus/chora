@@ -57,6 +57,8 @@
 #   SHOT  a PNG path that keeps a capture of the cube during a turn
 #   INJECT_LAG  seconds before each injection (default 0): the start of a
 #         choractl on a loaded machine, the stress of the keys in a row
+#   CUBE_LOAD   1 starts 4 busy shell loops per CPU for the run (a loaded host): the
+#         cube must settle in time with the shell and ctl calls slowed down
 #   CLOCK_EDGE  seconds before a minute change at which a still check starts
 #         (default: at once): the clocks of the construct and of xp draw at
 #         the change, the stress of a check across a minute
@@ -85,6 +87,18 @@ quick() {
     return 1
 }
 now_ms() { echo $(($(date +%s%N) / 1000000)); }
+settle_poll() {
+    local began=$1 poll_start
+    settle_min=0
+    while :; do
+        poll_start=$(now_ms)
+        eval "$2" && break
+        settle_min=$((poll_start - began))
+        [ $((poll_start - began)) -le 5000 ] || return 1
+        sleep 0.02
+    done
+    settle_max=$(($(now_ms) - began))
+}
 call() { ctl call construct "$@"; }
 inject() { sleep "${INJECT_LAG:-0}"; echo "$1" | ctl inject >/dev/null || fail "inject $1"; }
 virtuals() { ctl outputs | python3 -I -c 'import json, sys; print(" ".join(sorted(o["name"] for o in json.load(sys.stdin) if o.get("virtual"))))'; }
@@ -122,6 +136,12 @@ EOF
 }
 
 session_start 1280x800 -- "$bin/chora-construct"
+if [ "${CUBE_LOAD:-0}" = 1 ]; then
+    for _ in $(seq $((4 * $(nproc)))); do
+        (while :; do :; done) &
+        pids+=($!)
+    done
+fi
 grant input.inject screen.capture
 ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
 
@@ -514,13 +534,12 @@ until_ok 'prop construct-face-label-words text | grep -q "face 2 of 4"' 8 || fai
 ok "a slow drag turns the cube with the hand at every step, the label changes at 45 degrees and Step in dims"
 let_go
 released=$(now_ms)
-quick 'test "$(( $(width construct-cube-face-1) - rest_width ))" -ge -3 && test "$(( $(width construct-cube-face-1) - rest_width ))" -le 3'
-settled_in=$(($(now_ms) - released))
-[ "$settled_in" -le 700 ] || fail "the cube took $settled_in ms to settle after a release at 49 degrees: face 0 is $(width construct-cube-face-0) px wide, face 1 $(width construct-cube-face-1), at rest $rest_width, the label says $(prop construct-face-label-words text)"
+settle_poll "$released" 'test "$(( $(width construct-cube-face-1) - rest_width ))" -ge -3 && test "$(( $(width construct-cube-face-1) - rest_width ))" -le 3' || settle_min=hang
+[ "$settle_min" != hang ] && [ "$settle_min" -le 700 ] || fail "the cube was still turning $settle_min ms after a release at 49 degrees: face 0 is $(width construct-cube-face-0) px wide, face 1 $(width construct-cube-face-1), at rest $rest_width, the label says $(prop construct-face-label-words text)"
 front_is_next=$(prop construct-cube-face-1 visible)
 [ "$front_is_next" = True ] || fail "a release at 49 degrees did not go on to the next face"
 until_ok 'test "$(prop construct-mode-step-in-text opacity)" != 0.6' 8 || fail "Step in stays dim after the settle"
-ok "a release at 49 degrees goes on to the next face ($settled_in ms with the calls)"
+ok "a release at 49 degrees goes on to the next face (not settled at $settle_min ms, settled by $settle_max ms with the calls)"
 press_at 780
 move_to 580
 sleep 0.2
@@ -540,9 +559,8 @@ key Alt+Escape
 until_ok "$navigating" 20 || fail "Alt+Escape did not step back after the drags"
 turn_start=$(now_ms)
 key Ctrl+Alt+Right
-quick 'test "$(prop construct-cube-face-3 visible)" = True && test "$(prop construct-cube-face-2 visible)" = False'
-turn_took=$(($(now_ms) - turn_start))
-[ "$turn_took" -le 700 ] || fail "a turn key took $turn_took ms"
+settle_poll "$turn_start" 'test "$(prop construct-cube-face-3 visible)" = True && test "$(prop construct-cube-face-2 visible)" = False' || settle_min=hang
+[ "$settle_min" != hang ] && [ "$settle_min" -le 700 ] || fail "a turn key left the cube unturned $settle_min ms after the key"
 plain Return
 until_ok 'front_is 3' 20 || fail "Return did not step into the face after the turn key"
 ok "after the drags and a turn key, Return steps into the face that is at the front"
@@ -592,8 +610,10 @@ if not n or "HEADLESS-1" not in n[0]["rects"]:
 else:
     print(round(1000 * n[0]["rects"]["HEADLESS-1"][2] / (n[0]["size"][0] * face / 1280)))' "$(width construct-cube-face-0)"
 }
+hint_gone='test "$(prop construct-hint-step-back visible)" != True'
 floats() {
-    sleep 1
+    until_ok "$hint_gone" 40 || { echo "the hint Step back stays after the step in: $(prop construct-hint-step-back visible)"; return 1; }
+    hint_flat=$(prop construct-hint-step-back visible)
     ctl capture "$work/flat.png" >/dev/null || return 1
     call view.step_back >/dev/null || return 1
     until_ok "$stood_back" 20 || return 1
@@ -611,9 +631,10 @@ floats() {
     until_ok "$stepped_in" 20 || return 1
     until_ok 'test "$(prop "construct-cube-float-0-$surface" visible)" = gone && test "$(opacity "$surface")" = 1 && test "$(opacity "$upper")" = 1' 20 ||
         { echo "the windows did not land: plane $(prop "construct-cube-float-0-$surface" visible), opacity $(opacity "$surface") $(opacity "$upper")"; return 1; }
-    sleep 0.5
+    until_ok "$hint_gone" 40 || { echo "the hint Step back stays after the landing: $(prop construct-hint-step-back visible)"; return 1; }
+    hint_landed=$(prop construct-hint-step-back visible)
     ctl capture "$work/landed.png" >/dev/null || return 1
-    cmp -s "$work/flat.png" "$work/landed.png" || { echo "the face after the step in differs from the face before the step back"; return 1; }
+    cmp -s "$work/flat.png" "$work/landed.png" || { echo "the face after the step in differs from the face before the step back (hint Step back: $hint_flat before, $hint_landed after)"; return 1; }
     echo "$lower_lift and $upper_lift"
 }
 rest() {
@@ -669,16 +690,15 @@ until_ok 'test -z "$(others)"' 40 || fail "the second probe window stays"
 frames() { ctl render-stats | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["outputs"]["HEADLESS-1"]["damaged_frames"])'; }
 turn_frames=$(frames)
 turn_start=$(date +%s%N)
-call cube.turn '{"by": 1, "ms": 3000}' >/dev/null || fail "a slow cube.turn"
-sleep 0.4
-[ "$(width construct-cube-face-0)" -gt 0 ] && [ "$(width construct-cube-face-1)" -gt 0 ] ||
-    fail "at a third of the turn the screen does not show two faces: widths $(width construct-cube-face-0) and $(width construct-cube-face-1)"
-until_ok '[ "$(prop "construct-cube-float-0-$surface" visible)" != gone ]' 6 || fail "the window does not float during a turn"
+call cube.turn '{"by": 1, "ms": 10000}' >/dev/null || fail "a slow cube.turn"
+until_ok '[ "$(width construct-cube-face-0)" -gt 0 ] && [ "$(width construct-cube-face-1)" -gt 0 ]' 40 ||
+    fail "during the turn the screen does not show two faces: widths $(width construct-cube-face-0) and $(width construct-cube-face-1)"
+until_ok '[ "$(prop "construct-cube-float-0-$surface" visible)" != gone ]' 40 || fail "the window does not float during a turn"
 [ -n "${SHOT:-}" ] && ctl capture "$SHOT" >/dev/null
 [ "$(prop construct-cube-face-0 forward)" = False ] && [ "$(prop construct-cube-face-1 forward)" = False ] ||
     fail "a face forwards during the turn: $(prop construct-cube-face-0 forward) $(prop construct-cube-face-1 forward)"
 call cube.turn '{"by": 1}' >/dev/null || fail "cube.turn during a turn"
-until_ok 'test "$(prop construct-cube-face-1 visible)" = True && test "$(prop construct-cube-face-0 visible)" = False && test "$(prop construct-cube-face-1 forward)" = True' 40 ||
+until_ok 'test "$(prop construct-cube-face-1 visible)" = True && test "$(prop construct-cube-face-0 visible)" = False && test "$(prop construct-cube-face-1 forward)" = True' 80 ||
     fail "the cube did not turn: face 0 $(prop construct-cube-face-0 visible), face 1 $(prop construct-cube-face-1 visible) $(prop construct-cube-face-1 forward)"
 turn_ms=$(( ($(date +%s%N) - turn_start) / 1000000 ))
 turn_frames=$(( $(frames) - turn_frames ))

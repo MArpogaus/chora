@@ -13,6 +13,12 @@
 # A face is slow to paint at 2x: a shot waits until the frame is not
 # black, 20 s at most (LIT_TRIES polls of half a second, 40 by default).
 #
+# CAPTURE_LAG=N waits N seconds before each look: the slow capture of a loaded
+# host, as a knob (the hints of a face show for 3 s after the step in).
+#
+# The capsule of a face shows for 3 s after the step in, or while the pointer
+# rests at the bottom: the shot of the face rests it there.
+#
 # Needs the binaries of target/debug (cargo build --workspace). The flags
 # --test-injected-press-is-real let the injected keys reach the construct.
 set -euo pipefail
@@ -64,6 +70,7 @@ key() { act key "$1"; sleep "${2:-1.5}"; }
 lit() { python3 -I -c 'import sys; from PIL import Image; sys.exit(not sum(Image.open(sys.argv[1]).convert("L").resize((64, 40)).getdata()) > 20 * 64 * 40)' "$1"; }
 shot() {
     local path
+    sleep "${CAPTURE_LAG:-0}"
     for _ in $(seq "${LIT_TRIES:-40}"); do
         path=$(python3 -I "$repo/tests/persona/act.py" look --max-side 4000 | head -1 | cut -d" " -f1)
         lit "$path" && break
@@ -126,6 +133,8 @@ fi
 if want stepped-into-face; then
     begin
     key Super+c 2.5
+    act move 100 745
+    ctl wait id:construct-hints
     shot stepped-into-face
     stop
 fi

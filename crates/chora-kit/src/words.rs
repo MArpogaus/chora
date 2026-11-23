@@ -120,6 +120,10 @@ pub enum Word {
     Offline,
     /// Closing the chat does not stop a helper.
     CloseNote,
+    /// The greeting of the paperclip at the first start.
+    Greeting,
+    /// The greeting of the paperclip when no helper is set up.
+    GreetingNoHelper,
     /// No helper exists.
     NoHelper,
     /// The state word of a helper door while no helper runs.
@@ -215,7 +219,7 @@ pub enum Word {
 }
 
 /// Every word, for the checks of the tests.
-pub const ALL: [Word; 82] = [
+pub const ALL: [Word; 84] = [
     Word::Asleep,
     Word::Listening,
     Word::Thinking,
@@ -253,6 +257,8 @@ pub const ALL: [Word; 82] = [
     Word::WriteTo,
     Word::Offline,
     Word::CloseNote,
+    Word::Greeting,
+    Word::GreetingNoHelper,
     Word::NoHelper,
     Word::NoHelperDoor,
     Word::Dropped,
@@ -345,6 +351,12 @@ impl Word {
             Self::TooLong => "Too long to show. Refused.",
             Self::TypedYes => "Typing does not answer. Press {yes} or {no}, or click Yes or No.",
             Self::TypingNoAnswer => "Typing does not answer.",
+            Self::Greeting => {
+                "Hi, I am your helper. Click me to ask for something. This balloon closes by itself."
+            }
+            Self::GreetingNoHelper => {
+                "Hi, I am your helper, but no helper is set up yet, so you cannot ask anything. Click me to see what to do. This balloon closes by itself."
+            }
             Self::Waiting => "A question is waiting.",
             Self::FieldHint => "Type a message, then Enter.",
             Self::WriteTo => "Write to {to}",
@@ -439,6 +451,12 @@ impl Word {
                 "Tippen beantwortet die Frage nicht. {yes} oder {no} drücken oder Ja oder Nein klicken."
             }
             Self::TypingNoAnswer => "Tippen beantwortet die Frage nicht.",
+            Self::Greeting => {
+                "Hallo, ich bin Ihr Helfer. Klicken Sie mich an, um etwas zu fragen. Dieser Ballon schließt sich von selbst."
+            }
+            Self::GreetingNoHelper => {
+                "Hallo, ich bin Ihr Helfer, aber es ist noch keiner eingerichtet, Sie können nichts fragen. Klicken Sie mich an, um zu sehen, was zu tun ist. Dieser Ballon schließt sich von selbst."
+            }
             Self::Waiting => "Eine Frage wartet.",
             Self::FieldHint => "Nachricht eingeben, dann Enter.",
             Self::WriteTo => "An {to} schreiben",

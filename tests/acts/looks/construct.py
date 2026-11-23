@@ -482,21 +482,49 @@ def hint_rect(s, node):
     return None
 
 
-def hint_click(node):
+def stable_rect(s, node, timeout=10):
+    """The rect of the hint `node` once two reads 0.25 s apart agree: the
+    hints of a cube stood back are still drawn for a moment after a step in
+    and move when the set of the hints changes."""
+    seen = []
+
+    def settled():
+        seen.append(hint_rect(s, node))
+        return len(seen) >= 2 and seen[-1] is not None and seen[-1] == seen[-2]
+
+    s.until(settled, timeout, f"the hint {node} at rest on the screen")
+    return seen[-1]
+
+
+def cube_uses(s):
+    """A cue: wait until the cube is stepped into a face (mode use)."""
+    s.until(
+        lambda: s.cube().get("mode") == "use" and not s.cube().get("turning"),
+        10,
+        "the cube steps into a face",
+    )
+
+
+def hint_click(node, dwell=0.0):
     """A cue: a click in the middle of the hint `node` on the screen; the
-    pointer rests low first, which shows the hints of a face."""
+    pointer rests low first, which shows the hints of a face. `dwell` is
+    the time between reading the rect and the click: a slow harness, in
+    which the 3 s of the hints after a step in run out in between."""
 
     def cue(s):
         w, h = s.outputs()[0]["size"]
         s.inject([{"pointer_move": {"position": [w / 2, h - 10]}}])
-        seen = []
-        s.until(
-            lambda: seen.append(hint_rect(s, node)) or seen[-1],
-            10,
-            f"the hint {node} on the screen",
-        )
-        x, y, bw, bh = seen[-1]
-        s.inject([{"pointer_move": {"position": [x + bw / 2, y + bh / 2]}}, {"click": {}}])
+        aim = stable_rect(s, node)
+        time.sleep(dwell)
+        for _ in range(3):
+            x, y, bw, bh = aim
+            s.inject([{"pointer_move": {"position": [x + bw / 2, y + bh / 2]}}])
+            now = stable_rect(s, node)
+            if now == aim:
+                s.inject([{"click": {}}])
+                return
+            aim = now
+        raise RuntimeError(f"the hint {node} moves away from the pointer")
 
     return cue
 
@@ -511,16 +539,19 @@ def press_hinted(node):
 
     def cue(s):
         caps = []
-        while True:
-            found = s.core.call(
-                "scene.query", {"selector": f"id:construct-hints-{node}-keys-{len(caps)}-text"}
-            )
-            text = (found or [{}])[0].get("text")
-            if not text:
-                break
-            caps.append(text)
-        if not caps:
-            raise RuntimeError(f"the hint {node} names no key")
+
+        def read():
+            caps.clear()
+            while True:
+                found = s.core.call(
+                    "scene.query", {"selector": f"id:construct-hints-{node}-keys-{len(caps)}-text"}
+                )
+                text = (found or [{}])[0].get("text")
+                if not text:
+                    return bool(caps)
+                caps.append(text)
+
+        s.until(read, 5, f"the hint {node} names a key")
         s.inject([{"shortcut": {"keys": "+".join(caps)}}])
 
     return cue
@@ -530,7 +561,7 @@ def hint_shown(s):
     """A cue: the pointer rests low, which shows the hints of a face."""
     w, h = s.outputs()[0]["size"]
     s.inject([{"pointer_move": {"position": [w / 2, h - 10]}}])
-    s.until(lambda: hint_rect(s, KEYS_HINT), 10, "the hint Keys on the screen")
+    stable_rect(s, KEYS_HINT)
 
 
 def rest_then_click(node):
@@ -558,7 +589,14 @@ def keys_default_acts(s):
     s.act("xp gives the window of a face the keyboard", [activate_probe])
     s.act(
         "the hint Keys of a face names a key that opens the key list",
-        [key("Alt+Escape"), cube_navigates, plain("Return"), hint_shown, press_hinted("keys")],
+        [
+            key("Alt+Escape"),
+            cube_navigates,
+            plain("Return"),
+            cube_uses,
+            hint_shown,
+            press_hinted("keys"),
+        ],
         opens=[SHEET],
         expect=Expect(open=[SHEET]),
     )
@@ -652,7 +690,13 @@ def keys_acts(s):
     )
     s.act(
         "the hint Keys of a face opens the key list by a click",
-        [key("Alt+Escape"), cube_navigates, plain("Return"), hint_click(KEYS_HINT)],
+        [
+            key("Alt+Escape"),
+            cube_navigates,
+            plain("Return"),
+            cube_uses,
+            hint_click(KEYS_HINT, dwell=3.5),
+        ],
         opens=[SHEET],
         expect=Expect(open=[SHEET]),
     )

@@ -84,6 +84,29 @@ for n in 1 2 3; do
 done
 ok "the power icon opens the menu 3 of 3 times"
 
+list_open() { ctl query 'kind:text' 2>/dev/null | grep -q "Next window"; }
+keys Super+slash
+for _ in $(seq 20); do
+    list_open && break
+    sleep 0.25
+done
+list_open || fail "Super+slash opened no key list"
+click 1238 24
+wait_menu || fail "the power menu did not open over the key list"
+keys Escape
+for _ in $(seq 20); do
+    menu_open || break
+    sleep 0.25
+done
+menu_open && fail "the first Escape did not close the power menu"
+keys Escape
+for _ in $(seq 20); do
+    list_open || break
+    sleep 0.25
+done
+list_open && fail "the key list stays open after the power menu is cancelled and a second Escape"
+ok "Escape closes the power menu, the next Escape the key list under it (ti-27)"
+
 keys Super+Print
 for _ in $(seq 20); do
     ls "$XDG_PICTURES_DIR"/Screenshots/*.png >/dev/null 2>&1 && break
