@@ -1,0 +1,15 @@
+# soak r4 (rc 9; sh-36 = sl-10 MINOR): is the sampled core RSS rise peaks or growth?
+
+Model: haiku, effort high (a test-only run and a table; no product code)
+Lane: cloud, claude/soak-r4 at 39283655 (claude/soak-r3 head: end_probes per round). Cost at most 1.0 %; stop at 250 k context. One area: tests/battle/soak-core.sh and tests/battle/RESULTS.md; no product code. A fault you find goes into the report as a finding, not a fix.
+Why: findings/shared.md sh-36 and reports/sim-long.md "## soak r3": the 600 s samples fit +21.5 MB/h (7 %/h, bar 5 %/h) on a sawtooth 212 to 496 MB, while round-end RSS fell 246 to 208 MB. The samples land at random round phases; measure at fixed phases.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow || true`, `cargo check --workspace`, `cargo build --workspace` (debug, as in r3); a failure: send_message the PM "soak-r4 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1) tests/battle/soak-core.sh: per round log two core RSS values to the run file: at round end after `end_probes` and the window count is 0 (settled), and the round's peak (VmHWM delta or the max of samples taken each second during the round; say which). One commit `test(battle): soak logs settled and peak core RSS per round (sh-36)`; nothing else changes.
+2) Run it once, SOAK_MIN=180, detached (`setsid nohup bash tests/battle/soak-core.sh >/dev/null 2>&1 </dev/null &`); poll in the same turn, never end a turn to wait. Clean up with tests/battle/kill-session.sh soak only (never by process name).
+3) Table: per process (core, mc, tiling) first vs last hour, settled RSS and peak RSS each with a linear fit per hour and % of the first-hour mean; fds; window count per round; deaths; watchdog disconnects; rounds done.
+4) Verdict against the bar (design/rc.md row 9: growth at most 5 % per hour, windows flat): sh-36 closed if the settled fit is under the bar and the peak fit is under the bar or flat after the first hour; else open with the numbers and the round range where it grows. Any death or disconnect: a finding (sl-11..) with process, log path and line.
+5) RESULTS.md section "## soak r4 2026-11-23"; commit it (raw csv stays out of git).
+Gate: `tests/merge-gate.sh --only pre-commit,ci-check` on claude/soak-r4 (test script and RESULTS.md only).
+Done when: 3 h measured with settled and peak series, fits and log paths; sh-36 closed or open against the bar.
+Report: reports/sim-long.md "## soak r4" on claude/session-log; send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 5 lines with the head sha and the sh-36 verdict.
+Rules: push claude/soak-r4 and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).

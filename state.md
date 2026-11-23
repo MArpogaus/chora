@@ -24,15 +24,15 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 |---|---|---|
 | docs-rc-r2.md (rc 8; 0.5 %) | sonnet medium, claude/docs-rc-r2 bc153929 | 37730187 MERGE-OK ; train120 |
 | guard-3-r1.md (rc 7; 0.4 %) | sonnet medium | 49f65382 MERGE-OK ; train120 |
-| train119: h-rf, leak-cell, co-reach, xp-readable, tiling-disc | PM | c9d8d9f0, 0836ca58, fe369799, 51cd0bc0, 7adb149c MERGE-OK; gate running |
-| soak-r3.md (rc 9; 1 %) | haiku high | 39283655 MERGE-OK (PM; sl-9 closed, sh-36 MINOR); train120 |
+| train119: h-rf, leak-cell, co-reach, xp-readable, tiling-disc; soak-r3 39283655 train120 | PM | c9d8d9f0, 0836ca58, fe369799, 51cd0bc0, 7adb149c MERGE-OK; gate running |
+| soak-r4.md (rc 9; 1 %) | haiku high, claude/soak-r4 39283655 | starting 20:30 (sh-36) |
 | flake-series-r7.md (rc 3; 1 %) | sonnet high, claude/flake-series-r7 1ec04694 | session_016iS3kLkxQHS3DxoJnqt8Xk 19:00 |
 | mc-host-r1.md (rc 3; 0.8 %) | sonnet high, claude/mc-host 1ec04694 | session_016iS3kMmo33DKYdWDKzc35Q 19:07 |
 | xp-cube-faces-r1.md (rc 1, 2; 0.8 %) | sonnet high, claude/xp-cube-faces 1ec04694 | session_016iS3kN2aH631CuYmyjokHX 19:58 |
 | notify-text-r1.md (F7; 0.5 %) | sonnet medium, claude/notify-text 1ec04694 | session_016iS3kPAjwT5TkEwLEvpXQS 19:58 |
 ## Queue (% week; 5 % reserve)
 1. (rc 3, 7; 1 %) TRAIN119 running (h-rf, leak-cell, co-reach, xp-readable, tiling-disc); then train120 docs-rc-r2, guard-3.
-2. (rc 9) SOAK-R3 39283655 MERGE-OK: sl-9 closed; train120 with docs-rc-r2, guard-3. Free slot: TOUR-BASE prep after train119.
+2. (rc 9) SOAK-R3 39283655 MERGE-OK: sl-9 closed; train120 with docs-rc-r2, guard-3. SOAK-R4 sh-36 settled vs peak RSS.
 3. (rc 3, 9; F5) FLAKE-SERIES r7 running: sh-34, stall, xp-42; MC-HOST r1 mc-58 running.
 4. (rc 1, 2; 1.3 %) XP-CUBE-FACES r1 rcf-8, rcf-10; NOTIFY-TEXT r1 sh-31 (F7). After train119: co persona re-run, co-44, co-45.
 5. (F5, F7; 3.5 %) TOUR-BASE (I6, rv9 = MAJOR) and tiling persona r6 (L1, L2, T6, T7) after train119; rtd-5 MINOR.
