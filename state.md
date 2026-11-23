@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-23 23:53 UTC)
+## Now (2026-11-23 23:54 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 23:01 PM 4.9 % (11-22) + 5.2 % (11-23) + 0.9 % (11-24 BKK), week about 23 % vs 40 % pace
 session branch: 8c411416 (t121 green 23:50); 71 greens; train122 running 23:55 (notify-text, tiling-disc, xp-front-bar-r2).
@@ -24,8 +24,8 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 |---|---|---|
 | train122: notify-text, tiling-disc, xp-front-bar-r2 | PM | on 8c411416; gate 23:55 |
 | soak-r4.md (rc 9; 1 %) | haiku high, claude/soak-r4 39283655 | session_016iS3kLADrjFVxyE2AdpCzk 20:23 |
-| p2-r8-co.md (rc 2; 0.8 %) | sonnet medium, claude/p2-r8-co 8c411416 | starting |
-| tour-base-r1.md (F7, rc 11; 1.5 %) | sonnet high, claude/tour-base 8c411416 | starting |
+| p2-r8-co.md (rc 2; 0.8 %) | sonnet medium, claude/p2-r8-co 8c411416 | session_016iS3kL5XZy4sE2bqwnfLXK 23:54 |
+| tour-base-r1.md (F7, rc 11; 1.5 %) | sonnet high, claude/tour-base 8c411416 | session_016iS3kLwgpLsqzbCZvy458S 23:54 |
 | flake-series-r7.md (rc 3; 1 %) | sonnet high, claude/flake-series-r7 1ec04694 | session_016iS3kLkxQHS3DxoJnqt8Xk 19:00 |
 ## Queue (% week; 5 % reserve)
 1. (rc 1, 2, 3; 1 %) TRAIN122 running: notify-text 60a38634, tiling-disc ca165f7b, xp-front-bar-r2 da8b8fa9.
