@@ -92,3 +92,9 @@ Scope: rxr-6 only (rxr-7..10 wait). Head 51cd0bc0 on claude/xp-readable (merged 
 - Balloon x at 1280x800: neutral and tiling 1075 at e85413d2, 1087 after (= 1ec04694; both chats are style plain, margin 12); xp unchanged by the fix (narrowed by 96, clear of the bin; gate-xp-readable bin-clear green).
 - `cargo test -p chora-assistant`: 246 pass. `tests/gate-xp-readable.sh` 3 of 3 exit 0. hud and tiling-look cells PASS in the full gate.
 - Full `tests/merge-gate.sh --jobs 2` at 51cd0bc0: every cell PASS except mc-host: `FAIL: dark: the field gets no keyboard after the click` (mc-host.log line 27; mc pane field focus, no code of the sentence balloon or xp; fuzzel 1.11.1; not rerun). Foreign, named, not rerun to green.
+
+## PM review r3 (2026-11-23 19:1x UTC; abe699c2..51cd0bc0, 2 files +57/-2; PM not the builder)
+- Red first: 1cf99e4c red, 529552c6 fix, 51cd0bc0 test cleanup. ok.
+- rxr-6: only a Bubble chat narrows the sentence balloon; neutral and tiling stand as before (test only_a_bubble_folder_narrows_the_sentence_balloon; gate-xp-readable 3/3, hud, tiling-look PASS). Closed.
+- Gate: all PASS but mc-host dark (foreign; filed mc-58, also red in co-reach r1). Full gate again in train119.
+- Verdict (computed): 0 open MAJOR on xp -> MERGE-OK 51cd0bc0, train119.
