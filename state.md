@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-23 20:22 UTC)
+## Now (2026-11-23 20:24 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 20:16 PM 4.9 % (11-22) + 5.2 % (11-23) + 0.2 % (11-24 BKK), week about 22 % vs 39 % pace
 session branch: 1ec04694 (t117 green 16:38); 70 greens; train118 h-rf red 18:08 at leak (sh-35 flake; rerun 1 ok).
@@ -25,7 +25,7 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 | docs-rc-r2.md (rc 8; 0.5 %) | sonnet medium, claude/docs-rc-r2 bc153929 | 37730187 MERGE-OK ; train120 |
 | guard-3-r1.md (rc 7; 0.4 %) | sonnet medium | 49f65382 MERGE-OK ; train120 |
 | train119: h-rf, leak-cell, co-reach, xp-readable, tiling-disc; soak-r3 39283655 train120 | PM | c9d8d9f0, 0836ca58, fe369799, 51cd0bc0, 7adb149c MERGE-OK; gate running |
-| soak-r4.md (rc 9; 1 %) | haiku high, claude/soak-r4 39283655 | starting 20:30 (sh-36) |
+| soak-r4.md (rc 9; 1 %) | haiku high, claude/soak-r4 39283655 | session_016iS3kLADrjFVxyE2AdpCzk 20:23 |
 | flake-series-r7.md (rc 3; 1 %) | sonnet high, claude/flake-series-r7 1ec04694 | session_016iS3kLkxQHS3DxoJnqt8Xk 19:00 |
 | mc-host-r1.md (rc 3; 0.8 %) | sonnet high, claude/mc-host 1ec04694 | session_016iS3kMmo33DKYdWDKzc35Q 19:07 |
 | xp-cube-faces-r1.md (rc 1, 2; 0.8 %) | sonnet high, claude/xp-cube-faces 1ec04694 | session_016iS3kN2aH631CuYmyjokHX 19:58 |
