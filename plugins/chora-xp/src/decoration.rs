@@ -37,7 +37,8 @@ const EDGE: i32 = 6;
 /// frame; a click on it opens the system menu.
 pub const ICON: Rect = [EDGE, 4, 16, 16];
 
-/// The shadow of the title text, one pixel to the bottom right.
+/// The shadow of the title text, active or not, one pixel to the bottom
+/// right: the inactive title, light on light blue, is 2.2:1 without it.
 pub const TITLE_SHADOW: [u8; 4] = [10, 30, 80, 255];
 
 /// A button of the title bar.
@@ -372,15 +373,13 @@ fn title(theme: &mut Theme, surface: &str, look: &Look<'_>) -> Command {
         picture = picture.file(icon, [0, y, w, h]);
         left = 21;
     }
-    let mut text = Text::new(
+    let text = Text::new(
         look.title,
         Font::BodyBold,
         color,
         [left, 0, width - left, TITLE],
-    );
-    if look.active {
-        text = text.shadow(TITLE_SHADOW);
-    }
+    )
+    .shadow(TITLE_SHADOW);
     let picture = picture.text(text);
     Command::Update {
         id: title_id(surface),
@@ -433,10 +432,7 @@ pub fn sample(title: &str, [w, h]: [i32; 2], active: bool) -> Picture {
     } else {
         [216, 228, 248, 255]
     };
-    let mut text = Text::new(title, Font::Title, color, [EDGE + 2, 0, w, TITLE]);
-    if active {
-        text = text.shadow(TITLE_SHADOW);
-    }
+    let text = Text::new(title, Font::Title, color, [EDGE + 2, 0, w, TITLE]).shadow(TITLE_SHADOW);
     picture = picture.text(text);
     let state = if active { "active" } else { "inactive" };
     for button in Button::ALL {

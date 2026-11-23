@@ -1967,7 +1967,8 @@ The desktop of the first output shows XP's icons in its grid of 75 by 75
 pixels: My Documents (`XDG_DOCUMENTS_DIR`, else the home directory) and My
 Computer at the top left, then the folders and files of the Desktop folder
 (`XDG_DESKTOP_DIR`, else `~/Desktop`) by name, folders first, in columns
-from the top. The Recycle Bin sits at the bottom right and shows whether
+from the top. The Recycle Bin sits at the bottom right, 8 px above the
+paperclip of the helper, and shows whether
 `$XDG_DATA_HOME/Trash/files` has files. A desktop file shows its name and
 icon. A program, a desktop file or a window without an icon gets XP's
 icon of a program, `application-x-executable` of the icon theme. Each

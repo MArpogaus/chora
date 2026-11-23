@@ -82,6 +82,14 @@ pub struct Frame {
     pub lift: i32,
 }
 
+/// A work area less `margin` pixels at its left and right edges, at least
+/// one pixel wide.
+#[must_use]
+pub fn narrowed([x, y, w, h]: [i32; 4], margin: u32) -> [i32; 4] {
+    let margin = i32::try_from(margin).unwrap_or(0);
+    [x + margin, y, (w - 2 * margin).max(1), h]
+}
+
 impl Frame {
     /// The rectangle of the view: the box of the slot inside the work
     /// area exactly as announced, else the place of the `chat:` values,
@@ -124,9 +132,11 @@ impl Frame {
 
     /// The balloon of the figure: above its head, as wide as the chat, at
     /// most 60 % of the work area high, its tail ending at the head, inside
-    /// the work area.
+    /// the work area less the `margin` of the chat at its left and right edges: a folder that keeps a
+    /// column at the edge free (the Recycle Bin of xp above the paperclip)
+    /// sets it, and the tail then ends left of the head.
     fn balloon(&self, [tip_x, tip_y]: [i32; 2]) -> [i32; 4] {
-        let [ax, ay, aw, ah] = self.area;
+        let [ax, ay, aw, ah] = narrowed(self.area, self.look.margin);
         let (_, width) = self.look.place();
         let w = i32::try_from(width).unwrap_or(i32::MAX).min(aw);
         let inset = Style::default().tail_inset;
@@ -1230,6 +1240,27 @@ mod tests {
             "a figure high up still fits"
         );
         assert_eq!(frame(Look::default()).tail(), None, "a panel has no tail");
+    }
+
+    #[test]
+    fn the_margin_keeps_a_balloon_off_the_edge_column() {
+        let look = Look {
+            style: chora_kit::hud::ChatStyle::Bubble,
+            anchor: Some(Anchor::BottomRight),
+            width: Some(340),
+            margin: 96,
+            ..Look::default()
+        };
+        let mut balloon = frame(look);
+        balloon.area = [0, 0, 1280, 770];
+        balloon.tip = Some([1244, 658]);
+        let [x, _, w, h] = balloon.rect();
+        assert_eq!(x + w, 1280 - 96, "the right edge leaves the column free");
+        assert_eq!(
+            balloon.rect()[1] + h + TAIL,
+            658,
+            "the tail ends at the head"
+        );
     }
 
     #[test]
