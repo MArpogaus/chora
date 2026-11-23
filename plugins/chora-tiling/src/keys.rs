@@ -1119,8 +1119,8 @@ mod tests {
         assert_eq!(
             names,
             [
-                "Windows",
                 "Other looks",
+                "Windows",
                 "Layouts",
                 "Tags",
                 "Programs",
@@ -1128,17 +1128,18 @@ mod tests {
             ]
         );
         let first = |g: usize| groups[g].1[0].1.clone();
-        assert_eq!(first(0), "Move focus");
+        assert_eq!(first(0), "Give window to a look");
+        assert_eq!(first(1), "Move focus");
         assert_eq!(first(2), "Next layout");
         assert_eq!(first(3), "Show tag 1-9");
         assert_eq!(first(4), "Open a terminal");
-        assert_eq!(groups[0].1[1].1, "Window before");
+        assert_eq!(groups[1].1[1].1, "Window before");
     }
 
     #[test]
     fn the_focus_keys_are_the_first_row_in_plain_words() {
         let groups = groups();
-        let (keys, words) = &groups[0].1[0];
+        let (keys, words) = &groups[1].1[0];
         assert_eq!(words, "Move focus");
         for key in ["Super+J", "Super+K", "Alt+Tab"] {
             assert!(keys.split(" / ").any(|k| k == key), "{key} in {keys}");
@@ -1164,18 +1165,34 @@ mod tests {
     }
 
     #[test]
-    fn the_give_keys_have_a_group_of_their_own_next_to_the_windows() {
+    fn the_give_keys_have_a_group_of_their_own_above_the_windows() {
         let groups = groups();
-        assert_eq!(groups[1].0, "Other looks");
+        assert_eq!(groups[0].0, "Other looks");
         assert_eq!(
-            groups[1].1,
+            groups[0].1,
             [(
                 "Super+Alt+1-4".to_owned(),
                 "Give window to a look".to_owned()
             )]
         );
         let de = rows(&parse::<Config>(DEFAULT).unwrap(), Language::De);
-        assert_eq!(de[1].0, "Andere Fenstermanager");
+        assert_eq!(de[0].0, "Andere Fenstermanager");
+    }
+
+    #[test]
+    fn the_give_keys_and_the_focus_keys_are_both_in_the_top_part() {
+        let plan = laid_out(696.0);
+        let top = |words: &str| {
+            plan.items
+                .iter()
+                .find_map(|i| match i {
+                    Item::Title { at, text } if text == words => Some(at[1]),
+                    _ => None,
+                })
+                .unwrap_or_else(|| panic!("no heading {words}"))
+        };
+        assert!(top("Other looks") < 100.0, "{}", top("Other looks"));
+        assert!(top("Windows") < 160.0, "{}", top("Windows"));
     }
 
     fn words_of(commands: &[Command]) -> Vec<String> {

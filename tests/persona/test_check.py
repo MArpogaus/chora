@@ -407,7 +407,8 @@ class NoEvent(unittest.TestCase):
     def test_t7_with_an_event_is_judged(self):
         with tempfile.TemporaryDirectory() as folder:
             run = FakeRun(folder, one_window("s1"))
-            status, out = goal(run, one_window("s1"), one_window("s1"), "T7", hist=[["s1"]])
+            before = snap(nodes=[surface("s1", "tiling", True)], toplevels={"s1"})
+            status, out = goal(run, before, one_window("s1"), "T7", hist=[["s1"]])
             self.assertIn("task T7 pass", out)
 
     def test_c2_and_l3_without_an_event_are_not_reached(self):
@@ -416,6 +417,34 @@ class NoEvent(unittest.TestCase):
                 run = FakeRun(folder, one_window("s1"))
                 _, out = goal(run, one_window("s1"), one_window("s1"), task, hist=())
                 self.assertIn(f"task {task} not reached", out)
+
+
+class HandoverNeedsAnOwnerChange(unittest.TestCase):
+    """T7 passes only when a window's owner changed look: a tag move inside
+    tiling keeps every window with its owner and is no handover (r5: the
+    contract passed for a persona that pressed Super+Shift+2)."""
+
+    def windows(self, owner_of_s2, tag):
+        nodes = [surface("s1", "tiling", True), surface("s2", owner_of_s2)]
+        states = {"tiling": look_state("s1", [win("s1", "tiling")], holder="tiling")}
+        states["tiling"]["tag"] = tag
+        return snap(states=states, nodes=nodes, toplevels={"s1", "s2"})
+
+    def test_a_tag_move_inside_tiling_is_not_a_pass(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, snap())
+            before = self.windows("tiling", 1)
+            status, out = goal(run, before, self.windows("tiling", 2), "T7")
+            self.assertEqual(status, 1, out)
+            self.assertIn("no window changed look", out)
+            self.assertNotIn("task T7 pass", out)
+
+    def test_a_window_that_another_look_owns_now_is_a_pass(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = FakeRun(folder, snap())
+            status, out = goal(run, self.windows("tiling", 1), self.windows("xp", 1), "T7")
+            self.assertEqual(status, 0, out)
+            self.assertIn("task T7 pass", out)
 
 
 class Covered(unittest.TestCase):
