@@ -975,6 +975,18 @@ class TilingArgv(unittest.TestCase):
             self.assertNotIn('[f"{BIN}/chora-tiling"', text, chapter)
 
 
+class CodeWindow(unittest.TestCase):
+    """RV9-3: the code window of the tiling chapter showed crates/chora-kit/src/wobbly.rs of the
+    checkout, and that file differs between the baseline and the candidate: a pixel diff of the
+    window, not of the product. It shows a file of the tour."""
+
+    def test_the_code_window_shows_a_file_of_the_tour(self):
+        text = (ROOT / "demo" / "tour" / "chapters" / "tiling.py").read_text()
+        self.assertNotIn("crates/", text.split("args=")[1].split("\n")[0])
+        self.assertIn("args={SAMPLE}", text)
+        self.assertTrue((ROOT / "demo" / "tour" / "sample.rs").exists())
+
+
 class LauncherEnv(unittest.TestCase):
     """TOUR-LAUNCH: the launchers of the xp start menu (xp-item-N) come from PATH and XDG_DATA_DIRS;
     both runs of a comparison must get one fixed environment, not the one of the shell that ran them."""

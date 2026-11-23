@@ -141,7 +141,7 @@ def run(ctx):
     colors="-o colors.background=1a1b26 -o colors.foreground=c0caf5 -o pad=14x12 -o cursor.blink=no"
     if [ $n = 0 ]; then exec env HISTFILE={history} PROMPT_COMMAND='history -a' /usr/bin/foot --app-id=shell --title=shell $colors -o 'font=DejaVu Sans Mono:size=10'; fi
     case $((n % 3)) in 1) k=code;; 2) k=notes;; 0) k=page;; esac
-    args=""; [ $k = code ] && args={REPO}/crates/chora-kit/src/wobbly.rs
+    args=""; [ $k = code ] && args={SAMPLE}
     exec /usr/bin/foot --app-id=$k --title=$k $colors -o 'font=DejaVu Sans Mono:size=9' -e sh -c "python3 -I {CONTENT} $k $args; exec sleep infinity"
     """)
     os.chmod(f"{stub}/foot", 0o755)

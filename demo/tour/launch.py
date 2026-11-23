@@ -16,6 +16,7 @@ REPO = os.environ.get("TOUR_REPO", "/home/user/chora")
 BIN = f"{REPO}/target/debug"
 SCRATCH = os.environ.get("TOUR_SCRATCH", "/tmp/claude-0/tour")
 CONTENT = f"{REPO}/demo/content.py"
+SAMPLE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sample.rs")
 
 ENTRIES = [
     {"seq": 1, "role": "user", "text": "Please tidy the notes for Friday."},
