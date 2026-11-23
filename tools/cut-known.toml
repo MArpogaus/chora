@@ -27,7 +27,7 @@ other = "chora-chat"
 [[known]]
 check = "names"
 crate = "chora-construct"
-max = 1
+max = 0
 other = "chora-assistant"
 
 [[known]]
@@ -57,7 +57,7 @@ other = "chora-xp"
 [[known]]
 check = "names"
 crate = "chora-mc"
-max = 1
+max = 0
 other = "chora-assistant"
 
 [[known]]
