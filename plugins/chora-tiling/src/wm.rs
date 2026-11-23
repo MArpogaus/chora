@@ -1741,12 +1741,27 @@ mod tests {
         assert_eq!(new.arrange(), old.arrange());
     }
 
+    /// A panel of another look at the bottom is not in the claim: a key
+    /// with the pointer on the taskbar of xp is xp's.
     #[test]
-    fn the_claim_holds_the_whole_outputs_with_the_bar() {
+    fn the_claim_leaves_a_panel_below_the_work_area_to_its_look() {
         let mut wm = wm(&[]);
-        assert_eq!(wm.claim(), Some([0.0, 0.0, 100.0, 80.0]), "the bar too");
+        assert_eq!(wm.claim(), Some([0.0, 0.0, 100.0, 60.0]), "work area only");
+        wm.set_output("A", [0, 20, 100, 40], [0, 0, 100, 80]);
+        assert_eq!(
+            wm.claim(),
+            Some([0.0, 0.0, 100.0, 60.0]),
+            "bar above, panel below"
+        );
+    }
+
+    #[test]
+    fn the_claim_holds_the_bar_above_the_work_area() {
+        let mut wm = wm(&[]);
+        wm.set_output("A", [0, 20, 100, 40], [0, 0, 100, 80]);
+        assert_eq!(wm.claim(), Some([0.0, 0.0, 100.0, 60.0]), "the bar too");
         wm.set_output("B", [100, 10, 50, 40], [100, 0, 50, 50]);
-        assert_eq!(wm.claim(), Some([0.0, 0.0, 150.0, 80.0]));
+        assert_eq!(wm.claim(), Some([0.0, 0.0, 150.0, 60.0]));
     }
 
     /// Tiling on outputs 1 and 3, another window manager on 2: a drop on
