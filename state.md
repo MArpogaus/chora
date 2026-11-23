@@ -23,7 +23,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (closes on the flake lanes + ha
 | Lane | Model, branch | State |
 |---|---|---|
 | flake-series-r6.md (F5, rc 3, 9; 1 %) | haiku high, claude/flake-series-r6 230ea0e5 | session_016iS3kLUGZ6nX4ntqUXGnFw 07:26, run 1 of 5 at 08:10 (22 steps, no FAIL) |
-| co-focus-r3.md (rc 1, 2; 1.5 %) | opus high, claude/co-focus 8a599917 | review r2 FIX 08:32 (rcf-9 MAJOR: turn takes another client's keys; rcf-1..4 hold); r3 rcf-9, rcf-7 starting |
+| co-focus-r3.md (rc 1, 2; 1.5 %) | opus high, claude/co-focus 8a599917 | review r2 FIX 08:32 (rcf-9 MAJOR: turn takes another client's keys; rcf-1..4 hold); r3 session_016iS3kLRpDadJrSqse98AFN 08:33 |
 | tiling-flake-r2.md (F5, rc 3; 1 %) | sonnet medium, claude/tiling-flake 8f2ed754 | session_016iS3kPRNFtfhtkZyvMaKdM 05:55 (r1 INCOMPLETE) |
 | record-v9-r4.md (F7, rc 11; 1.5 %) | sonnet medium, claude/record-v9 088d36de | r3 MERGE-OK (PM review), train t114 07:41, restarted 08:16 after container restart 07:48; r4 session_016iS3kP9SomnoWqm2LHMfr4 07:42 |
 
