@@ -563,6 +563,56 @@ mod tests {
         assert!(commands.contains(&start_focus), "{commands:?}");
     }
 
+    /// rcf-8: after a turn to face 2 at rest, the icons lie on the work
+    /// area of the front face, not on face 0 out of sight, so the keys to
+    /// the icons of the front face go to icons that show. Back on face 0
+    /// they return; without a host they stay on the first bar. The first
+    /// refresh is the tick that follows the screen leaving.
+    #[test]
+    fn the_icons_follow_the_front_face_of_a_hosted_cube() {
+        let inside = |wm: &Wm, output: &str| {
+            let [x, y, w, h] = wm
+                .bars
+                .iter()
+                .find(|b| b.output == output)
+                .unwrap()
+                .usable();
+            let places = wm.desk.places();
+            assert!(!places.is_empty(), "no icons");
+            places
+                .iter()
+                .all(|p| (x..x + w).contains(&p[0]) && (y..y + h).contains(&p[1]))
+        };
+        let mut wm = hosted("host-icons-front");
+        let _ = wm.refresh_icons();
+        assert!(
+            inside(&wm, "V-1"),
+            "at rest on face 0: {:?}",
+            wm.desk.places()
+        );
+        let _ = wm.host_turned(turned(2));
+        assert!(inside(&wm, "V-3"), "face 2 at rest: {:?}", wm.desk.places());
+        let _ = wm.host_turned(turned(0));
+        assert!(inside(&wm, "V-1"), "face 0 again: {:?}", wm.desk.places());
+        wm.host = None;
+        let _ = wm.host_turned(turned(2));
+        assert!(inside(&wm, "V-1"), "flat: {:?}", wm.desk.places());
+    }
+
+    /// rcf-10: the exported `start_menu` call opens the menu on the face
+    /// at the front of a hosted cube, as the key does (rcf-7).
+    #[test]
+    fn the_start_menu_call_opens_on_the_front_face() {
+        let mut wm = hosted("host-start-call");
+        wm.front = 2;
+        let _ = wm.call(super::super::Call::StartMenu { open: true });
+        assert_eq!(wm.menu.output(), Some("V-3"));
+        let _ = wm.close_menu();
+        wm.host = None;
+        let _ = wm.call(super::super::Call::StartMenu { open: true });
+        assert_eq!(wm.menu.output(), Some("V-1"), "flat");
+    }
+
     /// co-51: the focused window of the front face closes (the window of
     /// the lock). The core first focuses nothing and then destroys it: the
     /// keys go to the icons of the front face, never to nobody and never
