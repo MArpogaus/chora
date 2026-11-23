@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-23 16:04 UTC)
+## Now (2026-11-23 16:13 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 14:50 PM 4.9 % (11-22) + 4.8 % (11-23), week about 20 % vs 35 % pace
 session branch: bc153929 (t115 green 12:46); 69 greens.
@@ -29,10 +29,10 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 | mc-tidy-r2.md (F7) | sonnet medium | 2025bae0 MERGE-OK; train117 running |
 | leak-r1.md (rc 9; 2 %) | opus high | 677790dc MERGE-OK (PM review); train117 running |
 | co-reach-r1.md (rc 1, 2; 2 %) | opus high, claude/co-reach bc153929 | session_016iS3kNey3bZFXVjkQbFTGV 13:59 |
-| h-rf-r2.md (rc 3; 0.6 %) | sonnet high, h-rf fff3f1ab | review r1 FIX rhr-1; session_016iS3kQHdhbQXru8phFwyvF 14:55 |
+| h-rf-r2.md (rc 3; 0.6 %) | sonnet high | c9d8d9f0 MERGE-OK (PM review); train118 alone |
 ## Queue (% week; 5 % reserve)
 1. (rc 9) train117b rerun 15:12 (t117 red xp-faces flake xp-42, 10/10 alone); then soak rerun (sl-9), train118.
-2. (rc 7, process) H-RF r2 running; train118: docs-rc-r2, guard-3 (+ tiling-disc, h-rf if OK).
+2. (rc 7, process) train118 h-rf alone (harness); train119 docs-rc-r2, guard-3, tiling-disc if OK.
 3. (rc 3, 9; F5) fs-r6: 0/5 green (keys sh-34 x4, acts x1 stalls): FLAKE-SERIES r7 after train118.
 4. (rc 1, 2; 2 %) CO-REACH r1 starting (co-52 raised MAJOR, co-54 lost window, co-51, co-57). (rc 1, 2; 1 %) rcf-8, rcf-10, co-44, co-45, ti-30, sh-31 once the look has no open MAJOR.
 5. (F5, F7; 3.5 %) SH-32 I14 after tiling-disc; TOUR-BASE (I6, rv9 = MAJOR) after xp-readable; FLAKE-SERIES r7 after leak-r1 and guard-3.

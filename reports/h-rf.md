@@ -147,3 +147,11 @@ FAIL (foreign, same cell as r1): `keys`: `FAIL: the Foot row of Programs started
 The gate stops after the failed step, so pixels, mc-paths, mc-sofa, mc-column, mc-handover, launcher-click,
 voice-acp, voice-events, agent, e2e did not run (cost limit; the change is shell scripts of the red-first rule
 and a doc paragraph, no Rust). I did not rerun to green.
+
+## PM review r2 (11-23 16:20; 4 files +93 -15, builder not the PM)
+- Red first: ad2c46a4 < 0e4ce1b6 (rhr-1), 370344ac < b8db5679 (rhr-2), cbab2f3d < 20e4ce3f (rhr-4), 2d06e357 < 723aae31 (rhr-3), caa69301 < 6a27ad04 (in flight). Holds.
+- rhr-1: hook cuts at `# -* >8 -*` (red-first.sh hook); selftest: no id below the scissors, ids above still read. Closed.
+- rhr-2: tokens with `.digit` dropped, denylist utf sha base ipv gate gtk; selftest covers utf-8 .. v0.9.0-rc.3. Closed.
+- rhr-3: one id_verdict(ids, test_ids, sha) used by hook_id_verdict and the gate step. Closed. rhr-4 closed (glued ids split).
+- In flight: per_id_rule_from=1795446505 (15:08:25Z, committer date of c9d8d9f0); fix_ids returns none before it, so the any-test rule applies. Lane item 4: xp-readable, guard-3, co-reach, tiling-disc, leak pass. NIT rpr-1: fix commits a running lane makes after 15:08 are read per id; briefs say "name in a fix only the ids it closes".
+- Lane gate red at keys (sh-34, fuzzel 1.9.2), foreign; the PM train runs the full gate. 0 BLOCK, 0 MAJOR. Verdict MERGE-OK c9d8d9f0; harness branch: its own train118 after train117.
