@@ -458,6 +458,7 @@ git -C "$rr" add h.rs
 check "the hook takes a fix naming the id of a test commit before it" "$(hook_rc "fix(h): for sh-1")" 0
 check "the hook refuses a fix naming an id that has no test commit" "$(hook_rc "fix(h): for sh-2")" 1
 check "the hook names that id" "$(hook "fix(h): for sh-2" | grep -c '^red-first: .*sh-2')" 1
+check "the hook and the gate word a missing id the same way" "$(hook "fix(h): for sh-2" | grep -c '^red-first: .* misses a test commit before it that names sh-2$')" 1
 check "the hook names only the id that misses its test" "$(hook "fix(h): for sh-1 and sh-2" | grep -c '^red-first: .*sh-[12]')" 1
 check "the hook refuses a fix with one id of two missing" "$(hook_rc "fix(h): for sh-1 and sh-2")" 1
 check "the hook reads the id in the body" "$(hook_rc "fix(h): no id here" "" "Closes sh-2.")" 1
