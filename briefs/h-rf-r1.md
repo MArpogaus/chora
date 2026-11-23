@@ -2,7 +2,7 @@
 
 Model: sonnet, effort high (harness shell change with selftests; routine but exact)
 Lane: cloud, claude/h-rf from bc153929 (session head). One round. Stop at 200 k context; cost at most 1 %.
-Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `git fetch origin claude/autonomous-dev-session-3w-i33pg7`; a failure: send_message the PM "h-rf BLOCKED: <line>" and stop.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `git fetch origin claude/autonomous-dev-session-3w-i33pg7`, `cargo check --workspace`; a failure: send_message the PM "h-rf BLOCKED: <line>" and stop.
 Read: tests/red-first.sh (78 lines), the red-first step of tests/merge-gate.sh, .pre-commit-config.yaml (id red-first), backlog.md "H-RF" and "R13", "R14" on claude/session-log.
 
 Goal (backlog H-RF): today a fix commit passes when any test change exists in base..HEAD. Tighten it per finding id:
