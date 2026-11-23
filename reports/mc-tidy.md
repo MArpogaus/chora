@@ -14,3 +14,5 @@ Branch claude/mc-tidy (from 5b34d4b1), head a3a9e8ef. No product code changed: t
 Captures: none taken (SHOTS unset); cells and logs in /tmp/merge-gate.OYLH6z/.
 
 Gate: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` on a3a9e8ef: 38 PASS, 1 FAIL (`keys`: gate-construct-keys-persona.sh:88 "the Foot row of Programs started no foot", reproduced with `--only keys`), xp-fields SKIP. The diff is a test script and a unit test in mc, so keys cannot be caused by it; not bisected on 5b34d4b1. Not green: the PM decides on the keys row.
+
+Re-gate after merging bc153929 (t115) into claude/mc-tidy (2025bae0): same result, 38 PASS, `keys` FAIL (same line 88), xp-fields SKIP. The keys red is on the session head too, not from mc-tidy.
