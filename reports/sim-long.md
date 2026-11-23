@@ -147,3 +147,7 @@ Head `claude/soak-r3` `39283655` (script `0e41f658`, results `39283655`; session
 **sl-10** (new, sampled core RSS, severity for the PM to set): open. Sampled fit is over the 5 %/h bar with windows flat. The sampled series is a sawtooth (212 to 496 MB); the rise rests on the peaks at 5401, 6601, 7801 and 8401 s. Next: sample at a fixed round phase after the window close, same round count.
 
 Note: the first commit of this lane (`0e41f658`) is flagged Unverified by a stop hook because of the author identity; kept as Marcel Arpogaus per the brief.
+
+## PM review soak r3
+
+Diff 1ec04694..39283655: 30 lines (soak-core.sh end_probes plus a per-round window count; RESULTS.md). Test-only, no product fix, so no red commit due. Check: the added lines run after the kill loop and log `windows open N after end_probes` per round; the run file shows 0 in 911 rounds (report). sl-9 / sh-33 closed on round-end RSS and fds flat. sl-10 = sh-36 MINOR: the rise rests on sampled peaks while round-end RSS falls; not a leak by the round-end measure. Verdict MERGE-OK 39283655, train120.
