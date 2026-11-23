@@ -3,7 +3,7 @@
 ## Now (2026-11-23 11:13 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 10:50 PM 4.9 % (11-22) + 3.6 % (11-23), week about 18 % vs 35 % pace
-session branch: 5b34d4b1 (t114 green 11:10: record-v9 r3); 68 greens; t115 running (tiling-flake, co-focus, record-v9 r4).
+session branch: 5b34d4b1 (t114 green 11:10: record-v9 r3); 68 greens, t115 running (tiling-flake, co-focus, record-v9 r4).
 burn-down: F1-F4, F6, F8 met (audit r4); F5 open (flake lanes, series); F7 open.
 
 ## RC
@@ -11,7 +11,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (flake lanes, series); F7 open.
 |---|---|---|
 | 1, 1b | No BLOCK/MAJOR, independent pass; owner sees v9 | open: RECORD-V9 (ti-38 next train) |
 | 2 | Persona round 4 | xp, mc meet; co r6 not met (co-48..51), tiling: r5 not met (L1, L2, T6, T7 not reached; I2, T3, T1 hold), tiling-disc r1 |
-| 3 | 3 greens, no flake | series r5 5/5 on 3b14c825; open: FLAKE-WAIT, FLAKE-K1, FLK-K1b, PIX-CAPSULE, TILING-LAYOUT |
+| 3 | 3 greens, no flake | series r5 5/5 on 3b14c825; FLAKE-WAIT, FLAKE-K1, FLK-K1b, PIX-CAPSULE, TILING-LAYOUT |
 | 4, 5 | CI green on a PR; packaging | pre-commit green; CI PR at release |
 | 6 | Review per area | r1 MERGE-OK (0 MAJOR; MC-FOCUS) |
 | 7 | deny, machete; updates | clean; 7 bumps (DEPS) |
@@ -28,12 +28,12 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (flake lanes, series); F7 open.
 | record-v9-r4.md (F7; 1.5 %) | sonnet medium, claude/record-v9 6949cddb | MERGE-OK 10:56 (rr9-1 MINOR); t115 |
 | sim-long-r2.md (rc 9; 1 %) | haiku high, claude/sim-long-r2 230ea0e5 | session_016iS3kLH4cr6VJ5SxZZeob1 09:33 |
 | tiling-disc-r1.md (rc 2; 1.5 %) | sonnet high, claude/tiling-disc 230ea0e5 | session_016iS3kLr3z3YfoMNYBqXya5 10:10 |
-| xp-readable-r1.md (F7; 1.5 %) | sonnet high, claude/xp-readable 5b34d4b1 | session_016iS3kMVx3PinxquBDuK1wo 11:12 |
-| mc-tidy-r1.md (F7; 1 %) | sonnet medium, claude/mc-tidy 5b34d4b1 | starting |
+| xp-readable-r1.md (F7; 1.5 %) | sonnet high, claude/xp-readable 5b34d4b1 | session_016iS3kMVx3PinxquBDuK1wo |
+| mc-tidy-r1.md (F7; 1 %) | sonnet medium, claude/mc-tidy 5b34d4b1 | session_016iS3kP9Js7yxNibyrZocXb |
 ## Queue (% week; 5 % reserve)
 3. (rc 8) DOCS-RC r2 (pr-1..5) on the Thu head.
-4. (rc 1, 2) co-focus r3 MERGE-OK, t115; rcf-8, rcf-10 MINOR next round. (F7, rc 11) record-v9 r3 in t114; r4 done (88 regressions, causes named), review then t115 or t116; xp-readable r1 started (xp-39..41, 19, 9, 10, 13); co-44, co-45, ti-30, sh-31 once no MAJOR is open on the look.
-5. (rc 3, 9; F5) haiku series 6 running on 230ea0e5; F5 met again when it is 5/5 and tiling-flake r2 merges. Started 09:33: sim-long r2 (rc 9), p2-r5-tiling (rc 2); 6th slot: DOCS-RC r2 Thu or fix lanes per look after record-v9 r4.
+4. (rc 1, 2, 11) t115: co-focus r3, tiling-flake r2, record-v9 r4; then rcf-8, rcf-10 MINOR; co-44, co-45, ti-30, sh-31 once no MAJOR is open on the look (co-48..51 verify after t115).
+5. (F7) xp-readable r1, mc-tidy r1 running (1.5 + 1 %). (F5, rc 3, 9) series 6 on 230ea0e5, sim-long r2; F5 met at 5/5 with tiling-flake r2 merged. 6th slot: DOCS-RC r2 Thu.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
