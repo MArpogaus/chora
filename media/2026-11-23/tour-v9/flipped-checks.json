@@ -1,0 +1,4262 @@
+[
+ {
+  "act": "h1",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '2' (xp-pager-1-HEADLESS-2) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h1",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '3' (xp-pager-2-HEADLESS-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h1",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '4' (xp-pager-3-HEADLESS-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h1b",
+  "check": "I6",
+  "element": "xp-menu-frame",
+  "line": "I6: on HEADLESS-2 'User' (xp-menu-frame) has the contrast 4.32:1 ((255, 255, 255) on (39, 121, 221)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h1b",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '2' (xp-pager-1-HEADLESS-2) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h1b",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '3' (xp-pager-2-HEADLESS-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h1b",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '4' (xp-pager-3-HEADLESS-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h1c",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '2' (xp-pager-1-HEADLESS-2) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h1c",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '3' (xp-pager-2-HEADLESS-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h1c",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '4' (xp-pager-3-HEADLESS-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h1d",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '2' (xp-pager-1-HEADLESS-2) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h1d",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '3' (xp-pager-2-HEADLESS-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h1d",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '4' (xp-pager-3-HEADLESS-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h2",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '2' (xp-pager-1-HEADLESS-2) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h2",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '3' (xp-pager-2-HEADLESS-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h2",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '4' (xp-pager-3-HEADLESS-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h3",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '2' (xp-pager-1-HEADLESS-2) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h3",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '3' (xp-pager-2-HEADLESS-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h3",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '4' (xp-pager-3-HEADLESS-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h3b",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '2' (xp-pager-1-HEADLESS-2) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h3b",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '3' (xp-pager-2-HEADLESS-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h3b",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '4' (xp-pager-3-HEADLESS-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h4",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '2' (xp-pager-1-HEADLESS-2) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h4",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '3' (xp-pager-2-HEADLESS-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h4",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '4' (xp-pager-3-HEADLESS-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h5",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '2' (xp-pager-1-HEADLESS-2) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h5",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '3' (xp-pager-2-HEADLESS-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h5",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '4' (xp-pager-3-HEADLESS-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h6",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '2' (xp-pager-1-HEADLESS-2) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h6",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '3' (xp-pager-2-HEADLESS-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h6",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '4' (xp-pager-3-HEADLESS-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h7",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '2' (xp-pager-1-HEADLESS-2) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h7",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '3' (xp-pager-2-HEADLESS-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "h7",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-2",
+  "line": "I6: on HEADLESS-2 '4' (xp-pager-3-HEADLESS-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x1",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x1",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x1",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x2",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x2",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x2",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x2b",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x2b",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x2b",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x2c",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x2c",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x2c",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x3",
+  "check": "other",
+  "element": null,
+  "line": "letter.txt holds 'Dear Anna,\\nDear Anna,\\nthank you for the lovely visit.\\nThe garden looks wonderful.\\nthank you for the lovely visit.\\nLove, ErikaThe garden looks wonderful.\\nLove, Erika', expected 'Dear Anna,\\nthank you for the lovely visit.\\nThe garden looks wonderful.\\nLove, Erika'"
+ },
+ {
+  "act": "x3",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x3",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x3",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x4",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x4",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x4",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x5",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x5",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x5",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x5b",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x5b",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x5b",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x5c",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x5c",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x5c",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x5d",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x5d",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x5d",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x5e",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x5e",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x5e",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x7",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x7",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x7",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x7b",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x7b",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x7b",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x8",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x8",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x8",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x9",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x9",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x9",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x9b",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x9b",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x9b",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x10",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x10",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x10",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x10",
+  "check": "I6",
+  "element": "xp-task-s1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 'Notepad' (xp-task-s1-HEADLESS-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x10c",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x10c",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x10c",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x11",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 4.06:1 ((218, 218, 218) on (101, 103, 105)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x11",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 4.06:1 ((218, 218, 218) on (101, 103, 105)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x11",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.91:1 ((214, 214, 214) on (101, 103, 105)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x11",
+  "check": "I6",
+  "element": "xp-session-button-0",
+  "line": "I6: on HEADLESS-1 'Lock' (xp-session-button-0) has the contrast 3.56:1 ((255, 255, 255) on (97, 132, 225)), the guide wants 7:1"
+ },
+ {
+  "act": "x11",
+  "check": "I6",
+  "element": "xp-session-button-1",
+  "line": "I6: on HEADLESS-1 'Log Off' (xp-session-button-1) has the contrast 2.91:1 ((116, 149, 232) on (255, 255, 255)), the guide wants 7:1"
+ },
+ {
+  "act": "x11",
+  "check": "I6",
+  "element": "xp-session-button-2",
+  "line": "I6: on HEADLESS-1 'Stand By' (xp-session-button-2) has the contrast 2.14:1 ((255, 255, 255) on (146, 177, 243)), the guide wants 7:1"
+ },
+ {
+  "act": "x11",
+  "check": "I6",
+  "element": "xp-session-button-3",
+  "line": "I6: on HEADLESS-1 'Turn Off' (xp-session-button-3) has the contrast 2.07:1 ((255, 255, 255) on (149, 180, 245)), the guide wants 7:1"
+ },
+ {
+  "act": "x11",
+  "check": "I6",
+  "element": "xp-session-button-4",
+  "line": "I6: on HEADLESS-1 'Restart' (xp-session-button-4) has the contrast 2.91:1 ((117, 149, 232) on (255, 255, 255)), the guide wants 7:1"
+ },
+ {
+  "act": "x11b",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x11b",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x11b",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x6",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x6",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x6",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x6b",
+  "check": "I6",
+  "element": "xp-icon-2",
+  "line": "I6: on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.67:1 ((201, 199, 186) on (255, 255, 225)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x6b",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x6b",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x6b",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x6c",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x6c",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x6c",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x6d",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x6d",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x6d",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x6e",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x6e",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x6e",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x5f",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x5f",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x5f",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x5g",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x5g",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x5g",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x12",
+  "check": "I6",
+  "element": "xp-pager-0-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x12",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x12",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x12b",
+  "check": "I6",
+  "element": "xp-pager-1-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x12b",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x12b",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x12c",
+  "check": "I6",
+  "element": "xp-pager-0-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '1' (xp-pager-0-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x12c",
+  "check": "I6",
+  "element": "xp-pager-2-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "x12c",
+  "check": "I6",
+  "element": "xp-pager-3-HEADLESS-1",
+  "line": "I6: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-task-s1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'sunset' (xp-task-s1-VIRTUAL-1) has the contrast 3.60:1 ((243, 247, 254) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-task-s2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-title-s1",
+  "line": "I6: on VIRTUAL-1 'sunset' (xp-title-s1) has the contrast 2.16:1 ((217, 228, 247) on (123, 155, 223)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-title-s2",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-title-s2) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-task-s3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-task-s3-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-task-s4-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'load' (xp-task-s4-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-title-s3",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-title-s3) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-title-s4",
+  "line": "I6: on VIRTUAL-2 'load' (xp-title-s4) has the contrast 2.13:1 ((217, 227, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-task-s5-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-task-s5-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-task-s6-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-task-s6-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-title-s5",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-title-s5) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-title-s6",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-title-s6) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-task-s7-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-task-s7-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c1",
+  "check": "I6",
+  "element": "xp-title-s7",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-title-s7) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-task-s2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-title-s2",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-title-s2) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-task-s3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-task-s3-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-task-s4-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'load' (xp-task-s4-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-title-s3",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-title-s3) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-title-s4",
+  "line": "I6: on VIRTUAL-2 'load' (xp-title-s4) has the contrast 2.13:1 ((217, 227, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-task-s5-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-task-s5-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-task-s6-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-task-s6-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-title-s5",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-title-s5) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-title-s6",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-title-s6) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-task-s7-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-task-s7-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-task-s8-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-task-s8-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-title-s7",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-title-s7) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5",
+  "check": "I6",
+  "element": "xp-title-s8",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-title-s8) has the contrast 2.15:1 ((217, 228, 247) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-task-s2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-title-s2",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-title-s2) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-task-s3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-task-s3-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-task-s4-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'load' (xp-task-s4-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-title-s3",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-title-s3) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-title-s4",
+  "line": "I6: on VIRTUAL-2 'load' (xp-title-s4) has the contrast 2.13:1 ((217, 227, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-task-s5-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-task-s5-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-task-s6-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-task-s6-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-title-s5",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-title-s5) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-title-s6",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-title-s6) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-task-s7-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-task-s7-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-task-s8-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-task-s8-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-title-s7",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-title-s7) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5b",
+  "check": "I6",
+  "element": "xp-title-s8",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-title-s8) has the contrast 2.15:1 ((217, 228, 247) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-left are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c2",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-right are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c2",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2",
+  "check": "I6",
+  "element": "xp-task-s2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2",
+  "check": "I6",
+  "element": "xp-task-s3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-task-s3-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2",
+  "check": "I6",
+  "element": "xp-task-s4-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'load' (xp-task-s4-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2",
+  "check": "I6",
+  "element": "xp-task-s5-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-task-s5-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2",
+  "check": "I6",
+  "element": "xp-task-s6-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-task-s6-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2",
+  "check": "I6",
+  "element": "xp-title-s5",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-title-s5) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2",
+  "check": "I6",
+  "element": "xp-title-s6",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-title-s6) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2",
+  "check": "I6",
+  "element": "xp-task-s7-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-task-s7-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2",
+  "check": "I6",
+  "element": "xp-task-s8-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-task-s8-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2",
+  "check": "I6",
+  "element": "xp-title-s7",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-title-s7) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2",
+  "check": "I6",
+  "element": "xp-title-s8",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-title-s8) has the contrast 2.15:1 ((217, 228, 247) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5c",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-left are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c5c",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-right are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c5c",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5c",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5c",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5c",
+  "check": "I6",
+  "element": "xp-task-s2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5c",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5c",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5c",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5c",
+  "check": "I6",
+  "element": "xp-task-s3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-task-s3-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5c",
+  "check": "I6",
+  "element": "xp-task-s4-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'load' (xp-task-s4-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5c",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5c",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5c",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5c",
+  "check": "I6",
+  "element": "xp-task-s5-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-task-s5-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5c",
+  "check": "I6",
+  "element": "xp-task-s6-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-task-s6-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5c",
+  "check": "I6",
+  "element": "xp-title-s5",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-title-s5) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5c",
+  "check": "I6",
+  "element": "xp-title-s6",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-title-s6) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5c",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5c",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5c",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5c",
+  "check": "I6",
+  "element": "xp-task-s7-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-task-s7-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5c",
+  "check": "I6",
+  "element": "xp-task-s8-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-task-s8-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5c",
+  "check": "I6",
+  "element": "xp-title-s7",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-title-s7) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5c",
+  "check": "I6",
+  "element": "xp-title-s8",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-title-s8) has the contrast 2.15:1 ((217, 228, 247) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5d",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-left are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c5d",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-right are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c5d",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5d",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5d",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5d",
+  "check": "I6",
+  "element": "xp-task-s2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5d",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5d",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5d",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5d",
+  "check": "I6",
+  "element": "xp-task-s3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-task-s3-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5d",
+  "check": "I6",
+  "element": "xp-task-s4-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'load' (xp-task-s4-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5d",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5d",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5d",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5d",
+  "check": "I6",
+  "element": "xp-task-s5-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-task-s5-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5d",
+  "check": "I6",
+  "element": "xp-task-s6-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-task-s6-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5d",
+  "check": "I6",
+  "element": "xp-title-s5",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-title-s5) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5d",
+  "check": "I6",
+  "element": "xp-title-s6",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-title-s6) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5d",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5d",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5d",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5d",
+  "check": "I6",
+  "element": "xp-task-s7-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-task-s7-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5d",
+  "check": "I6",
+  "element": "xp-task-s8-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-task-s8-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5d",
+  "check": "I6",
+  "element": "xp-title-s7",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-title-s7) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5d",
+  "check": "I6",
+  "element": "xp-title-s8",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-title-s8) has the contrast 2.15:1 ((217, 228, 247) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-left are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c3",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-right are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c3",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3",
+  "check": "I6",
+  "element": "xp-task-s2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3",
+  "check": "I6",
+  "element": "xp-title-s2",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-title-s2) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3",
+  "check": "I6",
+  "element": "xp-task-s3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-task-s3-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3",
+  "check": "I6",
+  "element": "xp-task-s4-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'load' (xp-task-s4-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3",
+  "check": "I6",
+  "element": "xp-task-s5-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-task-s5-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3",
+  "check": "I6",
+  "element": "xp-task-s6-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-task-s6-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3",
+  "check": "I6",
+  "element": "xp-task-s7-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-task-s7-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3",
+  "check": "I6",
+  "element": "xp-task-s8-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-task-s8-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3",
+  "check": "I6",
+  "element": "xp-title-s7",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-title-s7) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3",
+  "check": "I6",
+  "element": "xp-title-s8",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-title-s8) has the contrast 2.15:1 ((217, 228, 247) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3b",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-left are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c3b",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-right are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c3b",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3b",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3b",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3b",
+  "check": "I6",
+  "element": "xp-task-s2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3b",
+  "check": "I6",
+  "element": "xp-title-s2",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-title-s2) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3b",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3b",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3b",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3b",
+  "check": "I6",
+  "element": "xp-task-s3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-task-s3-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3b",
+  "check": "I6",
+  "element": "xp-task-s4-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'load' (xp-task-s4-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3b",
+  "check": "I6",
+  "element": "xp-title-s3",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-title-s3) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3b",
+  "check": "I6",
+  "element": "xp-title-s4",
+  "line": "I6: on VIRTUAL-2 'load' (xp-title-s4) has the contrast 2.13:1 ((217, 227, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3b",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3b",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3b",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3b",
+  "check": "I6",
+  "element": "xp-task-s5-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-task-s5-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3b",
+  "check": "I6",
+  "element": "xp-task-s6-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-task-s6-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3b",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3b",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3b",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3b",
+  "check": "I6",
+  "element": "xp-task-s7-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-task-s7-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3b",
+  "check": "I6",
+  "element": "xp-task-s8-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-task-s8-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3c",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-left are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c3c",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-right are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c3c",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3c",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3c",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3c",
+  "check": "I6",
+  "element": "xp-task-s2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3c",
+  "check": "I6",
+  "element": "xp-title-s2",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-title-s2) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3c",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3c",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3c",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3c",
+  "check": "I6",
+  "element": "xp-task-s3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-task-s3-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3c",
+  "check": "I6",
+  "element": "xp-task-s4-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'load' (xp-task-s4-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3c",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3c",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3c",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3c",
+  "check": "I6",
+  "element": "xp-task-s5-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-task-s5-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3c",
+  "check": "I6",
+  "element": "xp-task-s6-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-task-s6-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3c",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3c",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3c",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3c",
+  "check": "I6",
+  "element": "xp-task-s7-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-task-s7-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3c",
+  "check": "I6",
+  "element": "xp-task-s8-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-task-s8-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3c",
+  "check": "I6",
+  "element": "xp-title-s7",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-title-s7) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3c",
+  "check": "I6",
+  "element": "xp-title-s8",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-title-s8) has the contrast 2.15:1 ((217, 228, 247) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3d",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-left are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c3d",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-right are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c3d",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3d",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3d",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3d",
+  "check": "I6",
+  "element": "xp-task-s2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3d",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3d",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3d",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3d",
+  "check": "I6",
+  "element": "xp-task-s3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-task-s3-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3d",
+  "check": "I6",
+  "element": "xp-task-s4-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'load' (xp-task-s4-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3d",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3d",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3d",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3d",
+  "check": "I6",
+  "element": "xp-task-s5-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-task-s5-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3d",
+  "check": "I6",
+  "element": "xp-task-s6-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-task-s6-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3d",
+  "check": "I6",
+  "element": "xp-title-s5",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-title-s5) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3d",
+  "check": "I6",
+  "element": "xp-title-s6",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-title-s6) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3d",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3d",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3d",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3d",
+  "check": "I6",
+  "element": "xp-task-s7-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-task-s7-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3d",
+  "check": "I6",
+  "element": "xp-task-s8-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-task-s8-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3d",
+  "check": "I6",
+  "element": "xp-title-s7",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-title-s7) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3d",
+  "check": "I6",
+  "element": "xp-title-s8",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-title-s8) has the contrast 2.15:1 ((217, 228, 247) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-left are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c4",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-right are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "construct-help-body-scope",
+  "line": "I6: on HEADLESS-1 'CONSTRUCT \u00b7 CUBE' (construct-help-body-scope) is 11 px, the guide wants 14 px"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "construct-help-body-head-0",
+  "line": "I6: on HEADLESS-1 'WALK' (construct-help-body-head-0) is 11 px, the guide wants 14 px"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "construct-help-body-head-6",
+  "line": "I6: on HEADLESS-1 'PANES' (construct-help-body-head-6) is 11 px, the guide wants 14 px"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "construct-help-body-head-10",
+  "line": "I6: on HEADLESS-1 'CUBE' (construct-help-body-head-10) is 11 px, the guide wants 14 px"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "construct-help-body-head-14",
+  "line": "I6: on HEADLESS-1 'HELPER AND CHAT' (construct-help-body-head-14) is 11 px, the guide wants 14 px"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "construct-help-body-head-14-every",
+  "line": "I6: on HEADLESS-1 '\u00b7 EVERY LOOK' (construct-help-body-head-14-every) is 11 px, the guide wants 14 px"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "construct-help-body-head-17",
+  "line": "I6: on HEADLESS-1 'GIVE A WINDOW' (construct-help-body-head-17) is 11 px, the guide wants 14 px"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "construct-help-body-head-17-every",
+  "line": "I6: on HEADLESS-1 '\u00b7 EVERY LOOK' (construct-help-body-head-17-every) is 11 px, the guide wants 14 px"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "construct-help-body-head-21",
+  "line": "I6: on HEADLESS-1 'EVERYWHERE' (construct-help-body-head-21) is 11 px, the guide wants 14 px"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "construct-help-body-head-21-every",
+  "line": "I6: on HEADLESS-1 '\u00b7 EVERY LOOK' (construct-help-body-head-21-every) is 11 px, the guide wants 14 px"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-task-s1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'sunset' (xp-task-s1-VIRTUAL-1) has the contrast 3.60:1 ((243, 247, 254) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-task-s2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-task-s3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-task-s3-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-task-s4-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'load' (xp-task-s4-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-task-s5-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-task-s5-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-task-s6-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-task-s6-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-title-s5",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-title-s5) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-title-s6",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-title-s6) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-task-s7-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-task-s7-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-task-s8-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-task-s8-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-title-s7",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-title-s7) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4",
+  "check": "I6",
+  "element": "xp-title-s8",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-title-s8) has the contrast 2.15:1 ((217, 228, 247) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-left are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c4b",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-right are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-task-s1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'sunset' (xp-task-s1-VIRTUAL-1) has the contrast 3.60:1 ((243, 247, 254) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-task-s2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-task-s3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-task-s3-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-task-s4-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'load' (xp-task-s4-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-task-s5-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-task-s5-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-task-s6-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-task-s6-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-title-s5",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-title-s5) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-title-s6",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-title-s6) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-task-s7-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-task-s7-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-task-s8-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-task-s8-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-title-s7",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-title-s7) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c4b",
+  "check": "I6",
+  "element": "xp-title-s8",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-title-s8) has the contrast 2.15:1 ((217, 228, 247) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-task-s2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-title-s2",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-title-s2) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-task-s3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-task-s3-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-task-s4-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'load' (xp-task-s4-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-title-s3",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-title-s3) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-title-s4",
+  "line": "I6: on VIRTUAL-2 'load' (xp-title-s4) has the contrast 2.13:1 ((217, 227, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-task-s5-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-task-s5-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-task-s6-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-task-s6-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-title-s5",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-title-s5) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-title-s6",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-title-s6) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-task-s7-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-task-s7-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-task-s8-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-task-s8-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-title-s7",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-title-s7) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c5e",
+  "check": "I6",
+  "element": "xp-title-s8",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-title-s8) has the contrast 2.15:1 ((217, 228, 247) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-left are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c2b",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-right are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-task-s1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'sunset' (xp-task-s1-VIRTUAL-1) has the contrast 3.60:1 ((243, 247, 254) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-task-s2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-task-s3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-task-s3-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-task-s4-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'load' (xp-task-s4-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-task-s5-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-task-s5-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-task-s6-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-task-s6-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-title-s5",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-title-s5) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-title-s6",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-title-s6) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-task-s7-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-task-s7-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-task-s8-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-task-s8-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-title-s7",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-title-s7) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c2b",
+  "check": "I6",
+  "element": "xp-title-s8",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-title-s8) has the contrast 2.15:1 ((217, 228, 247) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-left are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c3e",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-right are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-task-s1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'sunset' (xp-task-s1-VIRTUAL-1) has the contrast 3.60:1 ((243, 247, 254) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-task-s2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-title-s1",
+  "line": "I6: on VIRTUAL-1 'sunset' (xp-title-s1) has the contrast 2.16:1 ((217, 228, 247) on (123, 155, 223)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-title-s2",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-title-s2) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-task-s3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-task-s3-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-task-s4-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'load' (xp-task-s4-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-task-s5-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-task-s5-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-task-s6-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-task-s6-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-task-s7-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-task-s7-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-task-s8-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-task-s8-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-title-s7",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-title-s7) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3e",
+  "check": "I6",
+  "element": "xp-title-s8",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-title-s8) has the contrast 2.15:1 ((217, 228, 247) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-left are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c3f",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-right are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-task-s1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'sunset' (xp-task-s1-VIRTUAL-1) has the contrast 3.60:1 ((243, 247, 254) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-task-s2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-title-s1",
+  "line": "I6: on VIRTUAL-1 'sunset' (xp-title-s1) has the contrast 2.16:1 ((217, 228, 247) on (123, 155, 223)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-title-s2",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-title-s2) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-task-s3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-task-s3-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-task-s4-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'load' (xp-task-s4-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-task-s5-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-task-s5-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-task-s6-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-task-s6-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-task-s7-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-task-s7-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-task-s8-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-task-s8-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-title-s7",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-title-s7) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3f",
+  "check": "I6",
+  "element": "xp-title-s8",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-title-s8) has the contrast 2.15:1 ((217, 228, 247) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-left are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c3g",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-right are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-task-s1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'sunset' (xp-task-s1-VIRTUAL-1) has the contrast 3.60:1 ((243, 247, 254) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-task-s2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-title-s1",
+  "line": "I6: on VIRTUAL-1 'sunset' (xp-title-s1) has the contrast 2.16:1 ((217, 228, 247) on (123, 155, 223)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-title-s2",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-title-s2) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-task-s3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-task-s3-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-task-s4-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'load' (xp-task-s4-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-task-s5-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-task-s5-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-task-s6-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-task-s6-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-task-s7-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-task-s7-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-task-s8-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-task-s8-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-title-s7",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-title-s7) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3g",
+  "check": "I6",
+  "element": "xp-title-s8",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-title-s8) has the contrast 2.15:1 ((217, 228, 247) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-left are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c3h",
+  "check": "I2",
+  "element": null,
+  "line": "I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-right are 9 apart, no whole number of 8"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '2' (xp-pager-1-VIRTUAL-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '3' (xp-pager-2-VIRTUAL-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 '4' (xp-pager-3-VIRTUAL-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-task-s1-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'sunset' (xp-task-s1-VIRTUAL-1) has the contrast 3.60:1 ((243, 247, 254) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-task-s2-VIRTUAL-1",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-title-s1",
+  "line": "I6: on VIRTUAL-1 'sunset' (xp-title-s1) has the contrast 2.16:1 ((217, 228, 247) on (123, 155, 223)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-title-s2",
+  "line": "I6: on VIRTUAL-1 'chora' (xp-title-s2) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '1' (xp-pager-0-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '3' (xp-pager-2-VIRTUAL-2) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 '4' (xp-pager-3-VIRTUAL-2) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-task-s3-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-task-s3-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-task-s4-VIRTUAL-2",
+  "line": "I6: on VIRTUAL-2 'load' (xp-task-s4-VIRTUAL-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-title-s3",
+  "line": "I6: on VIRTUAL-2 'wobbly.rs' (xp-title-s3) has the contrast 2.15:1 ((217, 228, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-title-s4",
+  "line": "I6: on VIRTUAL-2 'load' (xp-title-s4) has the contrast 2.13:1 ((217, 227, 248) on (122, 155, 228)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '1' (xp-pager-0-VIRTUAL-3) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '2' (xp-pager-1-VIRTUAL-3) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-pager-3-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 '4' (xp-pager-3-VIRTUAL-3) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-task-s5-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'cube.rs' (xp-task-s5-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-task-s6-VIRTUAL-3",
+  "line": "I6: on VIRTUAL-3 'chart' (xp-task-s6-VIRTUAL-3) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-pager-0-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '1' (xp-pager-0-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-pager-1-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '2' (xp-pager-1-VIRTUAL-4) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-pager-2-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 '3' (xp-pager-2-VIRTUAL-4) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-task-s7-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'wobble.rs' (xp-task-s7-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "c3h",
+  "check": "I6",
+  "element": "xp-task-s8-VIRTUAL-4",
+  "line": "I6: on VIRTUAL-4 'dusk' (xp-task-s8-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-h",
+  "line": "I6: on HEADLESS-1 'Super+F1 shows this list again. Esc closes it.' (tiling-keys-body-h) has the contrast 6.50:1 ((154, 161, 180) on (26, 29, 40)), the guide wants 7:1"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-m",
+  "line": "I6: on HEADLESS-1 'Mouse' (tiling-keys-body-m) has the contrast 6.50:1 ((154, 161, 180) on (26, 29, 40)), the guide wants 7:1"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-0",
+  "line": "I6: on HEADLESS-1 'Windows' (tiling-keys-body-0) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-1-k",
+  "line": "I6: on HEADLESS-1 'Super+J' (tiling-keys-body-1-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-3-k",
+  "line": "I6: on HEADLESS-1 'Super+K' (tiling-keys-body-3-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-5-k",
+  "line": "I6: on HEADLESS-1 'Super+Tab' (tiling-keys-body-5-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-7-k",
+  "line": "I6: on HEADLESS-1 'Super+U' (tiling-keys-body-7-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-9-k",
+  "line": "I6: on HEADLESS-1 'Super+Shift+J' (tiling-keys-body-9-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-11-k",
+  "line": "I6: on HEADLESS-1 'Super+Shift+K' (tiling-keys-body-11-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-13-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+Return' (tiling-keys-body-13-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-15-k",
+  "line": "I6: on HEADLESS-1 'Super+Shift+C' (tiling-keys-body-15-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-17-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+Space' (tiling-keys-body-17-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-19-k",
+  "line": "I6: on HEADLESS-1 'Super+F' (tiling-keys-body-19-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-21-k",
+  "line": "I6: on HEADLESS-1 'Super+M' (tiling-keys-body-21-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-23-k",
+  "line": "I6: on HEADLESS-1 'Super+Shift+M' (tiling-keys-body-23-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-25-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+M' (tiling-keys-body-25-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-27-k",
+  "line": "I6: on HEADLESS-1 'Super+T' (tiling-keys-body-27-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-29-k",
+  "line": "I6: on HEADLESS-1 'Super+N' (tiling-keys-body-29-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-31-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+N' (tiling-keys-body-31-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-33-k",
+  "line": "I6: on HEADLESS-1 'Super+drag' (tiling-keys-body-33-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-35",
+  "line": "I6: on HEADLESS-1 'Programs' (tiling-keys-body-35) has the contrast 6.50:1 ((154, 161, 180) on (26, 29, 40)), the guide wants 7:1"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-36-k",
+  "line": "I6: on HEADLESS-1 'Super+Return' (tiling-keys-body-36-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-38-k",
+  "line": "I6: on HEADLESS-1 'Super+R / Super+Space' (tiling-keys-body-38-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-40-k",
+  "line": "I6: on HEADLESS-1 'Super+A' (tiling-keys-body-40-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-42-k",
+  "line": "I6: on HEADLESS-1 'Super+Shift+Esc' (tiling-keys-body-42-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-44-k",
+  "line": "I6: on HEADLESS-1 'Super+Shift+E' (tiling-keys-body-44-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-46-k",
+  "line": "I6: on HEADLESS-1 'Super+Print' (tiling-keys-body-46-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-48-k",
+  "line": "I6: on HEADLESS-1 'Super+Shift+S' (tiling-keys-body-48-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-50",
+  "line": "I6: on HEADLESS-1 'Layouts' (tiling-keys-body-50) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-51-k",
+  "line": "I6: on HEADLESS-1 'Super+Shift+Space' (tiling-keys-body-51-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-53-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+Shift+Space' (tiling-keys-body-53-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-55-k",
+  "line": "I6: on HEADLESS-1 'Super+L' (tiling-keys-body-55-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-57-k",
+  "line": "I6: on HEADLESS-1 'Super+H' (tiling-keys-body-57-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-59-k",
+  "line": "I6: on HEADLESS-1 'Super+Shift+H' (tiling-keys-body-59-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-61-k",
+  "line": "I6: on HEADLESS-1 'Super+Shift+L' (tiling-keys-body-61-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-63-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+H' (tiling-keys-body-63-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-65-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+L' (tiling-keys-body-65-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-67-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+J' (tiling-keys-body-67-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-69-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+K' (tiling-keys-body-69-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-71-k",
+  "line": "I6: on HEADLESS-1 'Super+O' (tiling-keys-body-71-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-73",
+  "line": "I6: on HEADLESS-1 'Tags' (tiling-keys-body-73) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-74-k",
+  "line": "I6: on HEADLESS-1 'Super+1-9' (tiling-keys-body-74-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-76-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+1-9' (tiling-keys-body-76-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-78-k",
+  "line": "I6: on HEADLESS-1 'Super+Shift+1-9' (tiling-keys-body-78-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-80-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+Shift+1-9' (tiling-keys-body-80-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-82-k",
+  "line": "I6: on HEADLESS-1 'Super+\\u2009\u2192' (tiling-keys-body-82-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-84-k",
+  "line": "I6: on HEADLESS-1 'Super+\\u2009\u2190' (tiling-keys-body-84-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-86-k",
+  "line": "I6: on HEADLESS-1 'Super+Esc' (tiling-keys-body-86-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-88",
+  "line": "I6: on HEADLESS-1 'System' (tiling-keys-body-88) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-89-k",
+  "line": "I6: on HEADLESS-1 'Vol+ / Vol- / Mute' (tiling-keys-body-89-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-91-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+R' (tiling-keys-body-91-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-93-k",
+  "line": "I6: on HEADLESS-1 'Super+F1 / Super+/' (tiling-keys-body-93-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6",
+  "check": "I6",
+  "element": "tiling-keys-body-95-k",
+  "line": "I6: on HEADLESS-1 'Super+Alt+1-4' (tiling-keys-body-95-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-h",
+  "line": "I6: on HEADLESS-1 'Super+F1 shows this list again. Esc closes it.' (tiling-keys-body-h) has the contrast 6.50:1 ((154, 161, 180) on (26, 29, 40)), the guide wants 7:1"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-m",
+  "line": "I6: on HEADLESS-1 'Mouse' (tiling-keys-body-m) has the contrast 6.50:1 ((154, 161, 180) on (26, 29, 40)), the guide wants 7:1"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-0",
+  "line": "I6: on HEADLESS-1 'Windows' (tiling-keys-body-0) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-1-k",
+  "line": "I6: on HEADLESS-1 'Super+J' (tiling-keys-body-1-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-3-k",
+  "line": "I6: on HEADLESS-1 'Super+K' (tiling-keys-body-3-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-5-k",
+  "line": "I6: on HEADLESS-1 'Super+Tab' (tiling-keys-body-5-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-7-k",
+  "line": "I6: on HEADLESS-1 'Super+U' (tiling-keys-body-7-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-9-k",
+  "line": "I6: on HEADLESS-1 'Super+Shift+J' (tiling-keys-body-9-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-11-k",
+  "line": "I6: on HEADLESS-1 'Super+Shift+K' (tiling-keys-body-11-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-13-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+Return' (tiling-keys-body-13-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-15-k",
+  "line": "I6: on HEADLESS-1 'Super+Shift+C' (tiling-keys-body-15-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-17-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+Space' (tiling-keys-body-17-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-19-k",
+  "line": "I6: on HEADLESS-1 'Super+F' (tiling-keys-body-19-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-21-k",
+  "line": "I6: on HEADLESS-1 'Super+M' (tiling-keys-body-21-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-23-k",
+  "line": "I6: on HEADLESS-1 'Super+Shift+M' (tiling-keys-body-23-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-25-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+M' (tiling-keys-body-25-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-27-k",
+  "line": "I6: on HEADLESS-1 'Super+T' (tiling-keys-body-27-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-29-k",
+  "line": "I6: on HEADLESS-1 'Super+N' (tiling-keys-body-29-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-31-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+N' (tiling-keys-body-31-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-33-k",
+  "line": "I6: on HEADLESS-1 'Super+drag' (tiling-keys-body-33-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-35",
+  "line": "I6: on HEADLESS-1 'Programs' (tiling-keys-body-35) has the contrast 6.50:1 ((154, 161, 180) on (26, 29, 40)), the guide wants 7:1"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-36-k",
+  "line": "I6: on HEADLESS-1 'Super+Return' (tiling-keys-body-36-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-38-k",
+  "line": "I6: on HEADLESS-1 'Super+R / Super+Space' (tiling-keys-body-38-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-40-k",
+  "line": "I6: on HEADLESS-1 'Super+A' (tiling-keys-body-40-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-42-k",
+  "line": "I6: on HEADLESS-1 'Super+Shift+Esc' (tiling-keys-body-42-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-44-k",
+  "line": "I6: on HEADLESS-1 'Super+Shift+E' (tiling-keys-body-44-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-46-k",
+  "line": "I6: on HEADLESS-1 'Super+Print' (tiling-keys-body-46-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-48-k",
+  "line": "I6: on HEADLESS-1 'Super+Shift+S' (tiling-keys-body-48-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-50",
+  "line": "I6: on HEADLESS-1 'Layouts' (tiling-keys-body-50) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-51-k",
+  "line": "I6: on HEADLESS-1 'Super+Shift+Space' (tiling-keys-body-51-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-53-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+Shift+Space' (tiling-keys-body-53-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-55-k",
+  "line": "I6: on HEADLESS-1 'Super+L' (tiling-keys-body-55-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-57-k",
+  "line": "I6: on HEADLESS-1 'Super+H' (tiling-keys-body-57-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-59-k",
+  "line": "I6: on HEADLESS-1 'Super+Shift+H' (tiling-keys-body-59-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-61-k",
+  "line": "I6: on HEADLESS-1 'Super+Shift+L' (tiling-keys-body-61-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-63-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+H' (tiling-keys-body-63-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-65-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+L' (tiling-keys-body-65-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-67-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+J' (tiling-keys-body-67-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-69-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+K' (tiling-keys-body-69-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-71-k",
+  "line": "I6: on HEADLESS-1 'Super+O' (tiling-keys-body-71-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-73",
+  "line": "I6: on HEADLESS-1 'Tags' (tiling-keys-body-73) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-74-k",
+  "line": "I6: on HEADLESS-1 'Super+1-9' (tiling-keys-body-74-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-76-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+1-9' (tiling-keys-body-76-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-78-k",
+  "line": "I6: on HEADLESS-1 'Super+Shift+1-9' (tiling-keys-body-78-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-80-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+Shift+1-9' (tiling-keys-body-80-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-82-k",
+  "line": "I6: on HEADLESS-1 'Super+\\u2009\u2192' (tiling-keys-body-82-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-84-k",
+  "line": "I6: on HEADLESS-1 'Super+\\u2009\u2190' (tiling-keys-body-84-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-86-k",
+  "line": "I6: on HEADLESS-1 'Super+Esc' (tiling-keys-body-86-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-88",
+  "line": "I6: on HEADLESS-1 'System' (tiling-keys-body-88) has the contrast 6.51:1 ((154, 161, 180) on (26, 29, 39)), the guide wants 7:1"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-89-k",
+  "line": "I6: on HEADLESS-1 'Vol+ / Vol- / Mute' (tiling-keys-body-89-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-91-k",
+  "line": "I6: on HEADLESS-1 'Super+Ctrl+R' (tiling-keys-body-91-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-93-k",
+  "line": "I6: on HEADLESS-1 'Super+F1 / Super+/' (tiling-keys-body-93-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t6c",
+  "check": "I6",
+  "element": "tiling-keys-body-95-k",
+  "line": "I6: on HEADLESS-1 'Super+Alt+1-4' (tiling-keys-body-95-k) is 13 px, the guide wants 14 px"
+ },
+ {
+  "act": "t7",
+  "check": "I6",
+  "element": "notify-card-body",
+  "line": "I6: on HEADLESS-1 'Screenshot saved' (notify-card-body) is 11 px, the guide wants 14 px"
+ },
+ {
+  "act": "t7",
+  "check": "I6",
+  "element": "notify-card-body",
+  "line": "I6: on HEADLESS-1 '/root/Pictures/Screenshots/2026-11-23_05-45-40.png' (notify-card-body) is 11 px, the guide wants 14 px"
+ },
+ {
+  "act": "t10c",
+  "check": "I6",
+  "element": "notify-card-body",
+  "line": "I6: on HEADLESS-1 'Screenshot saved' (notify-card-body) is 11 px, the guide wants 14 px"
+ },
+ {
+  "act": "t10c",
+  "check": "I6",
+  "element": "notify-card-body",
+  "line": "I6: on HEADLESS-1 '/root/Pictures/Screenshots/2026-11-23_05-46-56.png' (notify-card-body) is 11 px, the guide wants 14 px"
+ }
+]

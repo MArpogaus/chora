@@ -256,3 +256,67 @@ Nothing was fixed in the product. The comparison is now fair on launchers (same 
 
 ## Train t112b (PM, 03:51 UTC)
 Red: acts cell, tests/test_tour.py:464 test_the_chapters_use_each_scene_of_intended_toml: 81 change rows of intended.toml name a row id with its letter (c2b, c3b, ... x9b), not a scene of the chapters. Verdict FIX (RV9-5); the r2 review missed that the acts cell was not in the lane's run. record-v9 is out of t112c; r3 fixes it with the full gate.
+
+## r3 (record-v9, F7, RC 11)
+
+Head claude/record-v9 (see the gate line at the end). Step 0 green (unshallow, cargo check and build, foot ffmpeg waybar swaybg dbus-daemon, PIL); fresh origin/claude/autonomous-dev-session-3w-i33pg7 merged twice (86e619f3, then 2c1748a4). Replay baseline 733967aa in a worktree, takes of both builds with the r2 defaults.
+
+### RV9-5 (the acts cell was red in t112b)
+Red on ec45efbb: `tests/test_tour.py:464 test_the_chapters_use_each_scene_of_intended_toml: AssertionError: Lists differ: ['c2b', 'c2b', 'c2b', 'c3b', ...` (81 rows). Choice: the test learns row ids, the 81 rows stay. Reason: one id scheme already exists, `tour.act_id` (demo/tour/tour.py: the scene id, and a letter for a later act of the scene, `h1b`), the header of intended.toml says so, tests/tour-diff.py matches `r["act"] == act` on that id, and a scene-named row would have to be matched to every act of the scene by a second rule. design/tour-v9.md section 6 names acts by `h1`, `h2`; the letter rows are the take's own ids. The test now builds the ids with `tour.act_id` over each chapter. Green: `python3 tests/test_tour.py` OK (76 tests at the end); `tests/merge-gate.sh --only ci-check,acts --jobs 2`: ci-check PASS 112 s, acts PASS 2215 s, EXIT 0.
+Slip, said plainly: my first `git commit` failed the no-inline-comments hook; the `--amend` that followed folded the test fix into the merge commit 05fa9abb (pushed, no force). The fix is in that commit, not a commit of its own.
+
+### RV9-1 the tiling bar clock
+Cause found: the bar is waybar, a foreign surface, so `scene.query` has no node for it (t1 has 4 nodes: hud-rows, root, screen, tiling). No node id of the bar exists to mask; the one node every tiling capture has is `tiling`. Fix (tests/tour-diff.py `BAR_CLOCK`, `masks_of(width=)`): where a build has the node `tiling` the clock island (154 x 32 at y 8, centred on the output) is masked, nowhere else. Red first: tests/test_tour_diff.py `BarClock` (island masked: failed; unmasked without the node: passes; a diff beside the island still a diff: passes). Green 50 tests. Result: in t1 no blob of the clock island is left (r2: blob list had 563,8,154,32). The big blob 12,8,399,32 of r2 was not the clock: it is the left island of the bar (see RV9-2).
+
+### RV9-2 and RV9-3: one harness defect explained 8 of the families
+Cause: since ccf7ebab chora-tiling starts its own bar and wallpaper unless it gets `--no-companions` (60314da1); the tiling chapter also starts waybar as a companion. The candidate had two bars on one output: the exclusive zone doubled (tiles 40 px lower: `tb/tf/tg/ts/tc-sN` and the windows `shell/page/code/notes` rect, +40 in 26 acts, +20 in t10 (cause of that one not separated: the helper panel is a suspect, 1f9a5180); it was never fa3e20a6) and the second bar had no modules (tags, layout, helper and volume empty), which was the "t1 pixel blob". Fix: `launch.tiling_argv(binary, *args)` adds `--no-companions` where `--help` knows it (733967aa does not); tiling.py and handover.py use it. Red first: tests/test_tour.py `TilingArgv` (3 tests). The fa3e20a6 row in intended.toml (r2: "judged from one 20 px diff, weakest row") is therefore withdrawn as a cause: after the retake no tb/tf/tg/ts/tc/window rect diff is left in any of the 28 acts. The rows stay in intended.toml untouched (I did not re-judge them); they cover nothing now and the reviewer may drop them.
+Also found: the code window showed crates/chora-kit/src/wobbly.rs of the checkout, which differs between the builds (fix: demo/tour/sample.rs, a copy of the 733967aa file, `SAMPLE` in launch.py; red first `CodeWindow`).
+mc, construct, xp families (git log -S between 733967aa and head, per element):
+- `construct-mode-*` rect and text, I2 "construct-mode-step-in and -turn-left are 9 apart": 1e7cc905 (co-39, the chip words hide under the key list): the chips lose their words and move 86 px left; the 9 px gap is a real I2 red of the candidate. No intended row added: I2 flips in 14 acts, the rows would hide a red check; the finding should be fixed or the I2 known-red row opened by the lane that owns construct.
+- `mc-s-agenda-panels-today-*`, `mc-rN-footer-next`, `mc-rN-header-head`: `footer-next` points to the next page when no entry is left today (the test the_footer_points_to_the_next_page_when_no_entry_is_next, mc main.rs): it follows the wall clock against the 18:30 to 22:00 entries of the chapter, so the two takes (an hour apart) differ. Not proven by a controlled rerun, stays a regression.
+- `xp-item-N` rect, `notify-card*`, `xp-menu*`: `git log -S` finds no commit with an id of these; stay regressions with the diff line of the table below.
+
+### RV9-4 flipped checks (media/2026-11-23/tour-v9/flipped-checks.json: 710 lines, act, check, element, check line)
+I6 63 acts, I2 14 acts, expect 1 (same as r2). Elements and their check line (acts that show it):
+
+| check | element | line | acts |
+|---|---|---|---|
+| I6 | xp-pager-N-HEADLESS-N | contrast 2.57:1 (white on 111,162,247), wants 4.5:1 | 41 |
+| I6 | xp-pager-N-VIRTUAL-N | the same, 2.57:1 | 18 |
+| I6 | xp-task-sN-VIRTUAL-N | 3.60:1 (243,247,254 on 56,126,242), wants 4.5:1 | 18 |
+| I6 | xp-title-sN | 2.16:1 (217,228,247 on 123,155,223), wants 4.5:1 | 18 |
+| I2 | construct-mode-step-in / -turn-left | 9 apart, no whole number of 8 | 14 |
+| I6 | tiling-keys-body-h, -m, -N | 6.50:1 on 26,29,40, wants 7:1 | 2 each |
+| I6 | tiling-keys-body-N-k | 13 px, wants 14 | 2 |
+| I6 | notify-card-body | 11 px, wants 14 | 2 |
+| I6 | construct-help-body-scope, -head-N, -head-N-every | 11 px, wants 14 | 1 each |
+| I6 | xp-menu-frame, xp-task-sN-HEADLESS-N, xp-session-button-N, xp-icon-N | contrast 4.32, 3.86, 3.56 (wants 7), 1.67 | 1 each |
+| expect | handover letter.txt | typed lines twice in the file | 1 |
+
+### Counts per chapter (rows are captures; r2 to r3; r3 diff of xp, mc, construct from the r3 baseline and candidate takes of this lane, tiling and handover from the retake after the fixes)
+| chapter | same | change | regression |
+|---|---|---|---|
+| xp (31) | 0 to 0 | 0 to 0 | 31 to 31 |
+| tiling (28) | 0 to 1 (t5b) | 0 to 0 | 28 to 27 |
+| mc (22) | 0 to 0 | 1 to 1 (m7) | 21 to 21 |
+| construct (18) | 0 to 0 | 0 to 0 | 18 to 18 |
+| handover (11) | 0 to 0 | 0 to 0 | 11 to 11 |
+Total 1 same, 1 change, 108 regression (r2: 0, 1, 109). 4 more tiling acts (t1, t1b, t1c, t2) got an intended pixel row for the bar (bbb105ba, 3a9a426f, 136bbd82, 6a5cfc1d) but still show a regression because the code window and terminal text of the baseline differ (blobs in the windows), so their count is not 0. Tiling now has no scene diff except tiling-keys (b8872054), hud-chat (t9) and notify-card (675ebd55); every other tiling regression is a pixel diff in a window (terminal text, code window) or the bar look.
+
+### Remaining regression rows (all 108)
+Same as the r2 table for xp, mc, construct and handover (flipped I6 and I2 above; construct-door-clock, mc-rN-footer-hud and footer-next, xp-item rect, mc-s-*-lead-rule rects). Tiling: t1..t10c: unnamed `pixel` only (except t6/t6c rect of tiling-keys-body-0, t7/t10c notify-card added with I6, t9 meta/rect of hud-chat and the windows); first diff line is a window blob (e.g. t3c [42,127,544,135], t5 [42,66,544,75]), the terminal stub output, not the bar. Open for the next lane: pin the terminal text of the tiling chapter between builds (its stub foot starts the same shell, so the first suspect is the shell prompt and `ls` of NOTES), then retake.
+
+Media: tour-diff-r3.json and flipped-checks.json under media/2026-11-23/tour-v9/ (the videos are the r2 take; the r3 retake of tiling and handover was not re-encoded into the folder: size).
+
+### Gate
+Head claude/record-v9 088d36de (merge of origin/claude/autonomous-dev-session-3w-i33pg7 at 2c1748a4; commits: test fix in 05fa9abb, fix BarClock, fix --no-companions 367cc167, fix code window 978aaf1e, rows 3df340a7). Full `tests/merge-gate.sh --jobs 2` (no --only), detached: 62 cells PASS, EXIT 0, "all steps passed". No foreign red. `pgrep -fa 'chora --headless'` empty.
+
+## Review r3 (PM, 07:45 UTC; harness only, code diff under 200 lines; PM is not the builder)
+Base 230ea0e5..088d36de: 8 files, +1079 -10; code: tests/tour-diff.py +26, demo/tour/launch.py +21, chapters +6, tests +111; data: intended.toml +726, sample.rs +199 (copy of the 733967aa file).
+- RV9-5: test builds ids with tour.act_id, one id scheme (intended.toml header, tour-diff `r["act"] == act`): met; acts cell PASS in the lane gate.
+- RV9-1: mask only where node `tiling` exists, width from the PNG header; BarClock 3 tests (masked, not without node, beside still a diff): met.
+- RV9-2/3: two-bar harness defect (--no-companions probed via --help), red first TilingArgv; code window pinned (CodeWindow): met. fa3e20a6 rows now cover nothing: debt, drop in r4.
+- RV9-4: flipped-checks.json with element and line: met.
+- Slip: test fix folded into merge 05fa9abb by --amend (no force); no rule broken that a gate checks; noted.
+- F7 not met: 108 regressions remain (r4).
+Verdict: 0 BLOCK, 0 MAJOR in the diff: MERGE-OK; harness branch, own train t114 at 07:41.
