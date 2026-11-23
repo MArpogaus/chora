@@ -90,6 +90,9 @@ EOF
   kill "${pids[@]}" "${extra[@]}" 2>/dev/null
   for _ in $(seq 50); do [ "$(count_windows)" = 0 ] && break; sleep 0.2; done
   [ "$(count_windows)" = 0 ] || step "round $n: $(count_windows) windows left after close"
+  end_probes
+  for _ in $(seq 25); do [ "$(count_windows)" = 0 ] && break; sleep 0.2; done
+  echo "soak: round $n: windows open $(count_windows) after end_probes" >> "$RUN"
   if [ $((n % 5)) = 0 ]; then
     if ! { restart_plugin mc && ready mc scene.list '{}'; }; then finding "soak: mc did not come back (round $n)" crash "restart_plugin mc"; fi
   fi
