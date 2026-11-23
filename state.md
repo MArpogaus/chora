@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-23 14:45 UTC)
+## Now (2026-11-23 14:46 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 13:09 PM 4.9 % (11-22) + 4.2 % (11-23), week about 19 % vs 34 % pace
 session branch: bc153929 (t115 green 12:46); 69 greens.
@@ -29,7 +29,7 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 | mc-tidy-r2.md (F7) | sonnet medium | 2025bae0 MERGE-OK (PM review); train117 |
 | leak-r1.md (rc 9; 2 %) | opus high, claude/leak 5b34d4b1 | session_016iS3kMw4PZJnXirCxCD1cb 12:19 |
 | co-reach-r1.md (rc 1, 2; 2 %) | opus high, claude/co-reach bc153929 | session_016iS3kNey3bZFXVjkQbFTGV 13:59 |
-| review-h-rf-r1.md (rc 3; 0.4 %) | sonnet high, h-rf fff3f1ab | starting |
+| review-h-rf-r1.md (rc 3; 0.4 %) | sonnet high, h-rf fff3f1ab | session_016iS3kQWDVRFPcardWmk487 14:46 |
 ## Queue (% week; 5 % reserve)
 1. (rc 9) train116 (sim-long-r2, tiling-disc); then soak rerun (sl-9).
 2. (rc 7, process) GUARD-3, H-RF running.
