@@ -108,6 +108,55 @@ pub fn fit(items: &[Item], heights: &[f64], room: f64, baseline: f64) -> Vec<boo
     keep
 }
 
+/// The number of letters of `count` that a share of the width keeps.
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_precision_loss,
+    reason = "a line of a screen"
+)]
+fn kept(count: usize, share: f64) -> usize {
+    (count as f64 * share).floor().max(0.0) as usize
+}
+
+/// Shortens the clock of the end of a line by the `over` that the end
+/// takes beyond the room left by the head and the middle, so that the head
+/// keeps its letters; the clock keeps its last words, its width falls.
+pub(super) fn clock_gives_way(end: &mut [(&Item, f64, f64)], over: f64) -> Vec<Command> {
+    let mut commands = Vec::new();
+    for (item, w, _) in end {
+        if item.id.ends_with("-clock") && over > 0.0 && *w > over {
+            let room = *w - over;
+            commands.push(shorten_front(item, room / *w));
+            *w = room;
+        }
+    }
+    commands
+}
+
+/// Cuts the text of an item to a share of its letters from the front, by
+/// whole words: a date gives up its weekday first and keeps its time. The
+/// last word stays, however narrow the room.
+pub(super) fn shorten_front(item: &Item, share: f64) -> Command {
+    let text = item.props.text.as_deref().unwrap_or_default();
+    let count = text.chars().count();
+    let keep = kept(count, share);
+    let mut rest = text;
+    while rest.chars().count() > keep {
+        match rest.split_once(char::is_whitespace) {
+            Some((_, tail)) if !tail.trim().is_empty() => rest = tail.trim_start(),
+            _ => break,
+        }
+    }
+    Command::Update {
+        id: item.id.clone(),
+        props: PropsUpdate {
+            text: Some(rest.to_owned()),
+            ..PropsUpdate::default()
+        },
+    }
+}
+
 /// Cuts the text of an item to a share of its width, with an ellipsis;
 /// nothing below a few letters. It cuts by the share of the letters, not
 /// by their widths, and one frame shows the whole text first; an ellipsis
@@ -115,13 +164,7 @@ pub fn fit(items: &[Item], heights: &[f64], room: f64, baseline: f64) -> Vec<boo
 pub(super) fn shorten(item: &Item, share: f64) -> Command {
     let text = item.props.text.as_deref().unwrap_or_default();
     let count = text.chars().count();
-    #[allow(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        clippy::cast_precision_loss,
-        reason = "a line of a screen"
-    )]
-    let keep = (count as f64 * share).floor().max(0.0) as usize;
+    let keep = kept(count, share);
     let short = if keep < 4 {
         " ".to_owned()
     } else {
