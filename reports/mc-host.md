@@ -20,3 +20,12 @@ Branch claude/mc-host from 1ec04694, head 8dd16c0f (red fa828e4d, fix 8dd16c0f).
 Notes: the first loaded and unloaded series of this run passed `both` as the theme by mistake (one bogus theme, not light and dark); both were thrown away and redone with the two real themes. The before counts are per theme (20 runs light, 20 runs dark); 3 red of 40 runs.
 
 Logs in the lane container only (scratchpad); the gate run directory was /tmp/merge-gate.vcK6k0.
+
+## PM review r1 (2026-11-23 21:05 UTC)
+Base 1ec04694..8dd16c0f, 3 files +56 -11 (PM review: under 200 lines; PM not the builder).
+- Red first: fa828e4d test `a_loss_and_a_return_of_the_keyboard_between_two_looks_are_both_told` before fix 8dd16c0f: yes.
+- Cause matches mc-58: `announce_keyboard` compared one state per 100 ms read; a false/true pair in one `field_events` call was lost. Fix queues each edge in `Session::set_keyboard`; every write of `keyboard` goes through it (`git grep "self.keyboard ="`: one hit, inside set_keyboard).
+- Host loop emits each edge through `keyboard_change`, so a repeat is still dropped; an emit error returns early and drops the rest of that batch (no finding: the connection is gone then).
+- Docs: configuration.md line updated.
+- Gate: lane ran the full gate, exit 0, 63 PASS; cell mc-host 20/20 light+dark, 10/10 under load.
+Verdict: 0 MAJOR, MERGE-OK 8dd16c0f; train120.
