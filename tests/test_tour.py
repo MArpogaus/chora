@@ -941,6 +941,31 @@ class ChaptersB(unittest.TestCase):
         self.assertIn('f"{BIN}/chora-notify", "--assets", f"{REPO}/plugins/chora-mc/notify"', text)
         self.assertIn('notify_config(position="bottom_left")', text)
 
+class LauncherEnv(unittest.TestCase):
+    """TOUR-LAUNCH: the launchers of the xp start menu (xp-item-N) come from PATH and XDG_DATA_DIRS;
+    both runs of a comparison must get one fixed environment, not the one of the shell that ran them."""
+
+    def env_of(self, path, data_dirs):
+        old = dict(launch.os.environ)
+        try:
+            launch.os.environ["PATH"] = path
+            launch.os.environ["XDG_DATA_DIRS"] = data_dirs
+            launch.os.environ["XDG_CONFIG_DIRS"] = data_dirs
+            with mock.patch.object(launch.Launcher, "path_without_writer", lambda self, p: "FARM"):
+                with tempfile.TemporaryDirectory() as scratch, mock.patch.object(launch, "SCRATCH", scratch):
+                    return launch.Launcher("t").base_env()
+        finally:
+            launch.os.environ.clear()
+            launch.os.environ.update(old)
+
+    def test_the_launcher_environment_does_not_follow_the_shell(self):
+        a = self.env_of("/usr/bin:/opt/a/bin", "/opt/a/share")
+        b = self.env_of("/usr/local/bin:/opt/b/bin", "/opt/b/share")
+        for key in ("PATH", "XDG_DATA_DIRS", "XDG_CONFIG_DIRS"):
+            self.assertIn(key, a)
+            self.assertEqual(a[key].replace(a["XDG_DATA_HOME"][: -len("/data")], "D"), b[key].replace(b["XDG_DATA_HOME"][: -len("/data")], "D"), key)
+        self.assertNotIn("/opt/", a["PATH"] + a["XDG_DATA_DIRS"])
+
 
 if __name__ == "__main__":
     unittest.main()

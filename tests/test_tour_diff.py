@@ -64,6 +64,18 @@ class SceneDiff(unittest.TestCase):
         found = diff.scene_diff(a, b)
         self.assertEqual([(d["kind"], d["id"]) for d in found], [("rect", "xp-start")])
 
+    def test_the_tray_clock_of_two_takes_twenty_minutes_apart_is_no_diff(self):
+        """TOUR-CLOCK: the xp tray (xp-tray-<output>) carries the wall clock as its meta text; the two
+        runs of a comparison never share a minute (r1: 91 meta diffs of "2:22 PM" and "2:40 PM")."""
+        a = [node("xp-tray-HEADLESS-1", (0, 0, 1, 1), meta={"text": "2:22 PM"}), node("xp-tray-VIRTUAL-2", (0, 0, 1, 1), meta={"text": "2:22 PM"})]
+        b = [node("xp-tray-HEADLESS-1", (0, 0, 1, 1), meta={"text": "2:42 PM"}), node("xp-tray-VIRTUAL-2", (0, 0, 1, 1), meta={"text": "2:42 PM"})]
+        self.assertEqual(diff.scene_diff(a, b), [])
+
+    def test_the_clock_exemption_is_by_node_id_only(self):
+        a = [node("xp-tray-fake", (0, 0, 1, 1), meta={"text": "2:22 PM"}), node("xp-item-3", (0, 0, 1, 1), meta={"text": "UXTerm"})]
+        b = [node("xp-tray-fake", (0, 0, 1, 1), meta={"text": "2:42 PM"}), node("xp-item-3", (0, 0, 1, 1), meta={"text": "Foot"})]
+        self.assertEqual(sorted(d["id"] for d in diff.scene_diff(a, b)), ["xp-item-3", "xp-tray-fake"])
+
     def test_a_move_of_two_pixels_is_not(self):
         a = [node("xp-bar", (0, 0, 100, 20))]
         b = [node("xp-bar", (2, -2, 100, 20))]

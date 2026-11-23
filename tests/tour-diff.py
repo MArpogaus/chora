@@ -28,6 +28,7 @@ import collections
 import importlib.util
 import json
 import pathlib
+import re
 import sys
 import tomllib
 
@@ -40,6 +41,12 @@ TOP_LAYERS = 8
 _spec = importlib.util.spec_from_file_location("png_pixel", pathlib.Path(__file__).with_name("png-pixel.py"))
 png = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(png)
+
+
+CLOCK_NODE = re.compile(r"^xp-tray-[A-Z]+-\d+$")
+"""The only nodes whose meta text is the wall clock: the xp tray of one output ("1:54 AM"); the other
+clocks (mc-clock, construct-door-clock) carry no text in their meta. The product reads the system
+time (plugins/chora-xp/src/wm/dispatch.rs `now`), so two runs never agree on it (TOUR-CLOCK)."""
 
 
 def key_of(node):
@@ -83,7 +90,7 @@ def scene_diff(a, b):
             if ra is None or rb is None or any(abs(x - y) > RECT_SLACK for x, y in zip(ra, rb)):
                 found.append({"kind": "rect", "id": name, "detail": f"{output} {ra} -> {rb}"})
         ta, tb = (na.get("meta") or {}).get("text"), (nb.get("meta") or {}).get("text")
-        if ta != tb:
+        if ta != tb and not (k[0] == "node" and CLOCK_NODE.match(str(k[1]))):
             found.append({"kind": "meta", "id": name, "detail": f"{ta!r} -> {tb!r}"})
         if na.get("owner") != nb.get("owner"):
             found.append({"kind": "owner", "id": name, "detail": f"{na.get('owner')} -> {nb.get('owner')}"})

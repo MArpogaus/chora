@@ -27,6 +27,13 @@ ENTRIES = [
 
 NOTICE_SECONDS = 600
 
+LAUNCHER_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+LAUNCHER_DATA_DIRS = "/usr/local/share:/usr/share"
+LAUNCHER_CONFIG_DIRS = "/etc/xdg"
+"""TOUR-LAUNCH: the xp start menu lists the desktop files that PATH and XDG_DATA_DIRS reach, so a
+run that took the environment of its shell showed other launchers than another run (xp-item-3
+"UXTerm" in the replay, "Foot" in the take). Every session of the tour gets this one."""
+
 
 def notify_config(position="bottom_right"):
     """The chora-notify.yaml of every session of the tour, in one place. chora-notify expires a card
@@ -105,7 +112,9 @@ class Launcher:
 
     def base_env(self):
         env = dict(os.environ)
-        env["PATH"] = f"{self.dir}/stub:{BIN}:{self.path_without_writer(env['PATH'])}"
+        env["PATH"] = f"{self.dir}/stub:{BIN}:{self.path_without_writer(LAUNCHER_PATH)}"
+        env["XDG_DATA_DIRS"] = LAUNCHER_DATA_DIRS
+        env["XDG_CONFIG_DIRS"] = LAUNCHER_CONFIG_DIRS
         env["CHORA_TEST_ACCEPT_INJECTED_KEYS"] = "1"
         env["CHORA_FRAME_BUDGET_US"] = "500000"
         env.pop("DBUS_SESSION_BUS_ADDRESS", None)
