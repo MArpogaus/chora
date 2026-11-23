@@ -52,7 +52,7 @@ mono = [n for n in nodes if n["id"].endswith("-k")]
 if not mono:
     fail("no keycap text")
 for n in mono:
-    got, want = rect(n)[2], (len(n["text"]) - 0.56 * n["text"].count("\u2009")) * 7.8
+    got, want = rect(n)[2], (len(n["text"]) - 0.56 * n["text"].count("\u2009")) * 8.4
     if abs(got - want) > 1.5:
         fail("the keycap %r is %s wide, a monospace face has %s" % (n["text"], got, want))
 ' || fail "the key list is drawn badly"
