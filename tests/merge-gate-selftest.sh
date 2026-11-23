@@ -381,6 +381,23 @@ rr_ids_start
 rr_file i.rs i
 rr_commit "fix(i): the fix for SH-2 and tiling-audit" i.rs
 check "per id: an uppercase or digitless word is not an id" "$(red >/dev/null; echo $?)" 0
+git -C "$rr" reset -q --hard base
+rr_file tests/gate-i.sh t
+rr_commit "test(i): red for sh-33" tests/gate-i.sh
+rr_file i.rs i
+rr_commit "fix(i): the fixes for sh-33-sh-34" i.rs
+sha=$(rr_head)
+check "per id: ids glued by a hyphen are read apart: the one without a test is red" "$(red | grep -c "^red-first: $sha .*sh-34")" 1
+check "per id: the glued id that has its test is not named" "$(red | grep -c "^red-first: $sha .*sh-33")" 0
+rr_ids_start
+rr_file i.rs i
+rr_commit "fix(i): the fix for sh-1." i.rs
+check "per id: an id before a full stop is read" "$(red >/dev/null; echo $?)" 0
+rr_ids_start
+rr_file i.rs i
+rr_commit "fix(i): the fix for sh-1, sh-2." i.rs
+sha=$(rr_head)
+check "per id: ids split by a comma and a full stop are read" "$(red | grep -c "^red-first: $sha .*sh-2")" 1
 for word in utf-8 sha-256 base-64 ipv-6 gate-0.8 gtk-3.0 "(gate-0.8)." "v0.9.0-rc.3"; do
     rr_ids_start
     rr_file i.rs i
