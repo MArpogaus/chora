@@ -24,7 +24,7 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 |---|---|---|
 | docs-rc-r2.md (rc 8; 0.5 %) | sonnet medium, claude/docs-rc-r2 bc153929 | session_016iS3kN9ocLnwiwQ9UmSdQR 13:31 |
 | guard-3-r1.md (rc 7, F8, F5; 0.4 %) | sonnet medium, claude/guard-3 bc153929 | session_016iS3kQXc6CfmWM1E25AtoY 13:21, gate 24/24 PASS so far |
-| tiling-disc-r1.md (rc 2) | sonnet high | FIX rtd-2 MAJOR: launcher-click red in train116 (settings row shifts Mid) |
+| tiling-disc-r2.md (rc 2; 0.5 %) | sonnet medium, 8df47cc8 | rtd-2 MAJOR (t116 launcher-click), starting |
 | xp-readable-r2.md (F7; 1 %; rxr-1, rxr-2 MAJOR) | sonnet high, claude/xp-readable 2d2413f6 | session_016iS3kNgMdxh6qSY3pspBtZ 14:17 |
 | mc-tidy-r2.md (F7) | sonnet medium | 2025bae0 MERGE-OK; train117 running |
 | leak-r1.md (rc 9; 2 %) | opus high | 677790dc MERGE-OK (PM review); train117 running |
