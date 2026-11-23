@@ -94,3 +94,56 @@ Verdict: **FIX** (1 MAJOR, 2 MINOR, 3 NIT; no BLOCK).
 - rhr-5, NIT, tests/red-first.sh:115 (design note): a secondary id mentioned in the body as a side note makes the fix red (`ac327bc0`: "rw-4: the doc paragraph moves"). The rule says "names"; the PM decision 11-23 14:50 keeps it strict. No change asked; lane briefs should say "name in the fix only the ids it closes".
 - rhr-6, NIT, reports/h-rf.md "## r1": says 8 new cases are red at `73525d9c`; the selftest shows 10 FAIL lines. Fix: correct the number.
 - 11-23 15:00 PM: review r1 FIX (rhr-1 MAJOR). Decision: in-flight commits before the cut keep the old rule (no reword, no force). r2: briefs/h-rf-r2.md.
+
+## r2
+
+Branch `claude/h-rf` from `fff3f1ab` (r1 head). Head `c9d8d9f0`, pushed. `cargo check --workspace` green.
+Scope held: tests/red-first.sh, tests/merge-gate.sh, tests/merge-gate-selftest.sh, CONTRIBUTING.md. No history change.
+
+### Shas per id (test commit red first, then the fix)
+
+| id | red (selftest only) | fix | red count at the red commit |
+| --- | --- | --- | --- |
+| rhr-1 MAJOR | `ad2c46a4` | `0e4ce1b6` | 1 FAIL: `the hook reads no id below the scissors line` (full selftest: 204 ok, 1 FAIL, rc 1) |
+| rhr-2 MINOR | `370344ac` | `b8db5679` | 7 FAIL: utf-8, sha-256, base-64, ipv-6, gate-0.8, gtk-3.0, `(gate-0.8).` (`v0.9.0-rc.3` holds before and after) |
+| rhr-4 NIT | `cbab2f3d` | `20e4ce3f` | 1 FAIL: `sh-33-sh-34`, the id without a test is not named |
+| rhr-3 MINOR | `2d06e357` | `723aae31` | 1 FAIL: the hook and the gate word a missing id alike |
+| in flight | `caa69301` | `6a27ad04` | 2 FAIL: an old pair passes by the old rule; the old fix beside a new one is not named |
+| cut constant | | `c9d8d9f0` | `per_id_rule_from=1795446505`, committer date of this head (`2026-11-23T15:08:25Z`, forced with GIT_COMMITTER_DATE) |
+
+Red counts come from the red-first section of the selftest run alone (6 s) on the red commit.
+
+- rhr-1: `sed '/^# -* >8 -*$/,$d'` before `grep -v '^#'`. Cases: a diff below the scissors line with `sh-99` and `utf-8` passes; an id above the scissors line is still read (red for sh-2).
+- rhr-2: `finding_ids` drops a word followed by `.` and a digit, and the prefixes utf, sha, base, ipv, gate, gtk. A full stop after an id still reads the id (`sh-1.` green; `sh-1, sh-2.` names sh-2).
+- rhr-3: `id_verdict IDS TEST_IDS LABEL` in tests/red-first.sh prints `red-first: <label> misses a test commit before it that names <id>` per missing id; the hook (`hook_id_verdict`, label `this commit`) and the gate step (label the short sha) call it. The gate loop keeps only its accumulation of the test ids, no second verdict.
+- rhr-4: split where a digit run ends (`sh-33-sh-34` = sh-33, sh-34). A word with `.digit` (`sh-1.2`) is no id by rhr-2.
+- In flight (PM decision 11-23 15:00): `fix_ids` returns no ids for a commit whose committer time is before `per_id_rule_from`; the gate step then applies the any-test rule (a test in the fix or before it). Selftest: old pair (test with no id, then fix naming sh-1, dated 2026-11-01) green; the same pair dated now red naming sh-1; an old fix without any test still red; a new fix beside an old pair read per id. The hook sees only commits made now, so it always applies the per id rule. No reword, no history change on any branch.
+- rhr-6: the "## r1" count of 8 new cases red at `73525d9c` is wrong: review r1 counted 10 FAIL lines at that commit (the per id and the hook cases). Correct number: 10.
+- rhr-5: no change (design note); CONTRIBUTING.md now says: name in a fix only the ids it closes.
+
+### Selftest
+
+`bash tests/merge-gate-selftest.sh` at `c9d8d9f0`: 226 ok, 0 FAIL, `ok: merge-gate-selftest`, rc 0.
+
+### Item 4 (`--red-first-check --base origin/claude/autonomous-dev-session-3w-i33pg7`, scripts of `c9d8d9f0` over each head)
+
+| branch | head | non-merge commits | result |
+| --- | --- | --- | --- |
+| claude/xp-readable | `fc9675ac` | 13 | pass (the 6 fixes of r1, dated before the cut, use the old rule) |
+| claude/guard-3 | `49f65382` | 4 | pass |
+| claude/co-reach | `bc153929` | 0 | pass (empty range) |
+| claude/tiling-disc | `8df47cc8` | 13 | pass |
+| claude/leak | `677790dc` | 3 | pass |
+
+### Gate (`tests/merge-gate.sh --jobs 2`, `c9d8d9f0` detached; the session head `bc153929` is already in it, so the merge is a no-op)
+
+Exit 1. PASS: red-first, identity, pre-commit, gate-lib, ci-check, build, test, clippy, 2d-guard,
+package-deps, package-lists, xp, virtual, xp-faces, xp-paperclip, xp-question, xp-chat-idle, xp-helper, matrix,
+xp-notepad, hud, tiling-audit, tiling-look, tiling-empty, chat-keys, layout, doors, last-words, cube, pull,
+placed, construct-hud, construct-extra, out, winit, wm-pane, pane-keys, walk.
+SKIP (foreign, fuzzel 1.9.2 < 1.11, sh-34): `xp-fields`: `SKIP: cell runbox_cell: fuzzel 1.9.2 < 1.11 does not
+read the file of xp: the baseline assert ...` (xp-fields.log).
+FAIL (foreign, same cell as r1): `keys`: `FAIL: the Foot row of Programs started no foot` (keys.log, fuzzel 1.9.2).
+The gate stops after the failed step, so pixels, mc-paths, mc-sofa, mc-column, mc-handover, launcher-click,
+voice-acp, voice-events, agent, e2e did not run (cost limit; the change is shell scripts of the red-first rule
+and a doc paragraph, no Rust). I did not rerun to green.
