@@ -21,3 +21,8 @@ Tried the claim of the full outputs (red 25ee0de8, green 22b82d63), then the cla
 ### Gate
 Full `tests/merge-gate.sh --jobs 2` on 8f2ed754 merged with fresh autonomous branch: 60 PASS, `EXIT 0`, no red (run dir /tmp/merge-gate.Iem1AC). An earlier run on ccce3e6f stopped red at matrix xp-first (the T1b claim), mine, since reverted.
 `pgrep -fa 'chora --headless'` empty at the end.
+
+## Review r1 (PM)
+- FLK-TILING-LAYOUT: red ecf021d4, fix 76c06d05, follow 10/10 under load; full gate 60 PASS.
+- Done-when not met: the tiling-windows cell under load is not 10/10 (focus 3/3 red, motion 1/3 red); T1b not fixed. Verdict: INCOMPLETE (procedures: a failed Done-when line). r2: BORDER, MOTION and ti-46 on the same branch; merge after r2.
+- T1b (MINOR) leaves the lane: a design item (who owns the bar surface), backlog.
