@@ -104,3 +104,6 @@ Findings:
 - rtd-6 | NIT | keys.rs header(): `let muted = channels(&colors.text)`; the name says muted.
 - Gate incomplete: leak red (sh-35, fixed by leak-cell 0836ca58 in the same train); the train runs the full gate, red there = INCOMPLETE, back to the lane.
 Counts: BLOCK 0, MAJOR 0, MINOR 1, NIT 1. Verdict: MERGE-OK 7adb149c, train119.
+
+## PM train119 (2026-11-23 21:30 UTC)
+7adb149c INCOMPLETE: train119 red at e2e, tests/gate-tiling-apps-click.sh "FAIL: a click on the Zebra row did not start zebra" (3 of 3). Cause: flavors/tiling/applications/chora-settings.desktop adds an "Edit settings" row; the test clicks a fixed zebra_row_y=533 for three rows. Filed rtd-6 MAJOR; brief tiling-disc-r4. train121 runs the other 9 without it.
