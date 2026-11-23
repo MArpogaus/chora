@@ -24,10 +24,11 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (closes on the flake lanes + ha
 |---|---|---|
 | flake-hint-r1.md (F5, rc 3) | sonnet medium, claude/flake-hint d2634fe0 | MERGE-OK; t112 |
 | cube-settle-r2.md (F5, rc 3) | sonnet medium, claude/cube-settle e905195e | MERGE-OK; t112 |
-| mc-round-r1.md (rc 3, 9, 1: FLK-MC-SCALE, MH-2, MC-HEAD, MH-1; 1 %) | sonnet medium, claude/mc-round 42585079 | MERGE-OK 9ed1fbc8; t112 |
+| mc-round-r1.md (rc 3, 9, 1; 1 %) | sonnet medium, claude/mc-round 42585079 | MERGE-OK 9ed1fbc8; t112 |
 | tiling-fix-r1.md (rc 3, 1; 1 %) | sonnet medium, claude/tiling-fix 011db749 | MERGE-OK; t112 |
-| harness-leak-r1.md (F5, rc 3, 9: HARNESS-LEAK; 0.5 %) | sonnet medium, claude/harness-leak 6b01c976 | MERGE-OK 7982d549; own train t111 first |
-| tiling-round-r1.md (rc 2, 1: T1, T3, I2, TF-1; 1 %) | sonnet medium, claude/tiling-round 011db749 | MERGE-OK 8721b4d6; t112 |
+| harness-leak-r1.md (F5, rc 3, 9; 0.5 %) | sonnet medium, claude/harness-leak 6b01c976 | MERGE-OK 7982d549; own train t111 first |
+| tiling-round-r1.md (rc 2, 1; 1 %) | sonnet medium, claude/tiling-round 011db749 | MERGE-OK 8721b4d6; t112 |
+| tiling-flake-r1.md (F5, rc 3, 1: FLK-TILING-LAYOUT, T1b; 0.8 %) | sonnet medium, claude/tiling-flake 8721b4d6 | starting |
 | pix-capsule-r1.md (F5, rc 3; 0.6 %) | sonnet medium, claude/pix-capsule e905195e | MERGE-OK 05828b32; t112 |
 | flk-hang-r1.md (F5, rc 3; 0.3 %) | sonnet low, claude/flk-hang 6b01c976 | MERGE-OK 022fa50c; t112 |
 | record-v9-r2.md (F7, rc 11: TOUR-CLOCK, TOUR-LAUNCH, retake; 1.2 %) | sonnet medium, claude/record-v9 d7a80ff8 | session_016iS3kP1X4RaM1Q7xBpdxSa 01:38 |
