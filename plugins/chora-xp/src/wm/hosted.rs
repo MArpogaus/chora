@@ -135,6 +135,14 @@ impl Wm {
             .map(String::as_str)
     }
 
+    /// The taskbar of the face at the front of the cube of the host; the
+    /// first one without a host.
+    pub(super) fn front_bar(&self) -> Option<&Bar> {
+        (self.front_face())
+            .and_then(|output| self.bars.iter().find(|b| b.output == output))
+            .or(self.bars.first())
+    }
+
     /// Whether the window `surface` lies on the face at the front of the
     /// cube of the host; every window does without a host.
     pub(super) fn on_front(&self, surface: &str) -> bool {
@@ -147,13 +155,15 @@ impl Wm {
     /// or on its own nodes, go to the topmost window of the front face,
     /// else to its icons (co-50); keys on the icons go to the topmost
     /// window of the face. Keys that another client holds stay there, also
-    /// when a menu shuts (rcf-9).
+    /// when a menu shuts (rcf-9). The icons move to the work area of the
+    /// front face (rcf-8).
     pub(super) fn host_turned(&mut self, turned: cube::Turned) -> Vec<Command> {
         if turned.turning {
             return Vec::new();
         }
         self.front = turned.front;
-        let mut commands = self.shut_menus_off_front();
+        let mut commands = self.refresh_icons();
+        commands.extend(self.shut_menus_off_front());
         if self.own_node() && (self.menu.is_open() || self.context.is_some()) {
             return commands;
         }
@@ -511,7 +521,13 @@ mod tests {
         wm.focused = None;
         wm.core_focus = None;
         wm.key_node = Some("construct".into());
-        assert_eq!(wm.host_turned(turned(2)), Vec::new());
+        let commands = wm.host_turned(turned(2));
+        assert!(
+            !commands
+                .iter()
+                .any(|c| matches!(c, Command::FocusNode { .. })),
+            "xp takes the keys of another client: {commands:?}"
+        );
         assert_eq!(wm.focused, None);
     }
 
