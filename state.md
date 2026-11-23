@@ -25,7 +25,7 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 | docs-rc-r2.md (rc 8; 0.5 %) | sonnet medium, claude/docs-rc-r2 bc153929 | 37730187 MERGE-OK (PM review); train118 |
 | guard-3-r1.md (rc 7; 0.4 %) | sonnet medium | 49f65382 MERGE-OK (PM review); train118 |
 | tiling-disc-r3.md (rc 2; 0.6 %) | sonnet medium, 3b32b9b4 | r2 FIX (rtd-3 acts I5/I6); session_016iS3kMu2bg6HBDwKc5RruR 16:47
-| xp-readable-r3.md (F7; 0.6 %) | sonnet medium, e85413d2 | r2 review FIX (rxr-6 MAJOR: balloon of every folder narrowed); starting 17:30
+| xp-readable-r3.md (F7; 0.6 %) | sonnet medium, e85413d2 | r2 review FIX (rxr-6 MAJOR: balloon of every folder narrowed); session_016iS3kQYgq6js1BArE4dk5K 17:30
 | co-reach-r1.md (rc 1, 2; 2 %) | opus high, claude/co-reach bc153929 | session_016iS3kNey3bZFXVjkQbFTGV 13:59 |
 | soak-r3.md (rc 9; 1 %) | haiku high, claude/soak-r3 1ec04694 | session_016iS3kPTaTUWz9CUtmLJXzF 16:40 |
 | h-rf-r2.md (rc 3; 0.6 %) | sonnet high | c9d8d9f0 MERGE-OK; train118 running 16:39 |
