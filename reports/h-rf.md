@@ -65,3 +65,4 @@ FAIL: `keys`: `FAIL: the Foot row of Programs started no foot` (fuzzel 1.9.2 in 
 known foreign cell). The gate stops after a failed step, so pixels, mc-paths, mc-sofa, mc-column, mc-handover,
 launcher-click, voice-acp, voice-events, agent, e2e did not run. The change touches only shell scripts of the
 red-first rule and a doc line, so I did not run them with --only (cost limit).
+- 11-23 14:50 PM: item 3 decided: keep the strict rule (the red commit names the fix ids); 0483bbeb, 3a625261 are history below every future base. Seeded review: briefs/review-h-rf-r1.md.
