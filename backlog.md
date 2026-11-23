@@ -412,3 +412,4 @@ DB21 | 11-22 | later | gate-tiling-motion.sh: restore the deep (focused) vs ligh
 - T1B-BAR (MINOR, tiling, design; tiling-flake r1 11-23): the pointer on tiling's bar (640,12) gives an xp window when both share the output. A claim by geometry turns gate-join-keys xp-first red (xp owns the top 40 px there). Needs a bar rect sent by the plugin that owns the bar surface (layer-shell owner). After the RC unless a review raises it.
 - FLK-TILING-BORDER, FLK-TILING-MOTION (F5, tiling-flake r1): focus `the border is broken` 3/3 and motion 1/3 red under TILING_LOAD=4. Lane tiling-flake r2 (with FLK-DOORS ti-46).
 - (debt) rcf-5: xp keeps its own 'empty focus is no loss' rule (keys.rs:378, windows.rs:269); move xp to kit::wm::focus::Focus (D116). Source: review co-focus r1.
+- co-focus rcf-10 MINOR: StartMenu RPC (plugins/chora-xp dispatch.rs:120) opens on bars.first() on a hosted cube; use front_face().

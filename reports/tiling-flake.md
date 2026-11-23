@@ -26,3 +26,38 @@ Full `tests/merge-gate.sh --jobs 2` on 8f2ed754 merged with fresh autonomous bra
 - FLK-TILING-LAYOUT: red ecf021d4, fix 76c06d05, follow 10/10 under load; full gate 60 PASS.
 - Done-when not met: the tiling-windows cell under load is not 10/10 (focus 3/3 red, motion 1/3 red); T1b not fixed. Verdict: INCOMPLETE (procedures: a failed Done-when line). r2: BORDER, MOTION and ti-46 on the same branch; merge after r2.
 - T1b (MINOR) leaves the lane: a design item (who owns the bar surface), backlog.
+
+## r2
+
+Branch claude/tiling-flake, head 15a5d2fc (merge of origin/claude/autonomous-dev-session-3w-i33pg7 at 230ea0e5). All three are test-side; no product fault.
+
+### FLK-TILING-BORDER (tests/gate-tiling-focus.sh)
+- Cause: the border walk used fixed rows, x=12/634/645/1267 over y 30..770, the layout of a screen without the bar. Under TILING_LOAD=4 the bar is in at the capture: the rings of the windows start at y=52 (tb-s1 [646,52,622,736], tb-s2 [12,52,622,736]), so y 38..58 at x=12 is the bar gap and the corner arc, not a broken ring. The state is right (all border nodes visible, tg-s2 opacity 0, tg-s1 opacity 1); the check read the wrong rect. No product fault.
+- Red 13f61462 (failure names the rings at the capture; red under TILING_LOAD=4, 3/3 earlier, 1/1 here): `broken at [(12, 38), (12, 42), ...]; the rings at the capture: [{"id":"tb-s1","r":[646.0,52.0,622.0,736.0]},{"id":"tb-s2","r":[12.0,52.0,622.0,736.0]}]`.
+- Green 2aa2466e: the walk follows the rings from `ring_rects` (query of the tb- nodes), and a capture counts only when the rings are equal before and after it (40 rounds as hang guard). Under load 4/4 green.
+
+### FLK-TILING-MOTION (tests/gate-tiling-motion.sh)
+- Cause: after view_tag 1 the check sampled the groups once and again after `sleep 1`, and asked the first sample to be >200 px from the second. The slide is 200 ms of clock; under load the sample comes after it (first sample at x=14 = final) or late in it (-9 against 14). Seen at TILING_LOAD=6: 2/8 red.
+- Red a68aeb1a (message names both samples; red only under load, 2/8): `first sample {'tw-s1': 14.0, ...}, settled {... 14.0 ...}`. A sampling check has no deterministic red at the commit level, the stepped version below removes the sampling.
+- Green f97f3e35: the hide on tag 2 is waited for (visible 0 of every tw- group), then `choractl record --frames 24` with a script that calls view_tag 1 at frame 1 (the stepped clock shows the scene one frame time after the call whatever the load): the window is not at its place at frame 2 and is in frame 24 and in a capture after the settle. Under TILING_LOAD=6 8/8 green.
+
+### FLK-DOORS ti-46 (tests/doors/tiling.sh:129)
+- Cause: `helper_says "coder · idle"` read the bar word once; the word follows the helper by a poll.
+- Red ded5d30d: the cell restarts voice and starts the helper 3 s late (stand-in lag, background subshell); word is `No helper`, helper-door missing.
+- Green 0483bbeb: `until_ok 'helper_says "coder · idle"' 40` (20 s hang guard); helper-door pass with the lag.
+
+### Counts
+- The whole tiling-windows cell (focus, follow, doors, swallow, gaps, motion) under TILING_LOAD=4, 10 runs one after the other: 10/10 green. Not two at a time: the gates share a lock.
+- `TILING_LOAD=4 ONLY=helper-door tests/gate-doors.sh tiling`: 10/10 green (with the 3 s lag in the cell).
+
+### Gate
+`tests/merge-gate.sh --jobs 2` (full, detached) on 15a5d2fc: EXIT 0, "all steps passed", 62 PASS lines, no red, no skip. `pgrep -fa 'chora --headless'` empty.
+
+## Review r2 (PM, 09:29 UTC, 11-23; builder: sonnet lane, not the PM)
+Own diff 8f2ed754..15a5d2fc without merges: 6 commits, tests only (gate-tiling-focus.sh +17 -5, gate-tiling-motion.sh +20 -11, doors/tiling.sh +5 -1). Lane gate on fresh 230ea0e5: full, EXIT 0; counts 10/10 under TILING_LOAD=4.
+- BORDER (2aa2466e): the capture is taken only when the tb- ring rects are the same before and after it (40 tries, else a named fail); the check reads each ring's own edges (1 px in, 16 px off the corners) instead of fixed rows. Holds: a broken edge of any ring still fails; the fixed-row check could not follow the I2 gap of 12.
+- MOTION (f97f3e35): the old check compared one late sample after ; now tag 1 is hidden first, then choractl record steps 24 frames: frame 24 equals the settled capture and frame 2 differs at 330 and 960. Holds and is stricter (a jump-cut fails at frame 2).
+- ti-46 (ded5d30d red, 0483bbeb fix): the red commit starts the helper 3 s late; the fix waits with until_ok 40. Holds.
+- Red first: 13f61462 and a68aeb1a only sharpen the failure text (the reds were load-bound flakes, shown under TILING_LOAD=4 in "## r2"); ded5d30d is a real red. Not a finding (flake fixes; the H-RF note of friction 11-22 21:30 applies to product fixes).
+- Note (no finding): the ring-based border check no longer pins where the rings lie; placement stays with gate-tiling-layout and I2.
+**Verdict: MERGE-OK** (0 BLOCK, 0 MAJOR). Joins train 115 after t114.

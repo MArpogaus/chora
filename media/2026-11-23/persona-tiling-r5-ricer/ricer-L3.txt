@@ -1,0 +1,22 @@
+task L3 pass
+breach I6 in key: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1
+breach I6 in key: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1
+breach I6 in key: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1
+breach I6 in key: on HEADLESS-1 '10:04 AM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 '10:04 AM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in key: on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1
+breach I6 in key: on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1
+breach I6 in key: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1
+breach I6 in key: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1
+breach I6 in key: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1
+breach I6 in key: on HEADLESS-1 '10:04 AM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 'My Computer' (xp-icon-1) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((22, 25, 34) on (22, 25, 34)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 2.57:1 ((255, 255, 255) on (111, 162, 247)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 3.77:1 ((255, 255, 255) on (57, 128, 244)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.63:1 ((248, 251, 254) on (57, 128, 244)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 '10:04 AM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breaches 20
