@@ -355,4 +355,15 @@ mod tests {
             _ => panic!("the watchdog saw {hangs:?}"),
         }
     }
+
+    /// FLK-HANG: a stop timer created before `start` is due before
+    /// `start + 9 s`, so measuring `start` after insertion is unsafe.
+    #[test]
+    fn a_start_taken_after_the_timer_is_created_cannot_bound_its_deadline() {
+        let created = Instant::now();
+        let deadline = created + 9 * S;
+        while Instant::now() == created {}
+        let start = Instant::now();
+        assert!(deadline >= start + 9 * S, "deadline precedes start + 9 s");
+    }
 }
