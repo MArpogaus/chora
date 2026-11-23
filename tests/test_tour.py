@@ -457,11 +457,17 @@ class SceneIds(unittest.TestCase):
         self.assertEqual([r["id"] for r in t.rows], ["h1", "h1b", "h1c", "h2", "h1d"])
 
     def test_the_chapters_use_each_scene_of_intended_toml(self):
+        """intended.toml names a row by the id of the take (tour.act_id): the scene id, and for a later
+        act of the same scene the scene id and a letter (`c2b`); one id scheme for take and table."""
         import tomllib
 
         table = tomllib.loads((ROOT / "demo" / "tour" / "intended.toml").read_text())
-        scenes = {s for chapter in self.CHAPTERS for _, s in self.acts(chapter)}
-        self.assertEqual([c["act"] for c in table["change"] if c["act"] not in scenes], [])
+        ids = set()
+        for chapter in self.CHAPTERS:
+            seen = {}
+            for number, (_, scene) in enumerate(self.acts(chapter), 1):
+                ids.add(tour.act_id(chapter, number, scene, seen))
+        self.assertEqual([c["act"] for c in table["change"] if c["act"] not in ids], [])
 
     def test_the_first_row_of_h2_is_the_send_to_act(self):
         """The row that intended.toml calls h2 carries the Send To act, not the Start click."""
