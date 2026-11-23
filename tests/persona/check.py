@@ -339,22 +339,54 @@ def flavor_looks(look, snap):
     return {look} | {f.get("manager") for f in listing.get("faces") or [] if f.get("manager")}
 
 
+def shown_window_of(snap, owner, sid):
+    """Whether `sid` is a window of `owner` that shows in its state: for
+    the manager of a face, a window on the face at the front."""
+    windows = (snap.states.get(owner) or {}).get("windows") or []
+    return any(w.get("surface") == sid and w.get("shown") for w in windows)
+
+
+def on_front_face(snap, node):
+    """Whether the node, or a node under it, draws on the output of the
+    face at the front of the cube, as `scene.boxes` tells."""
+    listing = snap.cube or {}
+    faces = listing.get("faces") or []
+    if listing.get("front") not in range(len(faces)):
+        return False
+    output = faces[listing["front"]].get("output")
+    nodes = snap.by_id()
+
+    def under(nid):
+        seen = set()
+        while nid is not None and nid not in seen:
+            if nid == node:
+                return True
+            seen.add(nid)
+            nid = (nodes.get(nid) or {}).get("parent")
+        return False
+
+    return any(under(b.get("node")) for b in invariants.boxes_on(snap).get(output) or [])
+
+
 def focus_with_flavor(ctx, after_):
     """The one holder of the focus is the look, or the manager of the front
-    face on a window that shows or on its own nodes; else the holders."""
+    face on a window that shows or on its own node that draws on the front
+    face (rcf-2); else the holders."""
     held = holders_of(after_)
     looks = flavor_looks(ctx.look, after_)
     if len(held) != 1 or not set(held) <= looks:
         return sorted(held)
     ((holder, sid),) = held.items()
-    windows = (after_.states.get(holder) or {}).get("windows") or []
-    if (
-        holder == ctx.look
-        or sid is None
-        or any(w.get("surface") == sid and w.get("shown") for w in windows)
-    ):
+    if holder == ctx.look:
         return None
-    return sorted(held)
+    if sid is not None:
+        return None if shown_window_of(after_, holder, sid) else sorted(held)
+    focused = [
+        n["id"]
+        for n in after_.nodes
+        if n.get("focused") and n.get("kind") != "surface" and n.get("owner") == holder
+    ]
+    return None if focused and on_front_face(after_, focused[0]) else sorted(held)
 
 
 def verify_flavor_focus(ctx):
@@ -369,12 +401,20 @@ def verify_flavor_focus(ctx):
 
 def verify_new_window(ctx, before):
     """A new toplevel of the look, or of the manager of its front face, that
-    has the focus."""
+    has the focus; a window of that manager also shows in its state, on
+    the face at the front (rcf-1)."""
 
     def verify(after_):
         new = new_windows(before, after_)
         looks = flavor_looks(ctx.look, after_)
-        if not any(n.get("owner") in looks and n.get("focused") for n in new):
+
+        def taken(n):
+            owner = n.get("owner")
+            if owner not in looks or not n.get("focused"):
+                return False
+            return owner == ctx.look or shown_window_of(after_, owner, n["id"])
+
+        if not any(taken(n) for n in new):
             return [f"no new focused window of {ctx.look}; new: {[n['id'] for n in new]}"]
         return []
 
