@@ -86,8 +86,8 @@ cell "the pane beside the cube has its label, under its bottom edge" '[ "$(count
 face=$work/r4-stepped-into-face-2x.png
 cell "a face stepped into at 2x is not black (mean $(mean "$face"))" '[ "$(mean "$face")" -ge 40 ]'
 flown=$work/r4-stepped-into-face-1x.png
-cell "the capsule over the face stands clear of the taskbar" '[ "$(lum "$flown" 640 712)" -le 60 ] && [ "$(lum "$flown" 640 756)" -ge 100 ]'
-cell "the capsule over the face has one rim: no light line on its top edge" '[ "$(lum "$flown" 640 705)" -le $(($(lum "$flown" 640 712) + 6)) ]'
+cell "the capsule over the face stands clear of the taskbar" '[ "$(lum "$flown" 640 708)" -le 60 ] && [ "$(lum "$flown" 640 756)" -ge 100 ]'
+cell "the capsule over the face has one rim: no light line on its top edge" '[ "$(lum "$flown" 640 705)" -le $(($(lum "$flown" 640 708) + 6)) ]'
 
 [ "$failed" = 0 ] || exit 1
 echo "PASS: construct pixels"

@@ -16,6 +16,9 @@
 # CAPTURE_LAG=N waits N seconds before each look: the slow capture of a loaded
 # host, as a knob (the hints of a face show for 3 s after the step in).
 #
+# The capsule of a face shows for 3 s after the step in, or while the pointer
+# rests at the bottom: the shot of the face rests it there.
+#
 # Needs the binaries of target/debug (cargo build --workspace). The flags
 # --test-injected-press-is-real let the injected keys reach the construct.
 set -euo pipefail
@@ -130,6 +133,8 @@ fi
 if want stepped-into-face; then
     begin
     key Super+c 2.5
+    act move 100 745
+    ctl wait id:construct-hints
     shot stepped-into-face
     stop
 fi
