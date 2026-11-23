@@ -11,7 +11,7 @@ Now <= `date -u`; a session-branch change needs a status/ change; the budget lin
 1. git worktree add -q --detach /home/user/wt/trainN <session head sha>.
 2. Each MERGE-OK sha in merge order: git -c identity merge -q --no-ff <sha>
    -m "Merge branch 'claude/X' into claude/autonomous-dev-session-3w-i33pg7".
-3. CARGO_BUILD_JOBS=2 (OOM, friction 11-23) setsid nohup, detached: (tests/merge-gate.sh --push claude/autonomous-dev-session-3w-i33pg7
+3. Bash run_in_background (timeout 7200000; setsid nohup dies with the idle container, friction 11-23), CARGO_BUILD_JOBS=2: (tests/merge-gate.sh --push claude/autonomous-dev-session-3w-i33pg7
    > /tmp/claude-0/trainN.log 2>&1; echo EXIT $? >> /tmp/claude-0/trainN.log). --jobs 2 (flakes-l merged t92; series r4 5/5 at 2; critic 11-22). Oldest MERGE-OK first.
 4. Red: bisect by halves; a real fault goes back to its lane. After: worktree remove --force,
    rm -rf ~/.cache/sccache, df -h /; state.md, status page, Queue realigned.
