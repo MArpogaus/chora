@@ -7,6 +7,7 @@ Usage: python3 -I tests/test_tour.py [-v]
 """
 
 import pathlib
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -1010,6 +1011,29 @@ class StubTerminal(unittest.TestCase):
     def test_the_tiling_chapter_uses_the_stub(self):
         text = (ROOT / "demo" / "tour" / "chapters" / "tiling.py").read_text()
         self.assertIn("foot_stub(", text)
+
+
+class FixedClock(unittest.TestCase):
+    """RV9-r4: mc reads the time by running `date` (plugins/chora-mc/src/region.rs `date`: the clocks
+    and the `since` of the agent), so a `date` first on PATH pins it: one time for both takes."""
+
+    def run_date(self, tmp, *args):
+        launch.date_stub(tmp)
+        out = subprocess.run([f"{tmp}/date", *args], capture_output=True, text=True, env={"PATH": "/usr/bin:/bin"})
+        return out.stdout.strip()
+
+    def test_the_stub_date_gives_one_time_to_every_call(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(self.run_date(tmp, "+%H:%M"), "18:51")
+            self.assertEqual(self.run_date(tmp, "+%H:%M"), "18:51")
+
+    def test_the_stub_date_takes_the_formats_of_the_clocks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(self.run_date(tmp, "+%a %d %b %H:%M"), "Mon 23 Nov 18:51")
+
+    def test_every_session_gets_the_stub(self):
+        text = (ROOT / "demo" / "tour" / "launch.py").read_text()
+        self.assertEqual(text.count("date_stub(f"), 2)
 
 
 class LauncherEnv(unittest.TestCase):

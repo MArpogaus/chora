@@ -71,6 +71,19 @@ exec /usr/bin/foot --app-id=$k --title=$k $colors -o 'font=DejaVu Sans Mono:size
 """
 
 
+CLOCK_EPOCH = 1795459860
+"""2026-11-23 18:51 UTC: the one time of day of every take."""
+
+
+def date_stub(directory):
+    """A `date` first on PATH that tells CLOCK_EPOCH in UTC, whatever the format: mc runs `date` for its
+    clocks (plugins/chora-mc/src/region.rs), so two takes an hour apart would show two times."""
+    path = os.path.join(directory, "date")
+    with open(path, "w") as f:
+        f.write(f"#!/bin/sh\nexec env TZ=UTC /bin/date -d @{CLOCK_EPOCH} \"$@\"\n")
+    os.chmod(path, 0o755)
+
+
 def wpctl_stub(directory):
     path = os.path.join(directory, "wpctl")
     state = os.path.join(directory, "wpctl.state")
@@ -192,6 +205,7 @@ class Launcher:
         os.makedirs(f"{self.dir}/stub", exist_ok=True)
         os.makedirs(f"{self.dir}/config/chora", exist_ok=True)
         wpctl_stub(f"{self.dir}/stub")
+        date_stub(f"{self.dir}/stub")
         for name, text in {"chora-notify.yaml": notify_config(), **(extra_config or {})}.items():
             with open(f"{self.dir}/config/chora/{name}", "w") as f:
                 f.write(text)
@@ -276,6 +290,7 @@ class SceneScript:
         self.dir = tempfile.mkdtemp(prefix=f"{name}.", dir=SCRATCH)
         os.makedirs(f"{self.dir}/stub", exist_ok=True)
         wpctl_stub(f"{self.dir}/stub")
+        date_stub(f"{self.dir}/stub")
         env = dict(os.environ, CHORA_BIN=BIN, PATH=f"{self.dir}/stub:{os.environ['PATH']}")
         self.log = f"{self.dir}/scene.out"
         out = open(self.log, "w")
