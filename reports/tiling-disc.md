@@ -63,3 +63,9 @@ Checks:
 
 Findings:
 - rtd-1, MINOR, tests/persona/round.sh:121, when `session.sh --stop` fails after 40 s, round.sh only prints a line and leaves the session running (brief: kill the session on failure); fix: after the failed --stop send `kill -KILL` to the PERSONA_SESSION_PID of the env file.
+
+## Train116 (PM, 11-23 14:48)
+- train116 (sim-long-r2 + tiling-disc 8df47cc8) red at launcher-click: "FAIL: tiling: a click on the Mid row of the launcher did not start mid (alpha, the first row: 0, the chat: 0)".
+- Cause: tiling-disc adds flavors/tiling/applications/chora-settings.desktop ("Edit settings"); the row lands between Alpha and Mid, so the cell's fixed Mid row (tests/gate-launcher-click.sh:123, row tiling 35 15 400 259) now holds Edit settings.
+- The lane gate could not see it: launcher-click needs fuzzel >= 1.11 and lane containers have 1.9.2 (sh-34).
+- rtd-2, MAJOR (verdict FIX): tiling-disc breaks a gate cell; fix in r2 (keep the Mid row where the cell expects it, or the cell finds the row by name), red first. tiling-disc leaves the train; train117 runs without it.
