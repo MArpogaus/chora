@@ -1331,6 +1331,77 @@ mod tests {
         }
     }
 
+    /// The box of an item, the words as wide as 14 px Inter draws them.
+    fn boxes(plan: &Plan) -> Vec<(String, [f64; 4])> {
+        let words = |at: &[f64; 2], text: &str, em: f64| {
+            [at[0], at[1], px(text.chars().count()) * em, LINE]
+        };
+        plan.items
+            .iter()
+            .map(|item| match item {
+                Item::Title { at, text } => (text.clone(), words(at, text, 7.6)),
+                Item::Cap { at, size, keys, .. } => {
+                    (keys.clone(), [at[0], at[1], size[0], size[1]])
+                }
+                Item::Label { at, text } => (text.clone(), words(at, text, 7.3)),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn no_box_of_the_list_overlaps_another() {
+        for lang in [Language::En, Language::De] {
+            let rows = rows(&parse::<Config>(DEFAULT).unwrap(), lang);
+            let boxes = boxes(&plan(&rows, 1000.0));
+            for (n, (a, x)) in boxes.iter().enumerate() {
+                for (b, y) in &boxes[n + 1..] {
+                    let apart = x[0] + x[2] <= y[0]
+                        || y[0] + y[2] <= x[0]
+                        || x[1] + x[3] <= y[1]
+                        || y[1] + y[3] <= x[1];
+                    assert!(apart, "{lang:?}: {a:?} {x:?} overlaps {b:?} {y:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_group_title_reads_at_7_to_1_on_the_panel() {
+        let luminance = |rgb: [f64; 3]| {
+            let [r, g, b] = rgb.map(|c| {
+                if c <= 0.039_28 {
+                    c / 12.92
+                } else {
+                    ((c + 0.055) / 1.055).powf(2.4)
+                }
+            });
+            0.2126 * r + 0.7152 * g + 0.0722 * b
+        };
+        for scheme in [Scheme::Ink, Scheme::Paper] {
+            let colors = Colors::of(scheme);
+            let list = key_list(
+                "screen:X",
+                [1280.0, 800.0],
+                &groups(),
+                &colors,
+                Language::En,
+            );
+            let title = list
+                .iter()
+                .find_map(|c| match c {
+                    Command::Create { id, props, .. } if id == "tiling-keys-body-3" => props.color,
+                    _ => None,
+                })
+                .expect("a title");
+            let (a, b) = (
+                luminance([title[0], title[1], title[2]]),
+                luminance(channels(&colors.surface)),
+            );
+            let ratio = (a.max(b) + 0.05) / (a.min(b) + 0.05);
+            assert!(ratio >= 7.0, "{scheme:?}: {ratio:.2}");
+        }
+    }
+
     #[test]
     fn the_chip_stands_in_the_middle_of_the_output() {
         let (at, size, _) = chip_places([1280.0, 800.0], [68.0, 24.0]);
