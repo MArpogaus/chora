@@ -1,10 +1,10 @@
 # State
 
-## Now (2026-11-23 13:11 UTC)
+## Now (2026-11-23 13:12 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 13:09 PM 4.9 % (11-22) + 4.2 % (11-23), week about 19 % vs 34 % pace
 session branch: bc153929 (t115 green 12:46: tiling-flake r2, co-focus r3, record-v9 r4); 69 greens.
-burn-down: F1-F4, F6, F8 met (audit r4); F5 open (flake lanes, series); F7 open.
+burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING, no D); F5 8 rows (14); F7 open (24 acts unfiled).
 
 ## RC
 | # | Criterion | State |
@@ -14,7 +14,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (flake lanes, series); F7 open.
 | 3 | 3 greens, no flake | series r5 5/5 on 3b14c825; FLAKE-WAIT, FLAKE-K1, FLK-K1b, PIX-CAPSULE, TILING-LAYOUT |
 | 4, 5 | CI green on a PR; packaging | pre-commit green; CI PR at release |
 | 6 | Review per area | r1 MERGE-OK (0 MAJOR; MC-FOCUS) |
-| 7 | deny, machete; updates | clean; 7 bumps (DEPS) |
+| 7 | deny, machete; updates | open: RUSTSEC-2026-0592 url 2.5.8 (GUARD-3) |
 | 8 | Docs, CHANGELOG, known issues | DOCS-RC r1 merged (54c30d16); r2 pr-1..5 |
 | 9 | Flakes, window loss | open: sh-33 leak (leak-r1), sim-long r2 |
 | 11 | Tour v9 | open = F7 |
@@ -29,15 +29,14 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (flake lanes, series); F7 open.
 | mc-tidy-r2.md (F7; 1.5 %) | sonnet medium, claude/mc-tidy 5b34d4b1 | session_016iS3kP9Js7yxNibyrZocXb; r1 12:52: mc-55, mc-57 close, keys red (sh-34) -> r2 |
 | leak-r1.md (rc 9; 2 %) | opus high, claude/leak 5b34d4b1 | session_016iS3kMw4PZJnXirCxCD1cb 12:19 |
 | p2-r7-co.md (rc 2; 0.8 %, review) | sonnet medium, claude/p2-r7-co bc153929 | session_016iS3kP1eVZ13YdLAaxeZvg 12:49 |
-| audit-f-r5.md (F1-F8; 0.8 %, review) | opus high, claude/audit-f-r5 bc153929 | session_016iS3kLW1UjAiKQkZNZ2fC5 12:49 |
 | review-tiling-disc-r1.md (rc 2; 0.5 %, review) | sonnet medium, claude/review-tiling-disc 8df47cc8 | starting |
 | h-rf-r1.md (rule 8; 1 %) | sonnet high, claude/h-rf bc153929 | starting |
 ## Queue (% week; 5 % reserve)
-1. (rc 1, 2, 11; 1.6 %) p2-r7-co (co-48..51 verify), audit-f r5 started 12:49.
+1. (rc 7, F8, F5; 0.4 %) GUARD-3 at the next free slot: url bump, keys need_fuzzel (sh-34), log CONTRIBUTING + D120, sonnet.
 2. (rule 8; 1 %) H-RF r1 started 13:10.
 3. (rc 8; 0.5 %) DOCS-RC r2 (pr-1..5), sonnet medium.
 4. (rc 1, 2; 1 %) rcf-8, rcf-10, co-44, co-45, ti-30, sh-31 once the look has no open MAJOR.
-5. (F5, rc 3, 9; 3 %) leak-r1 (sh-33) running; F5 met at 5/5 with sh-32..34 closed. (F7) xp-readable, mc-tidy running.
+5. (F5, F7; 3.5 %) SH-32 I14 after tiling-disc; TOUR-BASE (I6, rv9 = MAJOR) after xp-readable; FLAKE-SERIES r7 after leak-r1.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
