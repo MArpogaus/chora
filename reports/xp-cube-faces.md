@@ -56,3 +56,12 @@ A time budget of mc on 300 panels (run after the 1939 s `acts` cell, two jobs); 
     tiling-bar PASS, tiling-theme PASS, mc-host PASS, e2e PASS
 
 So: rcf-8 and rcf-10 red (ba5c0d22) then green (d588d573), the construct cells green, the gate green but for the foreign red `mc-scale` (settings.set 9316 ms > 5000 ms).
+
+## PM review r1 (2026-11-23 21:40 UTC)
+Base 1ec04694..d588d573, 4 files +79 -6 (PM review: under 200 lines; PM not the builder).
+- Red first: ba5c0d22 (tests `the_icons_follow_the_front_face_of_a_hosted_cube`, `the_start_menu_call_opens_on_the_front_face`) before fix d588d573: yes.
+- rcf-8: `host_turned` at rest calls `refresh_icons`, which now uses `front_bar()` (front face, else first bar); test covers face 2, back to 0, and flat. rcf-10: `Call::StartMenu` uses `front_bar()`; test covers hosted and flat.
+- The rcf-9 test changed from "no commands" to "no FocusNode": the icon refresh now adds commands; the invariant (xp does not take keys of another client) is kept.
+- Gate: one red, mc-scale (9316 ms under the lane's parallel load); no changed file reaches mc; train119 on the session head passed mc-scale in 16 s. Foreign timing red, filed sh-37; not counted against the lane. Steps after it passed with --only.
+- New, out of brief scope: rcf-11 MINOR, `menu_rest` (wm/dispatch.rs:186) bounds the taskbar tooltip by `bars.first()`, so on a hosted cube turned to another face the tip may be placed for face 0. Other `bars.first()` uses (desktops.rs:70, 88, 192) to check in the same round.
+Verdict: 0 MAJOR, MERGE-OK d588d573; train120 (its full gate reruns mc-scale).
