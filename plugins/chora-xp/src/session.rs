@@ -7,6 +7,7 @@
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 
 use crate::{
+    decoration::TITLE_SHADOW,
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
 };
@@ -363,8 +364,12 @@ impl Dialog {
                 } else {
                     [178, 196, 240, 255]
                 };
-                picture
-                    .text(Text::new(button.title, Font::UiBold, color, [0, 37, w, 16]).centered())
+                let mut label =
+                    Text::new(button.title, Font::UiBold, color, [0, 37, w, 16]).centered();
+                if button.enabled {
+                    label = label.shadow(TITLE_SHADOW);
+                }
+                picture.text(label)
             }
         };
         theme.render(&picture)
