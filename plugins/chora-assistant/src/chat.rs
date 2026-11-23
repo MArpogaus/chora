@@ -82,16 +82,12 @@ pub struct Frame {
     pub lift: i32,
 }
 
-/// A work area less `margin` pixels on every side, at least one pixel big.
+/// A work area less `margin` pixels at its left and right edges, at least
+/// one pixel wide.
 #[must_use]
-pub fn inset([x, y, w, h]: [i32; 4], margin: u32) -> [i32; 4] {
+pub fn narrowed([x, y, w, h]: [i32; 4], margin: u32) -> [i32; 4] {
     let margin = i32::try_from(margin).unwrap_or(0);
-    [
-        x + margin,
-        y + margin,
-        (w - 2 * margin).max(1),
-        (h - 2 * margin).max(1),
-    ]
+    [x + margin, y, (w - 2 * margin).max(1), h]
 }
 
 impl Frame {
@@ -112,7 +108,14 @@ impl Frame {
         if self.look.style == chora_kit::hud::ChatStyle::Glass {
             width = glass_width(width, self.area[2]);
         }
-        let inside = inset(self.area, self.look.margin);
+        let margin = i32::try_from(self.look.margin).unwrap_or(0);
+        let [x, y, w, h] = self.area;
+        let inside = [
+            x + margin,
+            y + margin,
+            (w - 2 * margin).max(1),
+            (h - 2 * margin).max(1),
+        ];
         let view = view_rect(anchor, width, inside);
         if matches!(anchor, Anchor::Left | Anchor::Right) {
             return view;
@@ -129,11 +132,11 @@ impl Frame {
 
     /// The balloon of the figure: above its head, as wide as the chat, at
     /// most 60 % of the work area high, its tail ending at the head, inside
-    /// the work area less the `margin` of the chat: a folder that keeps a
+    /// the work area less the `margin` of the chat at its left and right edges: a folder that keeps a
     /// column at the edge free (the Recycle Bin of xp above the paperclip)
     /// sets it, and the tail then ends left of the head.
     fn balloon(&self, [tip_x, tip_y]: [i32; 2]) -> [i32; 4] {
-        let [ax, ay, aw, ah] = inset(self.area, self.look.margin);
+        let [ax, ay, aw, ah] = narrowed(self.area, self.look.margin);
         let (_, width) = self.look.place();
         let w = i32::try_from(width).unwrap_or(i32::MAX).min(aw);
         let inset = Style::default().tail_inset;

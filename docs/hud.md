@@ -357,7 +357,7 @@ values only. A folder without the block gets the neutral chat.
 | `size` | Text size in pixels, 14 to 48; a value outside is refused. Default 14. A line of text is one and a half times as high, and a long message wraps at its words, never cut with an ellipsis. |
 | `anchor` | The place. Default `right`. |
 | `width` | The width in pixels, 1 to 1600. Default 400. |
-| `margin` | The gap between the view and the edges of the work area in pixels, 0 to 128. Default 0. A `bubble` chat and the sentence of the figure keep it too, so a folder can leave a column at the edge free, and the tail then ends left of the head. |
+| `margin` | The gap between the view and the edges of the work area in pixels, 0 to 128. Default 0. A `bubble` chat and the sentence of the figure keep it at the left and right edges too, so a folder can leave a column at the edge free, and the tail then ends left of the head. |
 | `idle_stop` | `hide` or `grey`. Stop shows only while a prompt runs, as `hide` does, the default; `grey` keeps it in its place, greyed and without a press, so that the header does not jump. |
 | `form` | `plain` or `xp`. `xp` draws the balloon as XP does: a close box at the top right, Stop and Send as push buttons, a white field with a 1 px rule of `#7F9DB9`, a header of two lines (the name and the state word, then the task and the step; outside of a chat the first sentence of the notice, then the rest), and the question in a group box. The words, the order and the keys do not change. Default `plain`. |
 | `glow` | The colour of the glow around a `glass` chat, which falls to nothing within 16 pixels. Left out: no glow. |

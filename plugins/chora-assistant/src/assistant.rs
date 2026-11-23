@@ -1069,7 +1069,7 @@ impl Assistant {
         let [x, y] = self.origin;
         let [head_x, head_y] = self.values.figure.head();
         let tip = [x + head_x, y + head_y];
-        let area = crate::chat::inset(self.area, self.values.chat().margin);
+        let area = crate::chat::narrowed(self.area, self.values.chat().margin);
         let anchor = (area, y + self.values.figure.size()[1]);
         let style = (&self.values.speech, self.values.line.tail_left);
         let (picture, [bx, by], _) = speech(theme, style, text, (tip, anchor));
