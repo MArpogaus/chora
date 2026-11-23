@@ -33,7 +33,8 @@
 #   agents-row-text         the helper row (A7)
 #   xp-one-balloon          the xp folder draws no rows beside the
 #                           paperclip, and a click on it opens the chat as
-#                           its balloon, above it (F7)
+#                           its balloon, above it and ending at its left
+#                           edge, the margin of the chat (F7)
 #   mc-host-hud             chora-mc with `voice_hud: host` and the mc
 #                           folder: the host draws the figure and the card,
 #                           mc shows no sentence, no question, no claim (H9)
@@ -485,7 +486,7 @@ no_rows() { ! ctl query owner:assistant | jq -e 'any(.[]; .id | startswith("hud-
 balloon_over_figure() {
     jq -ne --argjson c "$(node_rect hud-chat)" --argjson f "$(node_rect hud-figure)" \
         '($c | to_entries[0].value) as $b | ($f | to_entries[0].value) as $p |
-         $b[1] + $b[3] <= $p[1] and $b[0] <= $p[0] + $p[2] / 2 and $p[0] + $p[2] / 2 <= $b[0] + $b[2]' >/dev/null 2>&1
+         $b[1] + $b[3] <= $p[1] and $p[0] - 16 <= $b[0] + $b[2] and $b[0] + $b[2] <= $p[0] + $p[2]' >/dev/null 2>&1
 }
 cell_xp_one_balloon() {
     local shown=1
