@@ -52,3 +52,12 @@ Branch claude/tiling-flake, head 15a5d2fc (merge of origin/claude/autonomous-dev
 
 ### Gate
 `tests/merge-gate.sh --jobs 2` (full, detached) on 15a5d2fc: EXIT 0, "all steps passed", 62 PASS lines, no red, no skip. `pgrep -fa 'chora --headless'` empty.
+
+## Review r2 (PM, 09:29 UTC, 11-23; builder: sonnet lane, not the PM)
+Own diff 8f2ed754..15a5d2fc without merges: 6 commits, tests only (gate-tiling-focus.sh +17 -5, gate-tiling-motion.sh +20 -11, doors/tiling.sh +5 -1). Lane gate on fresh 230ea0e5: full, EXIT 0; counts 10/10 under TILING_LOAD=4.
+- BORDER (2aa2466e): the capture is taken only when the tb- ring rects are the same before and after it (40 tries, else a named fail); the check reads each ring's own edges (1 px in, 16 px off the corners) instead of fixed rows. Holds: a broken edge of any ring still fails; the fixed-row check could not follow the I2 gap of 12.
+- MOTION (f97f3e35): the old check compared one late sample after ; now tag 1 is hidden first, then choractl record steps 24 frames: frame 24 equals the settled capture and frame 2 differs at 330 and 960. Holds and is stricter (a jump-cut fails at frame 2).
+- ti-46 (ded5d30d red, 0483bbeb fix): the red commit starts the helper 3 s late; the fix waits with until_ok 40. Holds.
+- Red first: 13f61462 and a68aeb1a only sharpen the failure text (the reds were load-bound flakes, shown under TILING_LOAD=4 in "## r2"); ded5d30d is a real red. Not a finding (flake fixes; the H-RF note of friction 11-22 21:30 applies to product fixes).
+- Note (no finding): the ring-based border check no longer pins where the rings lie; placement stays with gate-tiling-layout and I2.
+**Verdict: MERGE-OK** (0 BLOCK, 0 MAJOR). Joins train 115 after t114.
