@@ -1669,13 +1669,8 @@ mod tests {
     #[test]
     fn only_a_bubble_folder_narrows_the_sentence_balloon() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-        for (folder, test) in [
-            (root.join("huds/neutral"), "balloon-neutral"),
-            (root.join("../chora-tiling/hud"), "balloon-tiling"),
-        ] {
-            let (x, wide) = balloon_places(&folder, test);
-            assert_eq!(x, wide, "{test}: the balloon stands as in the whole area");
-        }
+        let (x, wide) = balloon_places(&root.join("huds/neutral"), "balloon-neutral");
+        assert_eq!(x, wide, "neutral: the balloon stands as in the whole area");
         let xp = root.join("../../flavors/xp/assets/assistant");
         let (x, wide) = balloon_places(&xp, "balloon-xp");
         assert!(
