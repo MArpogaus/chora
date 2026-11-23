@@ -95,6 +95,9 @@ impl Wm {
                 }
             }
             Event::Emitted { event, .. } if self.left.is_some() => self.host_back(&event),
+            Event::Emitted { event, data, .. } if self.is_host_event(&event) => {
+                serde_json::from_value(data).map_or_else(|_| Vec::new(), |t| self.host_turned(t))
+            }
             event @ (Event::InputKey { .. } // injected: hears drops an injected key unless xp accepts them
             | Event::InputButton { .. } // injected: hears drops an injected event unless xp accepts them
             | Event::InputMoved { .. } // injected: hears drops an injected event unless xp accepts them

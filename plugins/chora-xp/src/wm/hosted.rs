@@ -118,6 +118,17 @@ impl Wm {
         Vec::new()
     }
 
+    /// Whether `event` is the event of the cube of the host of the faces.
+    pub(super) fn is_host_event(&self, event: &str) -> bool {
+        (self.host.as_ref()).is_some_and(|h| event == cube::event(&h.client))
+    }
+
+    /// The host turned its cube (`NAME.cube`); xp does nothing with it.
+    #[expect(clippy::unused_self, reason = "the red of co-50: xp ignores the turn")]
+    pub(super) fn host_turned(&mut self, _turned: cube::Turned) -> Vec<Command> {
+        Vec::new()
+    }
+
     /// A client went: when it hosted the faces, `chora-xp` goes flat on
     /// the screens, and the windows of face `i` go to desktop `i`.
     pub(super) fn host_gone(&mut self, name: &str) -> Vec<Command> {
@@ -359,6 +370,116 @@ mod tests {
             let _ = wm.output_removed(face);
         }
         assert!(wm.done);
+    }
+
+    /// xp on the four faces of a construct, with the window `s0` on face 0
+    /// and `s2` on face 2, `s0` focused, as the core says.
+    fn hosted(tag: &str) -> Wm {
+        let (mut wm, _methods) = super::super::tests::wm_on_fake_core(tag);
+        let faces: Vec<String> = (1..=4).map(|i| format!("V-{i}")).collect();
+        for (i, face) in (0..).zip(&faces) {
+            let _ = wm.output_changed(&face_output(face, i));
+        }
+        let _ = wm.leave_output("X", None);
+        for (i, face) in [(0, &faces[0]), (2, &faces[2])] {
+            let usable = wm.bars.iter().find(|b| &b.output == face).unwrap().usable();
+            let mut w = Window::new(&format!("s{i}"), None, None);
+            w.size = Some([200, 100]);
+            w.shown = true;
+            w.pos = [usable[0] + 40, usable[1] + 40];
+            wm.windows.push(w);
+        }
+        wm.host = Some(Host {
+            client: "construct".into(),
+            faces,
+        });
+        wm.focused = Some("s0".into());
+        wm.core_focus = Some("s0".into());
+        wm
+    }
+
+    fn turned(front: usize) -> cube::Turned {
+        cube::Turned {
+            front,
+            turning: false,
+        }
+    }
+
+    fn icons() -> Command {
+        Command::FocusNode {
+            node: Some(crate::desktop_icons::GROUP.into()),
+        }
+    }
+
+    /// co-50: the host turns its cube away from the face of the focused
+    /// window. That window shows no more, so it must not keep the keys:
+    /// they go to the icons of the front face, which has no window, and to
+    /// `s2` once the cube is at its face.
+    #[test]
+    fn a_turn_of_the_host_takes_the_keys_to_the_front_face() {
+        let mut wm = hosted("host-turn-keys");
+        let commands = wm.host_turned(turned(1));
+        assert_eq!(
+            wm.focused, None,
+            "s0 of face 0 keeps the keys: {commands:?}"
+        );
+        assert!(
+            commands.contains(&chora_kit::wm::focus::release()),
+            "{commands:?}"
+        );
+        assert!(
+            commands.contains(&icons()),
+            "the icons get no keys: {commands:?}"
+        );
+        wm.core_focus = None;
+        wm.key_node = Some(super::super::NAME.into());
+        let commands = wm.host_turned(turned(2));
+        assert_eq!(wm.focused.as_deref(), Some("s2"), "{commands:?}");
+        assert!(
+            commands.contains(&chora_kit::wm::focus::give("s2")),
+            "{commands:?}"
+        );
+    }
+
+    /// A turn while another client holds the keys, as the walk of the
+    /// construct in navigate mode, leaves them there.
+    #[test]
+    fn a_turn_of_the_host_leaves_the_keys_of_another_client() {
+        let mut wm = hosted("host-turn-other");
+        wm.focused = None;
+        wm.core_focus = None;
+        wm.key_node = Some("construct".into());
+        assert_eq!(wm.host_turned(turned(2)), Vec::new());
+        assert_eq!(wm.focused, None);
+    }
+
+    /// co-51: the focused window of the front face closes (the window of
+    /// the lock). The core first focuses nothing and then destroys it: the
+    /// keys go to the icons of the front face, never to nobody and never
+    /// to `s0` of a face that does not show.
+    #[test]
+    fn the_keys_stay_on_the_front_face_when_its_focused_window_closes() {
+        let mut wm = hosted("host-close-keys");
+        let _ = wm.host_turned(turned(1));
+        let usable = wm.bars.iter().find(|b| b.output == "V-2").unwrap().usable();
+        let mut lock = Window::new("s9", None, None);
+        lock.size = Some([200, 100]);
+        lock.shown = true;
+        lock.pos = [usable[0] + 40, usable[1] + 40];
+        wm.windows.push(lock);
+        wm.focused = Some("s9".into());
+        wm.core_focus = Some("s9".into());
+        let _ = wm.focus_moved(None);
+        let commands = wm.forget("s9");
+        assert_eq!(wm.focused, None, "{commands:?}");
+        assert!(
+            !commands.contains(&chora_kit::wm::focus::give("s0")),
+            "{commands:?}"
+        );
+        assert!(
+            commands.contains(&icons()),
+            "the keys go nowhere: {commands:?}"
+        );
     }
 
     #[test]
