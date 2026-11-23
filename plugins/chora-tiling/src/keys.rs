@@ -87,11 +87,11 @@ pub fn layout_word(layout: Layout, lang: Language) -> &'static str {
     }
 }
 
-/// The groups of the key list, in the order they are shown: the windows,
-/// whose first row is the focus keys, then the give keys, which no file
-/// binds.
-const WINDOWS: usize = 0;
-const LOOKS: usize = 1;
+/// The groups of the key list, in the order they are shown: the give keys,
+/// which no file binds, as the first two lines, then the windows, whose
+/// first row is the focus keys.
+const LOOKS: usize = 0;
+const WINDOWS: usize = 1;
 const LAYOUTS: usize = 2;
 const TAGS: usize = 3;
 const PROGRAMS: usize = 4;
@@ -219,8 +219,8 @@ fn own_words(action: &Action) -> Option<Words> {
 /// The title of a group of the key list.
 fn title(group: usize, de: bool) -> &'static str {
     let names = [
-        ["Windows", "Fenster"],
         ["Other looks", "Andere Fenstermanager"],
+        ["Windows", "Fenster"],
         ["Layouts", "Anordnung"],
         ["Tags", "Tags"],
         ["Programs", "Programme"],

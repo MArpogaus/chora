@@ -488,16 +488,22 @@ def covered_by(snap, sid):
 
 
 def verify_same_windows(ctx, before):
-    """T7: no window lost, none stray. A given window that is shown but
-    drawn under another one is not lost: it is a separate MINOR line."""
+    """T7: a window changed look (its owner is another than at the begin), no
+    window lost, none stray. A tag move inside one look changes no owner and
+    is no handover. A given window that is shown but drawn under another one
+    is not lost: it is a separate MINOR line."""
 
     def verify(after_):
         lost = sorted(before.toplevels - after_.toplevels)
         stray = sorted(after_.toplevels - before.toplevels)
-        for sid in sorted(given_away(before, after_) & after_.toplevels):
+        given = given_away(before, after_) & after_.toplevels
+        for sid in sorted(given):
             if (over := covered_by(after_, sid)) is not None:
                 ctx.notes.append(f"minor T7 covered: {sid} under {over}")
-        return [f"windows lost {lost}, new {stray}"] if lost or stray else []
+        out = [f"windows lost {lost}, new {stray}"] if lost or stray else []
+        if not given:
+            out.append("no window changed look: every window has the owner it had at the begin")
+        return out
 
     return verify
 
