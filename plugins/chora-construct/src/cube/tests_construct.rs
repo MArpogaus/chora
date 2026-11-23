@@ -650,8 +650,9 @@ fn a_placed_pane_in_front_of_the_cube_goes_beside_it_on_its_side() {
     }
 }
 
-/// A pane that is not placed, one behind the cube and one that clears
-/// it stay where they are.
+/// A pane behind the cube and one that clears it stay where they are; a
+/// pane that nobody placed in front of it goes beside it as a placed one
+/// does (co-54).
 #[test]
 fn a_pane_that_does_not_cover_the_cube_stays() {
     let mut construct = with_panes(
@@ -664,12 +665,9 @@ fn a_pane_that_does_not_cover_the_cube_stays() {
     );
     construct.panes[0].placed = false;
     stepped_back(&mut construct);
-    assert!(construct.asides.is_empty(), "no pane gave way");
-    for (name, at) in [
-        ("loose", FRONT),
-        ("behind", [0.0, 5000.0]),
-        ("clear", [-2500.0, 3000.0]),
-    ] {
+    let gave_way: Vec<&String> = construct.asides.keys().collect();
+    assert_eq!(gave_way, ["loose"], "only the pane in front gave way");
+    for (name, at) in [("behind", [0.0, 5000.0]), ("clear", [-2500.0, 3000.0])] {
         assert_eq!(at_of(&construct, name), (at, 0.0), "{name}");
     }
 }

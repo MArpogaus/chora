@@ -30,8 +30,11 @@ the view, not to a window.
 
 A turn is a part of both modes: while the cube turns, no face takes
 input, and the mode after the turn is the mode before it. A click on a
-face during a turn does nothing. The session
-starts in use mode when a cube opens, as a fly-in ends today. A lock
+face during a turn does nothing. A cube that the person opens, by
+`Super+C`, the row `A cube of desktops` of the start card or the hint
+`Cube`, starts in navigate mode: the person sees the cube of desktops
+and steps into a face. A cube that `cube.open` opens starts in use
+mode, as a fly-in ends today. A lock
 ends neither mode; an unlocked session shows the mode of before.
 
 ## Flows
@@ -101,7 +104,8 @@ of the cube do not hold there. A `cube.open` from inside a pane first
 leaves the pane, so the cube opens ahead of where the person stood.
 
 While no cube is open, `Super+C`, the key `cube`, opens a cube of four
-faces, as `cube.open` without params does; the walk hints name it,
+faces, as `cube.open` without params does, and stands back from it; the
+walk hints name it,
 `Super C  Cube`, and a click on that hint does the same. Stood back, the
 hints at the bottom centre are the chips of the cube: `Ctrl Alt ← Turn
 left`, `Return Step in` and `Turn right Ctrl Alt →`, and the face label
@@ -216,11 +220,12 @@ window list as `covered`. On a single screen the drag cannot leave the
 face, so a press on a title bar shows the hint "Ask the helper to pull
 this window out" until the button goes up (`cube.pull` does it). A pane
 that was pulled out or moved stays in
-view when the cube stands back, and a drag drops it on a face again; if
-it stood in front of the cube, it moves beside the cube while the cube
-stands back, so that the cube shows whole, and goes home when the cube
-steps in or closes. A pane that nobody placed gives way to a cube that
-stands back in front of it. A saved construct file keeps `placed: true` of a pane, so it stays in view after a restart.
+view when the cube stands back, and a drag drops it on a face again. A
+pane in front of the cube, placed or not, such as a terminal that stood
+where the cube opened, moves beside the cube while the cube stands back,
+so that the cube shows whole and no window is lost behind it, and goes
+home when the cube steps in or closes. A pane that nobody placed and that
+still covers the cube that stands back gives way to it. A saved construct file keeps `placed: true` of a pane, so it stays in view after a restart.
 
 While the cube stands back or turns, the windows on its faces float in
 front of them, the higher ones of the stack farther, as on the desktop
