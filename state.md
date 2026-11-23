@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-23 16:47 UTC)
+## Now (2026-11-23 16:51 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 16:39 PM 4.9 % (11-22) + 5.1 % (11-23), week about 21 % vs 36 % pace
 session branch: 1ec04694 (t117 green 16:38); 70 greens; train118 h-rf running.
@@ -25,7 +25,7 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 | docs-rc-r2.md (rc 8; 0.5 %) | sonnet medium, claude/docs-rc-r2 bc153929 | 37730187 MERGE-OK (PM review); train118 |
 | guard-3-r1.md (rc 7; 0.4 %) | sonnet medium | 49f65382 MERGE-OK (PM review); train118 |
 | tiling-disc-r3.md (rc 2; 0.6 %) | sonnet medium, 3b32b9b4 | r2 FIX (rtd-3 acts I5/I6); session_016iS3kMu2bg6HBDwKc5RruR 16:47
-| xp-readable-r2.md (F7; 1 %; rxr-1, rxr-2 MAJOR) | sonnet high, claude/xp-readable 2d2413f6 | session_016iS3kNgMdxh6qSY3pspBtZ 14:17 |
+| review-xp-readable-r2.md (F7; 0.5 %) | sonnet high, e85413d2 | r2 done (gate EXIT 0); review starting
 | co-reach-r1.md (rc 1, 2; 2 %) | opus high, claude/co-reach bc153929 | session_016iS3kNey3bZFXVjkQbFTGV 13:59 |
 | soak-r3.md (rc 9; 1 %) | haiku high, claude/soak-r3 1ec04694 | session_016iS3kPTaTUWz9CUtmLJXzF 16:40 |
 | h-rf-r2.md (rc 3; 0.6 %) | sonnet high | c9d8d9f0 MERGE-OK; train118 running 16:39 |

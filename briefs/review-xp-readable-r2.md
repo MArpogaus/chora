@@ -1,0 +1,18 @@
+# review xp-readable r2 (F7, rc 11): seeded review of claude/xp-readable before its merge
+
+Model: sonnet, effort high (contrast and placement with pixel asserts; routine but exact)
+Lane: cloud, read-only on code: claude/xp-readable head e85413d2, r1 head 2d2413f6, session base 1ec04694 (`git diff 1ec04694...e85413d2`: 20 files, +317 -338). One round.
+Stop at 120 k context; cost at most 0.5 %; at most 8 findings. No merge gate (the lane's gate is EXIT 0, 63 PASS); cargo test -p and the single cells below only.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`, `python3 -c "import PIL"`; a failure: send_message the PM "review-xp-readable BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Read on claude/session-log: briefs/xp-readable-r2.md (done criteria), reports/xp-readable.md "## Review r1" and "## r2"; vision-card.md (chora-xp pixel-perfect Luna; chora-notify never covers work, placed per look).
+Known, not findings: rxr-3..5 (nits, wait); keys red with fuzzel < 1.11 (sh-34).
+Checks, each with its command and files:
+1) Red first (rule 8): 94579f91 before 11e34cf8 and fc9675ac (rxr-1); a8286171 before 62708d35 and e17b2ccc (rxr-2). Check out each red commit, run the cell (`tests/gate-xp-readable.sh`, the acts rows for the own buttons), paste the red line; at e85413d2 green.
+2) rxr-1 exact: tests/acts/known-red.toml has no xp-session-button- prefix row; Lock, Log Off, Restart, Cancel >= 4.5:1 measured (`python3 tests/acts/run.py --no-selftest xp`, paste the values); Stand By and Turn Off one row each, naming the Luna fill within 2 per channel (measure it). The lane's note rxr-3 (the harness counts the shadow) is true or not: say which with a capture.
+3) rxr-2 exact: the Recycle Bin at the bottom right as in docs/configuration.md; no balloon or notice box overlaps it for the empty-chat balloon, one notice and three notices (the cell's asserts test exactly that, not a weaker box); the other looks' balloon and notice placement unchanged (`git diff 1ec04694...e85413d2 -- plugins/chora-assistant plugins/chora-notify`: any change outside the xp branch is a finding). 96 px from the right edge: derived from the bin's box, not a magic number that breaks at 1024x768 or 1920x1080 (check both sizes if the cell takes a size).
+4) Look (vision card): the balloon still points at the paperclip, notices stack without covering work; the caption backing reads as Luna, not a foreign box (look at the captures the cell writes; name each).
+5) `cargo test -p chora-xp -p chora-notify -p chora-assistant` green; `tests/gate-xp-readable.sh` 3x green (paste counts).
+6) Scope: no change outside the r2 brief's area (xp, assistant and notify placement for xp, gate-xp-readable, acts known-red, docs row 11, tour tests the lane merged in).
+Verdict computed: an open BLOCK or MAJOR is FIX, else MERGE-OK. Findings one line each (rxr-N from rxr-6, severity, file:line, text, fix in one sentence). Append to reports/xp-readable.md on claude/session-log under "## Review r2".
+Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 5 lines): verdict, counts, BLOCK and MAJOR list. Poll every command in the same turn; never end a turn to wait. Before ending: `pgrep -fa 'chora --headless'` empty.
+Rules: push only claude/session-log (fetch and merge on reject, no force), only that report; author Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email); no attribution lines; never --no-verify; no system packages.
