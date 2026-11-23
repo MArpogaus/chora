@@ -6,8 +6,8 @@ Branch `claude/h-rf` from bc153929. Head `fff3f1ab`.
 
 ### Commits
 
-- `73525d9c` test(rf): red-first cases per finding id. 8 of the 42 new cases red against the old rule
-  (the other new cases are green before and after: the rule they guard was already true).
+- `73525d9c` test(rf): red-first cases per finding id. 8 new cases red against the old rule (before the change, with the rest of the new cases green)
+  (the other new cases hold before and after).
   Red output before the change:
   `FAIL: per id: a fix naming sh-2 after a test naming only sh-1 is red: got '0', want '1'`,
   `... the red names the id and the sha`, `... a fix naming sh-1 and sh-2 with a test for one is red`,
@@ -33,7 +33,7 @@ Branch `claude/h-rf` from bc153929. Head `fff3f1ab`.
 
 tests/merge-gate-selftest.sh: three runs, all `ok: merge-gate-selftest`, rc 0, no FAIL line
 (run 1 on the working tree before the commit, runs 2 and 3 on `fff3f1ab`; ~2 min each).
-New cases (42 `per id` and `the hook` lines): fix sh-1 with test sh-1 green; fix sh-2 with test sh-1 red;
+New cases (`per id` and `the hook` lines): fix sh-1 with test sh-1 green; fix sh-2 with test sh-1 red;
 sh-1+sh-2 with both green, with one red (only the missing id named); id in body of fix or test commit;
 fix without id green after any test, red without; `No test:` green; test in the fix commit green; test commit
 after the fix red; feat naming an id green; SH-2 / tiling-audit not ids; merge commit naming an id green;
