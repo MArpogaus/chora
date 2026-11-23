@@ -209,7 +209,7 @@ Result: **0 of 5 green.** Full runs 1, 2, 3, 4b and 5 all exited 1. Run 4 did no
 | 4b (replaces void run 4) | 1 | keys | `FAIL: the Foot row of Programs started no foot` | 61.2 |
 | 5 | 1 | keys | `FAIL: the Foot row of Programs started no foot` | 61.2 |
 
-Runs 1 to 3 and 5 ran the full step list; the other steps of each run passed (PASS count 22 to 38 before the red line, final count not reached on the failing runs, as the gate stops at its first red step under `--jobs 2`). Logs kept in the lane scratchpad (`r6/run1.log`, `r6/run2.log`, `r6/run3.log`, `r6/run4.log` (void), `r6/run4b.log`, `r6/run5.log`, `r6/summary.txt`).
+Each red run stopped at its red step (run 1 and run 2 logs end at their FAIL lines), so the steps after the red step did not run in these runs. Logs kept in the lane scratchpad (`r6/run1.log`, `r6/run2.log`, `r6/run3.log`, `r6/run4.log` (void), `r6/run4b.log`, `r6/run5.log`, `r6/summary.txt`).
 
 ### Reruns of the red steps (`tests/merge-gate.sh --jobs 2 --only build,<step>`)
 
