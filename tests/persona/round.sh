@@ -27,6 +27,8 @@
 #   ROUND_DIR  the folder of the round (default /tmp/persona-round)
 #   ROUND_KEEP the folder for the captures and actions of each NAME
 #              (default $ROUND_DIR/keep)
+#   ROUND_STOP_WAIT  seconds that stop waits for the folder of NAME (default 30);
+#              stop fails and names the folder when it stays empty
 set -u
 repo=$(cd "$(dirname "$0")/../.." && pwd)
 dir=${ROUND_DIR:-/tmp/persona-round}
@@ -116,7 +118,18 @@ stop() {
         kill "$(cat "$dir/run/$name.probe.pid")" 2>/dev/null || true
         rm -f "$dir/run/$name.probe.pid"
     fi
-    "$repo/tests/persona/session.sh" --stop "$env_file" && echo "stopped $name"
+    "$repo/tests/persona/session.sh" --stop "$env_file" || echo "session $name did not end in 40 s" >&2
+    local waited
+    for waited in $(seq "$((${ROUND_STOP_WAIT:-30} * 2))"); do
+        [[ -z $(ls -A "$keep/$name" 2>/dev/null) ]] || break
+        sleep 0.5
+    done
+    if [[ -z $(ls -A "$keep/$name" 2>/dev/null) ]]; then
+        echo "the capture folder $keep/$name is missing or empty after the stop of $name" >&2
+        return 1
+    fi
+    echo "stopped $name; kept in $keep/$name:"
+    ls -1 "$keep/$name"
 }
 
 smoke() {
