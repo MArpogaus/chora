@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-23 10:50 UTC)
+## Now (2026-11-23 10:57 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 10:50 PM 4.9 % (11-22) + 3.6 % (11-23), week about 18 % vs 35 % pace; under: 6 lanes
 session branch: 230ea0e5 (t113 green 07:24: MC-ROUND, eprintln ratchet 65 to 47); 67 greens.
@@ -25,7 +25,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (closes on the flake lanes + ha
 | flake-series-r6.md (F5, rc 3, 9; 1 %) | haiku high, claude/flake-series-r6 230ea0e5 | session_016iS3kLUGZ6nX4ntqUXGnFw 07:26; run 1 green, run 2 red keys "the Foot row of Programs started no foot" (F5 not 5/5), run 3 at 09:56 |
 | co-focus-r3.md (rc 1, 2; 1.5 %) | opus high, claude/co-focus 3a625261 | r3 DONE, PM review MERGE-OK 10:04 (rcf-7, rcf-9 closed; rcf-8, rcf-10 MINOR); train t115 |
 | tiling-flake-r2.md (F5, rc 3; 1 %) | sonnet medium, claude/tiling-flake 15a5d2fc | r2 DONE 09:24; PM review MERGE-OK; train t115 after t114 |
-| review-record-v9-r4.md (F7, rc 11; 0.5 %) | sonnet medium, claude/record-v9 6949cddb | r4 DONE 10:48 (1/21/88, rv9-1..6 = ledger MINOR/COSMETIC, causes added); review session_016iS3kPiRgYNw5z3ybr2Z8t 10:50 |
+| record-v9-r4.md (F7, rc 11; 1.5 %) | sonnet medium, claude/record-v9 6949cddb | r4 review MERGE-OK 10:56 (rr9-1 MINOR, rr9-2/3 NIT); train t115 |
 | sim-long-r2.md (rc 9; 1 %) | haiku high, claude/sim-long-r2 230ea0e5 | session_016iS3kLH4cr6VJ5SxZZeob1 09:33 |
 | tiling-disc-r1.md (rc 2; 1.5 %) | sonnet high, claude/tiling-disc 230ea0e5 | session_016iS3kLr3z3YfoMNYBqXya5 10:10 |
 ## Queue (% week; 5 % reserve)

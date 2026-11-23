@@ -413,3 +413,4 @@ DB21 | 11-22 | later | gate-tiling-motion.sh: restore the deep (focused) vs ligh
 - FLK-TILING-BORDER, FLK-TILING-MOTION (F5, tiling-flake r1): focus `the border is broken` 3/3 and motion 1/3 red under TILING_LOAD=4. Lane tiling-flake r2 (with FLK-DOORS ti-46).
 - (debt) rcf-5: xp keeps its own 'empty focus is no loss' rule (keys.rs:378, windows.rs:269); move xp to kit::wm::focus::Focus (D116). Source: review co-focus r1.
 - co-focus rcf-10 MINOR: StartMenu RPC (plugins/chora-xp dispatch.rs:120) opens on bars.first() on a hosted cube; use front_face().
+rr9-1 | MINOR | review-record-v9 r4 (reports/record-v9.md "## Review r4") | open | tiling rows of demo/tour/intended.toml name five shas, only 573496e5 proved; name per row which sha explains which diff
