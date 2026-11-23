@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-23 03:01 UTC)
+## Now (2026-11-23 03:03 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 03:01 PM 4.9 % (Bangkok 11-22) + 2.2 % (11-23), week about 16 % vs 32 % pace; under: 6 lanes
 session branch: 86e619f3 (t111 green 03:00: HARNESS-LEAK); 65 greens. t112 03:01: 8 MERGE-OK lanes (07df3203).
@@ -30,12 +30,12 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (closes on the flake lanes + ha
 | tiling-flake-r1.md (F5, rc 3, 1; 0.8 %) | sonnet medium, claude/tiling-flake 8721b4d6 | session_016iS3kPS7AZ63LG2obX116Q 02:24 |
 | pix-capsule-r1.md (F5, rc 3; 0.6 %) | sonnet medium, claude/pix-capsule e905195e | MERGE-OK 05828b32; t112 |
 | flk-hang-r1.md (F5, rc 3; 0.3 %) | sonnet low, claude/flk-hang 6b01c976 | MERGE-OK 022fa50c; t112 |
-| record-v9-r2.md (F7, rc 11; 1.2 %) | sonnet medium, claude/record-v9 d7a80ff8 | session_016iS3kP1X4RaM1Q7xBpdxSa 01:38 |
+| record-v9-r2.md (F7, rc 11; 1.2 %) | sonnet medium, claude/record-v9 d7a80ff8 | MERGE-OK ec45efbb; t113 |
 | xp-idle-r1.md (F5, rc 3; 0.5 %) | sonnet medium, claude/xp-idle db7a7acd | MERGE-OK; t112 |
 
 ## Queue (% week; 5 % reserve)
 3. (rc 8) DOCS-RC r2 (pr-1..5) on the Thu head.
-4. (F7, rc 11) record-v9 r2 running (ti-38 in 40a2ba92).
+4. (F7, rc 11) record-v9 r3 after t112 (sonnet medium, 1.2 %): RV9-1..4 (bar clock mask, fa3e20a6 check, causes, flipped I6/I2 per element); then fix lanes per look.
 5. (rc 1, 3, 8, 9) t112 running: XP-IDLE, MC-ROUND, FLK-HANG, TILING-FIX, CUBE-SETTLE, FLAKE-HINT, PIX-CAPSULE, TILING-ROUND as they pass. Then: haiku series 5 (F5); co persona retest (rc 2, T2 via co-42; haiku); eprintln ratchet.
 
 ## Needs owner
