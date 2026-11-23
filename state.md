@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-23 03:53 UTC)
+## Now (2026-11-23 04:00 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 03:01 PM 4.9 % (Bangkok 11-22) + 2.2 % (11-23), week about 16 % vs 32 % pace; under: 6 lanes
+budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 04:00 PM 4.9 % (Bangkok 11-22) + 2.5 % (11-23), week about 16 % vs 33 % pace; under: 6 lanes
 session branch: 86e619f3 (t111 green 03:00); 65 greens. t112b red 03:51 (record-v9 RV9-5); t112c 03:53 without it (2c1748a4).
 burn-down: F1-F4, F6, F8 met (audit r4); F5 open (closes on the flake lanes + haiku series 5 at 2 jobs); F7 open.
 
