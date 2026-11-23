@@ -94,8 +94,10 @@ header_findings() {
             | "overlap \(.[0].id) on \(.[1].id)"),
         ([$words[] | select(.id | test("-header-(clock|date)$"))] as $dates
             | if ($dates | length) == 0 then "no date in the header" else empty end,
-            ($dates[] | select(.text | test("^\\S+ [0-9]{1,2} [^\\s…]+(  [0-9]{2}:[0-9]{2})?$") | not)
-                | "the date is cut: \(.text)"))'
+            ($dates[] | select(.text | test("^(\\S+ )?[0-9]{1,2} [^\\s…]+(  [0-9]{2}:[0-9]{2})?$") | not)
+                | "the date is cut: \(.text)")),
+        ($words[] | select((.id | test("-header-head$")) and (.text | contains("…")))
+            | "the running head is cut: \(.text)")'
 }
 header_clear() {
     local last='' now='' found _

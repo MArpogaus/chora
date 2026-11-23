@@ -1677,22 +1677,6 @@ mod tests {
         assert_eq!(volume, Some(format!("{title} 40%")));
     }
 
-    /// While the chat is open its box lies over the doors, so the column
-    /// has none; the doors come back when it shuts.
-    #[test]
-    fn the_doors_leave_while_the_chat_is_open() {
-        let mut mc = crate::testing::mc("doors-chat", [1280, 800]).0;
-        mc.show("agenda", false).unwrap();
-        let doors = |mc: &super::Mc| {
-            (right_items(mc).iter())
-                .filter(|i| i.hit.as_deref().is_some_and(|h| h.starts_with("door:")))
-                .count()
-        };
-        assert_eq!(doors(&mc), 5);
-        mc.chat = crate::Chat::Open;
-        assert_eq!(doors(&mc), 0);
-    }
-
     /// A chat that cannot open says so in a critical notice of
     /// the notification server, not only in a log.
     #[test]
@@ -1932,20 +1916,28 @@ mod tests {
         items.filter(|i| i.id.contains("-doors-")).count()
     }
 
-    /// The doors of the column, with their hit areas, are not under the
-    /// chat panel: they go while the chat is open and come back with the
-    /// close (mc-56).
+    /// The doors of the column stay while the chat is open: lock, power,
+    /// programs and volume keep their mouse door, and the box of the chat
+    /// ends above them, so that the chat covers none (MH-2).
     #[test]
-    fn the_doors_of_the_column_go_while_the_chat_is_open() {
+    fn the_doors_of_the_column_stay_beside_the_open_chat() {
         use chora_kit::runtime::Plugin as _;
         let (mut mc, _) = crate::testing::mc("chat-doors", [1920, 1080]);
         let first = mc.settings.value.default_scene.clone();
         mc.show(&first, false).unwrap();
-        assert!(door_items(&mc, &first) > 0, "the doors show");
+        let doors = door_items(&mc, &first);
+        assert!(doors > 0, "the doors show");
         mc.event(chat_event("assistant", true, "test")).unwrap();
-        assert_eq!(door_items(&mc, &first), 0, "no door under the chat");
+        assert_eq!(door_items(&mc, &first), doors, "the doors stay");
+        let rect = mc.chat_slot().expect("the chat has a box");
+        let column = mc.boxes_of(&first)[&crate::region::Region::Right];
+        let baseline = mc.settings.value.scale.baseline;
+        assert!(
+            rect[1] + rect[3] + 2.0 * baseline <= column[1] + column[3],
+            "the chat ends above the doors"
+        );
         mc.event(chat_event("assistant", false, "test")).unwrap();
-        assert!(door_items(&mc, &first) > 0, "the doors are back");
+        assert_eq!(door_items(&mc, &first), doors, "the doors are back");
     }
 
     /// Another output or another client than the host changes nothing.
@@ -2380,6 +2372,43 @@ mod tests {
         .unwrap();
         assert_eq!(ids.iter().map(effects).sum::<usize>(), 0);
         assert!(mc.writing.is_empty());
+    }
+
+    /// A panel below the text area of the page shows nothing while it
+    /// writes, so it gets no write effect: the end of the write then
+    /// changes the few panels that show, not 300 (FLK-MC-SCALE: 300 effect
+    /// updates held the loop of mc for 0.4 s, 6 s under load, and the
+    /// next `settings.set` waited behind them).
+    #[test]
+    fn a_panel_below_the_page_gets_no_write_effect() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("write-below", [640, 480]);
+        mc.shader = "/write.frag".into();
+        let panels: Vec<serde_json::Value> = (0..300)
+            .map(|i| {
+                json!({"id": format!("p{i}"), "cell": [i % 20, i / 20, 1, 1],
+                    "title": format!("T{i}"), "lines": [format!("{i}\tline")]})
+            })
+            .collect();
+        mc.method(
+            "scene.save",
+            json!({"name": "many", "grid": [20, 15], "panels": panels}),
+        )
+        .unwrap();
+        mc.show("many", true).unwrap();
+        let effects = |id: &str| {
+            let core = model.lock().unwrap();
+            core.scene
+                .node(&super::panel_id("many", id))
+                .unwrap()
+                .props
+                .effects
+                .len()
+        };
+        let writing = (0..300).filter(|i| effects(&format!("p{i}")) > 0).count();
+        assert_eq!(effects("p0"), 1, "the first panel writes");
+        assert_eq!(effects("p299"), 0, "the last is far below the page");
+        assert!(writing < 100, "{writing} of 300 panels write");
     }
 
     /// A build removes the nodes whose write animation runs and makes new
