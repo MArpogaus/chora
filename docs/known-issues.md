@@ -125,12 +125,11 @@ MINOR
 - The spoken prompt of a sub-agent's tool title may still keep bidi or hidden characters (the shown text is cleaned).
 - sh-28: documentation is stale on mc telling an injected click, and on the icon fallback to the temp directory.
 - sh-13, sh-17 (unverified: no check in the ledger since rc 3): state word spelled three ways and helper surface counted twice; HUD colours per theme.
+- mesh-churn review finding 1 (core, MINOR): two views of one scale (a layer on two outputs, or an output and its capture) keep the old layer sizes for a while after many resizes, so memory use grows during that time. Same as before the mesh-churn fix, which covers one view. Workaround: none needed for one output.
 
 COSMETIC
 - sh-18: door wording and notification shape differ per look.
 - sh-21: the task cut is per character and can leave a space before the ellipsis; a long task hides the step count.
-
-- mesh-churn review finding 1 (core, MEDIUM): two views of one scale (a layer on two outputs, or an output and its capture) keep the old layer sizes for a while after many resizes, so memory use grows during that time. Same as before the mesh-churn fix, which covers one view. Workaround: none needed for one output.
 
 DEFERRED DEPENDENCIES
 - zbus 6 (#96) and serde-saphyr 2 (#87) are major bumps, deferred past rc 7.
