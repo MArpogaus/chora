@@ -559,8 +559,9 @@ impl Mc {
     }
 
     /// The doors at the foot of a side: a word for each action that has a
-    /// key, three in a line, clicked like its key. The box of the chat runs
-    /// to the foot of the side over them, so that none shows while it is open.
+    /// key, three in a line, clicked like its key. They stay while the chat is
+    /// open (MH-2): its box ends one baseline above the foot, the doors being
+    /// the mouse path of the rc bar.
     fn door_items(&self, slot: i32, name: &str, content: &Content, region: Region) -> Vec<Item> {
         let id = format!("{}-{name}", self.region_id(region));
         let mut ty = self.content_type(content, false);
