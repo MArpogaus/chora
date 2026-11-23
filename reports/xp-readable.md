@@ -82,3 +82,13 @@ Step 0: unshallow, `cargo check --workspace`, `cargo build --workspace`, PIL: gr
 - rxr-10, nit, plugins/chora-xp/src/desktop_icons.rs:48-53: `PAPERCLIP: i32 = 104` and the 96 of hud.yaml:25 and values.yaml:2 repeat the size of the figure and `BIN_FROM_RIGHT` (8 + 80 + 8) without a link; a change of the figure breaks the placement with no test red except the gate. Fix: a test that ties 96 to `BIN_FROM_RIGHT` and 104 to the figure's size.
 
 Known, not findings: rxr-3..5 (rxr-3 now confirmed with a capture), keys with fuzzel < 1.11 (sh-34). Report written with no process left (`pgrep -fa 'chora --headless'` empty).
+
+## r3
+
+Scope: rxr-6 only (rxr-7..10 wait). Head 51cd0bc0 on claude/xp-readable (merged with origin/claude/autonomous-dev-session-3w-i33pg7, fresh).
+
+- Red 1cf99e4c: unit test `only_a_bubble_folder_narrows_the_sentence_balloon`; at 1cf99e4c it fails: neutral balloon x 1131 vs 1143 (12 px left).
+- Fix 529552c6: assistant.rs balloon() narrows by the chat margin only when the chat style is `bubble` (xp); plain folders (neutral, tiling) use the whole area again. 51cd0bc0 only drops the tiling path from the test (cut-check: chora-assistant must not name chora-tiling).
+- Balloon x at 1280x800: neutral and tiling 1075 at e85413d2, 1087 after (= 1ec04694; both chats are style plain, margin 12); xp unchanged by the fix (narrowed by 96, clear of the bin; gate-xp-readable bin-clear green).
+- `cargo test -p chora-assistant`: 246 pass. `tests/gate-xp-readable.sh` 3 of 3 exit 0. hud and tiling-look cells PASS in the full gate.
+- Full `tests/merge-gate.sh --jobs 2` at 51cd0bc0: every cell PASS except mc-host: `FAIL: dark: the field gets no keyboard after the click` (mc-host.log line 27; mc pane field focus, no code of the sentence balloon or xp; fuzzel 1.11.1; not rerun). Foreign, named, not rerun to green.
