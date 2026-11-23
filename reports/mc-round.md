@@ -78,3 +78,12 @@ the change` (the 250 ms bar latency of chora-tiling under two jobs; log
 diff. Not rerun. mc-scale, mc-column, doors, ci-check (lint-ratchet 360)
 PASS. An earlier full run on 043af297 had lint-ratchet red (361: a second
 `allow`, fixed in 40241d14) and `doors` red (above, fixed).
+
+## Review r1 (PM; 181 lines, 7 files, 42585079..9ed1fbc8)
+- Red first for FLK-MC-SCALE (af02a893), MH-2 (bf23d49d), MC-HEAD (a8825dfd); MH-1 closed with product commit 10eb3a7f. ok.
+- FLK-MC-SCALE (show.rs): no write effect below the text area; 10/10 under `yes` x4, 182-288 ms. ok.
+- MH-2 (region.rs): the chat box ends one baseline above the foot; the doors stay; cell 5/5 light and dark. ok.
+- MC-HEAD (fit.rs clock_gives_way): the clock drops leading words; the head keeps its letters. ok. The doors cell now accepts a date without its weekday: a narrower clock, not a lowered bar (the head check got stricter).
+- mr-1 NIT: clock_gives_way sets the clock width to the share of the room, but shorten_front cuts whole words, so the kept text can be wider than that width; with only the time left it can still touch the head. Known issues; the 1024x768 cell passes.
+- Gate: all PASS but tiling-windows "the layout word took 291 ms to follow the change" (foreign; new FLK-TILING-LAYOUT in backlog).
+Verdict: MERGE-OK (0 MAJOR); joins t112.

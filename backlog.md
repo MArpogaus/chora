@@ -403,3 +403,5 @@ DB21 | 11-22 | later | gate-tiling-motion.sh: restore the deep (focused) vs ligh
 - TF-1 (MINOR, tiling-fix review r1): tiling-scripts-selftest.sh:95 clock selftest skips silently without PIL or Inter; print a skip line. Next tiling round.
 - TI-27B (MINOR, tiling, core): one Escape leaves the key list under a cancelled power menu; tiling gets no layer-focus event from the core. Needs a core event; after the RC unless a review raises it.
 - FLK-HANG (flake, F5, t110e 11-23 00:12): crates/chora/src/hang.rs:346 `start.elapsed() >= 9 * S` red once (test passed in t110d on the same head 40a2ba92). Cause (PM read): the 9 s Timer is created before `start = Instant::now()`, so a timer that fires on time ends the loop a few microseconds before 9 s from start. Fix: take start before inserting the sources, or assert against the timer's own deadline. Lane flk-hang r1.
+
+- FLK-TILING-LAYOUT (F5, rc 3): tests/gate-tiling-windows: "the layout word took 291 ms to follow the change" red in the mc-round lane gate 11-23 (foreign). Next tiling round with T1b.
