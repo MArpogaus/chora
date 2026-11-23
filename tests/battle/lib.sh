@@ -1,6 +1,10 @@
 #!/bin/bash
 # Shared helpers for the battle workflows. Source this, then call
 # session_start, health, session_stop. Run files: $RUN set by the driver.
+# end_probes ends every chora-probe of the session by the XDG_RUNTIME_DIR
+# in its environment, also one whose pid no array kept (W9 step 1 opens six
+# such); session_stop calls it, and a soak that keeps one core ends each
+# round with it, else the windows pile up (sh-33: 6 per round, 2 fds each).
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 cd "$repo" || exit 1
 bin=${BIN:-$repo/target/debug}
@@ -103,7 +107,17 @@ session_start() {
   health "session started"
 }
 
+end_probes() {
+  local p left=()
+  [ -n "${XDG_RUNTIME_DIR:-}" ] || return 0
+  for p in $(pgrep -x chora-probe); do
+    grep -qzx "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR" "/proc/$p/environ" 2>/dev/null && left+=("$p")
+  done
+  [ "${#left[@]}" = 0 ] || kill "${left[@]}" 2>/dev/null
+}
+
 session_stop() {
+  end_probes
   [ -n "$HLPID" ] && kill "$HLPID" 2>/dev/null
   wait "$HLPID" 2>/dev/null
   HLPID=

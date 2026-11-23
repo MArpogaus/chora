@@ -1,26 +1,31 @@
 #!/bin/bash
 # Gate of sh-33 (rc 9, F5): a long session must not pile up memory or file
 # descriptors in the core. One headless core lives through ROUNDS rounds;
-# each round is a look switch (tiling, xp, mc in turn: the look starts,
-# manages the windows of the round and ends) and the open/close churn of
+# each round switches through the looks (tiling, xp, mc in turn: each look
+# starts, manages the windows of its turn and ends) and runs, under each
+# look, the open/close churn of
 # W9 and the soak of sim-long r2: WINDOWS probe windows by `choractl run`,
 # every other one ended, as many opened again whose pids the round does not
-# keep, then all closed. After each round the gate samples the core:
-# VmRSS of /proc/PID/status, the open fds of /proc/PID/fd (with a split by
-# kind), the live windows of the scene and the connected clients.
+# keep, then all closed: close_round ends the pids it kept and every probe
+# of the session by its environment (gate_probes), as the harness must.
+# After each round the gate samples the core: VmRSS of /proc/PID/status,
+# the open fds of /proc/PID/fd (with a split by kind), the live windows of
+# the scene and the connected clients.
 #
 # Red when, over the rounds after WARMUP:
-#   - the least-squares slope of the RSS, fitted with one offset per look
-#     (the core keeps up to 50 MB more after a tiling round than after an
-#     mc round, so a plain fit over a few rounds swings by MBs), is above
-#     1024 kB per round (set before the first run: a leaked 200x200 probe
-#     buffer per round is 160 kB, a 1280x800 window texture 4 MB);
+#   - the Theil-Sen slope of the RSS (the median of the slopes between
+#     each two rounds, so one round that dips or peaks does not decide it;
+#     a steady growth reads as with least squares) is above 1024 kB per
+#     round (set before the first run: a leaked 200x200 probe buffer per
+#     round is 160 kB, a 1280x800 window texture 4 MB). The sample is taken after
+#     the whole cycle of looks: after a tiling or xp turn the core holds up
+#     to 50 MB of heap more, by timing, which the mc turn gives back;
 #   - the fds grow by more than one per 10 rounds (last minus first);
 #   - a round ends with more windows or clients than the base before
 #     round 1.
 #
 # Usage: tests/gate-leak.sh   BIN: directory with the binaries
-#   ROUNDS (default 12, at most 20), WINDOWS (default 8), WARMUP (default 3)
+#   ROUNDS (default 8, at most 12), WINDOWS (default 8), WARMUP (default 2)
 #   LEAK_LOG: the per-round table (default: a temp file, printed at the end)
 # Helpers: fds (the fds of the core by kind), clients (clients.list but
 # the gate), look NAME and unlook NAME (start and end the look of a round).
@@ -30,11 +35,11 @@ need jq
 need_bins chora choractl chora-probe chora-tiling chora-xp chora-mc
 temp_config
 export PATH=$bin:$PATH
-ROUNDS=${ROUNDS:-12}
+ROUNDS=${ROUNDS:-8}
 WINDOWS=${WINDOWS:-8}
-WARMUP=${WARMUP:-3}
+WARMUP=${WARMUP:-2}
 RSS_SLOPE_KB=1024
-[ "$ROUNDS" -le 20 ] || fail "ROUNDS=$ROUNDS: at most 20 (the gate runs under 10 min)"
+[ "$ROUNDS" -le 12 ] || fail "ROUNDS=$ROUNDS: at most 12 (36 look turns; the gate runs under 10 min)"
 [ "$ROUNDS" -gt $((WARMUP + 3)) ] || fail "ROUNDS=$ROUNDS: need more than WARMUP+3 rounds for a slope"
 work=$XDG_CONFIG_HOME
 table=${LEAK_LOG:-$work/leak.tsv}
@@ -74,7 +79,10 @@ run_probe() {
     ctl run "$bin/chora-probe" window "$@" | jq -r '.pid'
 }
 close_round() {
+    local left
     kill "$@" 2>/dev/null
+    mapfile -t left < <(gate_probes | sort -u)
+    [ "${#left[@]}" = 0 ] || kill "${left[@]}" 2>/dev/null
 }
 look_pid=
 look() {
@@ -103,45 +111,46 @@ printf 'round\tlook\trss_kb\tfds\twindows\tclients\tfd_kinds\tmem_mb\n' >"$table
 printf '0\t-\t%s\t%s\t%s\t%s\t%s\n' "$(rss)" "$(fds)" "$base_windows" "$base_clients" "$(split)" |
     awk -F'\t' -v OFS='\t' '{ print $1, $2, $3, $4, $6, $7, $5, $8 }' >>"$table"
 for round in $(seq "$ROUNDS"); do
-    name=${looks[$(((round - 1) % ${#looks[@]}))]}
-    look "$name"
-    before=$(windows)
-    probes=()
-    for i in $(seq "$WINDOWS"); do probes+=("$(run_probe $((i * 30)) $((round * 20 % 256)) 90)"); done
-    wait_windows $((before + WINDOWS)) || fail "round $round ($name): $(windows) windows, expected $((before + WINDOWS))"
-    for i in $(seq 0 2 $((WINDOWS - 1))); do kill "${probes[$i]}" 2>/dev/null; done
-    for i in $(seq 0 2 $((WINDOWS - 1))); do run_probe 200 $((i * 30)) 30 >/dev/null; done
-    wait_windows $((before + WINDOWS)) || fail "round $round ($name): $(windows) windows after the churn, expected $((before + WINDOWS))"
-    sleep 0.5
-    close_round "${probes[@]}"
-    wait_windows "$base_windows" 20 || true
-    unlook "$name"
-    sleep 1.5
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$round" "$name" "$(rss)" "$(fds)" "$(windows)" "$(clients)" "$(split)" |
+    for name in "${looks[@]}"; do
+        look "$name"
+        before=$(windows)
+        probes=()
+        for i in $(seq "$WINDOWS"); do probes+=("$(run_probe $((i * 30)) $((round * 20 % 256)) 90)"); done
+        wait_windows $((before + WINDOWS)) || fail "round $round ($name): $(windows) windows, expected $((before + WINDOWS))"
+        for i in $(seq 0 2 $((WINDOWS - 1))); do kill "${probes[$i]}" 2>/dev/null; done
+        for i in $(seq 0 2 $((WINDOWS - 1))); do run_probe 200 $((i * 30)) 30 >/dev/null; done
+        wait_windows $((before + WINDOWS)) || fail "round $round ($name): $(windows) windows after the churn, expected $((before + WINDOWS))"
+        sleep 0.5
+        close_round "${probes[@]}"
+        wait_windows "$base_windows" 20 ||
+            echo "FAIL: round $round ($name): $(windows) windows after the close, base $base_windows" >>"$work/turns"
+        unlook "$name"
+    done
+    sleep 3
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$round" "${looks[*]}" "$(rss)" "$(fds)" "$(windows)" "$(clients)" "$(split)" |
         awk -F'\t' -v OFS='\t' '{ print $1, $2, $3, $4, $6, $7, $5, $8 }' >>"$table"
 done
 cat "$table"
 
-verdict=$(awk -F'\t' -v warm="$WARMUP" -v bound="$RSS_SLOPE_KB" -v bw="$base_windows" -v bc="$base_clients" '
-    FNR == 1 || $1 == 0 { next }
-    NR == FNR {
-        if ($5 > bw) print "FAIL: round " $1 ": " $5 " windows, base " bw
-        if ($6 > bc) print "FAIL: round " $1 ": " $6 " clients, base " bc
-        if ($1 > warm) { n[$2]++; mx[$2] += $1; my[$2] += $3 }
-        next
-    }
+touch "$work/turns"
+verdict=$(cat "$work/turns"; awk -F'\t' -v warm="$WARMUP" -v bound="$RSS_SLOPE_KB" -v bw="$base_windows" -v bc="$base_clients" '
+    NR == 1 || $1 == 0 { next }
+    $5 > bw { print "FAIL: round " $1 ": " $5 " windows, base " bw }
+    $6 > bc { print "FAIL: round " $1 ": " $6 " clients, base " bc }
     $1 <= warm { next }
     {
-        dx = $1 - mx[$2] / n[$2]; dy = $3 - my[$2] / n[$2]; sxy += dx * dy; sxx += dx * dx
+        x[++n] = $1; y[n] = $3
         if (!r0) { f0 = $4; r0 = $1 } f1 = $4; r1 = $1
     }
     END {
-        slope = sxy / sxx
+        for (i = 1; i < n; i++) for (j = i + 1; j <= n; j++) s[++m] = (y[j] - y[i]) / (x[j] - x[i])
+        for (i = 2; i <= m; i++) { v = s[i]; for (j = i - 1; j > 0 && s[j] > v; j--) s[j + 1] = s[j]; s[j + 1] = v }
+        slope = (m % 2) ? s[(m + 1) / 2] : (s[m / 2] + s[m / 2 + 1]) / 2
         fd_bound = int((r1 - r0) / 10) + (((r1 - r0) % 10) > 0 ? 1 : 0)
         printf "rss slope %.0f kB/round (bound %d), fds %d -> %d over rounds %d..%d (bound +%d)\n", slope, bound, f0, f1, r0, r1, fd_bound
         if (slope > bound) printf "FAIL: the RSS of the core grows %.0f kB per round (bound %d)\n", slope, bound
         if (f1 - f0 > fd_bound) printf "FAIL: the fds of the core grow from %d to %d over %d rounds (bound +%d)\n", f0, f1, r1 - r0, fd_bound
-    }' "$table" "$table")
+    }' "$table")
 echo "$verdict"
 grep -q '^FAIL:' <<<"$verdict" && exit 1
-ok "$ROUNDS rounds of $WINDOWS windows and a look switch: RSS and fds flat, windows and clients back to the base"
+ok "$ROUNDS rounds of the looks with $WINDOWS windows each: RSS and fds flat, windows and clients back to the base"
