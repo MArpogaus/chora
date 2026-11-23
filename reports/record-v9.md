@@ -244,3 +244,12 @@ Media is on claude/session-log, not claude/record-v9: the `no-session-files` pre
 ### Bad to good, for the reviewer
 
 Nothing was fixed in the product. The comparison is now fair on launchers (same environment, one real diff named) and the tray clock; the remaining regression is dominated by the red checks of the candidate and by the unattributed element diffs above. Candidate acts with every check green (their regression is diff only, no flipped check): t1 t1b t1c t1d t2 t3 t3b t3c t3d t3e t3f t3g t3h t4 t5 t5b t6b t6d t8 t8b t9 t9b t10b m1 m1b m1c m3 m2 m2b m4 m4b m4c m6 m6b m5 m5b m3b m7 m7b m7c m8 m8b m9 m9b m10. Recommended next: fix I6 (11 px text) and I2 (gaps of 9 against 8 in construct) so a flipped check no longer decides, mask or pin the tiling bar clock, and have the review lane judge the unattributed rows by eye on the stills.
+
+## Review r2 (PM; code 55 lines in 61f3b19e, data 701 lines in ec45efbb; base ecfc213c)
+
+- TOUR-CLOCK: tests/tour-diff.py exempts meta text only for ids matching `^xp-tray-[A-Z]+-\d+$` (by node id, rd-9 holds); tests test_the_tray_clock_... and test_the_clock_exemption_is_by_node_id_only. Met for the xp tray.
+- TOUR-LAUNCH: demo/tour/launch.py base_env sets PATH, XDG_DATA_DIRS, XDG_CONFIG_DIRS from constants; test LauncherEnv. Met; xp-item-3/4 traced to 29281054 (intended row).
+- Red first: tests sit in the fix commit, not a commit before it. tests/red-first.sh accepts a test "before it or in it"; the red runs are claimed in the report, not provable from history. Nit, no finding (gate rule holds).
+- Done-when: replay, take, diff, video check on the merged head; 110 verdict rows; every regression listed with its first diff line; counts r1 vs r2. Met.
+- Open for r3 (not findings of this branch): RV9-1 the tiling bar clock is an unmasked pixel diff (t1, rect 12,8,399,32); RV9-2 the fa3e20a6 rows (tiling boxes) rest on one 20 px diff, verify on a second act; RV9-3 no cause for tiling window rects, mc agenda today rows, construct-mode-*, xp-item rects; RV9-4 the flipped checks (I6 63 rows, I2 14) need the element and check line per row, the take keeps none.
+- Verdict (computed, 0 MAJOR): MERGE-OK ec45efbb (tour tools and intended rows only). Joins the next train.
