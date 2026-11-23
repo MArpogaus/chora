@@ -7,6 +7,7 @@ Usage: python3 -I tests/test_tour.py [-v]
 """
 
 import pathlib
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -467,6 +468,12 @@ class SceneIds(unittest.TestCase):
             seen = {}
             for number, (_, scene) in enumerate(self.acts(chapter), 1):
                 ids.add(tour.act_id(chapter, number, scene, seen))
+        for chapter in self.CHAPTERS:
+            tree = ast.parse((ROOT / "demo" / "tour" / "chapters" / f"{chapter}.py").read_text())
+            for loop in (n for n in ast.walk(tree) if isinstance(n, ast.For)):
+                for call in (n for n in ast.walk(loop) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "act"):
+                    scene = next((k.value.value for k in call.keywords if k.arg == "scene" and isinstance(k.value, ast.Constant)), None)
+                    ids |= {f"{scene}{letter}" for letter in "bcdefghij"} if scene else set()
         self.assertEqual([c["act"] for c in table["change"] if c["act"] not in ids], [])
 
     def test_the_first_row_of_h2_is_the_send_to_act(self):
@@ -981,10 +988,58 @@ class CodeWindow(unittest.TestCase):
     window, not of the product. It shows a file of the tour."""
 
     def test_the_code_window_shows_a_file_of_the_tour(self):
-        text = (ROOT / "demo" / "tour" / "chapters" / "tiling.py").read_text()
+        text = (ROOT / "demo" / "tour" / "launch.py").read_text()
         self.assertNotIn("crates/", text.split("args=")[1].split("\n")[0])
-        self.assertIn("args={SAMPLE}", text)
+        self.assertIn("args={sample}", text)
+        self.assertIn("SAMPLE)", (ROOT / "demo" / "tour" / "chapters" / "tiling.py").read_text())
         self.assertTrue((ROOT / "demo" / "tour" / "sample.rs").exists())
+
+
+class StubTerminal(unittest.TestCase):
+    """RV9-r4: the terminals of the tiling chapter showed other text in the two builds: the shell
+    prompt came from the environment, and a content window (code, notes, page) read its size at the
+    start, while the tile was still animating to its place, so the code window of the baseline was
+    scrolled to line 110 and the candidate's to 118. One stub: a fixed prompt and directory, and a
+    content window that waits for its tile before it prints."""
+
+    def script(self):
+        return launch.foot_stub("/tmp/x", "/tmp/x/history", "/tmp/x/sample.rs")
+
+    def test_the_shell_has_a_fixed_prompt_and_directory(self):
+        text = self.script()
+        self.assertIn("PS1='$ '", text)
+        self.assertIn("cd /home/user/notes", text)
+
+    def test_a_content_window_waits_for_its_tile(self):
+        text = self.script()
+        self.assertRegex(text, r"sleep \d+(\.\d+)?; python3 -I")
+
+    def test_the_tiling_chapter_uses_the_stub(self):
+        text = (ROOT / "demo" / "tour" / "chapters" / "tiling.py").read_text()
+        self.assertIn("foot_stub(", text)
+
+
+class FixedClock(unittest.TestCase):
+    """RV9-r4: mc reads the time by running `date` (plugins/chora-mc/src/region.rs `date`: the clocks
+    and the `since` of the agent), so a `date` first on PATH pins it: one time for both takes."""
+
+    def run_date(self, tmp, *args):
+        launch.date_stub(tmp)
+        out = subprocess.run([f"{tmp}/date", *args], capture_output=True, text=True, env={"PATH": "/usr/bin:/bin"})
+        return out.stdout.strip()
+
+    def test_the_stub_date_gives_one_time_to_every_call(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(self.run_date(tmp, "+%H:%M"), "18:51")
+            self.assertEqual(self.run_date(tmp, "+%H:%M"), "18:51")
+
+    def test_the_stub_date_takes_the_formats_of_the_clocks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(self.run_date(tmp, "+%a %d %b %H:%M"), "Mon 23 Nov 18:51")
+
+    def test_every_session_gets_the_stub(self):
+        text = (ROOT / "demo" / "tour" / "launch.py").read_text()
+        self.assertEqual(text.count("date_stub(f"), 2)
 
 
 class LauncherEnv(unittest.TestCase):
