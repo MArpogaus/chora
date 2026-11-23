@@ -300,15 +300,6 @@ slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
 act = "the keys key opens the key list"
-capture = "tiling-keys-body-0"
-finding = "guide-checks r2: tiling-keys-body-0: the contrast"
-id = "I6"
-look = "tiling"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the keys key opens the key list"
 capture = "tiling-keys-body-1-k"
 finding = "guide-checks r2: tiling-keys-body-1-k: guide wants 14 px"
 id = "I6"
