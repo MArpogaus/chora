@@ -381,6 +381,12 @@ rr_ids_start
 rr_file i.rs i
 rr_commit "fix(i): the fix for SH-2 and tiling-audit" i.rs
 check "per id: an uppercase or digitless word is not an id" "$(red >/dev/null; echo $?)" 0
+for word in utf-8 sha-256 base-64 ipv-6 gate-0.8 gtk-3.0 "(gate-0.8)." "v0.9.0-rc.3"; do
+    rr_ids_start
+    rr_file i.rs i
+    rr_commit "fix(i): a fix that mentions $word" i.rs
+    check "per id: $word is not an id" "$(red >/dev/null; echo $?)" 0
+done
 git -C "$rr" reset -q --hard base
 git -C "$rr" checkout -q -b side
 rr_file s.txt s
