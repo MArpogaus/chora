@@ -57,24 +57,24 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-23T16:46:00Z",
+  updated: "2026-11-23T19:15:00Z",
   start: "2026-11-21T04:00:00Z",   // budget reset (owner)
   end: "2026-11-28T03:59:00Z",     // next reset; F5, F7 carried over
-  budget: 21,                       // % of the new week used (reset 04:00)
+  budget: 22,                       // % of the new week used (reset 04:00)
   goals: [
     ["F1", "Plan in merge-sized slices", "done", "reviewed plan"],
     ["F2", "Shared code in one kit, no copies", "done", "met by audit r2 (19:13): 0 copies; kit-report keeps it after debt-down"],
     ["F3", "Window-manager core, first slices", "done", "met by audit r2: wm parts and records D107-D116"],
     ["F4", "No file over 1,500 lines", "done", "met by audit r4 (14:23): 0 files over; every lint and debt count below the RC value (debt 25 of 47); the lint ratchet (train 90) freezes the counts"],
-    ["F5", "No flaky tests, coverage over 80 %", "risk", "reopened 22 Nov after review: coverage 91.76 % holds, but one construct test went red twice since the five-green series; it is met again when that flake is fixed and a second independent five-gate series is green"],
+    ["F5", "No flaky tests, coverage over 80 %", "risk", "coverage 91.76 % holds; the last five-gate series was 0 of 5 green (keys cell in lane containers, leftover processes, an xp placement race) and the mc-host cell went red twice in other lanes: two fix lanes run now (flake series r7, mc-host), each with a red test first; then a new five-gate series"],
     ["F6", "Every change through the merge gate", "done", "70 green merges, all reviewed; train 117 (memory-leak fix, mc tidy-up, long-simulation scripts) green 16:38 UTC (23:38 Bangkok)"],
     ["F7", "No visual regression vs tour v8", "behind", "tour v9 retake reviewed 03:05 UTC: the comparison is now fair (clock and launcher pinned), but 109 of 110 acts still differ from v8, mostly text under 12 px and gaps flagged by the design checks; next round names each failing element, then one fix lane per look"],
-    ["F8", "Docs and decision records", "done", "merged 18:30 (train 68), reviewed; doc fixes merged (train 72)"]
+    ["F8", "Docs and decision records", "risk", "reopened by audit r5 (13:12): the kit lacks CONTRIBUTING and its decision records; docs RC round 2 is approved and waits for its merge"]
   ],
   now: [
-    "Train 117 merged green at 16:38 UTC (23:38 Bangkok): the long-session leak was in the test scripts (probe windows left open), fixed with a red test first; mc tidy-up merged.",
-    "Running: train 118 (stricter red-first check in the merge gate), a 3 h soak on the new head to confirm the leak is gone, construct reach (cube entry, lost window), tiling launcher fix, xp text readability (F7). Next: docs and dependency guard merge, then the flake series again (F5).",
-    "Spending is under pace (about 21 %; the line is at 36 %): a sixth lane is being filled."
+    "Approved and waiting for the next merge train: construct reach (the cube opens stood back, no window lost behind it), xp text readability (balloon fixed), a gate-script fix, docs RC round 2 and the dependency guard. Train 118 went red once on a flaky leak measure; a lane is making that measure robust (median of round steps).",
+    "Running: tiling launcher round 3, a 3 h soak (round 420 clean), the leak measure, flake series r7 and the mc-host flake. Next: train 119 (gate fix, leak measure, construct, xp), then train 120 (docs, guard).",
+    "Spending is under pace (about 22 %; the line is at 39 %): all six lanes are full."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
 };
