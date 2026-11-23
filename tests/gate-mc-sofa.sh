@@ -212,6 +212,10 @@ cell_door() {
     click_rect "$(text_rect "Chat with a helper ...")"
     until_ok 'ctl query id:hud-chat | jq -e "length > 0" >/dev/null' 20 || fail "a press on the chat door opens no chat: $(texts | tr '\n' '|')"
     shot door
+    covered=$(ctl query "owner:mc kind:text" | jq -r --argjson c "$(node_rect hud-chat)" \
+        ".[] | $shown | select(.id | test(\"-doors-\")) | .rects | to_entries[0].value |
+         select(.[0] < \$c[0] + \$c[2] and \$c[0] < .[0] + .[2] and .[1] < \$c[1] + \$c[3] and \$c[1] < .[1] + .[3]) | tostring")
+    [ -z "$covered" ] || fail "the chat covers a door of the column (mc-56): $covered"
     key Escape
     until_ok '! ctl query id:hud-chat | jq -e "length > 0" >/dev/null' 20 || fail "Escape does not close the chat"
 }
