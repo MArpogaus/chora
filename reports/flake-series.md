@@ -187,3 +187,52 @@ None: no step was red in any of the five full runs.
 ### Verdict
 
 F5 "no flaky gate" is met for this round: 5 of 5 full runs green at --jobs 2 on 3b14c825. The open flake rows from r3 (FLK-HUD-TAB, xp-faces, pull) did not reproduce in these five runs; construct-hud, xp-faces and pull passed in every run. F17 status is not changed by this round. The leak evidence (650 gate-env files, 70 wallpaper.sh processes left behind) is recorded for a separate look; it did not fail any step.
+
+## r6
+
+Brief: flake-series-r6 (F5: five full gates in a row green at --jobs 2 on the session head 230ea0e5, train 113). Lane: cloud, branch claude/flake-series-r6 at 230ea0e5. Model: haiku, effort high. No production code changed; no commit on the code branch; nothing fixed, retimed, ignored or marked known-red.
+
+Setup: step 0 tools present (cargo, sccache, cargo-llvm-cov, foot, python3, ffmpeg), so setup.sh was not run. `git fetch --unshallow` done; `cargo check --workspace` exit 0.
+
+Host (recorded once, before run 1): `nproc` 4; memory 16087 MB total, 11819 MB free, 3865 MB buff/cache, no swap.
+
+Result: **0 of 5 green.** Full runs 1, 2, 3, 4b and 5 all exited 1. Run 4 did not run any tests (see below) and is void; it was replaced by run 4b, which ran in full. F5 "no flaky gate" is **not met**. F17 stays open.
+
+### Gate runs (`tests/merge-gate.sh --jobs 2`, no --push, on 230ea0e5)
+
+| run | exit | red steps | first failing line | minutes |
+|---|---|---|---|---|
+| 1 | 1 | acts | `FAIL: no click on Notepad` (acts log: `expected one new window {'owner': 'xp'}, got []`) | 45.7 |
+| 2 | 1 | keys | `FAIL: the Foot row of Programs started no foot` | 61.3 |
+| 3 | 1 | keys | `FAIL: the Foot row of Programs started no foot` | 61.0 |
+| 4 | void | none: refused at start | `merge-gate: waits for /tmp/chora-gate.lock`, then `a chora --headless of an earlier run lives and takes CPU` (pid 18454, left by run 3); exit 1 after 0.01 min | 0.0 |
+| 4b (replaces void run 4) | 1 | keys | `FAIL: the Foot row of Programs started no foot` | 61.2 |
+| 5 | 1 | keys | `FAIL: the Foot row of Programs started no foot` | 61.2 |
+
+Runs 1 to 3 and 5 ran the full step list; the other steps of each run passed (PASS count 22 to 38 before the red line, final count not reached on the failing runs, as the gate stops at its first red step under `--jobs 2`). Logs kept in the lane scratchpad (`r6/run1.log`, `r6/run2.log`, `r6/run3.log`, `r6/run4.log` (void), `r6/run4b.log`, `r6/run5.log`, `r6/summary.txt`).
+
+### Reruns of the red steps (`tests/merge-gate.sh --jobs 2 --only build,<step>`)
+
+Planned: 10 for `acts` (red in run 1) and 10 for `keys` (red in runs 2, 3, 4b, 5).
+
+| step | rerun | result | cause line |
+|---|---|---|---|
+| acts | 1 | red (rc 1, 21 s) | `FAIL: swaylock in the PATH of the session is '', not a stand-in`; `FAIL: the selftest of the persona session` |
+| acts | 2 | stalled, interrupted by me by pid (rc 1, `merge-gate: interrupted`) | no verdict: acts log stopped growing at 12:33 while `python3 tests/acts/run.py` stayed at 66 % CPU for 24 min |
+| acts | 3 | stalled, interrupted by me by pid (rc 1, `merge-gate: interrupted`) | no verdict: no output for 30 min |
+| acts | 4 | started by the chain, interrupted by me by pid at 13:28 | no verdict |
+| acts 5 to 10, keys 1 to 10 | - | not run | the chain was stopped at 13:28 because the stalls would have taken about 8 hours |
+
+So: `acts` red 1 of 1 completed rerun; 3 reruns did not finish (stalled and interrupted). `keys` reruns: none run. The planned 20 reruns are not complete, so this round does not meet the step 2 count.
+
+Note on the stalls: the two stalled reruns (2 and 3) each started right after an earlier interrupted or red rerun. At 13:29, before rerun 4 was interrupted, `chora-voice` and `chora-assistant` processes from the stalled rerun 2 were still alive (defunct and running). The stall is therefore probably a leftover-process effect, not proven. Rerun 4's gate cleanup left no chora process behind after its interrupt.
+
+### Leak evidence (step 3, at 13:29 UTC, no merge-gate running)
+
+- `ls /tmp/gate-env.* | wc -l`: **84**.
+- `pgrep -c chora` (process name): **0**.
+- Before rerun 4 was interrupted: 3 leftover chora or chora-voice/chora-assistant processes (from the stalled rerun 2).
+
+### Verdict
+
+F5 "no flaky gate" is **not met**: 0 of 5 full runs green (runs 1, 2, 3, 4b, 5 red; run 4 void). The red steps are `acts` (run 1) and `keys` (runs 2, 3, 4b, 5, always the Foot-row line). The `acts` reruns are red once and stalled twice; the `keys` reruns were not run. Next: a separate look at the Foot-row `keys` failure, and at the stall of the `acts` rerun with the leftover chora-voice and chora-assistant processes. F17 stays open.
