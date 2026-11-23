@@ -28,3 +28,17 @@ What stays open:
 - xp-10: single click on the clock, taskbar button of Date and Time.
 - xp-13: the bin at the top right is not Luna's default place either; the old design row (above the paperclip) could not hold with the balloon and the notices at the bottom right. The chat balloon at its largest could still reach the top right; the gate cell measures the open balloon of the empty chat.
 - Decision for the PM: if the bottom right stays the intended place, the balloon and the notice stack have to move, in chora-assistant and chora-notify (not xp).
+
+## Review r1
+
+Review of claude/xp-readable head 2d2413f6 (base 5b34d4b1), seeded, one round. Verdict: **FIX** (2 MAJOR, 0 BLOCK, 3 nit).
+
+Checked: cargo check --workspace green. (1) Red first: `tests/gate-xp-readable.sh` on 13d31263 (base code) fails with 18 RED cells (pager 9, captions 4, inactive title, datetime 3, bin-clear); all five fixes come after it. OK. (4) The gate at 2d2413f6 is green 3 of 3; buttons 75 x 23 is XP's push button size. (5) `cargo test -p chora-xp` 335 pass, clippy clean; merge-gate adds one cell, no sleep, no --only gap. (2) `python3 tests/acts/run.py --no-selftest xp` at the head: 80 pass, 0 known red, 0 blocking, so the removed xp rows pass. Not re-run: construct rows (the 15 VIRTUAL rows; the lane ran them: 163 pass).
+
+- rxr-1, MAJOR, tests/acts/known-red.toml (xp-session-button-): the reason says "white as in Luna on the dialog.svg panel", but the lane's own report says the panel (97,132,225) is not a dialog.svg fill; the prefix covers Lock, Log Off, Restart and Cancel, which are our own buttons, and Lock sits at 3.65, a fixable row. The exemption hides a fixable contrast row. Fix: darken the panel or caption backing of the own buttons to 4.5:1, and keep an exemption (with a measured Luna fill) only for Stand By and Turn Off.
+- rxr-2, MAJOR, plugins/chora-xp/src/desktop_icons.rs:48 (BIN_FROM_RIGHT, layout bin = top right): the bin moved to the top right breaks the replica (vision card: pixel-perfect XP; docs and configuration.md named the bottom right) to dodge the helper balloon and notices, which are transient; the gate measures only the empty-chat balloon. Fix: put the bin back bottom right and move the balloon and notice stack in chora-assistant / chora-notify instead (PM decision; docs row 11 matches the code in either case, it does now).
+- rxr-3, nit, plugins/chora-xp/src/session.rs:367 and report: the 6.3 to 7.5 contrast of the captions is the harness counting the shadow as text colour; white on the light middle stays about 2.1:1 and the gate bar (3.0) passes on that artefact. Fix: say so in docs/xp-style.md, or measure with the shadow masked.
+- rxr-4, nit, plugins/chora-xp/src/dialog.rs:6: module doc still says buttons of 73 by 21. Fix: 75 by 23.
+- rxr-5, nit, docs/xp-style.md:98-99: row 11 has an over-long reflowed line. Fix: rewrap.
+
+Known, not findings: sh-34, fuzzel 1.9.2 reds, xp-10 single click on the clock and taskbar.
