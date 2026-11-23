@@ -548,14 +548,19 @@ impl Agent {
         Ok(())
     }
 
-    /// Tells with `assistant.chat.keyboard {on}` when the field got or lost
-    /// the keyboard, so that a test waits for it and not for a time.
+    /// Tells with `assistant.chat.keyboard {on}` each time the field got or
+    /// lost the keyboard, in their order, so that a test waits for it and
+    /// not for a time. A loss and a return that the host reads together
+    /// (a click on a node of the host, then the refocus) are both told.
     fn announce_keyboard(&mut self) -> Result<(), ClientError> {
-        let Some(data) = keyboard_change(&mut self.keyboard_told, self.chat.keyboard()) else {
-            return Ok(());
-        };
-        let emit = json!({"event": "assistant.chat.keyboard", "data": data});
-        self.rt.conn.call::<_, Value>("events.emit", emit).map(drop)
+        for on in self.chat.take_keyboard_edges() {
+            let Some(data) = keyboard_change(&mut self.keyboard_told, on) else {
+                continue;
+            };
+            let emit = json!({"event": "assistant.chat.keyboard", "data": data});
+            self.rt.conn.call::<_, Value>("events.emit", emit)?;
+        }
+        Ok(())
     }
 
     /// The "Chat ..." row and one row for each helper, drawn again on the
