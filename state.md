@@ -23,7 +23,7 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 | Lane | Model, branch | State |
 |---|---|---|
 | train121: h-rf, leak-cell, co-reach, xp-readable, docs-rc-r2, guard-3, soak-r3, mc-host, xp-cube-faces | PM | head 8c411416; gate running 21:35 |
-| tiling-disc-r4.md (rc 2; 0.5 %) | sonnet medium, claude/tiling-disc 7adb149c | rtd-6 MAJOR (train119 e2e red); starting |
+| tiling-disc-r4.md (rc 2; 0.5 %) | sonnet medium, claude/tiling-disc 7adb149c | rtd-6 MAJOR; session_016iS3kPsxASY615A4VFhFxR 21:37 |
 | soak-r4.md (rc 9; 1 %) | haiku high, claude/soak-r4 39283655 | session_016iS3kLADrjFVxyE2AdpCzk 20:23 |
 | flake-series-r7.md (rc 3; 1 %) | sonnet high, claude/flake-series-r7 1ec04694 | session_016iS3kLkxQHS3DxoJnqt8Xk 19:00 |
 | notify-text-r1.md (F7; 0.5 %) | sonnet medium, claude/notify-text 1ec04694 | session_016iS3kPAjwT5TkEwLEvpXQS 19:58 |
