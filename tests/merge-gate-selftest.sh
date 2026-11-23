@@ -304,6 +304,92 @@ git -C "$rr" merge -q --no-ff side -m "fix(m): a merge without a test"
 check "a merge commit in the range is not checked" "$(red >/dev/null; echo $?)" 0
 git -C "$rr" branch -q -D side
 
+rr_msg_commit() {
+    local msg=$1 body=$2
+    shift 2
+    git -C "$rr" add -- "$@"
+    if [ -n "$body" ]; then git -C "$rr" commit -q -m "$msg" -m "$body"; else git -C "$rr" commit -q -m "$msg"; fi
+}
+rr_head() { git -C "$rr" log -1 --format=%h; }
+rr_ids_start() {
+    git -C "$rr" reset -q --hard base
+    rr_file tests/gate-i.sh t
+    rr_commit "test(i): red for sh-1" tests/gate-i.sh
+}
+rr_ids_start
+rr_file i.rs i
+rr_commit "fix(i): the fix for sh-1" i.rs
+check "per id: a fix naming sh-1 after a test naming sh-1 is green" "$(red >/dev/null; echo $?)" 0
+rr_ids_start
+rr_file i.rs i
+rr_commit "fix(i): the fix for sh-2" i.rs
+sha=$(rr_head)
+check "per id: a fix naming sh-2 after a test naming only sh-1 is red" "$(red | grep -c "^RED-FIRST MISSING: $sha fix(i): the fix for sh-2$")" 1
+check "per id: the red names the id and the sha" "$(red | grep -c "^red-first: $sha .*sh-2")" 1
+check "per id: the red does not name an id that has its test" "$(red | grep -c 'sh-1')" 0
+rr_ids_start
+rr_file tests/gate-j.sh t
+rr_commit "test(j): red for sh-2" tests/gate-j.sh
+rr_file i.rs i
+rr_commit "fix(i): the fix for sh-1 and sh-2" i.rs
+check "per id: a fix naming sh-1 and sh-2 with a test for each is green" "$(red >/dev/null; echo $?)" 0
+rr_ids_start
+rr_file i.rs i
+rr_commit "fix(i): the fix for sh-1 and sh-2" i.rs
+sha=$(rr_head)
+check "per id: a fix naming sh-1 and sh-2 with a test for one is red" "$(red >/dev/null; echo $?)" 1
+check "per id: that red names the id without a test" "$(red | grep -c "^red-first: $sha .*sh-2")" 1
+rr_ids_start
+rr_file i.rs i
+rr_commit "fix(i): ids only in the body" i.rs
+git -C "$rr" commit -q --amend -m "fix(i): ids only in the body" -m "Closes sh-1."
+check "per id: an id in the body of the fix counts" "$(red >/dev/null; echo $?)" 0
+git -C "$rr" reset -q --hard base
+rr_file tests/gate-i.sh t
+rr_msg_commit "test(i): red" "Finding sh-1." tests/gate-i.sh
+rr_file i.rs i
+rr_commit "fix(i): the fix for sh-1" i.rs
+check "per id: an id in the body of the test commit counts" "$(red >/dev/null; echo $?)" 0
+rr_ids_start
+rr_file i.rs i
+rr_commit "fix(i): a fix that names no id" i.rs
+check "per id: a fix without an id is green after any test" "$(red >/dev/null; echo $?)" 0
+git -C "$rr" reset -q --hard base
+rr_file i.rs i
+rr_commit "fix(i): a fix that names no id" i.rs
+check "per id: a fix without an id and without a test is red" "$(red >/dev/null; echo $?)" 1
+git -C "$rr" reset -q --hard base
+rr_file i.rs i
+rr_msg_commit "fix(i): the fix for sh-3" "No test: a pure move" i.rs
+check "per id: No test: passes a fix naming an id" "$(red >/dev/null; echo $?)" 0
+git -C "$rr" reset -q --hard base
+rr_file i.rs i
+rr_file tests/gate-i.sh t
+rr_commit "fix(i): the fix for sh-1 with its test" i.rs tests/gate-i.sh
+check "per id: a test in the fix commit is green" "$(red >/dev/null; echo $?)" 0
+git -C "$rr" reset -q --hard base
+rr_file i.rs i
+rr_commit "fix(i): the fix for sh-1 comes first" i.rs
+rr_file tests/gate-i.sh t
+rr_commit "test(i): red for sh-1, after the fix" tests/gate-i.sh
+check "per id: a test commit after the fix is red" "$(red | grep -c '^RED-FIRST MISSING: .* fix(i): the fix for sh-1 comes first$')" 1
+rr_ids_start
+rr_file i.rs i
+rr_commit "feat(i): a feat for sh-9" i.rs
+check "per id: the rule is for fix; a feat naming an id needs any test" "$(red >/dev/null; echo $?)" 0
+rr_ids_start
+rr_file i.rs i
+rr_commit "fix(i): the fix for SH-2 and tiling-audit" i.rs
+check "per id: an uppercase or digitless word is not an id" "$(red >/dev/null; echo $?)" 0
+git -C "$rr" reset -q --hard base
+git -C "$rr" checkout -q -b side
+rr_file s.txt s
+rr_commit "chore: side" s.txt
+git -C "$rr" checkout -q main
+git -C "$rr" merge -q --no-ff side -m "fix(m): merge for sh-1"
+check "per id: a merge commit naming an id is not checked" "$(red >/dev/null; echo $?)" 0
+git -C "$rr" branch -q -D side
+
 hook() {
     printf '%s\n' "$@" >"$work/msg"
     (cd "$rr" && RED_FIRST_BASE=base tests/red-first.sh "$work/msg" 2>&1)
@@ -340,6 +426,30 @@ git -C "$rr" add h.rs
 check "the hook takes a test commit before it on the branch" "$(hook_rc "fix(h): after the test")" 0
 check "the hook reads the subject below the comment lines" "$(hook_rc "# comment" "feat(h): after the test")" 0
 git -C "$rr" reset -q --hard base
+
+git -C "$rr" reset -q --hard base
+rr_file tests/gate-h.sh t
+rr_commit "test(h): red for sh-1" tests/gate-h.sh
+rr_file h.rs h
+git -C "$rr" add h.rs
+check "the hook takes a fix naming the id of a test commit before it" "$(hook_rc "fix(h): for sh-1")" 0
+check "the hook refuses a fix naming an id that has no test commit" "$(hook_rc "fix(h): for sh-2")" 1
+check "the hook names that id" "$(hook "fix(h): for sh-2" | grep -c '^red-first: .*sh-2')" 1
+check "the hook names only the id that misses its test" "$(hook "fix(h): for sh-1 and sh-2" | grep -c '^red-first: .*sh-[12]')" 1
+check "the hook refuses a fix with one id of two missing" "$(hook_rc "fix(h): for sh-1 and sh-2")" 1
+check "the hook reads the id in the body" "$(hook_rc "fix(h): no id here" "" "Closes sh-2.")" 1
+check "the hook takes a No test: line on a fix naming an id" "$(hook_rc "fix(h): for sh-2" "" "No test: a pure move")" 0
+check "the hook takes a fix without an id after any test" "$(hook_rc "fix(h): no id")" 0
+check "the hook takes a feat naming an id after any test" "$(hook_rc "feat(h): for sh-2")" 0
+rr_file tests/gate-h2.sh t
+git -C "$rr" add tests/gate-h2.sh
+check "the hook takes a staged test with a fix naming an id" "$(hook_rc "fix(h): for sh-2")" 0
+git -C "$rr" reset -q --hard base
+rr_file h.rs h
+git -C "$rr" add h.rs
+rr_file tests/gate-h.sh t
+rr_commit "test(h): red for sh-2" tests/gate-h.sh
+check "the hook refuses a fix naming an id when the test commit names another" "$(hook_rc "fix(h): for sh-1")" 1
 
 nb=$work/nb
 new_hooked_repo() {
