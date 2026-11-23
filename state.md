@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-23 23:12 UTC)
+## Now (2026-11-23 23:15 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 23:01 PM 4.9 % (11-22) + 5.2 % (11-23) + 0.9 % (11-24 BKK), week about 23 % vs 40 % pace
 session branch: 1ec04694 (t117 green 16:38); 70 greens; train118 h-rf red 18:08 at leak (sh-35 flake; rerun 1 ok).
@@ -26,7 +26,7 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 | tiling-disc-r4.md (rc 2; 0.5 %) | sonnet medium, claude/tiling-disc ca165f7b | MERGE-OK (PM; rtd-6 closed, rtd-7 MINOR); train122 |
 | soak-r4.md (rc 9; 1 %) | haiku high, claude/soak-r4 39283655 | session_016iS3kLADrjFVxyE2AdpCzk 20:23 |
 | flake-series-r7.md (rc 3; 1 %) | sonnet high, claude/flake-series-r7 1ec04694 | session_016iS3kLkxQHS3DxoJnqt8Xk 19:00 |
-| xp-front-bar-r1.md (rc 1, 2; 0.5 %) | sonnet medium, claude/xp-front-bar d588d573 | session_016iS3kLbTtqVHFLQ8taWd8X 21:50 |
+| xp-front-bar-r2.md (rc 1, 2; 0.3 %) | haiku medium, claude/xp-front-bar-r2 d588d573 | r1 40292419 FIX (rxf-1: red and fix one commit); starting |
 | notify-text-r1.md (F7; 0.5 %) | sonnet medium, claude/notify-text | 60a38634 MERGE-OK (PM); train122 |
 ## Queue (% week; 5 % reserve)
 1. (rc 3, 7; 1 %) TRAIN121 running (9 branches); then TRAIN122: notify-text 60a38634, tiling-disc ca165f7b.

@@ -17,3 +17,10 @@ Deviation: the red commit failed its cargo-fmt hook, and the retry landed with t
 The test needed `wm_on_fake_core_logging` (wm.rs) and `hosted_logging` (hosted.rs) to read the scene request.
 
 Gate: `tests/merge-gate.sh --jobs 2` full, head merged with origin/claude/autonomous-dev-session-3w-i33pg7 (already contained): 63 PASS, EXIT 0, no foreign reds.
+
+## PM review r1 (2026-11-23 23:20 UTC)
+Base d588d573..40292419, 1 commit, 3 files, +56/-5.
+- rcf-11: menu_rest (dispatch.rs:186) now bounds the tooltip by front_bar(); hosted.rs test turns the cube to face 1 and checks the tip lies in face 1's bar. Gate full EXIT 0, 63 PASS (worker).
+- desktops.rs:70 (turn), 88 (grab_cube), 192 (cube_frame) kept on bars.first(): checked. turn and grab_cube return early on cube_off(); cube_frame needs effects.turn, which only those two start. Correct: flat-only.
+- rxf-1 MAJOR (process, rules.md 8; seeded review "a fix with no red test commit before it is MAJOR"): red test and fix share 40292419. The red was shown by hand, not as a commit.
+Verdict (computed): FIX. r2 splits the commit (test, then fix) on claude/xp-front-bar-r2 from d588d573 with the same final tree; no new code.
