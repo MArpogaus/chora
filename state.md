@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-23 01:38 UTC)
+## Now (2026-11-23 01:59 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 01:36 PM 4.9 % (Bangkok 11-22) + 2.0 % (11-23), week about 15 % (lanes est.) vs 31 % pace; under pace: 6 lanes
 session branch: 40a2ba92 (t110f green 01:32: t110b list + CORE-FIX, MC-HELPER); 64 greens. t110e red FLK-HANG (lane flk-hang); t111 01:33: HARNESS-LEAK alone.
@@ -28,7 +28,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (closes on the flake lanes + ha
 | tiling-fix-r1.md (rc 3, 1; 1 %) | sonnet medium, claude/tiling-fix 011db749 | MERGE-OK; t112 |
 | harness-leak-r1.md (F5, rc 3, 9: HARNESS-LEAK; 0.5 %) | sonnet medium, claude/harness-leak 6b01c976 | MERGE-OK 7982d549; own train t111 first |
 | tiling-round-r1.md (rc 2, 1: T1, T3, I2, TF-1; 1 %) | sonnet medium, claude/tiling-round 011db749 | 00:05 INCOMPLETE (gate cut); I2, TF-1 ok; T3 closed; T1: D55 holds, T1b new; gate rerun |
-| pix-capsule-r1.md (F5, rc 3; 0.6 %) | sonnet medium, claude/pix-capsule e905195e | session_016iS3kQCc5SxBL77HLj5CXY 00:10 |
+| pix-capsule-r1.md (F5, rc 3; 0.6 %) | sonnet medium, claude/pix-capsule e905195e | MERGE-OK 05828b32; t112 |
 | flk-hang-r1.md (F5, rc 3; 0.3 %) | sonnet low, claude/flk-hang 6b01c976 | MERGE-OK 022fa50c; t112 |
 | record-v9-r2.md (F7, rc 11: TOUR-CLOCK, TOUR-LAUNCH, retake; 1.2 %) | sonnet medium, claude/record-v9 d7a80ff8 | session_016iS3kP1X4RaM1Q7xBpdxSa 01:38 |
 | xp-idle-r1.md (F5, rc 3; 0.5 %) | sonnet medium, claude/xp-idle db7a7acd | MERGE-OK; t112 |
@@ -36,7 +36,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (closes on the flake lanes + ha
 ## Queue (% week; 5 % reserve)
 3. (rc 8) DOCS-RC r2 (pr-1..5) on the Thu head.
 4. (F7, rc 11) record-v9 r2 running (ti-38 in 40a2ba92).
-5. (rc 1, 3, 8, 9) t111 running: HARNESS-LEAK alone; t112: XP-IDLE, MC-ROUND, FLK-HANG, TILING-FIX, CUBE-SETTLE, FLAKE-HINT as they pass. Then: eprintln ratchet; haiku series 5 (F5).
+5. (rc 1, 3, 8, 9) t111 running: HARNESS-LEAK alone; t112: XP-IDLE, MC-ROUND, FLK-HANG, TILING-FIX, CUBE-SETTLE, FLAKE-HINT, PIX-CAPSULE as they pass. Then: eprintln ratchet; haiku series 5 (F5).
 
 ## Needs owner
 - Delete claude/release-rc4 (403).

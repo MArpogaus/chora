@@ -407,3 +407,4 @@ DB21 | 11-22 | later | gate-tiling-motion.sh: restore the deep (focused) vs ligh
 - FLK-TILING-LAYOUT (F5, rc 3): tests/gate-tiling-windows: "the layout word took 291 ms to follow the change" red in the mc-round lane gate 11-23 (foreign). Next tiling round with T1b.
 - TOUR-CLOCK (F7, rc 11): record-v9 r1: 91 meta diffs are the wall clock text; the stepped clock is not applied. record-v9 r2.
 - TOUR-LAUNCH (F7, rc 11): record-v9 r1: xp launcher names differ per run (UXTerm vs Foot), PATH differs. record-v9 r2.
+- PIX-RIM (NIT, F5, pix-capsule review pc-1): gate-construct-pixels.sh rim check compares y 705 with 708 (3 px); a light line at 706-707 passes. Next construct pixel round.

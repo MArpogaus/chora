@@ -16,3 +16,11 @@ Head: claude/pix-capsule 05828b32 (red 434e66c3, green 05828b32), on e905195e. A
 - `FAIL: construct I6: in act 'co-42: the hint Keys of a face stays after 3 s and opens the key list by a click': on HEADLESS-1 'PANES' (construct-help-body-head-6) is 11 px, the guide wants 14 px`
 - `FAIL: construct act:the hint Keys of a face names a key that opens the key list: ... RuntimeError: the hint keys names no key`
 Not rerun. All other cells PASS (cube, pull, placed, construct-hud, construct-extra, matrix, hud, tiling-audit, xp-*). `pgrep -fa 'chora --headless'` empty.
+
+## Review r1 (PM; 60 lines, e905195e..05828b32, test code only)
+- Red first: 434e66c3 (PIX_LAG=1.5 red line) before 05828b32. Cause names hints.rs:32 and :139, no product change. ok.
+- Fix waits on state (pointer low, `ctl wait id:construct-hints`); bars unchanged (<=60, >=100). ok.
+- 10/10 under PIX_LOAD=1; PIX_LAG 0, 1.5, 3, 4 pass (both hint sets). ok.
+- Gate: the two blocking acts reds are construct hint flakes that flake-hint d2634fe0 fixes (reports/flake-hint.md: "the hint keys names no key" 1 of 8 before); pix-capsule's base lacks it. Foreign, named. ok.
+- pc-1 NIT: the rim check now compares y 705 with y 708 (3 px apart, was 7); a light line at 706-707 would pass. Next construct pixel round.
+Verdict (computed): 0 MAJOR -> MERGE-OK 05828b32; joins t112 after flake-hint.
