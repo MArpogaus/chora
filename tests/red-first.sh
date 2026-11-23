@@ -39,7 +39,8 @@ is_fix() {
 }
 
 finding_ids() {
-    tr -c 'A-Za-z0-9-' '\n' <<<"$1" | grep -xE '[a-z]{1,6}-[0-9]+[a-z]?' | sort -u
+    tr -c 'A-Za-z0-9.-' '\n' <<<"$1" | grep -v '\.[0-9]' | tr . '\n' |
+        grep -xE '[a-z]{1,6}-[0-9]+[a-z]?' | grep -vE '^(utf|sha|base|ipv|gate|gtk)-' | sort -u
 }
 
 missing_ids() {
