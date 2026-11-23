@@ -23,7 +23,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (closes on the flake lanes + ha
 | Lane | Model, branch | State |
 |---|---|---|
 | mc-round-r2.md (rc 3, 9, 1; 0.4 %) | sonnet low, claude/mc-round 9ed1fbc8 | MERGE-OK 8ba700f5; t113 running |
-| co-focus-r2.md (rc 1, 2; 1.5 %) | opus high, claude/co-focus 866382dd | review r1 FIX (rcf-1 MAJOR; PM: rcf-3, rcf-4 MAJOR by r1 step 2); r2 starting |
+| co-focus-r2.md (rc 1, 2; 1.5 %) | opus high, claude/co-focus 866382dd | review r1 FIX (rcf-1 MAJOR; PM: rcf-3, rcf-4 MAJOR by r1 step 2); r2 session_016iS3kMbdbo3JEpeMp9eJSE 06:41 |
 | tiling-flake-r2.md (F5, rc 3; 1 %) | sonnet medium, claude/tiling-flake 8f2ed754 | session_016iS3kPRNFtfhtkZyvMaKdM 05:55 (r1 INCOMPLETE) |
 | record-v9-r3.md (F7, rc 11; 1.2 %) | sonnet medium, claude/record-v9 ec45efbb | session_016iS3kQhX8yEhfo3pGdpce4 03:53 |
 
