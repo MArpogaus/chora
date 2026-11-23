@@ -1062,3 +1062,60 @@ fn a_cube_that_covers_the_focused_window_takes_the_keyboard_from_it() {
     let last = core.model().lock().unwrap().focuses.last().cloned();
     assert_eq!(last, Some(None), "no surface keeps the keyboard");
 }
+
+/// The cube that the person opens, by `Super+C`, the row `A cube of
+/// desktops` of the start card or the hint, stands back: the person sees
+/// a cube of desktops and steps into a face, not a plain desktop with no
+/// sign of the cube (co-52).
+#[test]
+fn the_cube_the_person_opens_stands_back() {
+    let (mut construct, _core, _lines) = on_core("key-stands", cube_core(json!([])));
+    construct.settings.value.cube_manager = RUNS.into();
+    construct.cube_key();
+    let host = construct.cube.as_ref().expect("the key opens a cube");
+    assert_eq!(
+        host.view.mode(),
+        chora_kit::modes::Mode::Navigate,
+        "the cube stands back"
+    );
+}
+
+/// The window of a pane that the person did not place, ahead of the
+/// camera as a terminal opens, shows beside the cube that the person
+/// opens over it, and is not lost behind a face (co-54).
+#[test]
+fn a_window_ahead_shows_beside_the_cube_the_person_opens() {
+    let (mut construct, _core, _lines) = on_core("key-aside", cube_core(json!([])));
+    construct.settings.value.cube_manager = RUNS.into();
+    let [fx, fz] = construct.pose.forward();
+    let ahead = construct.lens.focal + construct.lens.w * 0.8;
+    construct.panes.push(crate::Pane {
+        name: "foot".into(),
+        source: "s1".into(),
+        content: crate::Content::Window { command: None },
+        at: [fx * ahead, fz * ahead],
+        yaw: 0.0,
+        size: [construct.lens.w, construct.lens.h],
+        taken: false,
+        attached: true,
+        placed: false,
+    });
+    construct.cube_key();
+    let host = construct.cube.as_mut().expect("the key opens a cube");
+    if host.step.take().is_some() {
+        host.stand = 1.0;
+    }
+    construct.step_asides();
+    let pane = &construct.panes[0];
+    assert!(
+        construct.in_sight(pane) && !construct.covers_cube(pane),
+        "the window shows: {:?}, {}",
+        pane.at,
+        construct.state_value()
+    );
+    let (pane, cube) = boxes(&mut construct, "foot");
+    assert!(
+        !crate::frame::overlaps(cube, pane),
+        "{pane:?} beside {cube:?}"
+    );
+}
