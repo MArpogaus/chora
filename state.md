@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-23 00:09 UTC)
+## Now (2026-11-23 00:10 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 00:09 PM 4.9 % (Bangkok 11-22) + 1.7 % (11-23), week about 14 % (lanes est.) vs 28 % pace; under pace: 6 lanes
 session branch: 6b01c976 (t108 green 13:01); 63 greens. Reds t109g-t110b (fixed in lanes). t110c red: load of leaked compositors (HARNESS-LEAK), clean 3/3 at 40a2ba92; t110d lost to a container restart 23:16; t110e 00:07 same head.
@@ -28,7 +28,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 | tiling-fix-r1.md (rc 3, 1: ti-37, 27, 25c; 1 %) | sonnet medium, claude/tiling-fix 011db749 | MERGE-OK; t111 |
 | harness-leak-r1.md (F5, rc 3, 9: HARNESS-LEAK; 0.5 %) | sonnet medium, claude/harness-leak 6b01c976 | session_016iS3kLAyzZ7Uff7AJRj4wH 22:57 |
 | tiling-round-r1.md (rc 2, 1: T1, T3, I2, TF-1; 1 %) | sonnet medium, claude/tiling-round 011db749 | 00:05 INCOMPLETE (gate cut); I2, TF-1 ok; T3 closed; T1: D55 holds, T1b new; gate rerun |
-| pix-capsule-r1.md (F5, rc 3: FLK-PIX-CAPSULE; 0.6 %) | sonnet medium, claude/pix-capsule e905195e | starting |
+| pix-capsule-r1.md (F5, rc 3; 0.6 %) | sonnet medium, claude/pix-capsule e905195e | session_016iS3kQCc5SxBL77HLj5CXY 00:10 |
 | xp-idle-r1.md (F5, rc 3: FLK-CHAT-IDLE, xh-1; 0.5 %) | sonnet medium, claude/xp-idle db7a7acd | MERGE-OK; t111 |
 
 ## Queue (% week; 5 % reserve)
