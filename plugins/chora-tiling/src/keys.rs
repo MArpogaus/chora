@@ -21,26 +21,26 @@ pub const CHIP: &str = "tiling-chip";
 /// the gap of 12 under it, on both sides, so that it stays clear of it.
 const BAR_CLEARANCE: f64 = 52.0;
 /// The width of the panel of the key list.
-const PANEL_WIDTH: f64 = 984.0;
+const PANEL_WIDTH: f64 = 1000.0;
 /// The height of the header, above the first row.
 const TOP: f64 = 84.0;
 /// The space below the last row.
 const BOTTOM: f64 = 24.0;
 /// The space left of the first column, and the distance of the columns.
 const LEFT: f64 = 24.0;
-const COLUMN: f64 = 520.0;
+const COLUMN: f64 = 536.0;
 /// The pitches of the rows that the panel tries, in order. The caps are 4
 /// px less high, and never less than [`CAP_MIN`].
 const PITCHES: [f64; 3] = [24.0, 22.0, 20.0];
 /// How close to the room the panel may come before it takes all of it, so
 /// that its top stands on the grid line under the bar.
 const SNAP: f64 = 8.0;
-/// The least height of a keycap: the keys in 13 px with their descenders
+/// The least height of a keycap: the keys in 14 px with their descenders
 /// and 2 px to spare above and below.
 const CAP_MIN: f64 = 18.0;
-/// How far the top of the 13 px keys sits below the top of the 14 px label
+/// How far the top of the 14 px keys sits below the top of the 14 px label
 /// beside them, so that both stand on one baseline.
-const CAP_TEXT_DY: f64 = 1.0;
+const CAP_TEXT_DY: f64 = 0.0;
 /// The air above a group title that follows a group in its column.
 const GROUP_GAP: f64 = 8.0;
 /// The padding of a keycap left and right, and the space to its label.
@@ -48,8 +48,8 @@ const CAP_PAD: f64 = 6.0;
 const CAP_GAP: f64 = 10.0;
 /// The height of a line of 14 px text, which sits in the middle of a pitch.
 const LINE: f64 = 17.0;
-/// The advance of a character of the keycap font at 13 px: 0.6 em.
-const MONO_ADVANCE: f64 = 7.8;
+/// The advance of a character of the keycap font at 14 px: 0.6 em.
+const MONO_ADVANCE: f64 = 8.4;
 /// The faces of the overlays: single family names, as the renderer takes
 /// no list.
 const UI_FONT: &str = "Inter";
@@ -728,7 +728,7 @@ fn draw(items: &[Item], body: &str, colors: &Colors) -> Vec<Command> {
                 };
                 commands.push(create(&format!("{id}-cap"), NodeKind::Rect, body, keycap));
                 let inset = (size[0] - cap_width(keys)) / 2.0 + CAP_PAD;
-                let mut mono = Face::new([at[0] + inset, *text_y], 13.0, 400, text_rgb);
+                let mut mono = Face::new([at[0] + inset, *text_y], 14.0, 400, text_rgb);
                 mono.mono = true;
                 commands.push(text(&format!("{id}-k"), body, keys, &mono));
             }
