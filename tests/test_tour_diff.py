@@ -161,6 +161,30 @@ class Verdict(unittest.TestCase):
             self.assertEqual([(r["act"], r["capture"], r["verdict"]) for r in rows], [("x1", "Q", "regression")])
 
 
+class BarClock(unittest.TestCase):
+    """RV9-1: the bar of the tiling look is a foreign surface (waybar): `scene.query` has no node and no
+    text for its clock, so the pixel diff of two takes minutes apart saw the clock. The one node every
+    tiling capture has, `tiling`, names the look; the clock island is masked there and nowhere else."""
+
+    def compare(self, shape, nodes):
+        with tempfile.TemporaryDirectory() as tmp:
+            base, cand = pathlib.Path(tmp, "b"), pathlib.Path(tmp, "c")
+            for d, paint in ((base, None), (cand, shape)):
+                write_capture(d, "t1.Q", paint, size=(1280, 100), data=json.dumps({"nodes": nodes}))
+            return diff.compare(base, cand, [])[0]["verdict"]
+
+    TILING = [{"id": "tiling", "kind": "group", "owner": "tiling", "meta": {}, "rects": {}}]
+
+    def test_the_clock_island_of_the_tiling_bar_is_masked(self):
+        self.assertEqual(self.compare(box(580, 14, 100, 20), self.TILING), "same")
+
+    def test_the_mask_is_by_the_tiling_node_only(self):
+        self.assertEqual(self.compare(box(580, 14, 100, 20), []), "regression")
+
+    def test_a_diff_beside_the_clock_island_is_still_a_diff(self):
+        self.assertEqual(self.compare(box(100, 14, 100, 20), self.TILING), "regression")
+
+
 def write_capture(folder, name, shape=None, size=(200, 100), data='{"nodes": []}'):
     """<name>.png (the shape painted on grey) and <name>.json in a folder."""
     folder = pathlib.Path(folder)

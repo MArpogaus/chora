@@ -49,6 +49,13 @@ clocks (mc-clock, construct-door-clock) carry no text in their meta. The product
 time (plugins/chora-xp/src/wm/dispatch.rs `now`), so two runs never agree on it (TOUR-CLOCK)."""
 
 
+BAR_CLOCK_NODE = "tiling"
+BAR_CLOCK = (154, 8, 32)
+"""The clock island of the tiling bar (waybar, a foreign surface: no scene node, no text): width,
+top and height, centred on the output (flavors/tiling/waybar/config.jsonc `modules-center`). Masked
+only where the node `tiling` is in the scene (RV9-1)."""
+
+
 def key_of(node):
     """A window by app_id and title, any other node by id."""
     if node.get("kind") == "surface":
@@ -176,10 +183,14 @@ def verdict(act, scene, pixel_same, intended, checks=None):
     return {"verdict": "same"}
 
 
-def masks_of(*sides):
-    """Rects to ignore: clock and text nodes of both builds and the listed masks."""
+def masks_of(*sides, width=None):
+    """Rects to ignore: clock and text nodes of both builds, the listed masks, and with `width` (of the
+    output) the clock island of the tiling bar where a build has the node `tiling`."""
     out = []
     for side in sides:
+        if width and any(n.get("id") == BAR_CLOCK_NODE for n in side.get("nodes", [])):
+            w, top, h = BAR_CLOCK
+            out.append(((width - w) // 2, top, w, h))
         for node in side.get("nodes", []):
             meta = node.get("meta") or {}
             if "clock" in str(node.get("id")) or node.get("kind") == "text" or "text" in meta:
@@ -215,7 +226,7 @@ def compare(base, cand, intended, none=()):
         if capture == "H50":
             pixel = {"same": True, "blobs": [], "fraction": 0.0}
         else:
-            pixel = pixel_diff((base / name).read_bytes(), (cand / name).read_bytes(), masks_of(side["base"], side["cand"]))
+            pixel = pixel_diff((base / name).read_bytes(), (cand / name).read_bytes(), masks_of(side["base"], side["cand"], width=int.from_bytes((base / name).read_bytes()[16:20], "big")))
         checks = (side["base"].get("checks", {}), side["cand"].get("checks", {}))
         rows.append({**row, **verdict(act, scene, pixel["same"], intended, checks), "scene": scene, "blobs": pixel["blobs"], "fraction": pixel["fraction"]})
     return rows
