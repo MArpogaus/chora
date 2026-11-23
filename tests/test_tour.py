@@ -981,10 +981,35 @@ class CodeWindow(unittest.TestCase):
     window, not of the product. It shows a file of the tour."""
 
     def test_the_code_window_shows_a_file_of_the_tour(self):
-        text = (ROOT / "demo" / "tour" / "chapters" / "tiling.py").read_text()
+        text = (ROOT / "demo" / "tour" / "launch.py").read_text()
         self.assertNotIn("crates/", text.split("args=")[1].split("\n")[0])
-        self.assertIn("args={SAMPLE}", text)
+        self.assertIn("args={sample}", text)
+        self.assertIn("SAMPLE)", (ROOT / "demo" / "tour" / "chapters" / "tiling.py").read_text())
         self.assertTrue((ROOT / "demo" / "tour" / "sample.rs").exists())
+
+
+class StubTerminal(unittest.TestCase):
+    """RV9-r4: the terminals of the tiling chapter showed other text in the two builds: the shell
+    prompt came from the environment, and a content window (code, notes, page) read its size at the
+    start, while the tile was still animating to its place, so the code window of the baseline was
+    scrolled to line 110 and the candidate's to 118. One stub: a fixed prompt and directory, and a
+    content window that waits for its tile before it prints."""
+
+    def script(self):
+        return launch.foot_stub("/tmp/x", "/tmp/x/history", "/tmp/x/sample.rs")
+
+    def test_the_shell_has_a_fixed_prompt_and_directory(self):
+        text = self.script()
+        self.assertIn("PS1='$ '", text)
+        self.assertIn("cd /home/user/notes", text)
+
+    def test_a_content_window_waits_for_its_tile(self):
+        text = self.script()
+        self.assertRegex(text, r"sleep \d+(\.\d+)?; python3 -I")
+
+    def test_the_tiling_chapter_uses_the_stub(self):
+        text = (ROOT / "demo" / "tour" / "chapters" / "tiling.py").read_text()
+        self.assertIn("foot_stub(", text)
 
 
 class LauncherEnv(unittest.TestCase):

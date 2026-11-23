@@ -53,6 +53,24 @@ def tiling_argv(binary, *args):
     return [binary, *(["--no-companions"] if "--no-companions" in help_text else []), *args]
 
 
+TILE_WAIT = 3
+"""Seconds a content window waits for its tile: it reads its size at the start, and a tile that still
+animates to its place gave the baseline and the candidate another size (and scroll) of one window."""
+
+
+def foot_stub(directory, history, sample):
+    """The `foot` of the tiling chapter: the first terminal is a shell with a fixed prompt in the
+    notes folder, the others show code, notes and page of the tour once their tile is in place."""
+    return f"""#!/bin/sh
+c={directory}/count; n=$(cat $c 2>/dev/null || echo 0); echo $((n+1)) >$c
+colors="-o colors.background=1a1b26 -o colors.foreground=c0caf5 -o pad=14x12 -o cursor.blink=no"
+if [ $n = 0 ]; then exec env HISTFILE={history} PS1='$ ' PROMPT_COMMAND='history -a' /usr/bin/foot --app-id=shell --title=shell $colors -o 'font=DejaVu Sans Mono:size=10' sh -c 'cd /home/user/notes; exec bash --norc --noprofile -i'; fi
+case $((n % 3)) in 1) k=code;; 2) k=notes;; 0) k=page;; esac
+args=""; [ $k = code ] && args={sample}
+exec /usr/bin/foot --app-id=$k --title=$k $colors -o 'font=DejaVu Sans Mono:size=9' -e sh -c "sleep {TILE_WAIT}; python3 -I {CONTENT} $k $args; exec sleep infinity"
+"""
+
+
 def wpctl_stub(directory):
     path = os.path.join(directory, "wpctl")
     state = os.path.join(directory, "wpctl.state")

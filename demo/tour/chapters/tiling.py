@@ -136,14 +136,7 @@ def run(ctx):
     report = f"{L.dir}/probe.report"
     shutil.rmtree(f"{NOTES}/demo", ignore_errors=True)
     fuzzel_log(L.dir, stub)
-    open(f"{stub}/foot", "w").write(f"""#!/bin/sh
-    c={L.dir}/count; n=$(cat $c 2>/dev/null || echo 0); echo $((n+1)) >$c
-    colors="-o colors.background=1a1b26 -o colors.foreground=c0caf5 -o pad=14x12 -o cursor.blink=no"
-    if [ $n = 0 ]; then exec env HISTFILE={history} PROMPT_COMMAND='history -a' /usr/bin/foot --app-id=shell --title=shell $colors -o 'font=DejaVu Sans Mono:size=10'; fi
-    case $((n % 3)) in 1) k=code;; 2) k=notes;; 0) k=page;; esac
-    args=""; [ $k = code ] && args={SAMPLE}
-    exec /usr/bin/foot --app-id=$k --title=$k $colors -o 'font=DejaVu Sans Mono:size=9' -e sh -c "python3 -I {CONTENT} $k $args; exec sleep infinity"
-    """)
+    open(f"{stub}/foot", "w").write(foot_stub(L.dir, history, SAMPLE))
     os.chmod(f"{stub}/foot", 0o755)
     env = L.start(tiling_argv(f"{BIN}/chora-tiling"), flavor="tiling",
       extra_config={"chora-tiling.yaml": "effects: [wobbly]\n"},
