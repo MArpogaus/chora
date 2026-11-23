@@ -13,13 +13,12 @@
 # the scene and the connected clients.
 #
 # Red when, over the rounds after WARMUP:
-#   - the Theil-Sen slope of the RSS (the median of the slopes between
-#     each two rounds, so one round that dips or peaks does not decide it;
-#     a steady growth reads as with least squares) is above 1024 kB per
-#     round (set before the first run: a leaked 200x200 probe buffer per
-#     round is 160 kB, a 1280x800 window texture 4 MB). The sample is taken after
-#     the whole cycle of looks: after a tiling or xp turn the core holds up
-#     to 50 MB of heap more, by timing, which the mc turn gives back;
+#   - the median of the round-to-round RSS differences is above 1024 kB per
+#     round (bound set before the first run: a leaked 200x200 probe buffer per
+#     round is 160 kB, a 1280x800 window texture 4 MB). One bounded step of heap
+#     (a tiling or xp turn keeps up to 50 MB, by timing: train118 had +7 MB at
+#     round 6, flat after) moves one difference; a leak moves all of them.
+#     The verdict is tests/leak-verdict.awk, tested by leak-verdict-selftest.sh;
 #   - the fds grow by more than one per 10 rounds (last minus first);
 #   - a round ends with more windows or clients than the base before
 #     round 1.
