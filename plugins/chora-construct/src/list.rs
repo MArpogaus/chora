@@ -229,7 +229,7 @@ impl Construct {
             },
         };
         if let Err(err) = done {
-            eprintln!("chora-construct: window list: {err}");
+            crate::log::log_warn!("chora-construct: window list: {err}");
         }
         Ok(())
     }

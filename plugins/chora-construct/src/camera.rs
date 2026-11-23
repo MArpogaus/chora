@@ -209,7 +209,7 @@ impl Construct {
                 if let Some(i) = self.pane_ahead()
                     && let Err(err) = self.fly_in(i)
                 {
-                    eprintln!("chora-construct: the fly-in: {err}");
+                    crate::log::log_warn!("chora-construct: the fly-in: {err}");
                 }
                 return;
             }
@@ -345,6 +345,24 @@ impl Construct {
         self.regrab()
     }
 
+    /// A cube that opens takes the keyboard from the window of a pane that
+    /// it covers: the focus is a window that shows, never one that no one
+    /// sees, so a key stays out of it until a face takes the keyboard
+    /// (co-46). The keyboard goes to nobody, as the cube stays a place for
+    /// the windows of its faces.
+    pub(crate) fn covered_focus_to_nobody(&mut self) -> Result<(), ClientError> {
+        let Some(focus) = (self.core_focus.clone()).filter(|f| self.own_window(f)) else {
+            return Ok(());
+        };
+        let seen = (self.panes.iter()).any(|p| p.window() == Some(&focus) && self.in_sight(p));
+        if seen {
+            return Ok(());
+        }
+        self.core_focus = None;
+        self.walk_keys = true;
+        self.rt.conn.apply(vec![chora_kit::wm::focus::release()])
+    }
+
     /// Whether the pane is on the output for the camera now: in front of
     /// the eye, inside the depth of the view and not behind a cube.
     pub(crate) fn in_sight(&self, p: &Pane) -> bool {
@@ -461,7 +479,7 @@ impl Construct {
         if let Some((plugin, scene)) = &flown.plugin {
             let call = json!({"client": plugin, "method": "pane.focus", "params": {"name": scene}});
             if let Err(err) = self.rt.conn.call::<_, Value>("methods.call", call) {
-                eprintln!("chora-construct: {plugin} pane.focus: {err}");
+                crate::log::log_warn!("chora-construct: {plugin} pane.focus: {err}");
             }
             self.flown = Some(flown);
             self.frame()?;
@@ -534,7 +552,7 @@ impl Construct {
             }
         }
         if !drag_errors.is_empty() {
-            eprintln!("chora-construct: {}", drag_errors.join("; "));
+            crate::log::log_warn!("chora-construct: {}", drag_errors.join("; "));
         }
         self.rt.grab_give_keys()?;
         if self.in_pane() {
@@ -573,7 +591,7 @@ impl Construct {
                 ))
             })?;
             if let Err(err) = self.rt.grab(binding, Grab::Swallow) {
-                eprintln!("chora-construct: the tap of the modifier: {err}");
+                crate::log::log_warn!("chora-construct: the tap of the modifier: {err}");
             }
         }
         Ok(())

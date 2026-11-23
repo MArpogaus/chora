@@ -50,7 +50,7 @@ impl Wm {
         }
         commands.extend(self.focus(Some(surface)));
         if let Some(err) = self.try_apply(commands)? {
-            eprintln!("chora-xp: {surface}: {err}");
+            error_adopt(surface, &err);
             self.windows.retain(|w| w.surface != surface);
             self.opened.retain(|s| s != surface);
             self.focused = previous;
@@ -116,6 +116,7 @@ impl Wm {
     /// Moves the focus: the old and the new window change their look.
     pub(super) fn focus(&mut self, target: Option<&str>) -> Vec<Command> {
         let previous = std::mem::replace(&mut self.focused, target.map(String::from));
+        self.arrival = super::Arrival::Settled;
         self.grab_system_key(target.is_some());
         let mut commands = self.close_context();
         commands.extend(
@@ -641,4 +642,8 @@ impl Wm {
             },
         })
     }
+}
+
+fn error_adopt(surface: &str, err: &dyn std::fmt::Display) {
+    tracing::error!("{surface}: {err}");
 }

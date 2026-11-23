@@ -48,6 +48,7 @@ mod input;
 mod keys;
 mod lifecycle;
 mod list;
+mod log;
 mod methods;
 mod modes;
 mod names;

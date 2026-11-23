@@ -578,3 +578,74 @@ fn a_layer_on_two_outputs_of_other_scales_stays_still() {
     assert_eq!(after.passes, before.passes, "no pass reruns");
     assert_eq!(after.damaged_frames, before.damaged_frames, "no damage");
 }
+
+#[test]
+fn a_layer_that_changes_size_keeps_one_texture_per_slot() {
+    let mut core = Core::with_renderer();
+    let mut wm = core.named("wm");
+    wm.ok(&mut core, "output.add", json!({"spec": "128x96"}));
+    let rect = json!({"create": {"id": "r", "kind": "rect", "parent": "root",
+        "props": {"size": [20, 20], "color": [1, 0, 0, 1], "radius": 4}}});
+    wm.ok(&mut core, "scene.apply", json!({"commands": [rect]}));
+    frames(&mut core, 1);
+    let first = stats(&core);
+    for side in 21..31 {
+        let update = json!({"commands": [
+            {"update": {"id": "r", "props": {"size": [side, side]}}},
+        ]});
+        wm.ok(&mut core, "scene.apply", update);
+        frames(&mut core, 1);
+    }
+    let sizes = core.state.assets.layers.sizes("r");
+    assert!(sizes.len() <= 2, "old sizes stay: {sizes:?}");
+    let made = stats(&core).textures_allocated - first.textures_allocated;
+    assert_eq!(made, 2 * 10, "{made} textures for 10 sizes of 2 slots");
+}
+
+#[test]
+fn a_resized_layer_on_two_outputs_of_the_same_scale_drops_old_sizes() {
+    let mut core = Core::with_renderer();
+    let mut wm = core.named("wm");
+    wm.ok(&mut core, "output.add", json!({"spec": "160x120+0+0"}));
+    wm.ok(&mut core, "output.add", json!({"spec": "160x120+160+0"}));
+    let rect = json!({"create": {"id": "r", "kind": "rect", "parent": "root",
+        "props": {"size": [40, 40], "color": [1, 0, 0, 1], "radius": 4,
+                  "transform": {"translate": [140, 20]}}}});
+    wm.ok(&mut core, "scene.apply", json!({"commands": [rect]}));
+    frames(&mut core, 1);
+    for side in 41..51 {
+        let update = json!({"commands": [
+            {"update": {"id": "r", "props": {"size": [side, side]}}},
+        ]});
+        wm.ok(&mut core, "scene.apply", update);
+        frames(&mut core, 1);
+    }
+    let sizes = core.state.assets.layers.sizes("r");
+    assert!(sizes.len() < 11, "old sizes stay: {sizes:?}");
+}
+
+#[test]
+fn a_resized_layer_on_two_outputs_of_other_scales_keeps_both_sizes() {
+    let mut core = Core::with_renderer();
+    let mut wm = core.named("wm");
+    wm.ok(&mut core, "output.add", json!({"spec": "160x120+0+0"}));
+    wm.ok(&mut core, "output.add", json!({"spec": "160x120@2+160+0"}));
+    let rounded = json!({"create": {"id": "r", "kind": "rect", "parent": "root",
+        "props": {"size": [40, 40], "color": [1, 0, 0, 1], "radius": 4,
+                  "transform": {"translate": [140, 20]}}}});
+    wm.ok(&mut core, "scene.apply", json!({"commands": [rounded]}));
+    frames(&mut core, 2);
+    for side in 41..44 {
+        let update = json!({"commands": [
+            {"update": {"id": "r", "props": {"size": [side, side]}}},
+        ]});
+        wm.ok(&mut core, "scene.apply", update);
+        frames(&mut core, 1);
+    }
+    assert_eq!(core.state.assets.layers.sizes("r"), [(43, 43), (86, 86)]);
+    let before = stats(&core);
+    frames(&mut core, 3);
+    let after = stats(&core);
+    assert_eq!(after.textures_allocated, before.textures_allocated);
+    assert_eq!(after.passes, before.passes, "no pass reruns");
+}

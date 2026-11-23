@@ -51,7 +51,10 @@ impl Wm {
                 surface: Some(surface.into()),
             },
             None if self.own_node()
-                || (!self.node_away() && !self.focus_away() && !self.cube_off()) =>
+                || (!self.node_away()
+                    && !self.focus_away()
+                    && !self.cube_off()
+                    && !self.joined()) =>
             {
                 Focus {
                     holder: Some(NAME.into()),
@@ -110,6 +113,9 @@ impl Wm {
         owner: Option<&str>,
     ) -> Vec<chora_scene::Command> {
         self.key_node = owner.map(String::from);
+        if owner == Some(NAME) {
+            self.arrival = super::Arrival::Settled;
+        }
         let desktop = node == Some(crate::desktop_icons::GROUP) && owner == Some(NAME);
         if desktop && self.focus_away() {
             vec![chora_scene::Command::FocusNode { node: None }]

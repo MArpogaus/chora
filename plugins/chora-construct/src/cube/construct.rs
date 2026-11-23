@@ -77,6 +77,7 @@ impl Construct {
             return Err(ClientError::Rpc(err));
         }
         self.cube = Some(host);
+        self.covered_focus_to_nobody()?;
         self.open_modes()?;
         self.frame()?;
         Ok(json!({"outputs": outputs}))
@@ -166,7 +167,9 @@ impl Construct {
         let language = Language::of_session();
         let failed = (self.cube.as_mut()).and_then(|c| c.check_start(language, Instant::now()));
         if let Some(reason) = failed {
-            eprintln!("chora-construct: the window manager of the cube failed: {reason}");
+            crate::log::log_error!(
+                "chora-construct: the window manager of the cube failed: {reason}"
+            );
             self.frame()?;
         }
         Ok(())
@@ -179,7 +182,7 @@ impl Construct {
             return Ok(());
         };
         if let Err(reason) = host.restart(Instant::now()) {
-            eprintln!("chora-construct: the window manager of the cube: {reason}");
+            crate::log::log_warn!("chora-construct: the window manager of the cube: {reason}");
             host.fail(&reason);
         }
         self.frame()
@@ -508,7 +511,7 @@ impl Construct {
             let removed: Result<Value, _> =
                 (self.rt.conn).call("output.remove", json!({"output": output}));
             if let Err(err) = removed {
-                eprintln!("chora-construct: output.remove {output}: {err}");
+                crate::log::log_warn!("chora-construct: output.remove {output}: {err}");
             }
         }
     }

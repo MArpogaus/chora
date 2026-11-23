@@ -1131,10 +1131,10 @@ impl Host {
 /// Ends a window manager of the cube and reaps it.
 pub(crate) fn end(child: &mut Child) {
     if let Err(err) = child.kill() {
-        eprintln!("chora-construct: end the window manager of the cube: {err}");
+        crate::log::log_warn!("chora-construct: end the window manager of the cube: {err}");
     }
     if let Err(err) = child.wait() {
-        eprintln!("chora-construct: wait for the window manager of the cube: {err}");
+        crate::log::log_warn!("chora-construct: wait for the window manager of the cube: {err}");
     }
 }
 

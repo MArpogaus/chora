@@ -234,6 +234,7 @@ impl State {
                 .and_then(|pane| self.scene.node(pane)?.owner.clone());
             let focused = self.focused_surface().map(String::from);
             let parent = toplevel.parent().and_then(|p| self.surface_id(&p));
+            let first = self.first_manager();
             let ipc = &self.ipc;
             // A client socket manages only the windows of its own name.
             let own = |n: &str| !ipc.has_socket(n) || info.client.as_deref() == Some(n);
@@ -243,6 +244,7 @@ impl State {
                 focused: focused.as_deref(),
                 chosen: self.chosen_manager(),
                 point: pointer,
+                first: first.as_deref(),
             };
             let to = (self.scene).manager_of_new(&new, live).map(String::from);
             let host = host.filter(|_| parent.is_none());

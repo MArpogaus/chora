@@ -5,14 +5,17 @@ Usage: injected-optout.py [FILE...]   (pre-commit passes the files; none = all t
 
 The events with an `injected` field are read from crates/chora-scene/src/event.rs
 (NodeKey, PointerPressed, PointerReleased, and every other one with the field).
-A pattern on such an event that binds the field to a name that starts with an
-underscore (`injected: _`, `injected: _flag`), or that ends in the rest pattern `..`
-without naming the field, drops the flag without a decision, so an injected key,
-press or move (from `input.inject`) acts as a person's. The flag bound inside
-another field (`text: Some(injected)`) does not name the field. Every such line needs a
-`// injected: <reason>` comment on that line (or alone on the next line, where rustfmt puts a
-comment that follows a brace) that says why the event is safe to take as it is.
-A pattern that names the field (`injected,`, `injected: true` or `injected: name`) may end in `..`.
+A pattern on such an event that binds the field to a name (`injected: _`,
+`injected: _flag`, `injected: name`), or that ends in the rest pattern `..` while no
+other item decides the field, drops the flag without a decision, so an injected key,
+press or move (from `input.inject`) acts as a person's. The script reads `injected,`,
+`injected: true`, `injected: false` and a target that looks like an expression as a
+decision, so a `..` after one of them is fine. A plain `injected: name` decides nothing:
+the script reports that line the same way as `injected: _`, and a `..` after it too.
+The flag bound inside another field (`text: Some(injected)`) does not name the field.
+Every reported line needs a `// injected: <reason>` comment on that line (or alone on the
+next line, where rustfmt puts a comment that follows a brace) that says why the event is
+safe to take as it is.
 """
 import pathlib
 import re

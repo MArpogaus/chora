@@ -250,6 +250,9 @@ pub struct NewToplevel<'a> {
     pub chosen: Option<&'a str>,
     /// The pointer in scene coordinates.
     pub point: [f64; 2],
+    /// The window manager that connected first, for a pointer in no
+    /// claim: a look that joins later takes no window by coming (ti-38).
+    pub first: Option<&'a str>,
 }
 
 /// The owner of the smallest claim that contains `[px, py]`, among the
@@ -440,7 +443,8 @@ impl Scene {
     /// parent toplevel; else the manager that a click of the user chose,
     /// if it holds a claim; else the owner of the focused node, else of
     /// the focused surface, if it holds a claim; else the owner of the
-    /// smallest claim that contains the pointer. Only owners that `live`
+    /// smallest claim that contains the pointer; else the manager that
+    /// connected first, if it holds a claim. Only owners that `live`
     /// accepts count, so a claim of a client that is gone reserves
     /// nothing.
     #[must_use]
@@ -462,6 +466,7 @@ impl Scene {
             .or_else(|| new.chosen.filter(claims))
             .or_else(focus)
             .or_else(pointer)
+            .or_else(|| new.first.filter(claims))
     }
 
     /// Whether a client name holds a claim.
@@ -918,7 +923,10 @@ impl Scene {
 
     /// The places among the children of `parent` where `id` may go: for
     /// the root, from the first to after the last root of the same
-    /// [`Order`] (D89); anywhere under another parent.
+    /// [`Order`] (D89); anywhere under another parent. The root children
+    /// stay sorted by order, since `link` puts a root child only inside its
+    /// band and `set_order` links it again, so a binary search finds the
+    /// band (a walk over all of them was quadratic for many creates, sl-3).
     fn band(&self, id: &str, parent: &str) -> [usize; 2] {
         let Some(siblings) = self.nodes.get(parent).map(|p| &p.children) else {
             return [0, 0];
@@ -927,14 +935,8 @@ impl Scene {
             return [0, siblings.len()];
         }
         let order = self.order_of(id);
-        let low = siblings
-            .iter()
-            .take_while(|s| self.order_of(s) < order)
-            .count();
-        let high = siblings
-            .iter()
-            .take_while(|s| self.order_of(s) <= order)
-            .count();
+        let low = siblings.partition_point(|s| self.order_of(s) < order);
+        let high = siblings.partition_point(|s| self.order_of(s) <= order);
         [low, high]
     }
 
@@ -962,8 +964,10 @@ impl Scene {
         let Some(parent) = self.nodes.get_mut(id).and_then(|n| n.parent.take()) else {
             return;
         };
-        if let Some(p) = self.nodes.get_mut(&parent) {
-            p.children.retain(|c| c != id);
+        if let Some(p) = self.nodes.get_mut(&parent)
+            && let Some(at) = p.children.iter().position(|c| c == id)
+        {
+            p.children.remove(at);
         }
     }
 

@@ -7,8 +7,7 @@ date. Severity comes first in every section: BLOCK,
 then MAJOR, then MINOR, then COSMETIC.
 
 "likely fixed" means a later commit names the fault or a gate cell covers it,
-but nobody has checked it by eye on a fresh capture. "verify" means the same,
-for older entries. Larger faults are also tracked on
+but nobody has checked it by eye on a fresh capture. "unverified" means the same, for older entries: no one has checked it since the date given. Larger faults are also tracked on
 [GitHub](https://github.com/MArpogaus/chora/issues).
 
 ## xp
@@ -30,7 +29,7 @@ MINOR
 - xp-28: chat header stays "Working, step 1 of 1" with Stop active after the answer; the editor opens over desktop icons.
 - xp-29: the helper chat opens from the tray icon; a click on the paperclip itself should open it.
 - xp-30: no welcome balloon at the first start; the paperclip should greet once.
-- xp-5, xp-6, xp-7, xp-8, xp-12, xp-14, xp-15, xp-17, xp-18 (verify): Start lists LibreOffice though not installed; no sign that a program is starting; notify balloon size and place; caption button size; chat field after the no-helper balloon; question card text; Start menu label truncation; menu leftovers; Alt+Tab not seen in capture.
+- xp-5, xp-6, xp-7, xp-8, xp-12, xp-14, xp-15, xp-17, xp-18 (unverified since 2026-11-22 (the ledger holds no newer check)): Start lists LibreOffice though not installed; no sign that a program is starting; notify balloon size and place; caption button size; chat field after the no-helper balloon; question card text; Start menu label truncation; menu leftovers; Alt+Tab not seen in capture.
 - Notepad needs an editor with a window; without one a click says so and no window opens. mousepad is recommended (xp-25).
 
 COSMETIC
@@ -49,9 +48,6 @@ MAJOR
 - ti-23: a stale "Run a program" tooltip stayed about 14 s over the master title. Likely fixed (c1adc900, e1dda18f: no tooltip on the bar doors).
 - ti-24: no power or lock icon in the bar though the key list names it; a "Chat ..." pill floats over client content while the bar says "No helper". Open (the Screenshot entry in the power menu was added, 29ee9ebc).
 
-VERIFY (severity not set)
-- ti-20: a click on Apps showed no launcher within 1.5 s in one headless run. MAJOR if real; a CI cell covers the click.
-
 MINOR
 - ti-5: a toast that starts while the chat is open is hidden under the chat panel.
 - ti-6, ti-19: tooltips "Run a program" and "Every key" stay after a click or Esc.
@@ -60,13 +56,13 @@ MINOR
 - ti-12: there is no focus-left/right key; Super+Right switches the tag and Super+l widens the master (by design, to be listed).
 - ti-14: the key list shows only keyboard chords, no mouse basics.
 - ti-25: stale or torn buffers after a re-tile; the launcher shows raw .desktop text; a floated window can land half off-screen.
-- ti-8, ti-9, ti-10, ti-13 (verify): new windows do not take focus; key list is 692 px high; key list is translucent over seams; bar network shows the address.
+- ti-8, ti-9, ti-10, ti-13 (unverified since 2026-11-22 (the ledger holds no newer check)): new windows do not take focus; key list is 692 px high; key list is translucent over seams; bar network shows the address.
 
 COSMETIC
 - ti-15: about 17 small pixel items (toast fringes, orb ring, launcher size, tooltip shadow, hairlines, island width).
 - ti-16: question card uses one size and no mono for the path; the chat panel is empty while a question waits.
 - ti-17: Ink shadows are invisible; unfocused border is lighter and uneven; the left island is fixed at 448 px.
-- ti-18 (verify): listening chip on the window border; three font families in one frame; key list says Super+Print.
+- ti-18 (unverified since 2026-11-22 (the ledger holds no newer check)): listening chip on the window border; three font families in one frame; key list says Super+Print.
 
 ## mc
 
@@ -79,11 +75,12 @@ MAJOR
 - mc-35: a critical alarm is a truncated footer line, not a card; the column breaks. Open.
 - mc-36: a "No helper" pill shows while the helper answers and overlaps the status word. Open.
 - mc-37: Super+n hides the column but the page does not widen. Open.
+- mc-47: with fuzzel older than 1.11 a click on a row of the launcher in mc starts no program (keys work). Install fuzzel 1.11 or later; with 1.11.1 the gate cell mc-sofa launcher-click-row passes 5 of 5 (same cause as ti-1).
 
 MINOR
 - mc-13: scene copy: "collector" on page 2 reads as a failure, mixed fonts, divider off centre.
 - mc-14: chat body 18 px instead of 19; stray space in "Super+ <- ->".
-- mc-9, mc-10, mc-11, mc-12 (verify): chat field shape, card text wrapping, Stop word, notification count with chat open.
+- mc-9, mc-10, mc-11, mc-12 (unverified since 2026-11-22 (the ledger holds no newer check)): chat field shape, card text wrapping, Stop word, notification count with chat open.
 
 COSMETIC
 - mc-15, mc-16, mc-17: Yes/No hover and grid, wrapped notification, duplicate "1 AGENDA" head, baseline and margin offsets of 1 to 3 px.
@@ -106,12 +103,12 @@ MINOR
 - co-7: the failed-face card is not fitted to its face.
 - co-12: faces B, C, D show wallpaper only until each runs its own manager; the face does not say so.
 - co-17: three terminals are all titled "foot" in the window list.
-- co-8, co-9, co-10, co-11 (verify): old capture gaps, OPEN CUBE leftovers, D in walk view drops into a fullscreen terminal, closed window leaves a pill.
+- co-8, co-9, co-10, co-11 (unverified since 2026-11-22 (the ledger holds no newer check)): old capture gaps, OPEN CUBE leftovers, D in walk view drops into a fullscreen terminal, closed window leaves a pill.
 
 COSMETIC
 - co-13: tray text differs between 1x and 2x; tiny terminal text in side panes.
 - co-15: an empty floor gives no hint that walking works.
-- co-14 (verify): pull frame shows a blank slab and a yellow test marker.
+- co-14 (unverified since 2026-11-22 (the ledger holds no newer check)): pull frame shows a blank slab and a yellow test marker (the marker is the pointer of the test harness, fb-swarm4-c4).
 
 ## All looks and shared doors
 
@@ -127,11 +124,13 @@ MINOR
 - sh-16: launcher wording differs ("Open:", "Apps", ">"; "Run a program" vs "Start a program"). Reported fixed earlier (review raa-3); the ledger lists it again.
 - The spoken prompt of a sub-agent's tool title may still keep bidi or hidden characters (the shown text is cleaned).
 - sh-28: documentation is stale on mc telling an injected click, and on the icon fallback to the temp directory.
-- sh-13, sh-17 (verify): state word spelled three ways and helper surface counted twice; HUD colours per theme.
+- sh-13, sh-17 (unverified since 2026-11-22 (the ledger holds no newer check)): state word spelled three ways and helper surface counted twice; HUD colours per theme.
 
 COSMETIC
 - sh-18: door wording and notification shape differ per look.
 - sh-21: the task cut is per character and can leave a space before the ellipsis; a long task hides the step count.
+
+- mesh-churn review finding 1 (core, MEDIUM): two views of one scale (a layer on two outputs, or an output and its capture) keep the old layer sizes for a while after many resizes, so memory use grows during that time. Same as before the mesh-churn fix, which covers one view. Workaround: none needed for one output.
 
 DEFERRED DEPENDENCIES
 - zbus 6 (#96) and serde-saphyr 2 (#87) are major bumps, deferred past rc 7.

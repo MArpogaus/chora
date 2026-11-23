@@ -195,7 +195,7 @@ bindings:
 # The states of an agent of agent.set: the sign and the color of each,
 # and a label for the agents scene; without a label, the name.
 states:
-  idle: {sign: ○, color: faint}
+  idle: {sign: ○, color: muted}
   listening: {sign: ◉, color: blue}
   thinking: {sign: ◌, color: blue}
   working: {sign: ●, color: green}
@@ -203,7 +203,7 @@ states:
   question: {sign: ●, color: amber, label: has a question}
   blocked: {sign: ✕, color: red}
   done: {sign: ✓, color: green}
-  asleep: {sign: ☾, color: faint}
+  asleep: {sign: ☾, color: muted}
 # The regions around the page, as in the Emacs package auto-side-windows:
 # a header and a footer line, sizes in lines of the baseline grid; a left
 # and a right side, sizes in lines of the grid as well, and the right side

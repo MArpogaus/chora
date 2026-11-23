@@ -298,14 +298,14 @@ impl Construct {
             match grabbed {
                 Ok(true) if is_step_back => step_back = Some(binding),
                 Ok(_) => {}
-                Err(err) => eprintln!("chora-construct: the cube key {binding}: {err}"),
+                Err(err) => crate::log::log_warn!("chora-construct: the cube key {binding}: {err}"),
             }
         }
         if let Some(host) = self.cube.as_mut() {
             host.set_step_back_key(step_back);
         }
         if let Err(err) = self.draw_modes() {
-            eprintln!("chora-construct: the chips of the cube: {err}");
+            crate::log::log_warn!("chora-construct: the chips of the cube: {err}");
         }
     }
 
@@ -386,7 +386,7 @@ impl Construct {
         let wait = super::float::ANSWER;
         let activated: Result<Value, _> = (self.rt.conn).call_within("methods.call", call, wait);
         if let Err(err) = activated {
-            eprintln!("chora-construct: the focus after the step in: {err}");
+            crate::log::log_warn!("chora-construct: the focus after the step in: {err}");
         }
     }
 

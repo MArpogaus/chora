@@ -159,8 +159,9 @@ impl FrameClock {
             .and_then(|before| {
                 waits_in(tasks)?
                     .into_iter()
-                    .map(|(thread, wait)| {
-                        wait.saturating_sub(before.get(&thread).copied().unwrap_or_default())
+                    .filter_map(|(thread, wait)| {
+                        let before = before.get(&thread)?;
+                        Some(wait.saturating_sub(*before))
                     })
                     .max()
             })
@@ -763,6 +764,68 @@ mod tests {
             return;
         };
         assert!(before.contains_key(std::ffi::OsStr::new(&std::process::id().to_string())));
+    }
+
+    /// Writes the `schedstat` of the thread `id` under a `/proc/self/task`.
+    fn schedstat(tasks: &Path, id: &str, line: &str) {
+        let dir = tasks.join(id);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("schedstat"), line).unwrap();
+    }
+
+    #[test]
+    fn the_waits_of_the_threads_come_from_their_schedstat() {
+        let tasks = crate::testing::TempDir::unmade("chora-waits");
+        schedstat(&tasks, "1", "3759000000 7000000 1234\n");
+        schedstat(&tasks, "2", "100 0 1\n");
+        let waits = waits_in(&tasks).unwrap();
+        assert_eq!(waits.len(), 2);
+        assert_eq!(waits[std::ffi::OsStr::new("1")], Duration::from_millis(7));
+        assert_eq!(waits[std::ffi::OsStr::new("2")], Duration::ZERO);
+    }
+
+    #[test]
+    fn a_malformed_schedstat_gives_no_wait_and_a_missing_folder_no_waits() {
+        for line in ["", "3759000000\n", "3759000000 soon 1234\n"] {
+            assert_eq!(wait_of(line), None, "{line:?}");
+        }
+        let tasks = crate::testing::TempDir::unmade("chora-malformed");
+        schedstat(&tasks, "1", "3759000000 7000000 1234\n");
+        schedstat(&tasks, "2", "3759000000 soon 1234\n");
+        let waits = waits_in(&tasks).unwrap();
+        assert_eq!(waits.len(), 1, "the thread that cannot be read is left out");
+        let missing = crate::testing::TempDir::unmade("chora-no-such-folder");
+        assert_eq!(waits_in(&missing), None);
+    }
+
+    #[test]
+    fn the_wait_of_a_frame_is_the_growth_of_the_waits_between_its_reads() {
+        let tasks = crate::testing::TempDir::unmade("chora-growth");
+        schedstat(&tasks, "1", "1 10000000 1\n");
+        schedstat(&tasks, "2", "1 5000000 1\n");
+        let clock = FrameClock::start_in(&tasks);
+        std::thread::sleep(Duration::from_millis(40));
+        schedstat(&tasks, "1", "1 25000000 1\n");
+        schedstat(&tasks, "2", "1 6000000 1\n");
+        let (took, waited) = clock.stop_in(&tasks);
+        assert!(took >= Duration::from_millis(40), "{took:?}");
+        assert_eq!(
+            waited,
+            Duration::from_millis(15),
+            "the longest growth: thread 1 waited 15 ms more, thread 2 1 ms"
+        );
+    }
+
+    #[test]
+    fn a_thread_that_appears_mid_frame_is_not_credited_its_whole_wait() {
+        let tasks = crate::testing::TempDir::unmade("chora-new-thread");
+        schedstat(&tasks, "1", "1 0 1\n");
+        let clock = FrameClock::start_in(&tasks);
+        std::thread::sleep(Duration::from_millis(40));
+        schedstat(&tasks, "1", "1 0 1\n");
+        schedstat(&tasks, "2", "1 400000000 1\n");
+        let (_, waited) = clock.stop_in(&tasks);
+        assert_eq!(waited, Duration::ZERO, "a thread the first read missed");
     }
 
     /// A `/proc/self/task` of the main thread and four renderer threads,

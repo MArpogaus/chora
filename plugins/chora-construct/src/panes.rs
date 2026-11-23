@@ -274,7 +274,7 @@ impl Construct {
             return self.frame();
         };
         if let Some(err) = self.rt.conn.try_apply(vec![Command::Close { surface }])? {
-            eprintln!("chora-construct: close: {err}");
+            crate::log::log_warn!("chora-construct: close: {err}");
         }
         Ok(())
     }
