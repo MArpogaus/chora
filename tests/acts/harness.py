@@ -733,6 +733,17 @@ class Session:
         after construct was killed keeps the core from reopening the cube."""
         return not (self.label == "construct" and "construct" not in self.looks)
 
+    def held_shots(self, outputs, shots, tries=10, sleep=time.sleep):
+        """The captures once two in a row are the same pixels: the box of the
+        notify card is in the scene before its pixels are on the capture (xp-38)."""
+        for _ in range(tries):
+            sleep(0.2)
+            more = self.shots(outputs)
+            if more == shots:
+                break
+            shots = more
+        return shots
+
     def settled_scene(self, outputs, tries=5, sleep=time.sleep):
         """The nodes, the boxes and the captures of a moment in which no
         text changed while the captures were taken: a clock that redraws
@@ -744,6 +755,12 @@ class Session:
             nodes = self.core.call("scene.query", {"selector": "*"}) or []
             boxes = self.core.call("scene.boxes")
             shots = self.shots(outputs) if self.capturing() else None
+            if shots and any(
+                b.get("node") == "notify-card-body"
+                for o in (boxes or {}).values()
+                for b in (o.get("boxes") or [])
+            ):
+                shots = self.held_shots(outputs, shots)
             again = self.core.call("scene.query", {"selector": "*"}) or []
             boxes_again = self.core.call("scene.boxes")
             settled = scene_texts(nodes) == scene_texts(again) and boxes == boxes_again

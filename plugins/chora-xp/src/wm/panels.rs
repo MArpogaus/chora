@@ -4,7 +4,7 @@ use super::{
     Action, BARS, Bar, Change, Click, Command, DIALOGS, DOUBLE_CLICK, DateDialog, DisplayDialog,
     EffectsDialog, HIDE_DELAY, HelpDialog, Hit, Instant, Mode, NAME, Outcome, Panel, Path, Rect,
     Setting, Store, TaskbarDialog, Value, Wm, apps, context, control, desktop_icons, display, help,
-    json, launch, taskbar, volume, wallpaper,
+    json, taskbar, volume, wallpaper,
 };
 
 use chora_kit::notice::{self, Notice, Urgency};
@@ -37,7 +37,7 @@ impl Wm {
     /// Dismisses a notice of chora-xp; a server that is gone is logged.
     pub(super) fn dismiss_notice(&mut self, id: u32) {
         if let Err(err) = notice::dismiss(&mut self.rt.conn, id) {
-            eprintln!("{NAME}: notice {id}: {err}");
+            tracing::debug!("notice {id}: {err}");
         }
     }
 
@@ -51,10 +51,7 @@ impl Wm {
         }
         let (summary, body) = change.text();
         let (replaces, expire_ms) = match change {
-            Change::Starting { .. } => (
-                None,
-                i32::try_from(launch::GIVE_UP.as_millis()).unwrap_or(-1),
-            ),
+            Change::Starting { .. } => (None, 0),
             Change::Failed { note, .. } | Change::Fallback { note, .. } => (*note, -1),
             Change::Done { .. } => return,
         };
@@ -357,7 +354,7 @@ impl Wm {
         }
         let commands = self.configure();
         if let Err(err) = self.settings.save() {
-            eprintln!("chora-xp: the change applies but is not saved: {err}");
+            tracing::error!("the change applies but is not saved: {err}");
         }
         commands
     }
@@ -631,7 +628,14 @@ impl Wm {
 
     /// A click on the desktop takes the focus from the windows and the
     /// selection from the icons; a drag draws the selection rectangle.
+    /// While xp has had no keys since it joined beside another look, a
+    /// click on the wallpaper in a smaller claim of that look does nothing:
+    /// the core chose that look for the press (D55), and the keys stay
+    /// with it (ti-38).
     pub(super) fn press_wallpaper(&mut self, position: [f64; 2]) -> Vec<Command> {
+        if self.joined() && self.claim_of_another_look(position) {
+            return Vec::new();
+        }
         let mut commands = self.focus(None);
         commands.extend(self.sync_tasks());
         commands.extend(

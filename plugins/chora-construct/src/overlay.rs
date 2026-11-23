@@ -655,7 +655,7 @@ impl Construct {
         if std::mem::take(&mut self.hints.announce) {
             let view = chora_kit::hud::view_event(NAME, self.hints.flown);
             if let Err(err) = self.rt.conn.call::<_, Value>("events.emit", view) {
-                eprintln!("chora-construct: emit the view: {err}");
+                crate::log::log_warn!("chora-construct: emit the view: {err}");
             }
         }
         let stamp = match set {

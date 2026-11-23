@@ -534,6 +534,10 @@ fn transaction_error(error: &TransactionError) -> RpcError {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Write;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
     use serde_json::json;
 
     use super::*;
@@ -960,5 +964,103 @@ mod tests {
         let ids: Vec<Value> = wm.responses().iter().map(|r| r["id"].clone()).collect();
         assert_eq!(ids, [json!(99), json!(id)]);
         assert!(wm.closed(&mut core));
+    }
+
+    /// Test-only load: `CHORA_TX_LOAD=1` spawns busy threads (four per
+    /// available core) that spin until dropped.
+    struct BusyThreads(Arc<AtomicBool>, Vec<std::thread::JoinHandle<()>>);
+
+    /// One thread that spins until `stop` is set.
+    fn spin_until(stop: Arc<AtomicBool>) -> std::thread::JoinHandle<()> {
+        std::thread::spawn(move || {
+            while !stop.load(Ordering::Relaxed) {
+                std::hint::spin_loop();
+            }
+        })
+    }
+
+    impl BusyThreads {
+        fn from_env() -> Self {
+            let stop = Arc::new(AtomicBool::new(false));
+            let load = std::env::var("CHORA_TX_LOAD").as_deref() == Ok("1");
+            let cores = std::thread::available_parallelism().map_or(1, std::num::NonZero::get);
+            let n = if load { 4 * cores } else { 0 };
+            let handles = (0..n).map(|_| spin_until(stop.clone())).collect();
+            Self(stop, handles)
+        }
+    }
+
+    impl Drop for BusyThreads {
+        fn drop(&mut self) {
+            self.0.store(true, Ordering::Relaxed);
+            for h in self.1.drain(..) {
+                let _ = h.join();
+            }
+        }
+    }
+
+    /// CPU time of the calling thread: utime and stime (fields 14 and 15)
+    /// of `/proc/thread-self/stat`, in clock ticks. The tick is the fixed
+    /// `USER_HZ` of 100 that Linux reports to user space, so no `sysconf`
+    /// call (and no `unsafe`) is needed. The command name (field 2) may
+    /// hold spaces, so the fields are counted from its closing parenthesis.
+    fn thread_cpu() -> Duration {
+        const USER_HZ: u64 = 100;
+        let stat = std::fs::read_to_string("/proc/thread-self/stat").expect("read thread stat");
+        let rest = stat.rsplit_once(')').expect("thread stat has a command").1;
+        let mut fields = rest.split_whitespace().skip(11);
+        let mut ticks = || -> u64 {
+            fields
+                .next()
+                .and_then(|f| f.parse().ok())
+                .expect("utime and stime in thread stat")
+        };
+        let (utime, stime) = (ticks(), ticks());
+        Duration::from_millis((utime + stime) * 1000 / USER_HZ)
+    }
+
+    /// sl-3: one `scene.apply` of 10000 creates under the root answers
+    /// before the hang watchdog calls the main loop stalled (3 s,
+    /// `hang::STALL_AFTER`). The commands of `repro-sl3.sh`, under
+    /// `MAX_LINE`. The bar is on the CPU time of the dispatching thread,
+    /// not on wall time: the watchdog sees a stalled loop, which is CPU
+    /// work on that thread, and other test threads are not the core's
+    /// cost. Wall time only guards against a hang (60 s).
+    #[test]
+    fn a_big_transaction_answers_before_the_stall_line() {
+        let mut core = Core::new();
+        let mut wm = core.named("wm");
+        let commands: Vec<Value> = (0..10_000)
+            .map(|i| {
+                json!({"create": {"id": format!("n{i}"), "kind": "rect",
+                "parent": "root", "props": {"size": [1, 1]}}})
+            })
+            .collect();
+        let request = json!({"jsonrpc": "2.0", "id": 1, "method": "scene.apply",
+            "params": {"commands": commands}});
+        let mut line = request.to_string().into_bytes();
+        line.push(b'\n');
+        let busy = BusyThreads::from_env();
+        let cpu_start = thread_cpu();
+        let start = Instant::now();
+        let mut sent = 0;
+        let mut responses = Vec::new();
+        while responses.is_empty() && start.elapsed() < Duration::from_secs(120) {
+            match wm.write(&line[sent..]) {
+                Ok(n) => sent += n,
+                Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {}
+                Err(err) => panic!("the core must read the whole line: {err}"),
+            }
+            core.dispatch();
+            responses.extend(wm.responses());
+        }
+        let wall = start.elapsed();
+        let time = thread_cpu().saturating_sub(cpu_start);
+        drop(busy);
+        writeln!(std::io::stderr(), "sl-3 cpu {time:?} wall {wall:?}").expect("stderr");
+        assert_eq!(responses.len(), 1, "{responses:?}");
+        assert!(responses[0].get("result").is_some(), "{:?}", responses[0]);
+        assert!(time < Duration::from_secs(3), "cpu {time:?}");
+        assert!(wall < Duration::from_secs(60), "wall {wall:?}");
     }
 }

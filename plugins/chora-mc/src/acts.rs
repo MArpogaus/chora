@@ -39,7 +39,7 @@ impl Mc {
             Err(err) => Err(err),
         };
         if let Err(err) = given {
-            eprintln!("chora-mc: {surface} stays: {}", err.message);
+            tracing::warn!("{surface} stays: {}", err.message);
         }
     }
 
@@ -73,19 +73,19 @@ impl Mc {
             Look::Scene(name) => name,
             Look::Toggle(region) => {
                 if let Err(err) = self.toggle(region, None, true) {
-                    eprintln!("chora-mc: toggle {}: {err}", region.name());
+                    tracing::warn!("toggle {}: {err}", region.name());
                 }
                 return;
             }
             Look::Solo { content, region } => {
                 if let Err(err) = self.solo(&content, region, None, true) {
-                    eprintln!("chora-mc: solo {content}: {err}");
+                    tracing::warn!("solo {content}: {err}");
                 }
                 return;
             }
         };
         if let Err(err) = self.show(&next, true) {
-            eprintln!("chora-mc: {next}: {}", err.message);
+            tracing::warn!("{next}: {}", err.message);
         }
     }
 }
@@ -120,7 +120,7 @@ impl Host for Mc {
     fn keys(&mut self) -> Result<(), Infallible> {
         self.keys = self.keys.flip();
         if let Err(err) = self.render() {
-            eprintln!("chora-mc: keys: {err}");
+            tracing::warn!("keys: {err}");
         }
         Ok(())
     }
@@ -136,7 +136,7 @@ impl Host for Mc {
                 self.notice(&script, "The shared script is not installed.");
             }
             Failure::NotStarted(_) => {}
-            Failure::NotGiven { to, why } => eprintln!("chora-mc: give to {to}: {why}"),
+            Failure::NotGiven { to, why } => tracing::warn!("give to {to}: {why}"),
         }
         Ok(())
     }

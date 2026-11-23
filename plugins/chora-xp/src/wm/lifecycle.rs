@@ -80,7 +80,7 @@ impl Wm {
             .map(|i| self.windows[i].rect().map(f64::from));
         let emit = self.book.phase_event(surface, phase, rect);
         if let Err(err) = self.rt.conn.call::<_, Value>("events.emit", emit) {
-            eprintln!("chora-xp: xp.window: {err}");
+            tracing::warn!("xp.window: {err}");
         }
     }
 }

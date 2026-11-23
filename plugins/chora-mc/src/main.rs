@@ -8,8 +8,12 @@
 //! itself.
 
 #![allow(
+    clippy::cognitive_complexity,
+    reason = "the tracing macros count as branches; the handlers are flat lists of arms"
+)]
+#![allow(
     clippy::print_stderr,
-    reason = "a plugin logs to stderr, which the session keeps"
+    reason = "the usage line of --launch is no log: the log starts in the runtime"
 )]
 
 mod acts;
@@ -376,6 +380,8 @@ struct Mc {
     /// The settings of the last build without the theme: a change of the
     /// theme alone fades the colors.
     shape: Option<Value>,
+    /// The theme of the nodes that stand.
+    themed: Option<Value>,
     /// The keyboard focus that mc gave and the core moved
     /// (`kit::wm::focus`).
     focus: Focus,
@@ -563,6 +569,7 @@ impl Mc {
             sigs: BTreeMap::new(),
             fitting: HashMap::new(),
             shape: None,
+            themed: None,
             rendered: None,
             focus: Focus::default(),
             core_focus: None,
@@ -600,9 +607,10 @@ const ASSISTANT: &str = "assistant";
 /// The events; `voice.*` are those of the voice agent (D65),
 /// `assistant.chat` says where the HUD host shows its chat, and
 /// `assistant.chat.keyboard` when its field takes the keyboard.
-const EVENTS: [&str; 20] = [
+const EVENTS: [&str; 21] = [
     "voice.*",
     "focus.changed",
+    "focus.node",
     "node.key",
     "assistant.chat",
     "assistant.chat.keyboard",
@@ -652,8 +660,9 @@ impl Plugin for Mc {
     }
 
     /// Drops the node that mc holds the keyboard with when the core does
-    /// not focus it: the core sends no event for the focus of a node
-    /// (backlog rw-3), so the answer of `state.get` depends on this call.
+    /// not focus it: `focus.node` names the node that another client
+    /// takes (heard, `Focus::away`), but not that the node of mc lost the
+    /// keyboard to a surface, so `state.get` still asks the core.
     fn refresh(&mut self) {
         let Some(node) = self.focus.node().map(str::to_owned) else {
             return;
@@ -857,12 +866,18 @@ impl Plugin for Mc {
         }
         self.name_theme()
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
-        let theme_only = self.built && !plain && self.shape.as_ref() == Some(&self.shape_of());
+        let same_shape = self.built && !plain && self.shape.as_ref() == Some(&self.shape_of());
+        let theme_only = same_shape && self.themed != Some(self.theme_of());
+        let no_look = same_shape && !theme_only;
         self.rt.start_grabs();
         self.grab_all()
             .and_then(|()| self.rt.end_grabs())
             .and_then(|()| {
+                if no_look {
+                    return Ok(());
+                }
                 if theme_only && self.recolor()? {
+                    self.themed = Some(self.theme_of());
                     return Ok(());
                 }
                 self.build()
@@ -1662,6 +1677,22 @@ mod tests {
         assert_eq!(volume, Some(format!("{title} 40%")));
     }
 
+    /// While the chat is open its box lies over the doors, so the column
+    /// has none; the doors come back when it shuts.
+    #[test]
+    fn the_doors_leave_while_the_chat_is_open() {
+        let mut mc = crate::testing::mc("doors-chat", [1280, 800]).0;
+        mc.show("agenda", false).unwrap();
+        let doors = |mc: &super::Mc| {
+            (right_items(mc).iter())
+                .filter(|i| i.hit.as_deref().is_some_and(|h| h.starts_with("door:")))
+                .count()
+        };
+        assert_eq!(doors(&mc), 5);
+        mc.chat = crate::Chat::Open;
+        assert_eq!(doors(&mc), 0);
+    }
+
     /// A chat that cannot open says so in a critical notice of
     /// the notification server, not only in a log.
     #[test]
@@ -1829,6 +1860,15 @@ mod tests {
         assert!(!mc.agents.iter().any(|a| a.name == "voice"));
         assert!(mc.solo.is_none() && !mc.texts.contains_key("confirm"));
         assert!(mc.agents.iter().any(|a| a.name == "Atlas"));
+        let head = mc.scenes["agents"]
+            .chapter
+            .running_head
+            .clone()
+            .unwrap_or_default();
+        assert!(
+            !head.to_lowercase().contains("agent"),
+            "the head says {head:?}"
+        );
     }
 
     /// mc never claims the indicator of voice: the HUD host does.
@@ -1885,6 +1925,27 @@ mod tests {
     fn key_items(mc: &super::Mc, scene: &str) -> usize {
         let items = mc.items(scene).into_values().flat_map(|(items, _)| items);
         items.filter(|i| i.id.contains("-keys-")).count()
+    }
+
+    fn door_items(mc: &super::Mc, scene: &str) -> usize {
+        let items = mc.items(scene).into_values().flat_map(|(items, _)| items);
+        items.filter(|i| i.id.contains("-doors-")).count()
+    }
+
+    /// The doors of the column, with their hit areas, are not under the
+    /// chat panel: they go while the chat is open and come back with the
+    /// close (mc-56).
+    #[test]
+    fn the_doors_of_the_column_go_while_the_chat_is_open() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, _) = crate::testing::mc("chat-doors", [1920, 1080]);
+        let first = mc.settings.value.default_scene.clone();
+        mc.show(&first, false).unwrap();
+        assert!(door_items(&mc, &first) > 0, "the doors show");
+        mc.event(chat_event("assistant", true, "test")).unwrap();
+        assert_eq!(door_items(&mc, &first), 0, "no door under the chat");
+        mc.event(chat_event("assistant", false, "test")).unwrap();
+        assert!(door_items(&mc, &first) > 0, "the doors are back");
     }
 
     /// Another output or another client than the host changes nothing.
@@ -1953,6 +2014,23 @@ mod tests {
         assert_eq!(mc.state().unwrap()["focus"], json!({"holder": "mc"}));
         xp_takes_the_keyboard(&model);
         mc.refresh();
+        assert_eq!(mc.state().unwrap()["focus"], json!({"holder": null}));
+    }
+
+    /// rd-5: mc hears `focus.node`, so a node of another client that takes
+    /// the keyboard leaves mc no holder (one holder, I3).
+    #[test]
+    fn a_focus_node_of_another_client_leaves_mc_no_holder() {
+        use chora_kit::runtime::Plugin as _;
+        assert!(super::EVENTS.contains(&"focus.node"));
+        let (mut mc, _model) = crate::testing::mc("node-heard", [1280, 800]);
+        let command = mc.focus.to_node(Some(crate::page_id("agenda")));
+        mc.apply(vec![command]).unwrap();
+        mc.event(chora_scene::Event::FocusNode {
+            node: Some("xp-icons".into()),
+            owner: Some("xp".into()),
+        })
+        .unwrap();
         assert_eq!(mc.state().unwrap()["focus"], json!({"holder": null}));
     }
 
@@ -2490,6 +2568,23 @@ mod tests {
         assert_eq!(panel_effects(&mc, &model, "agenda"), 0, "the drop");
         mc.settings_changed().unwrap();
         assert_eq!(panel_effects(&mc, &model, "agenda"), 1, "it blurs again");
+    }
+
+    /// A change of the write time or of the write switch changes no node
+    /// that stands: new text reads them when it writes. The settings
+    /// then rebuild nothing (the 300-panel scene took 3 s for it).
+    #[test]
+    fn a_write_setting_that_changes_no_look_rebuilds_nothing() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("write-only", [1920, 1080]);
+        mc.settings_changed().unwrap();
+        let before = model.lock().unwrap().queries;
+        mc.settings.value.write.duration_ms = 300.0;
+        mc.settings_changed().unwrap();
+        mc.settings.value.write.enabled = false;
+        mc.settings_changed().unwrap();
+        assert_eq!(model.lock().unwrap().queries, before, "no build ran");
+        assert_eq!(mc.shape, Some(mc.shape_of()));
     }
 
     /// A query costs the core a walk over the scene, so a scene of 300

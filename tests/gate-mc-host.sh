@@ -130,7 +130,7 @@ run_theme() {
     grant screen.capture input.inject methods.call
     rm -f "$work/voice.in"
     mkfifo "$work/voice.in"
-    FAKE_VOICE_KEYS=1 FAKE_VOICE_ENTRIES=$work/entries.json python3 -I "$repo/tests/fake-voice.py" "$work/claims" \
+    FAKE_VOICE_KEYS=1 FAKE_VOICE_LIST="projects: demo, notes; agents: atlas (demo, working)" FAKE_VOICE_ENTRIES=$work/entries.json python3 -I "$repo/tests/fake-voice.py" "$work/claims" \
         <"$work/voice.in" >"$work/voice.log" 2>&1 &
     pids+=($!)
     exec 3>"$work/voice.in"
@@ -155,7 +155,7 @@ run_theme() {
     figure=$(node_rect hud-figure)
     case $theme in
     light) want="140 36 31" ;;
-    *) want="204 120 102" ;;
+    *) want="216 152 138" ;;
     esac
     dot_pixel() {
         ctl capture "$work/state-$theme.png" >/dev/null || fail "capture of the state"
@@ -230,13 +230,17 @@ run_theme() {
     [ "${pixel% *}" = "${background% *}" ] || fail "$theme: the card is filled $pixel, the page is $background"
     ok "$theme: the card is as wide as the column, in the fill of the page, with 88 by 32 buttons 8 apart"
 
-    hint_clear() {
-        jq -ne --argjson c "$(node_rect hud-card)" --argjson h "$(node_rect hud-chat-hint)" '$c[1] + $c[3] <= $h[1]' >/dev/null
+    card_keys() {
+        node_exists hud-chat-hint && return 1
+        ctl query id:hud-card | jq -e '.[0].meta.text | contains("Alt+Y") and contains("Typing does not answer")' >/dev/null
     }
-    hint_clear || fail "$theme: the card $(node_rect hud-card) covers the hint $(node_rect hud-chat-hint)"
+    card_in_slot() {
+        jq -ne --argjson s "$slot" --argjson c "$(node_rect hud-card)" '$c[1] >= $s[1] and $c[1] + $c[3] <= $s[1] + $s[3]' >/dev/null
+    }
+    card_keys || fail "$theme: the card does not name its keys once, or a hint of its own stands beside it"
     for _ in $(seq 55); do key a; done
-    until_ok 'hint_clear' 20 || fail "$theme: with a field of two lines the card $(node_rect hud-card) covers the hint $(node_rect hud-chat-hint)"
-    ok "$theme: the card stands above the hint, also when the field grows to two lines"
+    until_ok 'card_keys && card_in_slot' 20 || fail "$theme: with a field of two lines the card $(node_rect hud-card) leaves the box $slot or its keys"
+    ok "$theme: the card names its keys, draws no second hint, and stays in the box when the field grows to two lines"
     settle hud-card
     kb=$(kb_on)
     click_node hud-card-yes

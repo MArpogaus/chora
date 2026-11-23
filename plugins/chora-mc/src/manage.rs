@@ -470,7 +470,7 @@ mod tests {
         };
         let first = lines().unwrap();
         assert!(
-            first.starts_with("1 | Agenda\n2 | The Morning\n3 | Agents"),
+            first.starts_with("1 | Agenda\n2 | The Morning\n3 | Helpers"),
             "{first}"
         );
         mc.show(super::OVERVIEW, true).unwrap();
@@ -479,7 +479,7 @@ mod tests {
             to: 1,
         })
         .unwrap();
-        assert!(lines().unwrap().starts_with("1 | Agents\n2 | Agenda"));
+        assert!(lines().unwrap().starts_with("1 | Helpers\n2 | Agenda"));
         let panel = mc.overview_panel().unwrap();
         let [_, top, _, _] = mc.place(super::OVERVIEW, &panel).unwrap();
         let line = mc.ty("body", None).line;

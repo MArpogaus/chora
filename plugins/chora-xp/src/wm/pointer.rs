@@ -380,7 +380,7 @@ impl Wm {
         match self.give_dragged(surface, &to, Some(grab)) {
             Ok((_, commands)) => Some(commands),
             Err(err) => {
-                eprintln!("chora-xp: {surface} stays on its face: {}", err.message);
+                debug_stays_on_face(surface, &err.message);
                 if let Some(drag) = &mut self.drag {
                     drag.kept = true;
                 }
@@ -403,7 +403,7 @@ impl Wm {
             Ok((_, commands)) => return commands,
             Err(err) => err,
         };
-        eprintln!("chora-xp: {surface} stays: {}", err.message);
+        info_stays(surface, &err.message);
         let area = self.bars.first().map_or([0, 0, 1280, 770], Bar::usable);
         match self.index(surface) {
             Some(i) => self.keep_inside(&[i], area),
@@ -545,6 +545,14 @@ impl Wm {
             self.tell(change);
         }
     }
+}
+
+fn debug_stays_on_face(surface: &str, why: &str) {
+    tracing::debug!("{surface} stays on its face: {why}");
+}
+
+fn info_stays(surface: &str, why: &str) {
+    tracing::info!("{surface} stays: {why}");
 }
 
 #[cfg(test)]

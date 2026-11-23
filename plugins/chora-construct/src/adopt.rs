@@ -68,7 +68,7 @@ impl Construct {
             .conn
             .try_apply(vec![attach, update(surface, hidden)])?
         {
-            eprintln!("chora-construct: {surface}: {err}");
+            crate::log::log_warn!("chora-construct: {surface}: {err}");
         } else {
             self.hidden.push(surface.into());
         }
@@ -142,7 +142,7 @@ impl Construct {
             ]);
         }
         if let Some(err) = self.rt.conn.try_apply(commands)? {
-            eprintln!("chora-construct: {surface}: {err}");
+            crate::log::log_warn!("chora-construct: {surface}: {err}");
             return Ok(());
         }
         self.panes.push(pane);
@@ -259,7 +259,7 @@ impl Construct {
             focus::give(surface),
         ];
         if let Some(err) = self.rt.conn.try_apply(commands)? {
-            eprintln!("chora-construct: launcher {surface}: {err}");
+            crate::log::log_warn!("chora-construct: launcher {surface}: {err}");
         }
         Ok(())
     }

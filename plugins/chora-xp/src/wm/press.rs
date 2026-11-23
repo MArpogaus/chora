@@ -161,7 +161,7 @@ impl Wm {
             }
             Err(err) => {
                 if !self.looks_failed {
-                    eprintln!("chora-xp: clients.list: {err}");
+                    tracing::warn!("clients.list: {err}");
                 }
                 self.looks_failed = true;
                 Vec::new()

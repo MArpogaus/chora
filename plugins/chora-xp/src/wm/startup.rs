@@ -62,6 +62,7 @@ impl Wm {
             focused: None,
             core_focus: None,
             key_node: None,
+            arrival: super::Arrival::Settled,
             bars: Vec::new(),
             menu,
             drag: None,
@@ -140,8 +141,10 @@ impl Wm {
     /// before a restart. Only a window of the current desktop gets the
     /// focus. Without a window, on virtual outputs only, the keyboard stays
     /// where it is: the client that shows the outputs has it, and the
-    /// person did nothing here yet. The desktop then shows as not focused
-    /// and the system key stays free.
+    /// person did nothing here yet. So it does when xp joins a session
+    /// where another look holds a claim (ti-38): the person is in that
+    /// look. The desktop then shows as not focused and the system key
+    /// stays free.
     pub(super) fn adopt_all(&mut self) -> Result<(), ClientError> {
         let mut nodes: Vec<chora_scene::Node> = self
             .rt
@@ -176,7 +179,10 @@ impl Wm {
         self.opened.retain(|s| !kept.contains(s));
         self.opened.splice(0..0, kept);
         let top = self.topmost_except("");
-        let mut commands = if self.opened.is_empty() && self.cube_off() {
+        if self.opened.is_empty() && !self.cube_off() && self.another_look()? {
+            self.arrival = super::Arrival::Joined;
+        }
+        let mut commands = if self.opened.is_empty() && (self.cube_off() || self.joined()) {
             self.grab_system_key(false);
             self.desk.focus(&mut self.theme, &mut self.icons, false)
         } else {
@@ -184,6 +190,27 @@ impl Wm {
         };
         commands.extend(self.sync_tasks());
         self.apply(commands)
+    }
+
+    /// Whether xp joined beside another look and has had no keys since.
+    pub(super) fn joined(&self) -> bool {
+        self.arrival == super::Arrival::Joined
+    }
+
+    /// Whether the smallest claim at a point of the scene is one of another
+    /// look, as the core chooses a look for a press (D55).
+    pub(super) fn claim_of_another_look(&mut self, point: [f64; 2]) -> bool {
+        let Ok(groups) = self.rt.conn.query("kind:group") else {
+            return false;
+        };
+        chora_scene::claimant_at(&groups, point, |_| true).is_some_and(|owner| owner != NAME)
+    }
+
+    /// Whether a look other than xp holds a claim.
+    fn another_look(&mut self) -> Result<bool, ClientError> {
+        let groups = self.rt.conn.query("kind:group")?;
+        Ok((groups.iter())
+            .any(|n| n.props.claim.is_some() && n.owner.as_deref().is_some_and(|o| o != NAME)))
     }
 
     /// The two roots of the plugin and their groups: the desktop in the

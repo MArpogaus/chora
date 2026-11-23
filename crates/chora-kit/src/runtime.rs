@@ -105,7 +105,8 @@ pub trait Plugin {
 
     /// Called before `state.get` answers, so that a plugin brings up to
     /// date what only the core knows, such as which node has the keyboard
-    /// (the core tells no look when a node of another client takes it);
+    /// (the core tells a look that listens to `focus.node` which node of
+    /// another client takes it, and no other look);
     /// nothing by default.
     fn refresh(&mut self) {}
 
@@ -668,6 +669,7 @@ pub fn run(
     name: &str,
     mut session: impl FnMut() -> Result<(), Box<dyn std::error::Error>>,
 ) -> ExitCode {
+    crate::log::init();
     let mut failing = Duration::ZERO;
     loop {
         let start = Instant::now();
@@ -867,6 +869,10 @@ mod tests {
         let err = reload_settings(&mut plugin).unwrap_err();
         assert_eq!(err.code, RpcError::INVALID_PARAMS);
         assert_eq!(plugin.settings.value.gap, 6);
+        assert_eq!(
+            plugin.applied, 6,
+            "a file that fails to parse applies nothing"
+        );
         std::fs::write(&path, "gap: 7\n").unwrap();
         plugin.fail = Some(7);
         assert!(reload_settings(&mut plugin).is_err());

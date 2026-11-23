@@ -15,9 +15,10 @@ pids=$runtime/chora-tiling
 mkdir -p -m 700 "$pids"
 socket_gone() {
     case ${WAYLAND_DISPLAY:-} in
-    "" | /*) return 1 ;;
+    "") return 1 ;;
+    /*) [ ! -S "$WAYLAND_DISPLAY" ] ;;
+    *) [ ! -S "$runtime/$WAYLAND_DISPLAY" ] ;;
     esac
-    [ ! -S "$runtime/$WAYLAND_DISPLAY" ]
 }
 pid=""
 restart=""

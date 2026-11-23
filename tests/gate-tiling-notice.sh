@@ -7,7 +7,9 @@
 # one session bus of their own, in a home of the gate.
 # A launch whose script is missing ends with failure and chora-notify shows
 # the reason (`chora-tiling --launch power` from a copy of the binary that
-# finds no flavor folder).
+# finds no flavor folder). chora-notify shows one card at a time and the
+# card of the screenshot shows 10 s while the failure notice waits in the
+# queue (`waiting` of state.get), so the gate dismisses that card first.
 #
 # Usage: tests/gate-tiling-notice.sh   BIN: directory with the binaries
 #   SHOTS  a directory that keeps the capture tiling-screenshot-notice.png
@@ -54,6 +56,7 @@ done
 [ -z "${SHOTS:-}" ] || cp "$shot" "$SHOTS/tiling-screenshot-notice.png"
 ok "a notice of chora-notify names the file and stands at the bottom right after the screenshot"
 
+dismiss_notices
 lone=$(mktemp -d /tmp/gate-launch.XXXXXX)
 tmp_dirs+=("$lone")
 cp "$bin/chora-tiling" "$lone/"

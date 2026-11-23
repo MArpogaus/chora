@@ -144,7 +144,7 @@ pub(super) fn launch(command: &str) -> std::io::Result<(Child, Tail)> {
                 Ok(0) => last.rest_at_the_end(began),
                 Ok(_) if line.ends_with('\n') => {
                     let text = line.trim_end().to_owned();
-                    eprintln!("chora-construct: cube manager: {text}");
+                    crate::log::log_info!("chora-construct: cube manager: {text}");
                     if !text.trim().is_empty() {
                         last.keep(text);
                     }
@@ -190,7 +190,7 @@ impl Construct {
         commands.extend(self.edge_nodes());
         commands.extend(host.faces([self.pose.x, self.pose.z], self.lens.ground));
         if let Some(err) = self.rt.conn.try_apply(commands)? {
-            eprintln!(
+            crate::log::log_warn!(
                 "chora-construct: the cube of {} again: {err}",
                 self.face_manager()
             );
@@ -200,6 +200,7 @@ impl Construct {
         host.since = Instant::now();
         self.cube = Some(host);
         self.core_focus = self.focused_surface()?;
+        self.covered_focus_to_nobody()?;
         self.open_modes()?;
         self.frame()
     }
