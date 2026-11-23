@@ -145,3 +145,30 @@ Findings:
 - **sl-8** (environment, noise): every core log has `sh: 0: cannot open
   /waybar/*.sh` (tag.sh, helper.sh, volume.sh): the bar config points at a
   missing directory. Not a core fault.
+
+## soak r3 2026-11-23
+
+Head `claude/soak-r3` `0e41f658` (script change; session head `1ec04694`). One core for the whole run, one session: chora-tiling on output HEADLESS-2, chora-mc with `--manage-windows` (restarted every 5th round), confined client box0. `SOAK_MIN=180 SAMPLE_S=600`, started 16:49:01 UTC, DONE 19:49:08 UTC. Rounds: 911. Each round ends every probe of the session with `end_probes` (sl-9 fix). Raw data, not in git: `/tmp/sim-long-r3/samples.csv` (per 600 s: RSS kB and fd count by pid), `/tmp/sim-long-r3/soak.run` (round log), `tests/battle/chora-soak.log` (core log).
+
+Per process, first hour (samples at t <= 3600 s) against last hour (t >= 7207 s); fit is a least-squares slope over all samples.
+
+| process | RSS first hour | RSS last hour | RSS fit per hour | fds first hour | fds last hour | fds fit per hour |
+|---|---|---|---|---|---|---|
+| chora (core) | 244.7 MB | 306.6 MB | +21.5 MB (about 7 % of the 291 MB sample mean) | 44 | 45 | +0.7 |
+| chora-tiling | 13.9 MB | 14.0 MB | +0.1 MB (0.4 %) | 5 | 5 | 0.0 |
+| chora-mc | 18.3 MB | 18.5 MB | +0.1 MB (0.5 %) | 5 | 5 | 0.0 |
+
+Core round-end RSS (after every window is closed, the r2 measure): round 1 246 MB, round 911 208 MB, mean 237 MB, max 249 MB; each 100-round block 226 to 234 MB. Core fds at the samples: 30 to 63, the 63 at 6601 s; the r2 run went 32 to 1050.
+
+- **Window count:** 0 probe windows open after `end_probes` in all 911 rounds (`soak: round N: windows open 0 after end_probes`); no "windows left after close" line.
+- **Deaths:** none. Core pid 23635 alive to DONE; no "core gone" line; no "did not come back" line for the mc restarts.
+- **Watchdog disconnects:** 0 (`-- watchdog lines: 0` at the end; grep for `watchdog|disconnect` in `tests/battle/chora-soak.log`: 0 lines).
+- **Findings in the run file:** none.
+- **Not in this run:** W10 (chora-xp) and W16 (voice), as in r2.
+
+Verdict against the bar (growth at most 5 %/h with the window count flat):
+
+- **sl-9** (r2 window and fd leak, the soak's own fault): closed. Windows are flat at 0 over 911 rounds and fds are flat (fit +0.7 per hour, 30 at the end). The r2 round-end growth (273 MB to 2.25 GB) does not recur: round-end RSS is 246 MB at round 1 and 208 MB at round 911.
+- **sl-10** (new, sampled core RSS): open. The sampled fit is +21.5 MB/h, about 7 %/h, over the bar, with the window count flat. The sampled series is a sawtooth between 212 and 496 MB, so the rise rests on the peaks at 5401, 6601, 7801 and 8401 s. The round-end series does not rise. Whether the sampled peaks grow with the round count is not decided by this run: they recur at the sample instants, which fall at different round phases. A follow-up samples RSS at a fixed phase of the round (after the window close) and keeps the round count.
+
+Chora-tiling and chora-mc are flat on both RSS and fds.
