@@ -42,12 +42,13 @@ const LINE: i32 = 13;
 /// The widest line of a label.
 const LABEL_PX: i32 = 72;
 const LABEL_WIDTH: f64 = LABEL_PX as f64;
-/// The Recycle Bin from the bottom right of the work area: its cell is 8
-/// pixels from the right edge, on the centre line of the paperclip, and
-/// 8 pixels above the paperclip, which is 116 pixels high and 8 pixels
-/// above the taskbar.
-const BIN_FROM_RIGHT: i32 = MARGIN + CELL_W;
-const BIN_FROM_BOTTOM: i32 = MARGIN + 116 + MARGIN + CELL_H;
+/// The Recycle Bin from the bottom right of the work area: its cell is
+/// 8 pixels above the taskbar, one cell left of the paperclip, whose
+/// column is at the right edge. The chat balloon and the greeting stand
+/// on the paperclip and reach down to its head, 16 pixels above the
+/// paperclip at most, so none of them covers the bin.
+const BIN_FROM_RIGHT: i32 = MARGIN + 2 * CELL_W;
+const BIN_FROM_BOTTOM: i32 = MARGIN + CELL_H;
 /// A press moves this far before it drags the icon.
 const DRAG_START: f64 = 4.0;
 const WHITE: [u8; 4] = [255, 255, 255, 255];
@@ -1014,12 +1015,12 @@ mod tests {
     #[test]
     fn icons_fill_columns_and_the_bin_sits_bottom_right() {
         let (cells, bin) = layout(9, [0, 0, 800, 570]);
-        assert_eq!(bin, [712, 350]);
+        assert_eq!(bin, [632, 474]);
         assert_eq!(cells[..2], [[8, 8], [8, 96]]);
         assert_eq!(cells[6], [88, 8]);
         let (cells, bin) = layout(5, [0, 0, 200, 260]);
-        assert_eq!(bin, [112, 40]);
-        assert_eq!(cells, [[8, 8], [8, 96], [8, 184], [88, 184], [168, 184]]);
+        assert_eq!(bin, [32, 164]);
+        assert_eq!(cells, [[8, 8], [88, 8], [168, 8], [168, 96], [168, 184]]);
     }
 
     #[test]
