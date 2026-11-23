@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-23 06:28 UTC)
+## Now (2026-11-23 06:30 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 05:56 PM 4.9 % (11-22) + 2.8 % (11-23), week about 17 % vs 33 % pace; under: 6 lanes
 session branch: 2c1748a4 (t112d green 05:55: XP-IDLE, FLK-HANG, TILING-FIX, CUBE-SETTLE, FLAKE-HINT, PIX-CAPSULE, TILING-ROUND); 66 greens. t113 running 06:00 (MC-ROUND, eprintln ratchet 65 to 47).
@@ -23,7 +23,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (closes on the flake lanes + ha
 | Lane | Model, branch | State |
 |---|---|---|
 | mc-round-r2.md (rc 3, 9, 1; 0.4 %) | sonnet low, claude/mc-round 9ed1fbc8 | MERGE-OK 8ba700f5; t113 running |
-| review-co-focus-r1.md (rc 1, 2; 0.5 %) | opus high, claude/co-focus 866382dd | r1 done (co-50, co-51 MAJOR fixed; gate 60 PASS); review starting |
+| review-co-focus-r1.md (rc 1, 2; 0.5 %) | opus high, claude/co-focus 866382dd | review session_016iS3kMtTNmHrKuDPEiA7PN 06:29 (r1 done: co-50, co-51 MAJOR fixed; gate 60 PASS) |
 | tiling-flake-r2.md (F5, rc 3; 1 %) | sonnet medium, claude/tiling-flake 8f2ed754 | session_016iS3kPRNFtfhtkZyvMaKdM 05:55 (r1 INCOMPLETE) |
 | record-v9-r3.md (F7, rc 11; 1.2 %) | sonnet medium, claude/record-v9 ec45efbb | session_016iS3kQhX8yEhfo3pGdpce4 03:53 |
 
