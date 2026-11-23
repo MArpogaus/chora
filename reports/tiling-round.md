@@ -19,3 +19,13 @@ Base 011db749..bb9fa6b3, 8 files, +30/-14. I2: gap_inner 10 -> 12 with a red uni
 - T3 closed on gate-chat-keys (ok line named).
 - T1 decision (PM, 11-23 00:10): D55 holds. A key's window belongs to the look whose claim holds the pointer or focus; the brief's rule is withdrawn. New finding T1b (MINOR, tiling): pointer on tiling's own bar (640,12) gives an xp window; the bar should count as tiling's claim. Next tiling round.
 Verdict: INCOMPLETE (gate stopped at acts, not rerun). Worker asked to rerun the full gate on bb9fa6b3; MERGE-OK on a green gate.
+
+## r1 gate
+
+Full `tests/merge-gate.sh --jobs 2` (no --only), detached, on claude/tiling-round.
+- Run on bb9fa6b3: one red cell, agent (tests/agent.sh, mine): "FAIL: timeout: xs_are 14 647". The gate had hard-coded the old inner gap 10 in three places (x 647, y 407, and the MCP description check at line 413). Not a foreign red.
+- Fix 8721b4d6 "test(tiling): agent gate expects the inner gap 12 (I2)": 647 to 648, 407 to 408. tests/agent.sh alone: exit 0, PASS; tests/test_tour.py 71 ok.
+- Rerun on 8721b4d6: all steps passed, `EXIT 0`, no foreign reds. Log: /tmp/gate3.log (run dir /tmp/merge-gate.BLqLth).
+- T1 left as is, per the PM (D55 holds). Persona T1/T3 runs were not made.
+
+Head: 8721b4d6 on claude/tiling-round.
