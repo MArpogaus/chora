@@ -16,20 +16,21 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (flake lanes, series); F7 open.
 | 6 | Review per area | r1 MERGE-OK (0 MAJOR; MC-FOCUS) |
 | 7 | deny, machete; updates | clean; 7 bumps (DEPS) |
 | 8 | Docs, CHANGELOG, known issues | DOCS-RC r1 merged (54c30d16); r2 pr-1..5 |
-| 9 | Flakes, window loss | open: sim-long r2 recheck (sl-1, sl-2, sl-3; cube-settle, mesh-churn, core-fix merged) |
+| 9 | Flakes, window loss | open: sh-33 leak (leak-r1), sim-long r2 |
 | 11 | Tour v9 | open = F7 |
 
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| flake-series-r6.md (F5, rc 3, 9; 1 %) | haiku high, claude/flake-series-r6 230ea0e5 | session_016iS3kLUGZ6nX4ntqUXGnFw 07:26; run 1 green, run 2 red keys "the Foot row of Programs started no foot" (F5 not 5/5), run 3 at 09:56 |
-| sim-long-r2.md (rc 9; 1 %) | haiku high, claude/sim-long-r2 230ea0e5 | PARTIAL 12:01: sl-3, sl-1 5/5 green; NEW sh-33 MAJOR leak; wrap-up |
+| flake-series-r6.md (F5, rc 3, 9; 1 %) | haiku high, claude/flake-series-r6 230ea0e5 | session_016iS3kLUGZ6nX4ntqUXGnFw 07:26; run 2 red keys (sh-34) |
+| sim-long-r2.md (rc 9; 1 %) | haiku high, claude/sim-long-r2 230ea0e5 | PARTIAL 12:01: sl-1, sl-3 green; sh-33 new; wrap-up |
 | tiling-disc-r1.md (rc 2; 1.5 %) | sonnet high, claude/tiling-disc 230ea0e5 | done 13:06 8df47cc8 (L1, L2, T7 red-green; foreign reds only); review-tiling-disc-r1 sonnet medium |
 | xp-readable-r1.md (F7; 1.5 %) | sonnet high, claude/xp-readable 5b34d4b1 | session_016iS3kMVx3PinxquBDuK1wo |
 | mc-tidy-r2.md (F7; 1.5 %) | sonnet medium, claude/mc-tidy 5b34d4b1 | session_016iS3kP9Js7yxNibyrZocXb; r1 12:52: mc-55, mc-57 close, keys red (sh-34) -> r2 |
 | leak-r1.md (rc 9; 2 %) | opus high, claude/leak 5b34d4b1 | session_016iS3kMw4PZJnXirCxCD1cb 12:19 |
 | p2-r7-co.md (rc 2; 0.8 %, review) | sonnet medium, claude/p2-r7-co bc153929 | session_016iS3kP1eVZ13YdLAaxeZvg 12:49 |
 | audit-f-r5.md (F1-F8; 0.8 %, review) | opus high, claude/audit-f-r5 bc153929 | session_016iS3kLW1UjAiKQkZNZ2fC5 12:49 |
+| review-tiling-disc-r1.md (rc 2; 0.5 %, review) | sonnet medium, claude/review-tiling-disc 8df47cc8 | starting |
 ## Queue (% week; 5 % reserve)
 1. (rc 1, 2, 11; 1.6 %) p2-r7-co (co-48..51 verify), audit-f r5 started 12:49.
 2. (rule 8; 1 %) H-RF lane at the next free slot: red-first per finding id.
