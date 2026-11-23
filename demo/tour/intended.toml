@@ -727,3 +727,23 @@ kind = "meta"
 act = "x9b"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+
+[[change]]
+act = "t1"
+cause = "bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+kind = "pixel"
+
+[[change]]
+act = "t1b"
+cause = "bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+kind = "pixel"
+
+[[change]]
+act = "t1c"
+cause = "bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+kind = "pixel"
+
+[[change]]
+act = "t2"
+cause = "bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+kind = "pixel"
