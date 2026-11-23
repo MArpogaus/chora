@@ -57,7 +57,7 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-23T06:00:00Z",
+  updated: "2026-11-23T07:26:00Z",
   start: "2026-11-21T04:00:00Z",   // budget reset (owner)
   end: "2026-11-28T03:59:00Z",     // next reset; F5, F7 carried over
   budget: 17,                       // % of the new week used (reset 04:00)
@@ -67,14 +67,14 @@ const S = {
     ["F3", "Window-manager core, first slices", "done", "met by audit r2: wm parts and records D107-D116"],
     ["F4", "No file over 1,500 lines", "done", "met by audit r4 (14:23): 0 files over; every lint and debt count below the RC value (debt 25 of 47); the lint ratchet (train 90) freezes the counts"],
     ["F5", "No flaky tests, coverage over 80 %", "risk", "reopened 22 Nov after review: coverage 91.76 % holds, but one construct test went red twice since the five-green series; it is met again when that flake is fixed and a second independent five-gate series is green"],
-    ["F6", "Every change through the merge gate", "done", "66 green merges, all reviewed; train 112 (seven branches) green 05:55 UTC (12:55 Bangkok); train 113 runs"],
+    ["F6", "Every change through the merge gate", "done", "67 green merges, all reviewed; train 113 (mc round, tighter lint ratchet) green 07:24 UTC (14:24 Bangkok)"],
     ["F7", "No visual regression vs tour v8", "behind", "tour v9 retake reviewed 03:05 UTC: the comparison is now fair (clock and launcher pinned), but 109 of 110 acts still differ from v8, mostly text under 12 px and gaps flagged by the design checks; next round names each failing element, then one fix lane per look"],
     ["F8", "Docs and decision records", "done", "merged 18:30 (train 68), reviewed; doc fixes merged (train 72)"]
   ],
   now: [
-    "Train 112 merged green at 05:55 UTC (12:55 Bangkok): xp idle, the tiling fix and round, cube settle, the flake hint, the construct capsule capture and the watchdog hang fix. Train 113 runs now with the mc round and a tighter lint ratchet.",
-    "Running: construct focus fixes (four findings of user round 6), the tour v9 round 3 (fixes in the tour tools, then the regression list per element), and a second tiling flake round (border, motion and one door check).",
-    "Spending is under pace (about 17 % of the week at 05:56 UTC, 12:56 Bangkok; the line is at 30 %). After train 113 the haiku five-gate series starts and free lanes are filled."
+    "Train 113 merged green at 07:24 UTC (14:24 Bangkok): the mc round and a tighter lint ratchet (eprintln 65 to 47).",
+    "Running: the second five-gate flake series on the new head (F5), construct focus round 2 (the review found keys could still reach a face out of sight), the tour v9 round 3 and the second tiling flake round.",
+    "Spending is under pace (about 17 % of the week; the line is at 32 %). Free lanes are filled as rounds hand back."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
 };
