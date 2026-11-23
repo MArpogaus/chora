@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-23 03:12 UTC)
+## Now (2026-11-23 03:45 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 03:01 PM 4.9 % (Bangkok 11-22) + 2.2 % (11-23), week about 16 % vs 32 % pace; under: 6 lanes
 session branch: 86e619f3 (t111 green 03:00); 65 greens. t112 red 03:10 (mc-round vs a3037cb2); t112b 03:12 without mc-round, with record-v9 (cc3780eb).
@@ -10,7 +10,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (closes on the flake lanes + ha
 | # | Criterion | State |
 |---|---|---|
 | 1, 1b | No BLOCK/MAJOR, independent pass; owner sees v9 | open: RECORD-V9 (ti-38 next train) |
-| 2 | Persona round 4 | xp, mc meet; co T1 T2, tiling I2 T1 T3 open |
+| 2 | Persona round 4 | xp, mc meet; co r6 not met (co-48..51), tiling I2 T1 T3 open |
 | 3 | 3 greens, no flake | series r5 5/5 on 3b14c825; open: FLAKE-WAIT, FLAKE-K1, FLK-K1b, PIX-CAPSULE, TILING-LAYOUT |
 | 4, 5 | CI green on a PR; packaging | pre-commit green; CI PR at release |
 | 6 | Review per area | r1 MERGE-OK (0 MAJOR; MC-FOCUS) |
@@ -27,7 +27,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (closes on the flake lanes + ha
 | mc-round-r2.md (rc 3, 9, 1; 0.4 %) | sonnet low, claude/mc-round 9ed1fbc8 | session_016iS3kQ7xHyiK3NbSiTGxak 03:12 |
 | tiling-fix-r1.md (rc 3, 1; 1 %) | sonnet medium, claude/tiling-fix 011db749 | MERGE-OK; t112b |
 | tiling-round-r1.md (rc 2, 1; 1 %) | sonnet medium, claude/tiling-round 011db749 | MERGE-OK 8721b4d6; t112b |
-| p2-r6-co.md (rc 2; 0.8 %) | sonnet medium + haiku, claude/p2-r6-co 86e619f3 | session_016iS3kQN47ALoCg1MBCjCUz 03:04 |
+| co-focus-r1.md (rc 1, 2; 2 %) | opus high, claude/co-focus 86e619f3 | starting 03:50 (co-48..51 from p2-r6-co r6: not met) |
 | tiling-flake-r1.md (F5, rc 3, 1; 0.8 %) | sonnet medium, claude/tiling-flake 8721b4d6 | session_016iS3kPS7AZ63LG2obX116Q 02:24 |
 | pix-capsule-r1.md (F5, rc 3; 0.6 %) | sonnet medium, claude/pix-capsule e905195e | MERGE-OK 05828b32; t112b |
 | flk-hang-r1.md (F5, rc 3; 0.3 %) | sonnet low, claude/flk-hang 6b01c976 | MERGE-OK 022fa50c; t112b |
