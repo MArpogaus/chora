@@ -145,7 +145,7 @@ def run(ctx):
     exec /usr/bin/foot --app-id=$k --title=$k $colors -o 'font=DejaVu Sans Mono:size=9' -e sh -c "python3 -I {CONTENT} $k $args; exec sleep infinity"
     """)
     os.chmod(f"{stub}/foot", 0o755)
-    env = L.start([f"{BIN}/chora-tiling"], flavor="tiling",
+    env = L.start(tiling_argv(f"{BIN}/chora-tiling"), flavor="tiling",
       extra_config={"chora-tiling.yaml": "effects: [wobbly]\n"},
       companions=[["swaybg", "--color", "#2e3440"], ["dbus-run-session", "--", "sh", f"{REPO}/flavors/tiling/waybar/waybar.sh", f"{REPO}/flavors/tiling/waybar"], [f"{BIN}/chora-assistant"], [f"{BIN}/chora-notify"]])
     S = Session(env, L.pids, BIN)

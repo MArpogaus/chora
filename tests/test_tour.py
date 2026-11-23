@@ -947,6 +947,34 @@ class ChaptersB(unittest.TestCase):
         self.assertIn('f"{BIN}/chora-notify", "--assets", f"{REPO}/plugins/chora-mc/notify"', text)
         self.assertIn('notify_config(position="bottom_left")', text)
 
+class TilingArgv(unittest.TestCase):
+    """RV9-2/3: chora-tiling starts its own bar and wallpaper (ccf7ebab) unless it gets `--no-companions`,
+    and the tiling chapter starts waybar itself: two bars on one output, tiles 40 px lower and a bar
+    without its modules. A build that does not know the flag (733967aa) must not get it."""
+
+    def binary(self, tmp, knows):
+        path = pathlib.Path(tmp, "chora-tiling")
+        path.write_text("#!/bin/sh\n" + ('echo "      --no-companions    Starts no panel"\n' if knows else 'echo "      --output <NAME>"\n'))
+        path.chmod(0o755)
+        return str(path)
+
+    def test_a_build_with_companions_gets_no_companions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            binary = self.binary(tmp, True)
+            self.assertEqual(launch.tiling_argv(binary, "--output", "A"), [binary, "--no-companions", "--output", "A"])
+
+    def test_a_build_without_the_flag_gets_none(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            binary = self.binary(tmp, False)
+            self.assertEqual(launch.tiling_argv(binary), [binary])
+
+    def test_the_chapters_start_tiling_by_tiling_argv(self):
+        for chapter in ("tiling", "handover"):
+            text = (ROOT / "demo" / "tour" / "chapters" / f"{chapter}.py").read_text()
+            self.assertIn("tiling_argv(", text, chapter)
+            self.assertNotIn('[f"{BIN}/chora-tiling"', text, chapter)
+
+
 class LauncherEnv(unittest.TestCase):
     """TOUR-LAUNCH: the launchers of the xp start menu (xp-item-N) come from PATH and XDG_DATA_DIRS;
     both runs of a comparison must get one fixed environment, not the one of the shell that ran them."""

@@ -43,6 +43,15 @@ def notify_config(position="bottom_right"):
     return f"position: {position}\nshortest: {NOTICE_SECONDS}\nlongest: {NOTICE_SECONDS}\n"
 
 
+def tiling_argv(binary, *args):
+    """The command of chora-tiling. A build that knows `--no-companions` (ccf7ebab: chora-tiling starts
+    its own bar and wallpaper) gets it, because a chapter starts the companions itself: two bars on one
+    output put the tiles 40 px lower and left the second bar without its modules. A build that does not
+    know it (733967aa) is started as it is."""
+    help_text = subprocess.run([binary, "--help"], capture_output=True, text=True).stdout
+    return [binary, *(["--no-companions"] if "--no-companions" in help_text else []), *args]
+
+
 def wpctl_stub(directory):
     path = os.path.join(directory, "wpctl")
     state = os.path.join(directory, "wpctl.state")
