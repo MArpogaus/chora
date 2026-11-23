@@ -700,6 +700,12 @@ impl Session {
         self.keyboard
     }
 
+    /// The changes of the keyboard of the field since the last call, in
+    /// their order: the host tells each one with `assistant.chat.keyboard`.
+    pub fn take_keyboard_edges(&mut self) -> Vec<bool> {
+        vec![self.keyboard]
+    }
+
     /// Shows the chat with `name`, or the list without one. `token` is the
     /// activation token of the act, if the caller has one. A voice that
     /// does not answer shows the view with the line that says so. A show
@@ -1507,6 +1513,28 @@ mod tests {
         switcher.hold_field(session.keyboard(), start);
         assert!(switcher.due().is_some());
         assert_eq!(calls(&log, "chat.close"), [json!({"name": "atlas"})]);
+    }
+
+    /// A click on a node of the host takes the keyboard from the field and
+    /// the refocus gives it back, so the field says `on: false` and `on:
+    /// true` between two looks of the host. Both are told, in their order:
+    /// a test that waits for the `on: true` after the click sees it (mc-58).
+    #[test]
+    fn a_loss_and_a_return_of_the_keyboard_between_two_looks_are_both_told() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session
+            .show(&mut out, Some("atlas"), None, &frame)
+            .expect("open");
+        log.borrow_mut().events.push(FieldEvent::Keyboard(true));
+        session.field_events(&mut out, &frame);
+        assert_eq!(session.take_keyboard_edges(), [true]);
+        log.borrow_mut()
+            .events
+            .extend([FieldEvent::Keyboard(false), FieldEvent::Keyboard(true)]);
+        session.field_events(&mut out, &frame);
+        assert!(session.keyboard());
+        assert_eq!(session.take_keyboard_edges(), [false, true]);
     }
 
     /// The field takes its surface away on Esc and says so. A place that
