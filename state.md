@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-23 12:41 UTC)
+## Now (2026-11-23 12:47 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 12:38 PM 4.9 % (11-22) + 3.9 % (11-23), week about 18 % vs 34 % pace
-session branch: 5b34d4b1 (t114 green 11:10: record-v9 r3); 68 greens, t115 running (tiling-flake, co-focus, record-v9 r4).
+session branch: bc153929 (t115 green 12:46: tiling-flake r2, co-focus r3, record-v9 r4); 69 greens.
 burn-down: F1-F4, F6, F8 met (audit r4); F5 open (flake lanes, series); F7 open.
 
 ## RC
@@ -23,9 +23,6 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (flake lanes, series); F7 open.
 | Lane | Model, branch | State |
 |---|---|---|
 | flake-series-r6.md (F5, rc 3, 9; 1 %) | haiku high, claude/flake-series-r6 230ea0e5 | session_016iS3kLUGZ6nX4ntqUXGnFw 07:26; run 1 green, run 2 red keys "the Foot row of Programs started no foot" (F5 not 5/5), run 3 at 09:56 |
-| co-focus-r3.md (1.5 %) | opus high, claude/co-focus 3a625261 | MERGE-OK 10:04 (rcf-8, rcf-10 MINOR); t115 |
-| tiling-flake-r2.md (F5; 1 %) | sonnet medium, claude/tiling-flake 15a5d2fc | MERGE-OK; t115 |
-| record-v9-r4.md (F7; 1.5 %) | sonnet medium, claude/record-v9 6949cddb | MERGE-OK 10:56 (rr9-1 MINOR); t115 |
 | sim-long-r2.md (rc 9; 1 %) | haiku high, claude/sim-long-r2 230ea0e5 | PARTIAL 12:01: sl-3, sl-1 5/5 green; NEW sh-33 MAJOR leak; wrap-up |
 | tiling-disc-r1.md (rc 2; 1.5 %) | sonnet high, claude/tiling-disc 230ea0e5 | session_016iS3kLr3z3YfoMNYBqXya5 10:10 |
 | xp-readable-r1.md (F7; 1.5 %) | sonnet high, claude/xp-readable 5b34d4b1 | session_016iS3kMVx3PinxquBDuK1wo |
