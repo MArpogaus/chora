@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-23 04:37 UTC)
+## Now (2026-11-23 04:48 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 04:00 PM 4.9 % (Bangkok 11-22) + 2.5 % (11-23), week about 16 % vs 33 % pace; under: 6 lanes
 session branch: 86e619f3 (t111 green 03:00); 65 greens. t112b red 03:51 (record-v9 RV9-5); t112c red 04:35 doors tiling helper-door (flake ti-46); t112d same tree 04:37.
@@ -24,7 +24,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (closes on the flake lanes + ha
 |---|---|---|
 | flake-hint-r1.md (F5, rc 3) | sonnet medium, claude/flake-hint d2634fe0 | MERGE-OK; t112c |
 | cube-settle-r2.md (F5, rc 3) | sonnet medium, claude/cube-settle e905195e | MERGE-OK; t112c |
-| mc-round-r2.md (rc 3, 9, 1; 0.4 %) | sonnet low, claude/mc-round 9ed1fbc8 | session_016iS3kQ7xHyiK3NbSiTGxak 03:12 |
+| mc-round-r2.md (rc 3, 9, 1; 0.4 %) | sonnet low, claude/mc-round 9ed1fbc8 | MERGE-OK 8ba700f5; t113 |
 | tiling-fix-r1.md (rc 3, 1; 1 %) | sonnet medium, claude/tiling-fix 011db749 | MERGE-OK; t112c |
 | tiling-round-r1.md (rc 2, 1; 1 %) | sonnet medium, claude/tiling-round 011db749 | MERGE-OK 8721b4d6; t112c |
 | co-focus-r1.md (rc 1, 2; 2 %) | opus high, claude/co-focus 86e619f3 | session_016iS3kNKsq8ZXRvDqAj6z3B 03:45 |
@@ -37,7 +37,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (closes on the flake lanes + ha
 ## Queue (% week; 5 % reserve)
 3. (rc 8) DOCS-RC r2 (pr-1..5) on the Thu head.
 4. (F7, rc 11) record-v9 r3 running; then fix lanes per look.
-5. (rc 1, 3, 8, 9) t112d running: XP-IDLE, FLK-HANG, TILING-FIX, CUBE-SETTLE, FLAKE-HINT, PIX-CAPSULE, TILING-ROUND; MC-ROUND r2. Then: flk-doors (F5, ti-46) after tiling-flake; haiku series 5 (F5); eprintln ratchet: list 65 to 47, PM commit in t113.
+5. (rc 1, 3, 8, 9) t112d running: XP-IDLE, FLK-HANG, TILING-FIX, CUBE-SETTLE, FLAKE-HINT, PIX-CAPSULE, TILING-ROUND; t113: MC-ROUND r2. Then: flk-doors (F5, ti-46) after tiling-flake; haiku series 5 (F5); eprintln ratchet: list 65 to 47, PM commit in t113.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).

@@ -94,3 +94,8 @@ Verdict: MERGE-OK (0 MAJOR); joins t112.
 - red after merge: plugins/chora-mc/src/main.rs:1693 the_doors_leave_while_the_chat_is_open, left: 5 right: 0.
 - resolve: doors stay (MH-2); door_items doc says so; that test removed (MH-2's test supersedes).
 - chora-mc 195 passed, 0 failed. Gate: full merge-gate --jobs 2, 60 cells PASS, EXIT 0 (acts and mc cells green). No headless chora left.
+
+## Review r2 (PM, 2-file diff 4f64e247..8ba700f5)
+- Brief done criteria: merge and resolve commits named; red line pasted; chora-mc 195/195; full gate 60 PASS EXIT 0. Gap: gate-mc-column 5/5 light and dark not reported (the full gate ran it once green); not a MAJOR.
+- The removed test asserted the I6 rule the PM decision overrides (MH-2 holds); door_items doc matches the code.
+- Verdict (computed): 0 MAJOR, MERGE-OK 8ba700f5; joins t113.
