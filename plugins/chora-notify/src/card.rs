@@ -88,7 +88,10 @@ impl Default for Values {
         Self {
             font: chora_draw::text::SANS_SERIF.into(),
             margin: [16, 16],
-            card: Style::default(),
+            card: Style {
+                size: Some(14),
+                ..Style::default()
+            },
         }
     }
 }
@@ -654,6 +657,25 @@ mod tests {
         assert_eq!(card.size, [420, 8 + 28 + 5 + 28 + 10]);
         assert_eq!(card.title[3], 28);
         assert_eq!(Metrics::of(Some(11)).line, 17);
+    }
+
+    /// The default card, with the assets of the plugin or without any,
+    /// draws the title and the body at 14 pixels or more (guide I6), and
+    /// its height follows the line of that size.
+    #[test]
+    fn the_default_card_draws_its_text_at_14_pixels_or_more() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets");
+        let from_assets: Values = chora_draw::assets::values(&dir).unwrap();
+        for values in [from_assets, Values::default()] {
+            let size = bounded(values.card.size).0;
+            assert!(
+                size.is_some_and(|s| s >= 14),
+                "the default card text is {size:?}, guide wants 14 px"
+            );
+            let metrics = Metrics::of(size);
+            let card = layout(false, 40.0, &[100.0], (metrics, true));
+            assert_eq!(card.size[1], TOP + metrics.line + GAP + metrics.line + 10);
+        }
     }
 
     #[test]
