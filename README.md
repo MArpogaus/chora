@@ -125,7 +125,7 @@ window manager:
 | Super+space, Super+r | start a launcher (fuzzel) |
 | Super+a | chat with a helper |
 | Super+Shift+c | close the focused window |
-| Super+j, Super+k | focus the next or previous window |
+| Super+j, Super+k, Alt+Tab | move the focus to the next or previous window (Alt+Tab: next) |
 | Super+1 to Super+9 | show a tag |
 | Super+Shift+1 to Super+Shift+9 | move the focused window to a tag |
 | Super+Shift+space | switch to the next layout |

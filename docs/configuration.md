@@ -287,9 +287,10 @@ its rows and 24 px more, centred on the current output, with the heading "Keys",
 "Super+F1 shows this list again. Esc closes it.", a line **Mouse** with the
 basics of the pointer (the Apps button starts a program, a click on a tag shows it,
 `Super+drag` moves a window, the power icon locks or ends the session) and the rows of every
-binding of the file in the groups Windows, Layouts, Tags, Programs and
-System: the keys on a keycap in JetBrains Mono, then the words of the
-action in Inter ("Next window"; the actions that every look has are named as in the other looks, `run` shows its command unless a label names it). Each group is
+binding of the file in the groups Windows (the first row is Move focus:
+`Super+J`, `Super+K` and `Alt+Tab`), Other looks (the give keys), Layouts, Tags,
+Programs and System: the keys on a keycap in JetBrains Mono, then the words of the
+action in Inter ("Move focus"; the actions that every look has are named as in the other looks, `run` shows its command unless a label names it). Each group is
 whole in one of two columns, and the columns are as even as they can be.
 The rows of a group go in the order of a person, not of the keys, rows
 are 24 px apart with caps of 20 px, or 22 px with caps of 18 px, or 20 px
@@ -366,7 +367,7 @@ later `settings.set` or `settings.reload` leaves it as it is.
 | `view_tag` | `tag`: a tag number | `MOD+1` to `MOD+9` |
 | `move_to_tag` | `surface`, `tag` | `MOD+Shift+1` to `MOD+Shift+9`, for this window |
 | `focus` | `surface` | a click: focuses and raises the window, and its output; a window that shows nowhere only gets the urgent mark |
-| `focus_next`, `focus_prev` | none | `MOD+j` and `MOD+k` |
+| `focus_next`, `focus_prev` | none | `MOD+j` and `MOD+k`; `focus_next` also `Alt+Tab` |
 | `swap_master` | `surface` | `MOD+Ctrl+Return`, for this window |
 | `settings.get`, `settings.set`, `settings.reload` | see [API](api.md#plugin-methods) | an edit of the file and `MOD+Ctrl+r` |
 

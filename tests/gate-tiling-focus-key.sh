@@ -56,8 +56,8 @@ labels = [t for i, t in words.items() if i.endswith("-l")]
 caps = [t for i, t in words.items() if i.endswith("-k")]
 if "Move focus" not in labels:
     sys.exit("no row \"Move focus\": %r" % labels)
-row = next(i for i, t in words.items() if t == "Move focus")[:-2]
-cap = words[row + "-k"]
+label = next(i for i, t in words.items() if t == "Move focus")
+cap = words["tiling-keys-body-%d-k" % (int(label.split("-")[-2]) - 1)]
 for key in ("Super+J", "Super+K", "Alt+Tab"):
     if key not in cap:
         sys.exit("the row Move focus has the keys %r, not %s" % (cap, key))

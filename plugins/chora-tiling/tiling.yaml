@@ -84,6 +84,9 @@ bindings:
   # Windows
   MOD+j: focus_next
   MOD+k: focus_previous
+  # Alt+Tab as in other desktops. With `modifier: Alt` this key is MOD+Tab
+  # and the line is ignored.
+  Alt+Tab: focus_next
   MOD+Tab: focus_back
   MOD+u: focus_urgent
   MOD+Shift+j: swap_next

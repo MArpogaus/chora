@@ -23,7 +23,7 @@ const BAR_CLEARANCE: f64 = 52.0;
 /// The width of the panel of the key list.
 const PANEL_WIDTH: f64 = 880.0;
 /// The height of the header, above the first row.
-const TOP: f64 = 88.0;
+const TOP: f64 = 84.0;
 /// The space below the last row.
 const BOTTOM: f64 = 24.0;
 /// The space left of the first column, and the distance of the columns.
@@ -87,6 +87,16 @@ pub fn layout_word(layout: Layout, lang: Language) -> &'static str {
     }
 }
 
+/// The groups of the key list, in the order they are shown: the windows,
+/// whose first row is the focus keys, then the give keys, which no file
+/// binds.
+const WINDOWS: usize = 0;
+const LOOKS: usize = 1;
+const LAYOUTS: usize = 2;
+const TAGS: usize = 3;
+const PROGRAMS: usize = 4;
+const SYSTEM: usize = 5;
+
 /// The group of the key list that an action belongs to.
 fn group_of(action: &Action) -> usize {
     match action {
@@ -98,19 +108,19 @@ fn group_of(action: &Action) -> usize {
             | System::Lock
             | System::Power
             | System::Screenshot,
-        ) => 3,
-        Action::System(System::Close | System::Drag) => 0,
-        Action::System(_) => 4,
+        ) => PROGRAMS,
+        Action::System(System::Close | System::Drag) => WINDOWS,
+        Action::System(_) => SYSTEM,
         Action::Look(own) => {
             let own = Action::Look(own.clone());
             if window_words(&own).is_some() {
-                0
+                WINDOWS
             } else if layout_words(&own).is_some() {
-                1
+                LAYOUTS
             } else if tag_words(&own).is_some() {
-                2
+                TAGS
             } else {
-                4
+                SYSTEM
             }
         }
     }
@@ -139,12 +149,10 @@ type Words = [&'static str; 2];
 
 fn window_words(action: &Action) -> Option<Words> {
     Some(match action {
-        Action::Look(Own::FocusNext) => ["Next window", "Nächstes Fenster"],
-        Action::Look(Own::FocusPrevious) => ["Previous window", "Voriges Fenster"],
+        Action::Look(Own::FocusNext | Own::FocusPrevious) => ["Move focus", "Fokus bewegen"],
         Action::Look(Own::FocusBack) => ["Window before", "Fenster davor"],
         Action::Look(Own::FocusUrgent) => ["Window that asks", "Fenster, das ruft"],
-        Action::Look(Own::SwapNext) => ["Move window down", "Fenster nach hinten"],
-        Action::Look(Own::SwapPrevious) => ["Move window up", "Fenster nach vorn"],
+        Action::Look(Own::SwapNext | Own::SwapPrevious) => ["Swap window", "Fenster tauschen"],
         Action::Look(Own::MoveToMaster) => ["Make window main", "Fenster zum Hauptfenster"],
         Action::Look(Own::ToggleFloating) => ["Float window", "Fenster schweben lassen"],
         Action::Look(Own::ToggleFullscreen) => ["Full screen", "Vollbild"],
@@ -205,6 +213,7 @@ fn own_words(action: &Action) -> Option<Words> {
 fn title(group: usize, de: bool) -> &'static str {
     let names = [
         ["Windows", "Fenster"],
+        ["Other looks", "Andere Fenstermanager"],
         ["Layouts", "Anordnung"],
         ["Tags", "Tags"],
         ["Programs", "Programme"],
@@ -223,18 +232,22 @@ fn number(action: &Action) -> Option<usize> {
     }
 }
 
+/// Whether an action moves the focus to another window: its key shows in
+/// the list without `MOD`, as Alt+Tab does.
+fn moves_focus(action: &Action) -> bool {
+    matches!(action, Action::Look(Own::FocusNext | Own::FocusPrevious))
+}
+
 /// A row before it is sorted: its rank, its keys and its words.
 type Entry = (usize, String, String);
 
 /// The English words of the rows in the order that the key list shows
 /// them, by group; a row that is not here follows the others, by its keys.
-const ORDER: [&str; 47] = [
-    "Next window",
-    "Previous window",
+const ORDER: [&str; 45] = [
+    "Move focus",
     "Window before",
     "Window that asks",
-    "Move window down",
-    "Move window up",
+    "Swap window",
     "Make window main",
     "Close window",
     "Float window",
@@ -340,12 +353,12 @@ pub fn rows(config: &Config, lang: Language) -> Vec<(&'static str, Vec<(String, 
         )
     };
     let resolved = (config.common.bindings.iter())
-        .filter(|(binding, action)| binding.contains("MOD") || media(action))
+        .filter(|(binding, action)| binding.contains("MOD") || media(action) || moves_focus(action))
         .map(|(binding, action)| (binding.replace("MOD", &config.modifier), action));
     let sheet = keysheet::rows(resolved, lang, |binding, action| {
         named(config, binding, action, de)
     });
-    let mut groups: Vec<Vec<Entry>> = vec![Vec::new(); 5];
+    let mut groups: Vec<Vec<Entry>> = vec![Vec::new(); SYSTEM + 1];
     let mut volume_keys: Vec<Entry> = Vec::new();
     for row in &sheet {
         let entry = entry(config, row);
@@ -364,10 +377,10 @@ pub fn rows(config: &Config, lang: Language) -> Vec<(&'static str, Vec<(String, 
         let join =
             |part: fn(&Entry) -> &str| volume_keys.iter().map(part).collect::<Vec<_>>().join(" / ");
         let row = (rank, join(|e| &e.1), join(|e| &e.2));
-        groups[4].push(row);
+        groups[SYSTEM].push(row);
     }
     let (keys, words) = keysheet::give_row(lang);
-    groups[4].push((ORDER.len(), keys, words));
+    groups[LOOKS].push((ORDER.len(), keys, words));
     groups
         .into_iter()
         .enumerate()
@@ -1098,9 +1111,8 @@ mod tests {
         assert_eq!(
             names,
             [
-                "Focus",
-                "Other looks",
                 "Windows",
+                "Other looks",
                 "Layouts",
                 "Tags",
                 "Programs",
@@ -1109,10 +1121,9 @@ mod tests {
         );
         let first = |g: usize| groups[g].1[0].1.clone();
         assert_eq!(first(0), "Move focus");
-        assert_eq!(first(2), "Move window down");
-        assert_eq!(first(3), "Next layout");
-        assert_eq!(first(4), "Show tag 1-9");
-        assert_eq!(first(5), "Open a terminal");
+        assert_eq!(first(2), "Next layout");
+        assert_eq!(first(3), "Show tag 1-9");
+        assert_eq!(first(4), "Open a terminal");
         assert_eq!(groups[0].1[1].1, "Window before");
     }
 
@@ -1127,7 +1138,7 @@ mod tests {
     }
 
     #[test]
-    fn the_give_keys_have_a_group_of_their_own_near_the_top() {
+    fn the_give_keys_have_a_group_of_their_own_next_to_the_windows() {
         let groups = groups();
         assert_eq!(groups[1].0, "Other looks");
         assert_eq!(
@@ -1138,7 +1149,6 @@ mod tests {
             )]
         );
         let de = rows(&parse::<Config>(DEFAULT).unwrap(), Language::De);
-        assert_eq!(de[0].0, "Fokus");
         assert_eq!(de[1].0, "Andere Fenstermanager");
     }
 
