@@ -112,6 +112,17 @@ The hooks run:
   hook refuses only when the base ref resolves, else (a shallow or
   single-branch clone, a first commit, a commit on the base branch
   itself) it prints a note and the merge gate checks the range
+- red first per finding id: a `fix` commit whose subject or body names
+  a finding id (`sh-33`, `mc-55`, `rtd-2`: lowercase letters, a hyphen,
+  digits, an optional letter) needs, for each id it names, a commit
+  before it on the branch (or itself) that names the same id and changes
+  a test; a test that names another id does not count. A fix that names
+  no id keeps the rule above, and `No test: <reason>` still excuses it.
+  The merge gate checks the range the same way and prints the sha and
+  the id that misses. Name in a fix only the ids it closes. A word with
+  a dot and a digit (`gate-0.8`) and the prefixes `utf`, `sha`, `base`,
+  `ipv`, `gate` and `gtk` are no ids. A fix committed before the cut
+  time in `tests/red-first.sh` keeps the any-test rule
 - no process by its name alone: a test script that uses `pkill`,
   `killall`, `pidof` or `pgrep` without a parent (`-P`), a session
   (`-s`), a process group (`-g`) or a pid file (`-F`) fails, because
