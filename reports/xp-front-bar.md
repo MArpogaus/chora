@@ -24,3 +24,16 @@ Base d588d573..40292419, 1 commit, 3 files, +56/-5.
 - desktops.rs:70 (turn), 88 (grab_cube), 192 (cube_frame) kept on bars.first(): checked. turn and grab_cube return early on cube_off(); cube_frame needs effects.turn, which only those two start. Correct: flat-only.
 - rxf-1 MAJOR (process, rules.md 8; seeded review "a fix with no red test commit before it is MAJOR"): red test and fix share 40292419. The red was shown by hand, not as a commit.
 Verdict (computed): FIX. r2 splits the commit (test, then fix) on claude/xp-front-bar-r2 from d588d573 with the same final tree; no new code.
+
+## r2
+
+- rxf-1 (process) fixed: the red test and the fix of rcf-11 are split.
+- A red: 477cc802 `test(xp): the taskbar tooltip lies in the front bar (rcf-11)`.
+  `cargo test -p chora-xp the_taskbar_tooltip_follows_the_front_face` fails:
+  `the tooltip at -262144,-261399 lies outside the bar of face 1 [-524288, -262144, 1280, 800]`.
+- B green: da8b8fa9 `fix(xp): the taskbar tooltip follows the front face (rcf-11)`.
+  The same test passes: `test result: ok. 1 passed; 0 failed`.
+- `git diff 40292419 HEAD` is empty (0 bytes); the tree equals 40292419.
+- `tests/merge-gate.sh --red-first-check --base d588d573` passes.
+- `cargo clippy -p chora-xp --all-targets -- -D warnings` is clean.
+- No full gate run: the tree equals 40292419, whose full gate was green (63 PASS).
