@@ -38,7 +38,11 @@
 # such as tests/gate-lib.sh and tests/ci-local.sh do not count (the rule
 # lives in tests/red-first.sh, which the commit-msg hook runs). Else the step
 # prints RED-FIRST MISSING with the subject and fails, unless the commit body
-# has a line `No test: <reason>`. `pre-commit` runs the hooks over all files (as CI does; ~2 min),
+# has a line `No test: <reason>`. A `fix` commit that names finding ids (a
+# word of its subject or body like sh-1, mc-55 or rtd-2) needs, for each id,
+# a commit of the range before it, or itself, that names the same id and
+# changes a test; the step prints one line with the sha and the id that
+# misses. `pre-commit` runs the hooks over all files (as CI does; ~2 min),
 # with SKIP=cargo-clippy,lychee,vale as CI does, and fails when
 # pre-commit is not installed.
 # `ci-check` also runs tools/lint-ratchet (the allow, no-reason and eprintln counts may not grow),
@@ -181,20 +185,37 @@ done
 . "$repo/tests/red-first.sh"
 
 red_first() {
-    local missing=0 seen=0 sha subject body
+    local missing=0 seen=0 sha subject body ids test_ids="" miss id
     git -C "$repo" rev-parse --verify -q "$base" >/dev/null || die "no base ref $base"
     while read -r sha; do
         [ -n "$sha" ] || continue
         subject=$(git -C "$repo" log -1 --format=%s "$sha")
-        (cd "$repo" && commit_changes_test "$sha") && seen=1
+        if (cd "$repo" && commit_changes_test "$sha"); then
+            seen=1
+            ids=$(cd "$repo" && commit_ids "$sha")
+            test_ids+="$ids"$'\n'
+            continue
+        fi
         needs_test "$subject" || continue
-        [ "$seen" = 0 ] || continue
         body=$(git -C "$repo" log -1 --format=%b "$sha")
         grep -Eq '^No test: .+' <<<"$body" && continue
+        ids=""
+        ! is_fix "$subject" || ids=$(cd "$repo" && commit_ids "$sha")
+        if [ -n "$ids" ]; then
+            miss=$(missing_ids "$ids" "$test_ids")
+            [ -n "$miss" ] || continue
+            echo "RED-FIRST MISSING: $(git -C "$repo" log -1 --format='%h %s' "$sha")"
+            for id in $miss; do
+                echo "red-first: $(git -C "$repo" log -1 --format=%h "$sha") misses a test commit before it that names $id"
+            done
+            missing=1
+            continue
+        fi
+        [ "$seen" = 0 ] || continue
         echo "RED-FIRST MISSING: $(git -C "$repo" log -1 --format='%h %s' "$sha")"
         missing=1
     done < <(git -C "$repo" rev-list --reverse --no-merges --topo-order "$base..HEAD")
-    [ "$missing" = 0 ] && echo "red-first: every fix and feat commit has a test before it or in it"
+    [ "$missing" = 0 ] && echo "red-first: every fix and feat commit has a test before it or in it (a fix that names a finding id: a test commit that names it)"
     return "$missing"
 }
 
