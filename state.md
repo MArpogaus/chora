@@ -26,7 +26,7 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 | tiling-disc-r4.md (rc 2; 0.5 %) | sonnet medium, claude/tiling-disc 7adb149c | rtd-6 MAJOR; session_016iS3kPsxASY615A4VFhFxR 21:37 |
 | soak-r4.md (rc 9; 1 %) | haiku high, claude/soak-r4 39283655 | session_016iS3kLADrjFVxyE2AdpCzk 20:23 |
 | flake-series-r7.md (rc 3; 1 %) | sonnet high, claude/flake-series-r7 1ec04694 | session_016iS3kLkxQHS3DxoJnqt8Xk 19:00 |
-| xp-front-bar-r1.md (rc 1, 2; 0.5 %) | sonnet medium, claude/xp-front-bar d588d573 | rcf-11 MINOR; starting |
+| xp-front-bar-r1.md (rc 1, 2; 0.5 %) | sonnet medium, claude/xp-front-bar d588d573 | session_016iS3kLbTtqVHFLQ8taWd8X 21:50 |
 | notify-text-r1.md (F7; 0.5 %) | sonnet medium, claude/notify-text | 60a38634 MERGE-OK (PM); train122 |
 ## Queue (% week; 5 % reserve)
 1. (rc 3, 7; 1 %) TRAIN121 running (9 branches); train119 red e2e: tiling-disc Edit settings row shifts Zebra (rtd-6), r4.
