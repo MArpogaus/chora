@@ -76,3 +76,9 @@ Findings:
 - rtd-2: tests/gate-launcher-click.sh names its test rows "Aa Alpha", "Ab Mid", "Ac Zebra", before every flavor row (Chat, Dark, Edit settings, Light, Screenshot, System); Mid is the second row in both looks (y 219 tiling, 184 construct, 800-scale). Red: fuzzel 1.11.1 ran the cell here; with the r1 rows it was the train116 line ("a click on the Mid row ... did not start mid (alpha ...: 0, the chat: 0)"). With the rename and the old y it stayed red; with the new y green 3/3 alone (4 ok each run), PASS in the gate (19 s). "Edit settings" stays in the launcher.
 - rtd-1: round.sh stop sends kill -KILL to PERSONA_SESSION_PID when session.sh --stop fails; tests/gate-persona-keep.sh gains a session that ignores TERM (the test was written with the fix in the same commit, not run red first).
 - Gate (merge-gate.sh --jobs 2, full): 56 PASS, 1 FAIL: acts (234 pass, 3 known red, 2 blocking), both in tiling "the keys key opens the key list": I5 overlap 'Start a program or run a command' / 'System' and I6 contrast 6.51:1 on 'Windows'. A keys-list fault of the tiling flavor, not of the launcher rows or round.sh; not rerun.
+
+## PM review r2
+- 11-11-23 16:47 PM (fix c9d57fb9 22 lines; PM not the builder): FIX 3b32b9b4, 0 BLOCK, 1 MAJOR, 1 MINOR.
+- rtd-3 | MAJOR | plugins/chora-tiling/src/keys.rs (r1: groups Windows, Layouts, Tags, Programs, System) | acts red in the lane gate: tiling "the keys key opens the key list" I5 overlap 'Start a program or run a command' / 'System', I6 contrast 6.51:1 on 'Windows'. Not foreign: acts PASS on 1ec04694 (train117b, 2491 s); train116 stopped before acts, so r1 never ran it. Fix: lay out and colour the key list so I5 and I6 hold; acts is the red.
+- rtd-4 | MINOR | tests/gate-persona-keep.sh | rtd-1's test came in the fix commit and was never shown red. Fix: show it red against the old round.sh (paste the line) in the r3 report.
+- rtd-2 holds: Aa/Ab/Ac rows, launcher-click 3/3 alone, PASS in the gate.
