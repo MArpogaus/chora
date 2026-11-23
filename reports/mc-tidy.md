@@ -14,3 +14,12 @@ Branch claude/mc-tidy (from 5b34d4b1), head a3a9e8ef. No product code changed: t
 Captures: none taken (SHOTS unset); cells and logs in /tmp/merge-gate.OYLH6z/.
 
 Gate: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` on a3a9e8ef: 38 PASS, 1 FAIL (`keys`: gate-construct-keys-persona.sh:88 "the Foot row of Programs started no foot", reproduced with `--only keys`), xp-fields SKIP. The diff is a test script and a unit test in mc, so keys cannot be caused by it; not bisected on 5b34d4b1. Not green: the PM decides on the keys row.
+
+Re-gate after merging bc153929 (t115) into claude/mc-tidy (2025bae0): same result, 38 PASS, `keys` FAIL (same line 88), xp-fields SKIP. The keys red is on the session head too, not from mc-tidy.
+
+## PM review r2 (2026-11-23, diff bc153929...2025bae0: 2 files, +23; PM is not the builder)
+- Red first: 5a59b7ae (sofa `door` asserts no door under hud-chat) before a3a9e8ef (waits for the settled box): ok.
+- The unit test `the_chat_ends_above_the_doors_on_a_small_output` asserts the settled 1280x720 layout: ok.
+- Open, not this branch: the 0.2 s first frame of hud-chat at the host's full area (mc-56 transient) stays open on the assistant host.
+- keys red (gate-construct-keys-persona.sh:88, Foot row) also on bc153929 in the lane container, PASS in the PM container (t115): sh-34, owned by GUARD-3. The r2 asks for the foot version and a 3x rate are missing from the report.
+- Verdict (computed): 0 MAJOR -> MERGE-OK 2025bae0; next train.

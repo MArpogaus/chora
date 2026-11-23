@@ -46,3 +46,26 @@ Reds I did not cause:
 - ti-31 is my number for the T6 note; check it against the ledger.
 - Alt+Tab is also the switcher of xp. In a tiling+xp session one key has one holder; I did not test which look gets Alt+Tab there (the gate cells handover/matrix passed).
 - The R5 persona rerun (L1, L2, T7, T6) is for the next round; T6 stays red by fuzzel.
+
+## Review r1
+
+Reviewer: cloud lane, head 8df47cc8 vs base 5b34d4b1. Step 0 green (unshallow, cargo check).
+
+Verdict: **MERGE-OK** (0 BLOCK, 0 MAJOR, 1 MINOR, 0 NIT).
+
+Checks:
+1. Red first: confirmed on each test commit. 5abd20f8 cargo FAILED (alt_tab..., focus keys first row, give group); 8158e4d8 FAILED (super_s_opens_the_settings..., edit_settings_stands_beside_the_reload_key, missing script); 45742402 python test_check FAILED (1) and cargo FAILED; 7f49752e gate-persona-keep `FAIL: stop of a session that kept nothing said ok: stopped gone`; bab7a89d `FAIL: the core of a tiling session has no CHORA_FLAVOR_DIR`. Each fix commit has its test commit as parent chain predecessor.
+2. L1: Alt+Tab is a plain binding (config.rs drops it under `modifier: Alt`, test covers); client grabs and inhibitors run before bindings in input.rs, so no stray key reaches a client; gate-tiling-focus-key.sh 3/3 green; Super+Left/Right untouched.
+3. L2: settings.sh passes the path as `$1` to `sh -c 'exec ${EDITOR:-vi} "$1"'` (no injection through the path); MOD+s Edit settings, row beside Super+Ctrl+R (tiling.yaml:186 reload); gate-tiling-settings.sh 3/3 rc=0.
+4. T7: check.py only adds a failure when no window changed owner; the lost/stray line is unchanged; no other contract touched; test_check.py 50 tests OK.
+5. Harness: gate-persona-keep.sh 3/3 green at head, no new sleep in merge-gate.sh (one `tiling-disc` row added, no known-red row); session.sh copies captures before and after the stop.
+6. cargo test -p chora-tiling: 189 passed; clippy --all-targets clean.
+
+Findings:
+- rtd-1, MINOR, tests/persona/round.sh:121, when `session.sh --stop` fails after 40 s, round.sh only prints a line and leaves the session running (brief: kill the session on failure); fix: after the failed --stop send `kill -KILL` to the PERSONA_SESSION_PID of the env file.
+
+## Train116 (PM, 11-23 14:48)
+- train116 (sim-long-r2 + tiling-disc 8df47cc8) red at launcher-click: "FAIL: tiling: a click on the Mid row of the launcher did not start mid (alpha, the first row: 0, the chat: 0)".
+- Cause: tiling-disc adds flavors/tiling/applications/chora-settings.desktop ("Edit settings"); the row lands between Alpha and Mid, so the cell's fixed Mid row (tests/gate-launcher-click.sh:123, row tiling 35 15 400 259) now holds Edit settings.
+- The lane gate could not see it: launcher-click needs fuzzel >= 1.11 and lane containers have 1.9.2 (sh-34).
+- rtd-2, MAJOR (verdict FIX): tiling-disc breaks a gate cell; fix in r2 (keep the Mid row where the cell expects it, or the cell finds the row by name), red first. tiling-disc leaves the train; train117 runs without it.
