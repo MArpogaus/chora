@@ -77,7 +77,7 @@ there=$(groups) || fail "the query of the groups"
 python3 -I - "$coming" "$there" <<'PY' || fail "a tag switch does not bring the windows in from the side"
 import sys
 a, b = ({l.split()[0]: float(l.split()[1]) for l in s.splitlines()} for s in sys.argv[1:])
-assert a and all(abs(a[k] - b[k]) > 200 for k in a), (a, b)
+assert a and all(abs(a[k] - b[k]) > 200 for k in a), f"first sample {a}, settled {b}"
 PY
 ok "a tag switch brings the windows in from the side"
 
