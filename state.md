@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-23 22:23 UTC)
+## Now (2026-11-23 23:01 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 21:33 PM 4.9 % (11-22) + 5.2 % (11-23) + 0.7 % (11-24 BKK), week about 23 % vs 39 % pace
+budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 23:01 PM 4.9 % (11-22) + 5.2 % (11-23) + 0.9 % (11-24 BKK), week about 23 % vs 40 % pace
 session branch: 1ec04694 (t117 green 16:38); 70 greens; train118 h-rf red 18:08 at leak (sh-35 flake; rerun 1 ok).
 burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING, no D); F5 8 rows (14); F7 open (24 acts unfiled).
 
