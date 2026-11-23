@@ -1314,7 +1314,7 @@ mod tests {
         let info = tiling.run("get_layout", json!({})).unwrap();
         assert_eq!(
             (info["gap_outer"].as_i64(), info["gap_inner"].as_i64()),
-            (Some(12), Some(10))
+            (Some(12), Some(12))
         );
         let info = tiling.run("set_layout", json!({"gap": 3})).unwrap();
         assert_eq!(

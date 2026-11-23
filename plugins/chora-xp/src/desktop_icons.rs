@@ -152,6 +152,21 @@ impl DesktopIcons {
         }
     }
 
+    /// How far the icons reach from the left edge of a work area: the
+    /// right edge of the last column of cells, 0 on any other area than
+    /// the one that shows the icons. New windows start right of it.
+    pub fn strip(&self, area: Rect) -> i32 {
+        if area != self.area {
+            return 0;
+        }
+        let (cells, _) = layout(self.items.len(), area);
+        cells
+            .iter()
+            .map(|c| c[0] + CELL_W - area[0])
+            .max()
+            .unwrap_or(0)
+    }
+
     /// Whether a node is a desktop icon.
     pub fn owns(node: &str) -> bool {
         node.starts_with(PREFIX)
@@ -1005,6 +1020,25 @@ mod tests {
         let (cells, bin) = layout(5, [0, 0, 200, 260]);
         assert_eq!(bin, [112, 40]);
         assert_eq!(cells, [[8, 8], [8, 96], [8, 184], [88, 184], [168, 184]]);
+    }
+
+    #[test]
+    fn the_strip_of_icons_ends_at_the_right_edge_of_the_placed_icons() {
+        let mut desk = DesktopIcons::new("foot");
+        desk.items = vec![
+            Item {
+                key: String::new(),
+                title: String::new(),
+                icon: String::new(),
+                open: Open::Computer,
+            };
+            9
+        ];
+        desk.area = [0, 0, 800, 570];
+        assert_eq!(desk.strip([0, 0, 800, 570]), 168);
+        assert_eq!(desk.strip([800, 0, 800, 570]), 0);
+        desk.items.truncate(3);
+        assert_eq!(desk.strip([0, 0, 800, 570]), 88);
     }
 
     #[test]

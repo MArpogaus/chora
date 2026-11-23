@@ -1521,9 +1521,9 @@ class GuideGaps(unittest.TestCase):
         self.assertTrue(any("gap" in b for b in breaches("I2", snap(), self.tiles(7))))
 
     def test_tiles_at_the_inner_gap_of_the_shipped_config_pass(self):
-        """ti-31: the gap of the tiling look is `look.gap_inner` of plugins/chora-tiling/tiling.yaml (10), not a grid error."""
+        """ti-31: the gap of the tiling look is `look.gap_inner` of plugins/chora-tiling/tiling.yaml (12), not a grid error."""
         inner = int(invariants.tool("tiling-audit").inner_gap())
-        self.assertEqual(inner, 10)
+        self.assertEqual(inner, 12)
         self.assertEqual(breaches("I2", snap(), self.tiles(inner)), [])
 
     def test_tiles_next_to_the_inner_gap_fail(self):

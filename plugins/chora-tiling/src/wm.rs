@@ -1307,7 +1307,7 @@ mod tests {
             "left, top, bottom"
         );
         assert_eq!(right[2], 1268, "right edge");
-        assert_eq!(right[0] - left[2], 10, "between the tiles");
+        assert_eq!(right[0] - left[2], 12, "between the tiles");
     }
 
     #[test]

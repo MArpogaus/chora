@@ -14,12 +14,23 @@
 #
 # Usage: tests/gate-construct-pixels.sh   needs target/debug (cargo build
 # --workspace), python3 with PIL. LIT_TRIES=1 turns the wait for the
-# paint off: the 2x cell must then fail.
+# paint off: the 2x cell must then fail. PIX_LOAD=1 runs 4 busy shell loops
+# per CPU for the run (a loaded host): the captures must still show the
+# settled state. PIX_LAG=N adds N seconds before each capture (the slow look
+# of a loaded host).
 # shellcheck disable=SC2016,SC2034 # cell evaluates its code later
 set -u
 repo=$(cd "$(dirname "$0")/.." && pwd)
 work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+loads=()
+trap 'kill "${loads[@]}" 2>/dev/null; rm -rf "$work"' EXIT
+if [ "${PIX_LOAD:-0}" = 1 ]; then
+    for _ in $(seq $((4 * $(nproc)))); do
+        (while :; do :; done) &
+        loads+=($!)
+    done
+fi
+export CAPTURE_LAG=${PIX_LAG:-0}
 failed=0
 cell() {
     if eval "$2"; then
@@ -75,8 +86,8 @@ cell "the pane beside the cube has its label, under its bottom edge" '[ "$(count
 face=$work/r4-stepped-into-face-2x.png
 cell "a face stepped into at 2x is not black (mean $(mean "$face"))" '[ "$(mean "$face")" -ge 40 ]'
 flown=$work/r4-stepped-into-face-1x.png
-cell "the capsule over the face stands clear of the taskbar" '[ "$(lum "$flown" 640 712)" -le 60 ] && [ "$(lum "$flown" 640 756)" -ge 100 ]'
-cell "the capsule over the face has one rim: no light line on its top edge" '[ "$(lum "$flown" 640 705)" -le $(($(lum "$flown" 640 712) + 6)) ]'
+cell "the capsule over the face stands clear of the taskbar" '[ "$(lum "$flown" 640 708)" -le 60 ] && [ "$(lum "$flown" 640 756)" -ge 100 ]'
+cell "the capsule over the face has one rim: no light line on its top edge" '[ "$(lum "$flown" 640 705)" -le $(($(lum "$flown" 640 708) + 6)) ]'
 
 [ "$failed" = 0 ] || exit 1
 echo "PASS: construct pixels"
