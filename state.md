@@ -22,9 +22,9 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| flake-series-r6.md (F5, rc 3, 9; 1 %) | haiku high, claude/flake-series-r6 230ea0e5 | session_016iS3kLUGZ6nX4ntqUXGnFw 07:26; run 2 red keys (sh-34) |
-| guard-3-r1.md (rc 7, F8, F5; 0.4 %) | sonnet medium, claude/guard-3 bc153929 | starting |
-| tiling-disc-r1.md (rc 2; 1.5 %) | sonnet high, claude/tiling-disc 230ea0e5 | done 13:06 8df47cc8 (L1, L2, T7 red-green; foreign reds only); worker archived |
+| flake-series-r6.md (F5, rc 3, 9; 1 %) | haiku high, claude/flake-series-r6 230ea0e5 | session_016iS3kLUGZ6nX4ntqUXGnFw; run 2 red keys (sh-34) |
+| guard-3-r1.md (rc 7, F8, F5; 0.4 %) | sonnet medium, claude/guard-3 bc153929 | session_016iS3kQXc6CfmWM1E25AtoY 13:21 |
+| tiling-disc-r1.md (rc 2; 1.5 %) | sonnet high, claude/tiling-disc 230ea0e5 | done 8df47cc8 (L1, L2, T7); in review |
 | xp-readable-r1.md (F7; 1.5 %) | sonnet high, claude/xp-readable 5b34d4b1 | session_016iS3kMVx3PinxquBDuK1wo |
 | mc-tidy-r2.md (F7; 1.5 %) | sonnet medium, claude/mc-tidy 5b34d4b1 | session_016iS3kP9Js7yxNibyrZocXb; r1 12:52: mc-55, mc-57 close, keys red (sh-34) -> r2 |
 | leak-r1.md (rc 9; 2 %) | opus high, claude/leak 5b34d4b1 | session_016iS3kMw4PZJnXirCxCD1cb 12:19 |
@@ -32,7 +32,7 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 | review-tiling-disc-r1.md (rc 2; 0.5 %, review) | sonnet medium, claude/review-tiling-disc 8df47cc8 | session_016iS3kLbqihVVewmLEfPwyy 13:07 |
 | h-rf-r1.md (rule 8; 1 %) | sonnet high, claude/h-rf bc153929 | session_016iS3kLtmCrsEF9Th9qFLi4 13:10 |
 ## Queue (% week; 5 % reserve)
-1. (rc 7, F8, F5; 0.4 %) GUARD-3 r1 started; sim-long-r2 84c8c5d2 PM review, then soak rerun (sl-9).
+1. (rc 7, F8, F5; 0.4 %) GUARD-3 r1 started. sim-long-r2 84c8c5d2 PM review MERGE-OK: next train; soak rerun (sl-9).
 2. (rule 8; 1 %) H-RF r1 started 13:10.
 3. (rc 8; 0.5 %) DOCS-RC r2 (pr-1..5), sonnet medium.
 4. (rc 1, 2; 1 %) rcf-8, rcf-10, co-44, co-45, ti-30, sh-31 once the look has no open MAJOR.
