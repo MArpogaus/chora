@@ -16,6 +16,7 @@ REPO = os.environ.get("TOUR_REPO", "/home/user/chora")
 BIN = f"{REPO}/target/debug"
 SCRATCH = os.environ.get("TOUR_SCRATCH", "/tmp/claude-0/tour")
 CONTENT = f"{REPO}/demo/content.py"
+SAMPLE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sample.rs")
 
 ENTRIES = [
     {"seq": 1, "role": "user", "text": "Please tidy the notes for Friday."},
@@ -27,6 +28,13 @@ ENTRIES = [
 
 NOTICE_SECONDS = 600
 
+LAUNCHER_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+LAUNCHER_DATA_DIRS = "/usr/local/share:/usr/share"
+LAUNCHER_CONFIG_DIRS = "/etc/xdg"
+"""TOUR-LAUNCH: the xp start menu lists the desktop files that PATH and XDG_DATA_DIRS reach, so a
+run that took the environment of its shell showed other launchers than another run (xp-item-3
+"UXTerm" in the replay, "Foot" in the take). Every session of the tour gets this one."""
+
 
 def notify_config(position="bottom_right"):
     """The chora-notify.yaml of every session of the tour, in one place. chora-notify expires a card
@@ -34,6 +42,15 @@ def notify_config(position="bottom_right"):
     seconds of wall time), so a card was gone before its frames were reached (tour r1 F-1, rt-2).
     This keeps it for NOTICE_SECONDS. Notify on the scene clock is the product fix (backlog)."""
     return f"position: {position}\nshortest: {NOTICE_SECONDS}\nlongest: {NOTICE_SECONDS}\n"
+
+
+def tiling_argv(binary, *args):
+    """The command of chora-tiling. A build that knows `--no-companions` (ccf7ebab: chora-tiling starts
+    its own bar and wallpaper) gets it, because a chapter starts the companions itself: two bars on one
+    output put the tiles 40 px lower and left the second bar without its modules. A build that does not
+    know it (733967aa) is started as it is."""
+    help_text = subprocess.run([binary, "--help"], capture_output=True, text=True).stdout
+    return [binary, *(["--no-companions"] if "--no-companions" in help_text else []), *args]
 
 
 def wpctl_stub(directory):
@@ -105,7 +122,9 @@ class Launcher:
 
     def base_env(self):
         env = dict(os.environ)
-        env["PATH"] = f"{self.dir}/stub:{BIN}:{self.path_without_writer(env['PATH'])}"
+        env["PATH"] = f"{self.dir}/stub:{BIN}:{self.path_without_writer(LAUNCHER_PATH)}"
+        env["XDG_DATA_DIRS"] = LAUNCHER_DATA_DIRS
+        env["XDG_CONFIG_DIRS"] = LAUNCHER_CONFIG_DIRS
         env["CHORA_TEST_ACCEPT_INJECTED_KEYS"] = "1"
         env["CHORA_FRAME_BUDGET_US"] = "500000"
         env.pop("DBUS_SESSION_BUS_ADDRESS", None)

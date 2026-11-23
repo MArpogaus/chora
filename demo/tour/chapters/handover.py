@@ -93,7 +93,7 @@ def start_multi():
     open(f"{L.dir}/xp.yaml", "w").write(xp_yaml)
     L.spawn([f"{BIN}/chora-xp", "--theme", f"{REPO}/flavors/xp/theme", "--config", f"{L.dir}/xp.yaml", "--output", out_of["xp"]], env, "xp.log")
     S.ctl("wait", "owner:xp", "--timeout", "30")
-    L.spawn([f"{BIN}/chora-tiling", "--output", out_of["tiling"]], env, "tiling.log")
+    L.spawn(tiling_argv(f"{BIN}/chora-tiling", "--output", out_of["tiling"]), env, "tiling.log")
     L.spawn([f"{BIN}/chora-mc", "--manage-windows", "--output", out_of["mc"]], env, "mc.log")
     L.spawn([f"{BIN}/chora-construct"], env, "construct.log")
     for o in ("tiling", "mc", "construct"):
