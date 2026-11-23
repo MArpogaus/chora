@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-23 13:21 UTC)
+## Now (2026-11-23 13:28 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 13:09 PM 4.9 % (11-22) + 4.2 % (11-23), week about 19 % vs 34 % pace
 session branch: bc153929 (t115 green 12:46); 69 greens.
@@ -24,16 +24,15 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 |---|---|---|
 | flake-series-r6.md (F5, rc 3, 9; 1 %) | haiku high, claude/flake-series-r6 230ea0e5 | session_016iS3kLUGZ6nX4ntqUXGnFw; run 2 red keys (sh-34) |
 | guard-3-r1.md (rc 7, F8, F5; 0.4 %) | sonnet medium, claude/guard-3 bc153929 | session_016iS3kQXc6CfmWM1E25AtoY 13:21 |
-| tiling-disc-r1.md (rc 2; 1.5 %) | sonnet high, claude/tiling-disc 230ea0e5 | done 8df47cc8 (L1, L2, T7); in review |
+| tiling-disc-r1.md (rc 2; 1.5 %) | sonnet high, claude/tiling-disc 230ea0e5 | 8df47cc8 review MERGE-OK (rtd-1 MINOR); train116 |
 | xp-readable-r1.md (F7; 1.5 %) | sonnet high, claude/xp-readable 5b34d4b1 | session_016iS3kMVx3PinxquBDuK1wo |
 | mc-tidy-r2.md (F7; 1.5 %) | sonnet medium, claude/mc-tidy 5b34d4b1 | session_016iS3kP9Js7yxNibyrZocXb; r1 12:52: mc-55, mc-57 close, keys red (sh-34) -> r2 |
 | leak-r1.md (rc 9; 2 %) | opus high, claude/leak 5b34d4b1 | session_016iS3kMw4PZJnXirCxCD1cb 12:19 |
 | p2-r7-co.md (rc 2; 0.8 %, review) | sonnet medium, claude/p2-r7-co bc153929 | session_016iS3kP1eVZ13YdLAaxeZvg 12:49 |
-| review-tiling-disc-r1.md (rc 2; 0.5 %, review) | sonnet medium, claude/review-tiling-disc 8df47cc8 | session_016iS3kLbqihVVewmLEfPwyy 13:07 |
-| h-rf-r1.md (rule 8; 1 %) | sonnet high, claude/h-rf bc153929 | session_016iS3kLtmCrsEF9Th9qFLi4 13:10 |
+| h-rf-r1.md (process, rc 3; 1 %) | sonnet high, claude/h-rf bc153929 | session_016iS3kLtmCrsEF9Th9qFLi4 13:10 |
 ## Queue (% week; 5 % reserve)
-1. (rc 7, F8, F5; 0.4 %) GUARD-3 r1 started. sim-long-r2 84c8c5d2 PM review MERGE-OK: next train; soak rerun (sl-9).
-2. (rule 8; 1 %) H-RF r1 started 13:10.
+1. (rc 7, F8, F5; 0.4 %) GUARD-3 r1 started. sim-long-r2 84c8c5d2 in train116; then soak rerun (sl-9).
+2. (process; 1 %) H-RF r1 started 13:10.
 3. (rc 8; 0.5 %) DOCS-RC r2 (pr-1..5), sonnet medium.
 4. (rc 1, 2; 1 %) rcf-8, rcf-10, co-44, co-45, ti-30, sh-31 once the look has no open MAJOR.
 5. (F5, F7; 3.5 %) SH-32 I14 after tiling-disc; TOUR-BASE (I6, rv9 = MAJOR) after xp-readable; FLAKE-SERIES r7 after leak-r1.
