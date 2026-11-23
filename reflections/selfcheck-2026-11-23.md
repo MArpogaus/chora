@@ -27,3 +27,6 @@
 
 ## Workflow change
 - Seeded review: a fix with no red test commit before it is MAJOR (procedures.md), so the verdict computes FIX.
+
+## Addendum 12:53 UTC (trigger fired after the close was done)
+- The close ran ahead of the 12:50 trigger; no second critic (same 24 h, budget). t115 green 12:46 (bc153929, 69 greens); Queue 1 started 12:49: p2-r7-co (sonnet medium), audit-f r5 (opus high). Frictions: none open.

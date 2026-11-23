@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-23 12:49 UTC)
+## Now (2026-11-23 12:52 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 12:38 PM 4.9 % (11-22) + 3.9 % (11-23), week about 18 % vs 34 % pace
 session branch: bc153929 (t115 green 12:46: tiling-flake r2, co-focus r3, record-v9 r4); 69 greens.
