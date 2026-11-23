@@ -29,3 +29,10 @@ Full `tests/merge-gate.sh --jobs 2` (no --only), detached, on claude/tiling-roun
 - T1 left as is, per the PM (D55 holds). Persona T1/T3 runs were not made.
 
 Head: 8721b4d6 on claude/tiling-round.
+
+## Review r1 (PM; 54 lines, 011db749..8721b4d6)
+
+- I2: red d85828ff (config test expects 12, 12) before green 573496e5; default, tiling.yaml, docs/configuration.md, wm.rs, main.rs, gate-tiling-gaps.sh, test_acts.py and agent.sh (648/408) agree on 12. Consistent, no stray 10 found in the diff.
+- TF-1: red 90b13505 before green badaecd2 (the selftest names its skip reason).
+- T3 closed; T1 held by D55 (T1b in backlog); gate EXIT 0 on 8721b4d6.
+- Findings: none. Verdict MERGE-OK 8721b4d6.
