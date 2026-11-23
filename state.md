@@ -27,7 +27,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (closes on the flake lanes + ha
 | mc-round-r2.md (rc 3, 9, 1; 0.4 %) | sonnet low, claude/mc-round 9ed1fbc8 | session_016iS3kQ7xHyiK3NbSiTGxak 03:12 |
 | tiling-fix-r1.md (rc 3, 1; 1 %) | sonnet medium, claude/tiling-fix 011db749 | MERGE-OK; t112b |
 | tiling-round-r1.md (rc 2, 1; 1 %) | sonnet medium, claude/tiling-round 011db749 | MERGE-OK 8721b4d6; t112b |
-| co-focus-r1.md (rc 1, 2; 2 %) | opus high, claude/co-focus 86e619f3 | starting 03:50 (co-48..51 from p2-r6-co r6: not met) |
+| co-focus-r1.md (rc 1, 2; 2 %) | opus high, claude/co-focus 86e619f3 | session_016iS3kNKsq8ZXRvDqAj6z3B 03:45 (co-48..51; p2-r6-co r6 not met) |
 | tiling-flake-r1.md (F5, rc 3, 1; 0.8 %) | sonnet medium, claude/tiling-flake 8721b4d6 | session_016iS3kPS7AZ63LG2obX116Q 02:24 |
 | pix-capsule-r1.md (F5, rc 3; 0.6 %) | sonnet medium, claude/pix-capsule e905195e | MERGE-OK 05828b32; t112b |
 | flk-hang-r1.md (F5, rc 3; 0.3 %) | sonnet low, claude/flk-hang 6b01c976 | MERGE-OK 022fa50c; t112b |
