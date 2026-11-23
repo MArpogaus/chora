@@ -296,6 +296,12 @@ pub struct Wm {
     core_focus: Option<String>,
     /// The owner of the node with the keyboard, as `focus.node` told.
     key_node: Option<String>,
+    /// The focused window that the core stopped focusing without another
+    /// window taking the keys, as before the window closes: when it closes,
+    /// the next window gets the keys as if xp had still held them (co-51).
+    dropped: Option<String>,
+    /// The face at the front of the cube of the host, as its event told.
+    front: usize,
     /// Whether xp joined beside another look and has had no keys since.
     arrival: Arrival,
     bars: Vec<Bar>,

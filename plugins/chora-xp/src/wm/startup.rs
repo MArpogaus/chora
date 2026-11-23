@@ -60,6 +60,8 @@ impl Wm {
             windows: Vec::new(),
             opened: Vec::new(),
             focused: None,
+            dropped: None,
+            front: 0,
             core_focus: None,
             key_node: None,
             arrival: super::Arrival::Settled,

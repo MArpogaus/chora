@@ -263,7 +263,7 @@ cube|BIN=$repo/target/debug tests/gate-construct-cube.sh
 pull|BIN=$repo/target/debug tests/gate-construct-pull.sh
 placed|BIN=$repo/target/debug tests/gate-construct-placed.sh
 construct-hud|BIN=$repo/target/debug tests/gate-construct-hud.sh
-construct-extra|BIN=$repo/target/debug tests/gate-construct-k1.sh && BIN=$repo/target/debug tests/gate-construct-mcpane.sh && BIN=$repo/target/debug tests/gate-construct-nested.sh && BIN=$repo/target/debug tests/gate-construct-k2a.sh && BIN=$repo/target/debug tests/gate-construct-windows.sh && BIN=$repo/target/debug tests/gate-construct-3d.sh && BIN=$repo/target/debug tests/gate-construct-i3.sh
+construct-extra|BIN=$repo/target/debug tests/gate-construct-k1.sh && BIN=$repo/target/debug tests/gate-construct-mcpane.sh && BIN=$repo/target/debug tests/gate-construct-nested.sh && BIN=$repo/target/debug tests/gate-construct-k2a.sh && BIN=$repo/target/debug tests/gate-construct-windows.sh && BIN=$repo/target/debug tests/gate-construct-3d.sh && BIN=$repo/target/debug tests/gate-construct-i3.sh && BIN=$repo/target/debug tests/gate-construct-focus.sh
 out|BIN=$repo/target/debug tests/gate-construct-out.sh
 winit|BIN=$repo/target/debug tests/gate-virtual-winit.sh
 wm-pane|BIN=$repo/target/debug tests/gate-construct-wm-pane.sh

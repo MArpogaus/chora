@@ -22,9 +22,19 @@ window() {
     run_pid "$pid"
 }
 px() { pixel "$shot" $(($1 * scale)) $(($2 * scale)); }
+ring_rects() {
+    ctl query 'kind:shader' | jq -c '[.[] | select(.id | startswith("tb-")) | {id, r: .rects["HEADLESS-1"]}] | sort_by(.id)'
+}
 snap() {
     sleep $((2 * scale + 1))
-    ctl capture --output HEADLESS-1 "$shot" >/dev/null || fail "the capture"
+    for _ in $(seq 40); do
+        before=$(ring_rects) || { sleep 0.5; continue; }
+        ctl capture --output HEADLESS-1 "$shot" >/dev/null || fail "the capture"
+        rings=$(ring_rects) || { sleep 0.5; continue; }
+        [ "$rings" = "$before" ] && [ "$rings" != "[]" ] && return 0
+        sleep 0.5
+    done
+    fail "the windows keep moving: $before then $rings"
 }
 accented() {
     read -r r _ b _ < <(px "$1" "$2")
@@ -53,8 +63,8 @@ lined 12 400 || fail "after Super+j the old window keeps the accent at 12,400: $
 accented 646 400 || fail "after Super+j the new window has no accent at 646,400: $(px 646 400)"
 ok "after Super+j only the new window carries the accent"
 
-python3 -I - "$repo/tests" "$shot" "$scale" <<'PY' || fail "the border is broken"
-import sys
+python3 -I - "$repo/tests" "$shot" "$scale" "$rings" <<'PY' || fail "the border is broken"
+import sys, json
 sys.path.insert(0, sys.argv[1])
 import importlib.util
 spec = importlib.util.spec_from_file_location("png_pixel", sys.argv[1] + "/png-pixel.py")
@@ -64,8 +74,11 @@ k = int(sys.argv[3])
 rows = [bytes(r) for r in mod.rows(open(sys.argv[2], "rb").read())]
 def lit(x, y):
     return rows[y * k][x * k * 4:x * k * 4 + 3] != b"\0\0\0"
-broken = [(x, y) for y in range(30, 770, 4) for x in (12, 634, 645, 1267) if not lit(x, y)]
-broken += [(x, y) for x in list(range(30, 620, 4)) + list(range(660, 1250, 4)) for y in (12, 787) if not lit(x, y)]
-assert not broken, f"broken at {broken[:5]}"
+broken = []
+for ring in json.loads(sys.argv[4]):
+    x0, y0, w, h = (int(v) for v in ring["r"])
+    broken += [(x, y) for y in range(y0 + 16, y0 + h - 16, 4) for x in (x0 + 1, x0 + w - 2) if not lit(x, y)]
+    broken += [(x, y) for x in range(x0 + 16, x0 + w - 16, 4) for y in (y0 + 1, y0 + h - 2) if not lit(x, y)]
+assert not broken, f"broken at {broken[:5]}; the rings at the capture: {sys.argv[4]}"
 PY
 ok "the border is unbroken at the scale $scale"
