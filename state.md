@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-23 13:09 UTC)
+## Now (2026-11-23 13:10 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 13:09 PM 4.9 % (11-22) + 4.2 % (11-23), week about 19 % vs 34 % pace
 session branch: bc153929 (t115 green 12:46: tiling-flake r2, co-focus r3, record-v9 r4); 69 greens.
@@ -31,9 +31,10 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (flake lanes, series); F7 open.
 | p2-r7-co.md (rc 2; 0.8 %, review) | sonnet medium, claude/p2-r7-co bc153929 | session_016iS3kP1eVZ13YdLAaxeZvg 12:49 |
 | audit-f-r5.md (F1-F8; 0.8 %, review) | opus high, claude/audit-f-r5 bc153929 | session_016iS3kLW1UjAiKQkZNZ2fC5 12:49 |
 | review-tiling-disc-r1.md (rc 2; 0.5 %, review) | sonnet medium, claude/review-tiling-disc 8df47cc8 | starting |
+| h-rf-r1.md (rule 8; 1 %) | sonnet high, claude/h-rf bc153929 | starting |
 ## Queue (% week; 5 % reserve)
 1. (rc 1, 2, 11; 1.6 %) p2-r7-co (co-48..51 verify), audit-f r5 started 12:49.
-2. (rule 8; 1 %) H-RF lane at the next free slot: red-first per finding id.
+2. (rule 8; 1 %) H-RF r1 started 13:12.
 3. (rc 8; 0.5 %) DOCS-RC r2 (pr-1..5), sonnet medium.
 4. (rc 1, 2; 1 %) rcf-8, rcf-10, co-44, co-45, ti-30, sh-31 once the look has no open MAJOR.
 5. (F5, rc 3, 9; 3 %) leak-r1 (sh-33) running; F5 met at 5/5 with sh-32..34 closed. (F7) xp-readable, mc-tidy running.
