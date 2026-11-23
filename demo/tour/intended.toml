@@ -26,3 +26,704 @@ kind = "rect"
 act = "h2"
 cause = "xp-give Send To row (22fead94)"
 kind = "added"
+
+# record-v9 r2: causes found by git log between 733967aa and the head (reports/record-v9.md r2).
+[[change]]
+act = "c1"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+kind = "missing"
+
+[[change]]
+act = "c1"
+cause = "8ca85eab pager on a face turns the hosted cube"
+kind = "visible"
+
+[[change]]
+act = "c1"
+cause = "8ca85eab pager on a face turns the hosted cube"
+kind = "rect"
+
+[[change]]
+act = "c1"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+kind = "added"
+
+[[change]]
+act = "c1"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); 6a5cfc1d chora-assistant is the only voice presenter; 8ca85eab pager on a face turns the hosted cube; b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+kind = "pixel"
+
+[[change]]
+act = "c2"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+kind = "missing"
+
+[[change]]
+act = "c2"
+cause = "8ca85eab pager on a face turns the hosted cube"
+kind = "visible"
+
+[[change]]
+act = "c2"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+kind = "added"
+
+[[change]]
+act = "c2b"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+kind = "missing"
+
+[[change]]
+act = "c2b"
+cause = "8ca85eab pager on a face turns the hosted cube"
+kind = "visible"
+
+[[change]]
+act = "c2b"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+kind = "added"
+
+[[change]]
+act = "c3"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+kind = "missing"
+
+[[change]]
+act = "c3"
+cause = "8ca85eab pager on a face turns the hosted cube"
+kind = "visible"
+
+[[change]]
+act = "c3"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+kind = "added"
+
+[[change]]
+act = "c3b"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+kind = "missing"
+
+[[change]]
+act = "c3b"
+cause = "8ca85eab pager on a face turns the hosted cube"
+kind = "visible"
+
+[[change]]
+act = "c3b"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+kind = "added"
+
+[[change]]
+act = "c3c"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+kind = "missing"
+
+[[change]]
+act = "c3c"
+cause = "8ca85eab pager on a face turns the hosted cube"
+kind = "visible"
+
+[[change]]
+act = "c3c"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+kind = "added"
+
+[[change]]
+act = "c3d"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+kind = "missing"
+
+[[change]]
+act = "c3d"
+cause = "8ca85eab pager on a face turns the hosted cube"
+kind = "visible"
+
+[[change]]
+act = "c3d"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+kind = "added"
+
+[[change]]
+act = "c4"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); b8872054 one key list for all four looks (kit::keysheet)"
+kind = "added"
+
+[[change]]
+act = "c4b"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+kind = "missing"
+
+[[change]]
+act = "c4b"
+cause = "8ca85eab pager on a face turns the hosted cube"
+kind = "visible"
+
+[[change]]
+act = "c4b"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+kind = "added"
+
+[[change]]
+act = "c5"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+kind = "missing"
+
+[[change]]
+act = "c5"
+cause = "8ca85eab pager on a face turns the hosted cube"
+kind = "visible"
+
+[[change]]
+act = "c5"
+cause = "8ca85eab pager on a face turns the hosted cube"
+kind = "rect"
+
+[[change]]
+act = "c5"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+kind = "added"
+
+[[change]]
+act = "c5b"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+kind = "missing"
+
+[[change]]
+act = "c5b"
+cause = "8ca85eab pager on a face turns the hosted cube"
+kind = "visible"
+
+[[change]]
+act = "c5b"
+cause = "8ca85eab pager on a face turns the hosted cube"
+kind = "rect"
+
+[[change]]
+act = "c5b"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+kind = "added"
+
+[[change]]
+act = "c5b"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); 6a5cfc1d chora-assistant is the only voice presenter; 8ca85eab pager on a face turns the hosted cube; b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+kind = "pixel"
+
+[[change]]
+act = "c5c"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+kind = "missing"
+
+[[change]]
+act = "c5c"
+cause = "8ca85eab pager on a face turns the hosted cube"
+kind = "visible"
+
+[[change]]
+act = "c5c"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+kind = "added"
+
+[[change]]
+act = "c5d"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+kind = "missing"
+
+[[change]]
+act = "c5d"
+cause = "8ca85eab pager on a face turns the hosted cube"
+kind = "visible"
+
+[[change]]
+act = "c5d"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+kind = "added"
+
+[[change]]
+act = "c5e"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+kind = "added"
+
+[[change]]
+act = "h1"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "h1b"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "h1c"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "h1d"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "m1"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none"
+kind = "missing"
+
+[[change]]
+act = "m10"
+cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6); 675ebd55 chora-notify shows the notices, mc stacks none; b8872054 one key list for all four looks (kit::keysheet); 6fa86c16 key hit and text"
+kind = "missing"
+
+[[change]]
+act = "m10"
+cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6)"
+kind = "added"
+
+[[change]]
+act = "m1b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none"
+kind = "missing"
+
+[[change]]
+act = "m1c"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none"
+kind = "missing"
+
+[[change]]
+act = "m2"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none"
+kind = "missing"
+
+[[change]]
+act = "m2b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none"
+kind = "missing"
+
+[[change]]
+act = "m3"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none"
+kind = "missing"
+
+[[change]]
+act = "m4"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none"
+kind = "missing"
+
+[[change]]
+act = "m4b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none"
+kind = "missing"
+
+[[change]]
+act = "m4c"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none"
+kind = "missing"
+
+[[change]]
+act = "m5"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none"
+kind = "missing"
+
+[[change]]
+act = "m5b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none"
+kind = "missing"
+
+[[change]]
+act = "m6"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none; b8872054 one key list for all four looks (kit::keysheet); 6fa86c16 key hit and text"
+kind = "missing"
+
+[[change]]
+act = "m6"
+cause = "b8872054 one key list for all four looks (kit::keysheet); 6fa86c16 key hit and text"
+kind = "added"
+
+[[change]]
+act = "m6b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none; b8872054 one key list for all four looks (kit::keysheet); 6fa86c16 key hit and text"
+kind = "missing"
+
+[[change]]
+act = "m6b"
+cause = "b8872054 one key list for all four looks (kit::keysheet); 6fa86c16 key hit and text"
+kind = "added"
+
+[[change]]
+act = "m7"
+cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6); b8872054 one key list for all four looks (kit::keysheet); 6fa86c16 key hit and text"
+kind = "rect"
+
+[[change]]
+act = "m7"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none"
+kind = "missing"
+
+[[change]]
+act = "m7"
+cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6); 675ebd55 chora-notify shows the notices, mc stacks none; b8872054 one key list for all four looks (kit::keysheet); 6fa86c16 key hit and text"
+kind = "pixel"
+
+[[change]]
+act = "m7b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none"
+kind = "missing"
+
+[[change]]
+act = "m7c"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none"
+kind = "missing"
+
+[[change]]
+act = "m8"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none"
+kind = "missing"
+
+[[change]]
+act = "m8b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none"
+kind = "missing"
+
+[[change]]
+act = "m9"
+cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6); 675ebd55 chora-notify shows the notices, mc stacks none; b8872054 one key list for all four looks (kit::keysheet); 6fa86c16 key hit and text"
+kind = "missing"
+
+[[change]]
+act = "m9b"
+cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6); 675ebd55 chora-notify shows the notices, mc stacks none; b8872054 one key list for all four looks (kit::keysheet); 6fa86c16 key hit and text"
+kind = "missing"
+
+[[change]]
+act = "m9b"
+cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6)"
+kind = "added"
+
+[[change]]
+act = "x1"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x1"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x10"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x10"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x10b"
+cause = "29281054 DB8 raw entries left out of the fill; b8872054 one key list for all four looks (xp Help reads the kit table); c64752fa"
+kind = "meta"
+
+[[change]]
+act = "x10c"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x10c"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x11"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x11"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x11"
+cause = "29281054 DB8 raw entries left out of the fill; 371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "pixel"
+
+[[change]]
+act = "x11b"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x11b"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x12"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x12"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x12b"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x12b"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x12c"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x12c"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x2"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x2"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x2b"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x2b"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x2c"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x2c"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x3"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x3"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x3"
+cause = "29281054 DB8 raw entries left out of the fill; 371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "pixel"
+
+[[change]]
+act = "x4"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x4"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x5"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x5"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x5"
+cause = "29281054 DB8 raw entries left out of the fill; 371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "pixel"
+
+[[change]]
+act = "x5b"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x5b"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x5c"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x5c"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x5d"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x5d"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x5e"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x5e"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x5f"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x5f"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x5g"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x5g"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x6"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x6"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x6b"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x6b"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x6c"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x6c"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x6d"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x6d"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x6e"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x6e"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x6e"
+cause = "29281054 DB8 raw entries left out of the fill; 371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "pixel"
+
+[[change]]
+act = "x7"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x7"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x7b"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x7b"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x8"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x8"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x9"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x9"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "x9"
+cause = "29281054 DB8 raw entries left out of the fill; 371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "pixel"
+
+[[change]]
+act = "x9b"
+cause = "29281054 DB8 raw entries left out of the fill"
+kind = "meta"
+
+[[change]]
+act = "x9b"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
