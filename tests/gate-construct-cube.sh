@@ -48,7 +48,8 @@
 #    the probe window is not lost: a screen shows it, or a client other
 #    than the ended xp owns it.
 # 5. A window manager that never connects: the outputs go after the
-#    wait. cube.close removes a cube, and Super+C opens a cube.
+#    wait. cube.close removes a cube, and Super+C opens a cube, stood
+#    back; the next cube.open waits until the core lets the ended xp go.
 # 6. A construct that is killed (C2) leaves the xp of the cube flat on
 #    the screen with every window within 3 s. A construct that starts
 #    again reopens the cube around that xp, with the windows on its faces.
@@ -820,7 +821,7 @@ ok "Super+C opens the cube"
 call cube.close >/dev/null || fail "cube.close after the key"
 until_ok 'test -z "$(virtuals)"' || fail "cube.close after the key left $(virtuals)"
 
-call cube.open '{}' >/dev/null || fail "cube.open before the kill"
+until_ok "call cube.open '{}' >/dev/null 2>&1" || fail "cube.open before the kill: $(call cube.open '{}' 2>&1)"
 until_ok 'test "$(virtuals | wc -w)" = 4' || fail "no outputs before the kill"
 until_ok 'test "$(bars)" = 4' 80 || fail "no xp taskbars before the kill: $(bars)"
 known=" $(probe | awk '{print $1}' | tr '\n' ' ') "
@@ -858,8 +859,9 @@ call cube.open '{}' >/dev/null || fail "cube.open with a pane open"
 until_ok 'test "$(virtuals | wc -w)" = 4' || fail "no outputs with a pane open"
 call view.step_back >/dev/null || fail "view.step_back with a pane open"
 until_ok '[ "$(prop construct-cube-face-0 forward)" = False ]' 20 || fail "no step back with a pane open"
-until_ok '[ "$(prop "$pane_node" visible)" = False ]' 20 || fail "the pane stays in front of the cube stood back: visible $(prop "$pane_node" visible)"
+beside() { [ "$(prop "$pane_node" visible)" = True ] && [ "$(call state.get '{}' | jq -r '.windows[0].shown')" = true ]; }
+until_ok beside 20 || fail "the pane in front of the cube stood back does not show beside it (co-54): visible $(prop "$pane_node" visible), $(call state.get '{}' | jq -c .windows)"
 until_ok '[ "$(prop construct-label visible)" != True ] || [ "$(prop construct-label-body opacity)" = 0.0 ]' 20 || fail "the pane label shows over the cube stood back"
 until_ok '[ "$(edge construct-face-label-glass 1)" -gt 0 ]' 20 || fail "no face label with a pane open"
-ok "stood back with a pane open, the pane gives way to the cube and its label hides, the face label stays under the cube"
+ok "stood back with a pane open, the pane goes beside the cube and shows, its label hides, the face label stays under the cube"
 call view.step_in >/dev/null || fail "view.step_in with a pane open"
