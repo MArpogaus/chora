@@ -3,7 +3,7 @@
 ### Feat
 
 - **mc**: default keys changed: Super+a opens the chat (was the agenda), Super+Return goes to the terminal scene (was the drawer), Super+Home goes to the agenda (R4, 89807480)
-- **tiling**: the bar has a 1 px line hairline and radius 10, like the rest of the look (ti-21, bbb105ba)
+- **tiling**: the bar has a 1 px hairline and radius 10, like the rest of the look (ti-21, bbb105ba)
 - **tiling**: notices go through chora-notify, not mako (f4e03e75)
 - **construct**: notices go through chora-notify (0a615ccc)
 - **core**: the root groups draw by their order (D89, 72920499)
