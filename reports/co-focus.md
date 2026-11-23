@@ -141,3 +141,10 @@ Lane: cloud, claude/co-focus 8a599917, merged fresh origin/claude/autonomous-dev
 
 ### Gate
 `tests/merge-gate.sh --jobs 2` (full, detached) on 3a625261 (claude/co-focus with fresh 230ea0e5): **62 PASS, EXIT 0**, "all steps passed". `pgrep -fa 'chora --headless'` empty after.
+
+## Review r3 (PM, 2026-11-23 10:04 UTC)
+Base 230ea0e5..3a625261 (red 35fa4b8d, merge a6c0c020): own diff 3 files, +69 -9; PM review (under 200 lines, PM not the builder).
+- rcf-9 closed: `desktop_keys` (press.rs) sends `FocusNode { node: None }` while `node_away()`. Checked in core: `focus_node_command` (chora-scene scene.rs:1074) clears the focus on None only when `focused_node_owner() == Some(owner)`, so the other client keeps the keys. Red test `a_turn_that_shuts_a_menu_leaves_the_keys_of_another_client` failed on 35fa4b8d, passes on the head (worker gate 62 PASS, EXIT 0).
+- rcf-7 closed: `toggle_start` opens on `front_face()`, falls back to `bars.first()` without a host; red test `the_start_key_opens_the_menu_on_the_front_face` covers Ctrl+Escape and Super alone.
+- Open: rcf-8 MINOR (icons of face 0 after a turn); new MINOR rcf-10: the exported `StartMenu { open: true }` call (dispatch.rs:120) still uses `bars.first()` on a hosted cube (not a key path).
+Verdict (computed): no open BLOCK or MAJOR -> MERGE-OK; joins train t115 with tiling-flake 15a5d2fc.
