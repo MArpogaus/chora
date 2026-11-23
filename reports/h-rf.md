@@ -66,3 +66,30 @@ known foreign cell). The gate stops after a failed step, so pixels, mc-paths, mc
 launcher-click, voice-acp, voice-events, agent, e2e did not run. The change touches only shell scripts of the
 red-first rule and a doc line, so I did not run them with --only (cost limit).
 - 11-23 14:50 PM: item 3 decided: keep the strict rule (the red commit names the fix ids); 0483bbeb, 3a625261 are history below every future base. Seeded review: briefs/review-h-rf-r1.md.
+
+## Review r1
+
+Seeded review of `claude/h-rf` (head `fff3f1ab`, base `bc153929`), one round, rule 8 guard. `cargo check --workspace` green. No merge gate run.
+
+Verdict: **FIX** (1 MAJOR, 2 MINOR, 3 NIT; no BLOCK).
+
+### Checks
+
+1. Red first: OK. `bash tests/merge-gate-selftest.sh` at `73525d9c`: 195 ok, 10 FAIL (the per id and the hook cases; the report says 8), rc 1. At `fff3f1ab`: 206 ok, no FAIL, rc 0. `73525d9c` is an ancestor of `fff3f1ab` and holds only the selftest (+110).
+2. Rule exact (tests/red-first.sh): id regex, fix only, per id earlier non-merge test commit or a test in the fix, `No test:`, MERGE_HEAD, and the no-base, base-branch and unborn-HEAD exits all hold as specified. A false red on a valid commit: rhr-1, rhr-2. A false green: rhr-4 (rare).
+3. Gate step: same rule over the range, prints the sha and one line per id. It re-implements the verdict loop instead of calling the hook's function: rhr-3.
+4. In flight (`tests/merge-gate.sh --red-first-check --base origin/claude/autonomous-dev-session-3w-i33pg7` with the scripts of `fff3f1ab` over each branch head). Report, not findings:
+   - claude/co-reach `bc153929`, claude/docs-rc-r2 `bc153929`: empty range, pass.
+   - claude/leak `677790dc` (3 commits), claude/guard-3 `49f65382` (4 commits): pass.
+   - claude/xp-readable `2d2413f6` (8 commits): 6 fix commits fail, each a valid pair whose red `13d31263` names no id (it names only xp-9): `d78fc4bb` (xp-19, xp-39), `7f5e3f39` (xp-40), `f1693fb3` (xp-41), `54f810dc` (xp-10), `792ffae4` (xp-13, in the body), `0e9e0bd3` (xp-13). Fix on that branch: the red commit names these ids (reword `13d31263`), or `No test:` is wrong here since the red exists.
+   - Extra: over the last 290 non-merge commits of the session head the rule fails 7 fixes (the two known, `0483bbeb`, `3a625261`, plus `f5bdc61f` co-40/co-41, `ac327bc0` rw-4, `cfc805d4` co-42, `92695718` rv-6, `e22f824d` rd-5); all are history below every base.
+5. Scope: OK. Four files only: tests/red-first.sh, tests/merge-gate.sh, tests/merge-gate-selftest.sh, CONTRIBUTING.md.
+
+### Findings
+
+- rhr-1, MAJOR, tests/red-first.sh:109,115: the hook reads ids from the whole message file; `git commit -v` leaves the staged diff below the scissors line in that file (checked: the commit-msg hook receives it), so every id-shaped word of the diff (`utf-8`, `sha-256`, an id in a comment) becomes a named id and a valid fix is refused. Fix: cut the message at the `# ------------------------ >8 ------------------------` line before `grep -v '^#'`, and add a selftest case with a diff below the scissors line.
+- rhr-2, MINOR, tests/red-first.sh:41-43: the regex also matches words that are no finding id: `utf-8`, `sha-256`, `base-64`, `ipv-6`, `gate-0.8` (reads `gate-0`; real: `f666a025` body), `gtk-3.0` (reads `gtk-3`); such a fix is red until some test commit repeats the word. Fix: skip a word followed by `.` and a digit, and a short denylist (utf, sha, base, ipv, gate, gtk), or say in CONTRIBUTING.md that these words need the same word in the test commit.
+- rhr-3, MINOR, tests/merge-gate.sh:187-219: the gate step has its own loop and test-id accumulation next to the hook's `id_verdict`/`branch_test_ids`; two copies of the per-id verdict (the brief asks for one code path). Fix: one function in tests/red-first.sh taking the sha, its ids and the earlier test ids, used by the hook (HEAD) and by the gate loop.
+- rhr-4, NIT, tests/red-first.sh:42: ids glued by a hyphen or a letter run (`sh-33-sh-34`, `sh-33ab`, `sh-1-`) match nothing, so such a fix is green with no test; `sh-1.2` reads `sh-1`. Fix: split also on `-` where a digit run ends (or accept and note it in CONTRIBUTING.md).
+- rhr-5, NIT, tests/red-first.sh:115 (design note): a secondary id mentioned in the body as a side note makes the fix red (`ac327bc0`: "rw-4: the doc paragraph moves"). The rule says "names"; the PM decision 11-23 14:50 keeps it strict. No change asked; lane briefs should say "name in the fix only the ids it closes".
+- rhr-6, NIT, reports/h-rf.md "## r1": says 8 new cases are red at `73525d9c`; the selftest shows 10 FAIL lines. Fix: correct the number.
