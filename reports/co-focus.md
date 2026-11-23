@@ -62,3 +62,37 @@ Lane: cloud, read-only, claude/co-focus head 866382dd against base 86e619f3 (10 
 - rcf-4 MINOR plugins/chora-xp/src/wm/hosted.rs:142 with :64 (`find_host`) and :194 (`host_back`): `front` starts at 0 and only a turn event sets it. Two cases go stale: xp restarted by the construct's retry (plugins/chora-construct/src/cube.rs:768 keeps the front), and a host that comes back (its first event goes to `host_back`). Until the next turn, `topmost_except` (windows.rs:180) then picks a window of a hidden face after a close or a minimize; before this diff it took the topmost of any face. Fix: set `front` from `Listing.front` in `find_host` and `host_back`.
 - rcf-5 NIT plugins/chora-xp/src/wm/keys.rs:378, windows.rs:269 (`dropped`): restates the kit rule "an empty focus is no loss" (crates/chora-kit/src/wm/focus.rs:116, `Focus::moved`) in xp's own bookkeeping, not through the kit type. Not a copy (cut-check ok). Fix: note it as debt for moving xp to `kit::wm::focus::Focus` (D116).
 - rcf-6 MINOR, older than this diff, plugins/chora-xp/src/wm/hosted.rs:139: while the cube turns (`turning`), typed keys reach the focused window of the leaving face. That window still shows on the turning cube, but docs/cube-modes.md States says "turning: nothing: no face takes input", and the construct blocks no keys during a turn either. Fix: a triage item to hold the keys off during a turn, in the construct or in xp.
+
+## r2
+Lane: cloud, claude/co-focus 866382dd, merged fresh origin/claude/autonomous-dev-session-3w-i33pg7 (2c1748a4) as 8216d26e. Step 0 green: `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`. Head **8a599917**.
+
+### Commits
+- c0f0f1d3 test (red): test_check.py FaceManager +4 (`face_snap(menu_on=...)`: xp holds its Start menu, drawn on that output in `scene.boxes`), hosted.rs +4 unit tests.
+- 8a599917 fix: check.py (`shown_window_of`, `on_front_face`, `focus_with_flavor`, `verify_new_window`), hosted.rs (`host_turned`, `shut_menus_off_front`, `find_host`, `host_back`) and one more unit test (a cube event at rest keeps an open Start menu of the front face with its keys).
+
+### Red at c0f0f1d3
+- rcf-1: `FAIL: test_t1_takes_no_new_window_of_a_face_that_does_not_show ... AssertionError: [] == []`
+- rcf-2: `FAIL: test_c3_takes_no_node_of_a_face_that_does_not_show ... AssertionError: [] == []`; `FAIL: test_t3_takes_no_node_of_a_face_that_does_not_show ... AssertionError: [] == []` (test_check.py: 57 run, 3 FAIL)
+- rcf-3: `a_turn_at_rest_shuts_the_start_menu_of_a_face_out_of_sight ... FAILED: the menu stays open: [Configure { surface: "s0" ...` `left: Some("V-1")`; `a_turn_at_rest_to_a_face_without_windows_takes_the_keys_off_the_menu ... FAILED: the menu stays open: []` `left: Some("V-1")`
+- rcf-4: `xp_started_on_a_hosted_cube_reads_its_front_from_the_listing ... FAILED: the front is not the listing's left: 0` (the construct's retry: xp starts on the faces with face 1 at the front); `a_host_that_comes_back_gives_xp_its_front ... FAILED: the front is not the listing's left: 0`. Both then close the focused window of face 1 and assert no `focus::give("s0")` (s0 on face 0).
+- `cargo test -p chora-xp hosted`: 6 passed, 4 failed.
+
+### Fix (8a599917)
+- rcf-1: T1 takes a new focused window of a face manager only when that manager's state shows it (`with_children` ties shown to the front face); the look's own window as before.
+- rcf-2: `focus_with_flavor`: the look passes as before; a manager with a surface needs a shown window; a manager with no surface needs a focused node of its own that draws (itself or a node under it) on the output of the front face in `scene.boxes`. C3 and T3 both read it.
+- rcf-3: `host_turned` at rest shuts the Start menu and a context menu that are open off the front face (`close_menu`, `close_context`), then keys on a hidden window or on an own node of xp go to the topmost window of the front face, else the icons, through `Wm::focus` (`kit::wm::focus` give and release, D116). An open menu on the front face keeps its keys. The early return that left the keys on the menu when the front face had no window is gone.
+- rcf-4: `find_host` sets `front` from `Listing.front` whenever it takes a host; `host_back` sets it from its listing.
+- No sleep, no known row, no raised bar. `cargo fmt`, `cargo clippy -p chora-xp --all-targets`: clean.
+
+### Green and counts
+- `cargo test -p chora-xp hosted`: 11 passed. `cargo test -p chora-xp -p chora-construct`: 343 + 268 ok. `python3 -I tests/persona/test_check.py`: 57 OK.
+- New tests 10/10 (hosted 11/11 and test_check 57/57 each run).
+- gate-construct-focus.sh 10/10 green (`ok: a turn takes the keys from the window of a face that does not show`, `ok: the keys stay with the front face after its focused window closed`).
+- gate-construct-i3.sh 10/10 green (co-43, co-46 hold).
+
+### Gate
+`tests/merge-gate.sh --jobs 2` (full, detached) on 8a599917 (claude/co-focus with fresh 2c1748a4): **62 PASS, EXIT 0**, "all steps passed". `pgrep -fa 'chora --headless'` empty after.
+
+### New findings (not fixed, for triage)
+- rcf-7 MAJOR by the r1 bar, plugins/chora-xp/src/wm/keys.rs:216 (`toggle_start`): Ctrl+Escape or Super alone opens the Start menu on `self.bars.first()`, which on a hosted cube is face 0 (V-1), whatever face is at the front: the menu and the keys go to a face out of sight. Fix: on a hosted cube, the bar of the front face.
+- rcf-8 MINOR plugins/chora-xp/src/wm/panels.rs:622 (`refresh_icons`): the desktop icons lie only on the work area of the first bar (face 0). "Keys to the icons of the front face" (co-50, co-51, rcf-3) give the keys to icons out of sight on faces 1..3. The stricter C3 and T3 of rcf-2 now flag that in a persona run (the focused `xp-icons` draws on no box of the front face). Fix: icons per face, or move them to the front face on a turn at rest; a design call.
