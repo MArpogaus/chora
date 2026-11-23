@@ -26,11 +26,11 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (flake lanes, series); F7 open.
 | co-focus-r3.md (1.5 %) | opus high, claude/co-focus 3a625261 | MERGE-OK 10:04 (rcf-8, rcf-10 MINOR); t115 |
 | tiling-flake-r2.md (F5; 1 %) | sonnet medium, claude/tiling-flake 15a5d2fc | MERGE-OK; t115 |
 | record-v9-r4.md (F7; 1.5 %) | sonnet medium, claude/record-v9 6949cddb | MERGE-OK 10:56 (rr9-1 MINOR); t115 |
-| sim-long-r2.md (rc 9; 1 %) | haiku high, claude/sim-long-r2 230ea0e5 | PARTIAL 12:01 (context cap): sl-3, sl-1 5/5 green; NEW sh-33 (sl-9) MAJOR leak; wrap-up only |
+| sim-long-r2.md (rc 9; 1 %) | haiku high, claude/sim-long-r2 230ea0e5 | PARTIAL 12:01: sl-3, sl-1 5/5 green; NEW sh-33 MAJOR leak; wrap-up |
 | tiling-disc-r1.md (rc 2; 1.5 %) | sonnet high, claude/tiling-disc 230ea0e5 | session_016iS3kLr3z3YfoMNYBqXya5 10:10 |
 | xp-readable-r1.md (F7; 1.5 %) | sonnet high, claude/xp-readable 5b34d4b1 | session_016iS3kMVx3PinxquBDuK1wo |
 | mc-tidy-r1.md (F7; 1 %) | sonnet medium, claude/mc-tidy 5b34d4b1 | session_016iS3kP9Js7yxNibyrZocXb |
-| leak-r1.md (rc 9; 2 %) | opus high, claude/leak 5b34d4b1 | starting 12:20 |
+| leak-r1.md (rc 9; 2 %) | opus high, claude/leak 5b34d4b1 | session_016iS3kMw4PZJnXirCxCD1cb 12:19 |
 ## Queue (% week; 5 % reserve)
 3. (rc 8) DOCS-RC r2 (pr-1..5) on the Thu head.
 4. (rc 1, 2, 11) t115: co-focus r3, tiling-flake r2, record-v9 r4; then rcf-8, rcf-10 MINOR; co-44, co-45, ti-30, sh-31 once no MAJOR is open on the look (co-48..51 verify after t115).
