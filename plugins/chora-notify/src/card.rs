@@ -88,7 +88,10 @@ impl Default for Values {
         Self {
             font: chora_draw::text::SANS_SERIF.into(),
             margin: [16, 16],
-            card: Style::default(),
+            card: Style {
+                size: Some(14),
+                ..Style::default()
+            },
         }
     }
 }

@@ -45,15 +45,6 @@ match = "guide wants 14 px"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
-act = "a notice shows"
-capture = "notify-card-body"
-finding = "guide-checks r2: notify-card-body: guide wants 14 px"
-id = "I6"
-look = "construct"
-match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
 act = "the cube is held halfway through a turn"
 capture = "construct-hints-construct-mode-step-in-keys-0-text"
 evidence = "met in 4 of 5 runs of the construct acts at 05c1fc25 (loop 2 did not meet it): the dim of the keys is read mid-fade"
@@ -287,15 +278,6 @@ finding = "guide-checks r2: xp-pager-2-VIRTUAL-4: the contrast"
 id = "I6"
 look = "construct"
 match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "a notice shows"
-capture = "notify-card-body"
-finding = "guide-checks r2: notify-card-body: guide wants 14 px"
-id = "I6"
-look = "tiling"
-match = "guide wants 14 px"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
