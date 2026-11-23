@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-22 23:09 UTC)
+## Now (2026-11-23 00:09 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 22:56 PM 4.9 % (Bangkok 11-22) + 1.5 % (11-23), week about 14 % (lanes est.) vs 28 % pace; under pace: 6 lanes
-session branch: 6b01c976 (t108 green 13:01); 63 greens. Reds: t109g CUBE-SETTLE; t109h FLAKE-K1; t110 CHAT-IDLE; t110b PIX-CAPSULE. t110c red 22:32 cube.open 349 ms: load of 5 leaked compositors (HARNESS-LEAK); clean 3/3 at 40a2ba92 (122-162 ms); t110d 22:56 same head.
+budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 00:09 PM 4.9 % (Bangkok 11-22) + 1.7 % (11-23), week about 14 % (lanes est.) vs 28 % pace; under pace: 6 lanes
+session branch: 6b01c976 (t108 green 13:01); 63 greens. Reds t109g-t110b (fixed in lanes). t110c red: load of leaked compositors (HARNESS-LEAK), clean 3/3 at 40a2ba92; t110d lost to a container restart 23:16; t110e 00:07 same head.
 burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series, hint act red twice; closes on flake-hint + haiku series 5 at 2 jobs on t109 head); F7 open.
 
 ## RC
@@ -27,13 +27,13 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open again (critic 11-22: one series
 | mc-round-r1.md (rc 3, 9, 1: FLK-MC-SCALE, MH-2, MC-HEAD, MH-1; 1 %) | sonnet medium, claude/mc-round 42585079 | session_016iS3kPDDmVwVQ6Mocgk14G 21:40 |
 | tiling-fix-r1.md (rc 3, 1: ti-37, 27, 25c; 1 %) | sonnet medium, claude/tiling-fix 011db749 | done 21:28, PM review MERGE-OK; t111 |
 | harness-leak-r1.md (F5, rc 3, 9: HARNESS-LEAK; 0.5 %) | sonnet medium, claude/harness-leak 6b01c976 | session_016iS3kLAyzZ7Uff7AJRj4wH 22:57 |
-| tiling-round-r1.md (rc 2, 1: T1, T3, I2, TF-1; 1 %) | sonnet medium, claude/tiling-round 011db749 | session_016iS3kNkRxE9puQDkmcAQBn 23:08 |
+| tiling-round-r1.md (rc 2, 1: T1, T3, I2, TF-1; 1 %) | sonnet medium, claude/tiling-round 011db749 | 00:05 INCOMPLETE (gate cut); I2, TF-1 ok; T3 closed; T1: D55 holds, T1b new; gate rerun |
 | xp-idle-r1.md (F5, rc 3: FLK-CHAT-IDLE, xh-1; 0.5 %) | sonnet medium, claude/xp-idle db7a7acd | done 23:09, PM review MERGE-OK; t111 |
 
 ## Queue (% week; 5 % reserve)
 3. (rc 8) DOCS-RC r2 (pr-1..5) on the Thu head.
 4. (F7, rc 11) record-v9 r2 after ti-38.
-5. (rc 1, 3, 8, 9) t110d running: t110b list + CORE-FIX, MC-HELPER (40a2ba92); t111: XP-IDLE (carries XP-MINOR, XP-HELPER), TILING-FIX, CUBE-SETTLE, FLAKE-HINT as they pass. Then: eprintln ratchet; haiku series 5 (F5).
+5. (rc 1, 3, 8, 9) t110e running: t110b list + CORE-FIX, MC-HELPER (40a2ba92); t111: XP-IDLE (carries XP-MINOR, XP-HELPER), TILING-FIX, CUBE-SETTLE, FLAKE-HINT as they pass. Then: eprintln ratchet; haiku series 5 (F5).
 
 ## Needs owner
 - Delete claude/release-rc4 (403).

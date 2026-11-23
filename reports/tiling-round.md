@@ -12,3 +12,10 @@ Lane: claude/tiling-round from 011db749. Head bb9fa6b3. Step 0 green.
 | T1 | Not fixed, needs a decision. Plain first Super+Return in a fresh tiling+xp session: tiling-owned (s1 tiling), not reproduced. It is xp-owned when the pointer or keyboard focus sits outside the claim of tiling: xp start menu open and pointer on the start button, or pointer on the tiling bar (rows from my run: pointer 1275,5 and 640,12 gave xp windows; 5,5, 640,400, 5,400 gave tiling). Cause is the product rule of choose_manager_of (crates/chora/src/state.rs:991, D55): a key chooses its manager only when its claim holds the pointer or focus; the tests a_grabbed_key_of_the_user_chooses_its_manager_where_the_person_is (ipc.rs:2876) pin "the pointer is in b". The brief's rule ("the key's window belongs to the key's look") contradicts that pinned design, so I made no core change. r4 pointer position is not in its logs. |
 
 Gate (full, --jobs 2, detached, merged state equal to head, autonomous branch already contained): 25 PASS, 1 FAIL: acts (test_acts ti-31, mine: AssertionError 12 != 10), fixed in bb9fa6b3 and checked locally (178 ok); the gate ended EXIT 1 after that cell and was not rerun. Cells after it did not report; tiling gap gate run alone, ok. Persona contracts T1/T3 for kemal and ricer not run (budget); T3 evidence above.
+
+## Review r1 (PM)
+Base 011db749..bb9fa6b3, 8 files, +30/-14. I2: gap_inner 10 -> 12 with a red unit test first (d85828ff), gate cell and ti-31 follow; ok. TF-1: red 90b13505 then fix; ok.
+- tr-1 NIT: the TF-1 self-check reruns the whole selftest once more (SELFTEST_INNER); it runs twice as long.
+- T3 closed on gate-chat-keys (ok line named).
+- T1 decision (PM, 11-23 00:10): D55 holds. A key's window belongs to the look whose claim holds the pointer or focus; the brief's rule is withdrawn. New finding T1b (MINOR, tiling): pointer on tiling's own bar (640,12) gives an xp window; the bar should count as tiling's claim. Next tiling round.
+Verdict: INCOMPLETE (gate stopped at acts, not rerun). Worker asked to rerun the full gate on bb9fa6b3; MERGE-OK on a green gate.
