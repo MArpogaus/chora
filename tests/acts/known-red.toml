@@ -18,6 +18,24 @@ look = "xp"
 node = "xp-tray-"
 reason = "authentic Luna tray, vision card"
 
+[[exempt]]
+floor = 3.0
+look = "xp"
+node = "xp-task-"
+reason = "authentic Luna task button: white on #3980F4, the winxp/tasks.svg normal-center fill measured on XP, ours (56, 126, 242) within 2 per channel (3.60 to 3.86:1)"
+
+[[exempt]]
+floor = 3.0
+look = "xp"
+node = "xp-menu-frame"
+reason = "authentic Luna Start menu header: white on #2779DD, a fill of startmenu-header in winxp/winxp.svg, exact (4.32:1)"
+
+[[exempt]]
+floor = 3.0
+look = "xp"
+node = "xp-session-button-"
+reason = "captions of Turn off computer: white as in Luna on the dialog.svg panel with the shadow of the title text; 7:1 is out of reach on that panel (black on its darkest edge is 5.6:1), the floor is the tray's"
+
 [[red]]
 act = "a drag with the modifier on the front face turns the cube"
 capture = "construct-mode-step-in"
@@ -59,123 +77,6 @@ capture = "construct-hints-construct-mode-step-in-keys-0-text"
 evidence = "met in 4 of 5 runs of the construct acts at 05c1fc25 (loop 2 did not meet it): the dim of the keys is read mid-fade"
 finding = "guide-checks r2: construct-hints-construct-mode-step-in-keys-0-text: the contrast"
 flaky = true
-id = "I6"
-look = "construct"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-0-VIRTUAL-2"
-finding = "guide-checks r2: xp-pager-0-VIRTUAL-2: the contrast"
-id = "I6"
-look = "construct"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-0-VIRTUAL-3"
-finding = "guide-checks r2: xp-pager-0-VIRTUAL-3: the contrast"
-id = "I6"
-look = "construct"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-0-VIRTUAL-4"
-finding = "guide-checks r2: xp-pager-0-VIRTUAL-4: the contrast"
-id = "I6"
-look = "construct"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-1-VIRTUAL-1"
-finding = "guide-checks r2: xp-pager-1-VIRTUAL-1: the contrast"
-id = "I6"
-look = "construct"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-1-VIRTUAL-3"
-finding = "guide-checks r2: xp-pager-1-VIRTUAL-3: the contrast"
-id = "I6"
-look = "construct"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-1-VIRTUAL-4"
-finding = "guide-checks r2: xp-pager-1-VIRTUAL-4: the contrast"
-id = "I6"
-look = "construct"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-2-VIRTUAL-1"
-finding = "guide-checks r2: xp-pager-2-VIRTUAL-1: the contrast"
-id = "I6"
-look = "construct"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-2-VIRTUAL-2"
-finding = "guide-checks r2: xp-pager-2-VIRTUAL-2: the contrast"
-id = "I6"
-look = "construct"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-2-VIRTUAL-4"
-finding = "guide-checks r2: xp-pager-2-VIRTUAL-4: the contrast"
-id = "I6"
-look = "construct"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-3-VIRTUAL-1"
-finding = "guide-checks r2: xp-pager-3-VIRTUAL-1: the contrast"
-id = "I6"
-look = "construct"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-3-VIRTUAL-2"
-finding = "guide-checks r2: xp-pager-3-VIRTUAL-2: the contrast"
-id = "I6"
-look = "construct"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the cube opens with one xp on four faces"
-capture = "xp-pager-3-VIRTUAL-3"
-finding = "guide-checks r2: xp-pager-3-VIRTUAL-3: the contrast"
-id = "I6"
-look = "construct"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the key of the step back stands back"
-capture = "xp-task-s4-VIRTUAL-1"
-finding = "guide-checks r2: xp-task-s4-VIRTUAL-1: the contrast"
 id = "I6"
 look = "construct"
 match = "the contrast"
@@ -260,33 +161,6 @@ finding = "guide-checks r2: construct-help-body-scope: guide wants 14 px"
 id = "I6"
 look = "construct"
 match = "guide wants 14 px"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the pager turns the cube"
-capture = "xp-pager-2-VIRTUAL-1"
-finding = "guide-checks r2: xp-pager-2-VIRTUAL-1: the contrast"
-id = "I6"
-look = "construct"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the pager turns the cube"
-capture = "xp-pager-2-VIRTUAL-2"
-finding = "guide-checks r2: xp-pager-2-VIRTUAL-2: the contrast"
-id = "I6"
-look = "construct"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the pager turns the cube"
-capture = "xp-pager-2-VIRTUAL-4"
-finding = "guide-checks r2: xp-pager-2-VIRTUAL-4: the contrast"
-id = "I6"
-look = "construct"
-match = "the contrast"
 slice = "none yet: the look is not fixed in this lane"
 
 [[red]]
@@ -772,141 +646,6 @@ capture = "tiling-keys-body-m"
 finding = "guide-checks r2: tiling-keys-body-m: the contrast"
 id = "I6"
 look = "tiling"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "Super+Shift+e opens Turn Off Computer"
-capture = "xp-pager-1-HEADLESS-1"
-finding = "guide-checks r2: xp-pager-1-HEADLESS-1: the contrast"
-id = "I6"
-look = "xp"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "Super+Shift+e opens Turn Off Computer"
-capture = "xp-pager-2-HEADLESS-1"
-finding = "guide-checks r2: xp-pager-2-HEADLESS-1: the contrast"
-id = "I6"
-look = "xp"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "Super+Shift+e opens Turn Off Computer"
-capture = "xp-pager-3-HEADLESS-1"
-finding = "guide-checks r2: xp-pager-3-HEADLESS-1: the contrast"
-id = "I6"
-look = "xp"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "Super+Shift+e opens Turn Off Computer"
-capture = "xp-session-button-0"
-finding = "guide-checks r2: xp-session-button-0: the contrast"
-id = "I6"
-look = "xp"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "Super+Shift+e opens Turn Off Computer"
-capture = "xp-session-button-1"
-finding = "guide-checks r2: xp-session-button-1: the contrast"
-id = "I6"
-look = "xp"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "Super+Shift+e opens Turn Off Computer"
-capture = "xp-session-button-2"
-finding = "guide-checks r2: xp-session-button-2: the contrast"
-id = "I6"
-look = "xp"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "Super+Shift+e opens Turn Off Computer"
-capture = "xp-session-button-3"
-finding = "guide-checks r2: xp-session-button-3: the contrast"
-id = "I6"
-look = "xp"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "Super+Shift+e opens Turn Off Computer"
-capture = "xp-session-button-4"
-finding = "guide-checks r2: xp-session-button-4: the contrast"
-id = "I6"
-look = "xp"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "Super+d puts the windows away"
-capture = "xp-task-s3-HEADLESS-1"
-finding = "guide-checks r2: xp-task-s3-HEADLESS-1: the contrast"
-id = "I6"
-look = "xp"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "a drag of a window shuts the Start menu"
-capture = "xp-task-s2-HEADLESS-1"
-finding = "guide-checks r2: xp-task-s2-HEADLESS-1: the contrast"
-id = "I6"
-look = "xp"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "a window opens"
-capture = "xp-pager-1-HEADLESS-1"
-finding = "guide-checks r2: xp-pager-1-HEADLESS-1: the contrast"
-id = "I6"
-look = "xp"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "a window opens"
-capture = "xp-pager-2-HEADLESS-1"
-finding = "guide-checks r2: xp-pager-2-HEADLESS-1: the contrast"
-id = "I6"
-look = "xp"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "a window opens"
-capture = "xp-pager-3-HEADLESS-1"
-finding = "guide-checks r2: xp-pager-3-HEADLESS-1: the contrast"
-id = "I6"
-look = "xp"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the Start button opens the Start menu before a drag"
-capture = "xp-menu-frame"
-finding = "guide-checks r2: xp-menu-frame: the contrast"
-id = "I6"
-look = "xp"
-match = "the contrast"
-slice = "none yet: the look is not fixed in this lane"
-
-[[red]]
-act = "the helper asks"
-capture = "xp-icon-2"
-finding = "guide-checks r2: xp-icon-2: the contrast"
-id = "I6"
-look = "xp"
 match = "the contrast"
 slice = "none yet: the look is not fixed in this lane"
 
