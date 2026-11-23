@@ -24,7 +24,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (closes on the flake lanes + ha
 |---|---|---|
 | flake-hint-r1.md (F5, rc 3) | sonnet medium, claude/flake-hint d2634fe0 | MERGE-OK; t112b |
 | cube-settle-r2.md (F5, rc 3) | sonnet medium, claude/cube-settle e905195e | MERGE-OK; t112b |
-| mc-round-r2.md (rc 3, 9, 1; 0.4 %) | sonnet low, claude/mc-round 9ed1fbc8 | starting (t112 red: MH-2 vs a3037cb2) |
+| mc-round-r2.md (rc 3, 9, 1; 0.4 %) | sonnet low, claude/mc-round 9ed1fbc8 | session_016iS3kQ7xHyiK3NbSiTGxak 03:12 |
 | tiling-fix-r1.md (rc 3, 1; 1 %) | sonnet medium, claude/tiling-fix 011db749 | MERGE-OK; t112b |
 | tiling-round-r1.md (rc 2, 1; 1 %) | sonnet medium, claude/tiling-round 011db749 | MERGE-OK 8721b4d6; t112b |
 | p2-r6-co.md (rc 2; 0.8 %) | sonnet medium + haiku, claude/p2-r6-co 86e619f3 | session_016iS3kQN47ALoCg1MBCjCUz 03:04 |
