@@ -2209,6 +2209,26 @@ mod tests {
     }
 
     #[test]
+    fn the_header_is_idle_and_stop_off_when_the_turn_ends_after_a_question() {
+        let (mut session, mut out, _log) = setup();
+        let frame = frame(Look::default());
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        let working = json!({"name": "Atlas", "state": "working", "task": "Write file",
+            "step": 1, "steps": 1, "seq": 1, "epoch": 1});
+        session.voice_event(&mut out, "voice.state", &working);
+        session.question_of(Some("atlas"));
+        session.question_asked();
+        session.question_ended();
+        let idle = json!({"name": "Atlas", "state": "idle", "task": "", "seq": 2, "epoch": 1});
+        session.voice_event(&mut out, "voice.state", &idle);
+        assert_eq!(
+            session.header_xp(Language::En),
+            ("Atlas \u{2014} Idle".into(), String::new())
+        );
+        assert!(!session.running(), "Stop is off after the turn");
+    }
+
+    #[test]
     fn a_helper_that_ends_leaves_no_state() {
         let (mut session, mut out, _log) = setup();
         let frame = frame(Look::default());

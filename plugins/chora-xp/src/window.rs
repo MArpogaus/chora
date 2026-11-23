@@ -399,8 +399,8 @@ pub fn title_of(title: Option<&str>, app_id: Option<&str>) -> String {
 }
 
 /// The places of new windows: cascaded from the top-left corner of an
-/// area, 30 pixels per window, back at the corner when a window would
-/// leave the area.
+/// area, right of the desktop icons, 30 pixels per window, back at the
+/// corner when a window would leave the area.
 #[derive(Default)]
 pub struct Places {
     next: i32,
@@ -416,10 +416,17 @@ impl Places {
 
     /// The place of the window of a turn, once the window has a size:
     /// the windows cascade in the order of their turns, also when a
-    /// later one has its size first. A window larger than the area
+    /// later one has its size first. `icons` is how far the desktop icons
+    /// reach into the area (0 with none). A window larger than the area
     /// starts at its corner.
-    pub fn place(&mut self, turn: i32, [w, h]: [i32; 2], [ax, ay, aw, ah]: Rect) -> [i32; 2] {
-        let at = |n: i32| [ax + 24 + 30 * n, ay + 24 + 30 * n];
+    pub fn place(
+        &mut self,
+        turn: i32,
+        [w, h]: [i32; 2],
+        [ax, ay, aw, ah]: Rect,
+        icons: i32,
+    ) -> [i32; 2] {
+        let at = |n: i32| [ax + icons + 24 + 30 * n, ay + 24 + 30 * n];
         let mut pos = at((turn - self.corner).max(0));
         if pos[0] + w > ax + aw || pos[1] + h > ay + ah {
             self.corner = turn;
@@ -582,12 +589,22 @@ mod tests {
         let area = [0, 0, 1280, 770];
         let mut place = |size| {
             let turn = places.turn();
-            places.place(turn, size, area)
+            places.place(turn, size, area, 88)
         };
-        assert_eq!(place([600, 400]), [24, 24]);
-        assert_eq!(place([600, 400]), [54, 54]);
-        assert_eq!(place([600, 700]), [24, 24]);
-        assert_eq!(place([600, 400]), [54, 54]);
+        assert_eq!(place([600, 400]), [112, 24]);
+        assert_eq!(place([600, 400]), [142, 54]);
+        assert_eq!(place([600, 700]), [112, 24]);
+        assert_eq!(place([600, 400]), [142, 54]);
+    }
+
+    #[test]
+    fn windows_start_right_of_the_icons_of_their_area() {
+        let area = [0, 0, 1280, 770];
+        let mut places = Places::default();
+        let turn = places.turn();
+        assert_eq!(places.place(turn, [600, 400], area, 0), [24, 24]);
+        let turn = places.turn();
+        assert_eq!(places.place(turn, [600, 400], area, 168), [222, 54]);
     }
 
     #[test]
@@ -595,8 +612,8 @@ mod tests {
         let mut places = Places::default();
         let area = [0, 0, 1280, 770];
         let (first, second) = (places.turn(), places.turn());
-        assert_eq!(places.place(second, [600, 400], area), [54, 54]);
-        assert_eq!(places.place(first, [600, 400], area), [24, 24]);
+        assert_eq!(places.place(second, [600, 400], area, 88), [142, 54]);
+        assert_eq!(places.place(first, [600, 400], area, 88), [112, 24]);
     }
 
     #[test]
@@ -604,7 +621,7 @@ mod tests {
         let mut places = Places::default();
         let turn = places.turn();
         assert_eq!(
-            places.place(turn, [2000, 1000], [10, 20, 1280, 770]),
+            places.place(turn, [2000, 1000], [10, 20, 1280, 770], 88),
             [10, 20]
         );
     }

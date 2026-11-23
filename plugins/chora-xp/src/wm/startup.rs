@@ -206,6 +206,19 @@ impl Wm {
         chora_scene::claimant_at(&groups, point, |_| true).is_some_and(|owner| owner != NAME)
     }
 
+    /// A client went: when xp joined beside another look and no look but xp
+    /// holds a claim now, xp settles and takes the keyboard (ti-43,
+    /// api.md "Window managers").
+    pub(super) fn look_gone(&mut self) -> Vec<Command> {
+        if !self.joined() || self.another_look().unwrap_or(true) {
+            return Vec::new();
+        }
+        self.arrival = super::Arrival::Settled;
+        let mut commands = self.focus(self.topmost_except("").as_deref());
+        commands.push(self.desktop_keys());
+        commands
+    }
+
     /// Whether a look other than xp holds a claim.
     fn another_look(&mut self) -> Result<bool, ClientError> {
         let groups = self.rt.conn.query("kind:group")?;
@@ -371,5 +384,96 @@ impl Wm {
             });
         }
         Ok(commands)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chora_kit::{runtime::Plugin as _, testing::FakeCore};
+    use chora_scene::{Command, Event, NodeKind, PropsUpdate, ROOT};
+
+    use super::super::{Arrival, Wm, tests::wm_on_kit_core};
+
+    /// A look named `mc` that holds a claim, on a core that selects.
+    fn core_with_look(look: bool) -> FakeCore {
+        let core = FakeCore::start().selecting();
+        if look {
+            core.connect("mc")
+                .apply(vec![Command::Create {
+                    id: "mc".into(),
+                    kind: NodeKind::Group,
+                    parent: ROOT.into(),
+                    props: PropsUpdate {
+                        claim: Some(Some([900.0, 0.0, 300.0, 300.0])),
+                        ..PropsUpdate::default()
+                    },
+                }])
+                .unwrap();
+        }
+        core
+    }
+
+    /// The look `mc` goes: its claim leaves the scene, then the core says so.
+    fn look_leaves(core: &FakeCore, wm: &mut Wm) {
+        core.connect("mc")
+            .apply(vec![Command::Remove {
+                id: "mc".into(),
+                to: None,
+            }])
+            .unwrap();
+        wm.event(Event::ClientDisconnected { name: "mc".into() })
+            .unwrap();
+    }
+
+    #[test]
+    fn arrival_starting_alone_is_settled() {
+        let core = core_with_look(false);
+        let wm = wm_on_kit_core(&core, "arrival-alone");
+        assert_eq!(wm.arrival, Arrival::Settled);
+        assert!(!wm.joined());
+    }
+
+    #[test]
+    fn arrival_joining_a_look_with_a_claim_is_joined() {
+        let core = core_with_look(true);
+        let wm = wm_on_kit_core(&core, "arrival-join");
+        assert_eq!(wm.arrival, Arrival::Joined);
+        assert!(wm.joined());
+    }
+
+    /// api.md "Window managers": xp holds the keyboard when no other look
+    /// holds a claim (ti-43).
+    #[test]
+    fn arrival_other_look_leaves_settles() {
+        let core = core_with_look(true);
+        let mut wm = wm_on_kit_core(&core, "arrival-leaves");
+        assert_eq!(wm.arrival, Arrival::Joined);
+        look_leaves(&core, &mut wm);
+        assert_eq!(wm.arrival, Arrival::Settled);
+        assert_eq!(wm.state().unwrap()["focus"]["holder"], "xp");
+    }
+
+    #[test]
+    fn arrival_a_client_that_holds_no_claim_leaving_keeps_joined() {
+        let core = core_with_look(true);
+        let mut wm = wm_on_kit_core(&core, "arrival-other-client");
+        wm.event(Event::ClientDisconnected {
+            name: "other".into(),
+        })
+        .unwrap();
+        assert_eq!(wm.arrival, Arrival::Joined);
+    }
+
+    #[test]
+    fn arrival_click_on_the_free_desktop_settles() {
+        let core = core_with_look(true);
+        let mut wm = wm_on_kit_core(&core, "arrival-click");
+        let inside = wm.press_wallpaper([1000.0, 100.0]);
+        assert!(
+            inside.is_empty() && wm.joined(),
+            "a click in the claim of the look"
+        );
+        wm.press_wallpaper([5.0, 5.0]);
+        assert_eq!(wm.arrival, Arrival::Settled);
     }
 }
