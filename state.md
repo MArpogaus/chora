@@ -2,7 +2,7 @@
 
 ## Now (2026-11-23 01:59 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 01:36 PM 4.9 % (Bangkok 11-22) + 2.0 % (11-23), week about 15 % (lanes est.) vs 31 % pace; under pace: 6 lanes
+budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 01:36 PM 4.9 % (Bangkok 11-22) + 2.0 % (11-23), week about 15 % vs 31 % pace; under: 6 lanes
 session branch: 40a2ba92 (t110f green 01:32: t110b list + CORE-FIX, MC-HELPER); 64 greens. t110e red FLK-HANG (lane flk-hang); t111 01:33: HARNESS-LEAK alone.
 burn-down: F1-F4, F6, F8 met (audit r4); F5 open (closes on the flake lanes + haiku series 5 at 2 jobs); F7 open.
 
@@ -36,7 +36,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (closes on the flake lanes + ha
 ## Queue (% week; 5 % reserve)
 3. (rc 8) DOCS-RC r2 (pr-1..5) on the Thu head.
 4. (F7, rc 11) record-v9 r2 running (ti-38 in 40a2ba92).
-5. (rc 1, 3, 8, 9) t111 running: HARNESS-LEAK alone; t112: XP-IDLE, MC-ROUND, FLK-HANG, TILING-FIX, CUBE-SETTLE, FLAKE-HINT, PIX-CAPSULE as they pass. Then: eprintln ratchet; haiku series 5 (F5).
+5. (rc 1, 3, 8, 9) t111 running: HARNESS-LEAK alone; t112: XP-IDLE, MC-ROUND, FLK-HANG, TILING-FIX, CUBE-SETTLE, FLAKE-HINT, PIX-CAPSULE as they pass. Then: haiku series 5 (F5); co persona retest (rc 2, T2 via co-42; haiku); eprintln ratchet.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
