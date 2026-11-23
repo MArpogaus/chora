@@ -112,3 +112,32 @@ Known rcf-7 and rcf-8: this diff does not touch `toggle_start` or `refresh_icons
 
 ### Findings
 - rcf-9 MAJOR plugins/chora-xp/src/wm/hosted.rs:148 (`host_turned` calls `shut_menus_off_front` before the `node_away` check) with panels.rs:69 (`close_menu` sends `desktop_keys`). Another client holds the keys (the construct's look in navigate mode, or one of its nodes), xp has no focused window, and xp's Start menu is still open on a face that is no longer at the front. A turn at rest then sends `FocusNode { node: Some("xp-icons") }`. xp gets its keys through the main socket, not a client socket, so `focus_node_command` (chora-scene scene.rs:1074) moves the keyboard from the other client to xp's icons on face 0 (rcf-8), possibly out of sight. This breaks "keys that another client holds are not taken". xp does not shut its menu when another client takes the keys (`node_focused`, state.rs:110). Probe: a scratch unit test (`hosted`, `focused = None`, `core_focus = None`, `press_taskbar(Start("V-1"))`, `key_node = Some("construct")`, `host_turned(turned(1))`) gets `[Update xp-menu visible false, FocusNode { node: Some("xp-icons") }, ...]`. Before this diff the same turn sent nothing. Fix: while `node_away()`, shut the menus without any `FocusNode` (or have `desktop_keys` send no node then), and keep that probe as a unit test next to `a_turn_of_the_host_leaves_the_keys_of_another_client`.
+
+## r3
+Lane: cloud, claude/co-focus 8a599917, merged fresh origin/claude/autonomous-dev-session-3w-i33pg7 (230ea0e5) as a6c0c020. Step 0 green: `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`. Head **3a625261**.
+
+### Commits
+- 35fa4b8d test (red): hosted.rs +2 unit tests. `a_turn_that_shuts_a_menu_leaves_the_keys_of_another_client` (rcf-9, the review's probe, next to `a_turn_of_the_host_leaves_the_keys_of_another_client`): focused None, core_focus None, Start open on V-1, key_node Some("construct"), `host_turned(turned(1))`: the menu shuts, no `FocusNode { node: Some(_) }`, focused None. `the_start_key_opens_the_menu_on_the_front_face` (rcf-7): hosted, front 2: `key("Ctrl+Escape")` and Super alone (`key` + `key_released("Super+Super_L")`) open the menu on V-3 with `FocusNode xp-startmenu`; host None: on V-1 (bars.first()) as before.
+- 3a625261 fix: press.rs `desktop_keys`, hosted.rs `front_face` (one helper; `on_front` and `shut_menus_off_front` use it too), keys.rs `toggle_start`.
+
+### Red at 35fa4b8d
+- rcf-9: `a_turn_that_shuts_a_menu_leaves_the_keys_of_another_client ... FAILED: xp takes the keys of another client: [Update { id: "xp-menu", ... visible: Some(false) ...}, ... FocusNode { node: Some("xp-icons") } ...]`
+- rcf-7: `the_start_key_opens_the_menu_on_the_front_face ... FAILED: Ctrl+Escape: [...] left: Some("V-1") right: Some("V-3")`
+- `cargo test -p chora-xp hosted`: 11 passed, 2 failed.
+
+### Fix (3a625261)
+- rcf-9: `desktop_keys` sends `FocusNode { node: None }` while `node_away()` (a node of another client holds the keys), as it already did for a window of another manager (`focus_away`). The core's none releases only a node of xp (`focus_node_command`, chora-scene scene.rs:1074), so the other client keeps the keys; `close_menu` and `close_context` in `shut_menus_off_front` still shut the menus. The core tells `focus.node` on a click, a lock and a client that went (crates/chora state.rs `tell_key_node`), so `key_node` goes None when the user clicks xp's desktop and xp takes the keys again as before.
+- rcf-7: `toggle_start` opens on `front_face()` (the host's face at `front`) and falls back to `bars.first()` without a host. Through `Wm::focus` / kit::wm::focus where keys move (D116); no sleep, no known row, no raised bar. Outside the four named files: press.rs only, where `desktop_keys` lives (the brief names it).
+- `cargo fmt`, `cargo clippy -p chora-xp --all-targets`: clean.
+
+### Green and counts
+- `cargo test -p chora-xp`: 345 passed (hosted 13/13). `cargo test -p chora-construct`: 268 ok.
+- New tests 10/10.
+- gate-construct-focus.sh 10/10 green (`ok: a turn takes the keys from the window of a face that does not show`, `ok: the keys stay with the front face after its focused window closed`).
+- gate-construct-i3.sh 10/10 green.
+
+### Note (not fixed, for triage)
+- The exported `StartMenu { open: true }` call (dispatch.rs:120) still opens on `bars.first()` on a hosted cube; same shape as rcf-7, but not a key path. One line with `front_face()` if wanted.
+
+### Gate
+`tests/merge-gate.sh --jobs 2` (full, detached) on 3a625261 (claude/co-focus with fresh 230ea0e5): **62 PASS, EXIT 0**, "all steps passed". `pgrep -fa 'chora --headless'` empty after.
