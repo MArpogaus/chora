@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-23 13:07 UTC)
+## Now (2026-11-23 13:09 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 12:38 PM 4.9 % (11-22) + 3.9 % (11-23), week about 18 % vs 34 % pace
+budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 13:09 PM 4.9 % (11-22) + 4.2 % (11-23), week about 19 % vs 34 % pace
 session branch: bc153929 (t115 green 12:46: tiling-flake r2, co-focus r3, record-v9 r4); 69 greens.
 burn-down: F1-F4, F6, F8 met (audit r4); F5 open (flake lanes, series); F7 open.
 
@@ -24,7 +24,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (flake lanes, series); F7 open.
 |---|---|---|
 | flake-series-r6.md (F5, rc 3, 9; 1 %) | haiku high, claude/flake-series-r6 230ea0e5 | session_016iS3kLUGZ6nX4ntqUXGnFw 07:26; run 2 red keys (sh-34) |
 | sim-long-r2.md (rc 9; 1 %) | haiku high, claude/sim-long-r2 230ea0e5 | PARTIAL 12:01: sl-1, sl-3 green; sh-33 new; wrap-up |
-| tiling-disc-r1.md (rc 2; 1.5 %) | sonnet high, claude/tiling-disc 230ea0e5 | done 13:06 8df47cc8 (L1, L2, T7 red-green; foreign reds only); review-tiling-disc-r1 sonnet medium |
+| tiling-disc-r1.md (rc 2; 1.5 %) | sonnet high, claude/tiling-disc 230ea0e5 | done 13:06 8df47cc8 (L1, L2, T7 red-green; foreign reds only); worker archived |
 | xp-readable-r1.md (F7; 1.5 %) | sonnet high, claude/xp-readable 5b34d4b1 | session_016iS3kMVx3PinxquBDuK1wo |
 | mc-tidy-r2.md (F7; 1.5 %) | sonnet medium, claude/mc-tidy 5b34d4b1 | session_016iS3kP9Js7yxNibyrZocXb; r1 12:52: mc-55, mc-57 close, keys red (sh-34) -> r2 |
 | leak-r1.md (rc 9; 2 %) | opus high, claude/leak 5b34d4b1 | session_016iS3kMw4PZJnXirCxCD1cb 12:19 |
