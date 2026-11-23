@@ -26,7 +26,7 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 | tiling-disc-r4.md (rc 2; 0.5 %) | sonnet medium, claude/tiling-disc ca165f7b | MERGE-OK (PM; rtd-6 closed, rtd-7 MINOR); train122 |
 | soak-r4.md (rc 9; 1 %) | haiku high, claude/soak-r4 39283655 | session_016iS3kLADrjFVxyE2AdpCzk 20:23 |
 | flake-series-r7.md (rc 3; 1 %) | sonnet high, claude/flake-series-r7 1ec04694 | session_016iS3kLkxQHS3DxoJnqt8Xk 19:00 |
-| xp-front-bar-r2.md (rc 1, 2; 0.3 %) | haiku medium, claude/xp-front-bar-r2 d588d573 | r1 40292419 FIX (rxf-1: red and fix one commit); starting |
+| xp-front-bar-r2.md (rc 1, 2; 0.3 %) | haiku medium, claude/xp-front-bar-r2 d588d573 | r1 40292419 FIX (rxf-1); session_016iS3kLwgpir9SnfSeC2JZu 23:15 |
 | notify-text-r1.md (F7; 0.5 %) | sonnet medium, claude/notify-text | 60a38634 MERGE-OK (PM); train122 |
 ## Queue (% week; 5 % reserve)
 1. (rc 3, 7; 1 %) TRAIN121 running (9 branches); then TRAIN122: notify-text 60a38634, tiling-disc ca165f7b.
