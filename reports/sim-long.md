@@ -129,3 +129,21 @@ First hour vs last hour, chora RSS samples (MB): first hour 169, 592, 485, 1096,
 - **sl-9** (soak, MAJOR, new): core RSS and fds grow over the 3 h soak: linear fit +449 MB/h and +291 fds/h, round-end RSS 273 MB to 2.25 GB by round 67 (over the 5 %/h bar many times over). Look: soak in one core, log `/tmp/sim-long-r2/chora-soak.log` (first error lines above), samples `/tmp/sim-long-r2/samples.csv`. Attribution not settled: the RSS rise tracks the count of open windows, which the soak itself left open (a script fault, now fixed in `84c8c5d2`), and the round 70 drop coincides with tiling being dropped by the watchdog (not verified). The next soak run must use `84c8c5d2`, and then the RSS slope per hour with the windows count fixed is the measurement that closes or confirms sl-9.
 - **sl-4..sl-8:** not in this round.
 - **frame p99:** recorded only (no bar yet). Relayout p99 of about 108 ms on a debug build under llvmpipe is the number to beat.
+
+## soak r3
+
+Head `claude/soak-r3` `39283655` (script `0e41f658`, results `39283655`; session head `1ec04694`). Build: `cargo check` and `cargo build --workspace` (debug) green on `1ec04694`. Gate: `tests/merge-gate.sh --only pre-commit,ci-check` PASS. Table and verdict in `tests/battle/RESULTS.md` "## soak r3 2026-11-23".
+
+3 h soak, one core, 911 rounds, 16:49:01 to 19:49:08 UTC, probes ended each round (`end_probes`). Raw data, not in git: `/tmp/sim-long-r3/samples.csv`, `/tmp/sim-long-r3/soak.run`, `tests/battle/chora-soak.log`.
+
+- Core RSS, first vs last hour (sample means): 244.7 to 306.6 MB; sampled fit +21.5 MB/h (about 7 % of the mean). Round-end RSS after all closes: 246 MB at round 1, 208 MB at round 911, max 249 MB.
+- Core fds: 44 to 45 (fit +0.7/h); 30 at the end, 63 peak.
+- chora-tiling and chora-mc: RSS and fds flat (fit 0.1 MB/h and 0.0/h).
+- Windows open after `end_probes`: 0 in all 911 rounds.
+- Deaths: none. Findings in the run file: none. Watchdog disconnects: 0.
+
+**sl-9** (r2 window and fd leak, MAJOR): closed. Windows and fds flat, round-end RSS flat.
+
+**sl-10** (new, sampled core RSS, severity for the PM to set): open. Sampled fit is over the 5 %/h bar with windows flat. The sampled series is a sawtooth (212 to 496 MB); the rise rests on the peaks at 5401, 6601, 7801 and 8401 s. Next: sample at a fixed round phase after the window close, same round count.
+
+Note: the first commit of this lane (`0e41f658`) is flagged Unverified by a stop hook because of the author identity; kept as Marcel Arpogaus per the brief.
