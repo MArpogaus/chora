@@ -129,6 +129,7 @@ window manager:
 | Super+1 to Super+9 | show a tag |
 | Super+Shift+1 to Super+Shift+9 | move the focused window to a tag |
 | Super+Shift+space | switch to the next layout |
+| Super+s | edit chora-tiling.yaml in $EDITOR (else vi); Super+Ctrl+r reads it again |
 | Super+Shift+Escape | lock the screen |
 | Super+Shift+e | open the power menu |
 

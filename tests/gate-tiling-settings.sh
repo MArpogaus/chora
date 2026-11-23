@@ -32,6 +32,7 @@ exec sleep 600
 SH
     chmod +x "$fakes/$editor"
 done
+export PATH=$fakes:$PATH
 file=$XDG_CONFIG_HOME/chora/chora-tiling.yaml
 session_start 1280x800 -- "$bin/chora-tiling" --no-companions
 grant input.inject
@@ -45,7 +46,8 @@ until_ok "grep -q '^vi ' '$XDG_CONFIG_HOME/edited' 2>/dev/null" 60 || fail "Supe
 ok "Super+s opens $file in vi when EDITOR is not set"
 
 : >"$XDG_CONFIG_HOME/edited"
-EDITOR=$fakes/editor sh "$repo/flavors/tiling/settings.sh" || fail "settings.sh with EDITOR"
+EDITOR=$fakes/editor sh "$repo/flavors/tiling/settings.sh" &
+run_pid $!
 until_ok "grep -q '^editor ' '$XDG_CONFIG_HOME/edited' 2>/dev/null" 60 || fail "settings.sh started no \$EDITOR: $(edited)"
 [ "$(edited)" = "editor $file" ] || fail "\$EDITOR was started as '$(edited)', not 'editor $file'"
 ok "the script opens $file in \$EDITOR when it is set"

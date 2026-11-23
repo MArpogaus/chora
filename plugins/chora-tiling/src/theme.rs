@@ -735,6 +735,14 @@ impl LaunchError {
                 "Look-Umschalter nicht installiert",
                 "Die Datei look.sh des Tiling-Flavors fehlt.",
             ),
+            ("settings", false) => (
+                "Settings door not installed",
+                "The file settings.sh of the tiling flavor was not found.",
+            ),
+            ("settings", true) => (
+                "Einstellungen nicht installiert",
+                "Die Datei settings.sh des Tiling-Flavors fehlt.",
+            ),
             (_, false) => (
                 "Screenshot not installed",
                 "The file screenshot.sh of the shared folder was not found.",
@@ -787,7 +795,7 @@ pub fn launch_line(
                 .into_iter()
                 .flat_map(|f| ["-C".into(), f]),
         ),
-        "screenshot" | "power" | "look" => line = script_line(program, dirs)?,
+        "screenshot" | "power" | "look" | "settings" => line = script_line(program, dirs)?,
         "swaybg" => {
             let names = [scheme_wallpaper(scheme), "wallpaper.png"];
             match find(&names) {

@@ -1597,6 +1597,7 @@ The package installs the tiling flavor (D51):
 ├── fuzzel.ini                        # the launcher: opaque, the palette
 ├── swaylock.conf                     # the lock screen in the palette
 ├── look.sh                           # Light look, Dark look and System look: look.theme at once
+├── settings.sh                       # Edit settings: chora-tiling.yaml in $EDITOR (else vi) in foot
 ├── wallpaper.sh                      # swaybg again after a new theme, where no unit runs it
 ├── applications/                     # the entries of the three looks
 └── waybar/

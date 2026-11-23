@@ -97,9 +97,16 @@ const TAGS: usize = 3;
 const PROGRAMS: usize = 4;
 const SYSTEM: usize = 5;
 
+/// Whether an action is the settings door, which the list shows beside the
+/// key that reads the settings again.
+fn opens_settings(action: &Action) -> bool {
+    matches!(action, Action::System(System::Run(command)) if command.ends_with("--launch settings"))
+}
+
 /// The group of the key list that an action belongs to.
 fn group_of(action: &Action) -> usize {
     match action {
+        Action::System(System::Run(_)) if opens_settings(action) => SYSTEM,
         Action::System(
             System::Run(_)
             | System::Terminal
@@ -243,7 +250,7 @@ type Entry = (usize, String, String);
 
 /// The English words of the rows in the order that the key list shows
 /// them, by group; a row that is not here follows the others, by its keys.
-const ORDER: [&str; 45] = [
+const ORDER: [&str; 46] = [
     "Move focus",
     "Window before",
     "Window that asks",
@@ -287,6 +294,7 @@ const ORDER: [&str; 45] = [
     "Volume up",
     "Volume down",
     "Mute",
+    "Edit settings",
     "Read the settings again",
     "All keys",
 ];

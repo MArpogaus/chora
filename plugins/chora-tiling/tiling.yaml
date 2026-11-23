@@ -166,6 +166,9 @@ bindings:
   MOD+space: {run: chora-tiling --launch fuzzel}
   MOD+r: {run: chora-tiling --launch fuzzel}
   MOD+a: {run: chora-chat}
+  # The settings door: chora-tiling.yaml in the terminal editor ($EDITOR,
+  # else vi). MOD+Ctrl+r reads the file again.
+  MOD+s: {run: chora-tiling --launch settings}
   # swayidle of the tiling flavor runs swaylock on this request
   MOD+Shift+Escape: {run: loginctl lock-session}
   # The power menu: Lock, Log out, Restart, Shut down.
@@ -191,6 +194,7 @@ labels:
   MOD+Return: Open a terminal
   MOD+space: Start a program or run a command
   MOD+a: Chat with a helper
+  MOD+s: Edit settings
   MOD+r: Start a program or run a command
   MOD+Shift+Escape: Lock the screen
   MOD+Shift+e: Power menu
