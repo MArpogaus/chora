@@ -37,7 +37,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (closes on the flake lanes + ha
 ## Queue (% week; 5 % reserve)
 3. (rc 8) DOCS-RC r2 (pr-1..5) on the Thu head.
 4. (F7, rc 11) record-v9 r3 running; then fix lanes per look.
-5. (rc 1, 3, 8, 9) t112c running: XP-IDLE, FLK-HANG, TILING-FIX, CUBE-SETTLE, FLAKE-HINT, PIX-CAPSULE, TILING-ROUND; MC-ROUND r2. Then: haiku series 5 (F5); eprintln ratchet.
+5. (rc 1, 3, 8, 9) t112c running: XP-IDLE, FLK-HANG, TILING-FIX, CUBE-SETTLE, FLAKE-HINT, PIX-CAPSULE, TILING-ROUND; MC-ROUND r2. Then: haiku series 5 (F5); eprintln ratchet: list 65 to 47 (tools/lint-ratchet on t112c tree), PM commit in t113.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
