@@ -38,6 +38,7 @@ One line per module of `crates/chora-kit/src`: what lives there, and when to use
 - `lamp`: the frames of the magic lamp of minimize and restore.
 - `launch`: start a program and follow it until its window shows (D104); never track a child by hand.
 - `launcher`: the rows of `fuzzel --dmenu` for the installed programs, and what a typed text runs.
+- `log`: the log of a plugin: `tracing` to stderr through `chora_kit::log::init`, filtered by `RUST_LOG`; call it once at start, and use `eprintln` only before it runs (D120).
 - `modes`: the use and navigate modes of a view on a shape of panes, such as the cube.
 - `notice`: show, replace and dismiss a message through `chora-notify`; never draw a notice or call D-Bus yourself (D110).
 - `runtime`: the plugin runtime: connect, subscribe, export methods, grab bindings, `settings.*`, reconnect; also `runtime_file` and `report(name, err)`, the one log line of a failed request that a look keeps running through.
