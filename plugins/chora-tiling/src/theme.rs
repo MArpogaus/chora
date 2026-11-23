@@ -735,6 +735,14 @@ impl LaunchError {
                 "Look-Umschalter nicht installiert",
                 "Die Datei look.sh des Tiling-Flavors fehlt.",
             ),
+            ("settings", false) => (
+                "Settings door not installed",
+                "The file settings.sh of the tiling flavor was not found.",
+            ),
+            ("settings", true) => (
+                "Einstellungen nicht installiert",
+                "Die Datei settings.sh des Tiling-Flavors fehlt.",
+            ),
             (_, false) => (
                 "Screenshot not installed",
                 "The file screenshot.sh of the shared folder was not found.",
@@ -787,7 +795,7 @@ pub fn launch_line(
                 .into_iter()
                 .flat_map(|f| ["-C".into(), f]),
         ),
-        "screenshot" | "power" | "look" => line = script_line(program, dirs)?,
+        "screenshot" | "power" | "look" | "settings" => line = script_line(program, dirs)?,
         "swaybg" => {
             let names = [scheme_wallpaper(scheme), "wallpaper.png"];
             match find(&names) {
@@ -1058,9 +1066,26 @@ mod tests {
     }
 
     #[test]
+    fn the_settings_door_is_a_script_and_an_entry_of_the_flavor() {
+        let flavors = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors");
+        let dirs = [flavors.join("tiling")];
+        let line = launch_line("settings", &[], &dirs, Scheme::Ink).unwrap();
+        assert_eq!(line[0], "sh");
+        assert!(line[1].ends_with("flavors/tiling/settings.sh"), "{line:?}");
+        let entry =
+            std::fs::read_to_string(flavors.join("tiling/applications/chora-settings.desktop"))
+                .unwrap();
+        assert!(entry.contains("\nName=Edit settings\n"), "{entry}");
+        assert!(
+            entry.contains("\nExec=chora-tiling --launch settings\n"),
+            "{entry}"
+        );
+    }
+
+    #[test]
     fn a_missing_script_is_an_error_and_never_true() {
         let none = [std::path::PathBuf::from("/nonexistent/flavor")];
-        for program in ["power", "screenshot", "look"] {
+        for program in ["power", "screenshot", "look", "settings"] {
             let err = launch_line(program, &[], &none, Scheme::Ink).unwrap_err();
             assert!(err.to_string().contains(&format!("{program}.sh")));
             let (title, text) = err.notice();
