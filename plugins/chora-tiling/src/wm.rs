@@ -969,17 +969,16 @@ impl Wm {
         })
     }
 
-    /// The claim of the plugin (D55): the box around its outputs, with
-    /// the bar, so that a key with the pointer on the bar is tiling's.
-    /// ponytail: one box, so the gaps between outputs of
-    /// another shape count too, for new toplevels under the pointer; a
-    /// drop uses [`Wm::output_at`].
+    /// The claim of the plugin (D55): the box around the work areas of
+    /// its outputs, reaching up to the top edge of the outputs, where its
+    /// bar is, so that a key with the pointer on the bar is tiling's. A
+    /// panel below the work area is another look's. ponytail: one box, so
+    /// the gaps between outputs of another shape count too, for new
+    /// toplevels under the pointer; a drop uses [`Wm::output_at`].
     pub fn claim(&self) -> Option<[f64; 4]> {
-        let areas = self.outputs.iter().map(|o| o.full);
-        let [x0, y0] = [
-            areas.clone().map(|a| a[0]).min()?,
-            areas.clone().map(|a| a[1]).min()?,
-        ];
+        let areas = self.outputs.iter().map(|o| o.area);
+        let x0 = areas.clone().map(|a| a[0]).min()?;
+        let y0 = self.outputs.iter().map(|o| o.full[1]).min()?;
         let x1 = areas.clone().map(|a| a[0] + a[2]).max()?;
         let y1 = areas.map(|a| a[1] + a[3]).max()?;
         Some([x0, y0, x1 - x0, y1 - y0].map(f64::from))
