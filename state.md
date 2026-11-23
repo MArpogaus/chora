@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-23 16:39 UTC)
+## Now (2026-11-23 16:40 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 16:39 PM 4.9 % (11-22) + 5.1 % (11-23), week about 21 % vs 36 % pace
 session branch: 1ec04694 (t117 green 16:38); 70 greens; train118 h-rf running.
@@ -27,7 +27,7 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 | tiling-disc-r2.md (rc 2; 0.5 %) | sonnet medium, 8df47cc8 | rtd-2 MAJOR, session_016iS3kQ5NkvrDUTB6RZrnrd 14:50 |
 | xp-readable-r2.md (F7; 1 %; rxr-1, rxr-2 MAJOR) | sonnet high, claude/xp-readable 2d2413f6 | session_016iS3kNgMdxh6qSY3pspBtZ 14:17 |
 | co-reach-r1.md (rc 1, 2; 2 %) | opus high, claude/co-reach bc153929 | session_016iS3kNey3bZFXVjkQbFTGV 13:59 |
-| soak-r3.md (rc 9; 1 %) | haiku high, claude/soak-r3 1ec04694 | starting 16:45 |
+| soak-r3.md (rc 9; 1 %) | haiku high, claude/soak-r3 1ec04694 | session_016iS3kPTaTUWz9CUtmLJXzF 16:40 |
 | h-rf-r2.md (rc 3; 0.6 %) | sonnet high | c9d8d9f0 MERGE-OK; train118 running 16:39 |
 ## Queue (% week; 5 % reserve)
 1. (rc 9; 1 %) SOAK-R3 running (sl-9 MAJOR; end_probes each round); verdict closes or keeps sl-9.
