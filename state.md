@@ -29,10 +29,10 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 | co-reach-r1.md (rc 1, 2; 2 %) | opus high, claude/co-reach bc153929 | session_016iS3kNey3bZFXVjkQbFTGV 13:59 |
 | soak-r3.md (rc 9; 1 %) | haiku high, claude/soak-r3 1ec04694 | session_016iS3kPTaTUWz9CUtmLJXzF 16:40 |
 | h-rf-r2.md (rc 3; 0.6 %) | sonnet high | c9d8d9f0 MERGE-OK; t118 red leak (sh-35); train119
-| leak-cell-r1.md (rc 3; 0.5 %) | sonnet medium, claude/leak-cell 1ec04694 | starting 18:15
+| leak-cell-r1.md (rc 3; 0.5 %) | sonnet medium, claude/leak-cell 1ec04694 | session_016iS3kNzHeMKkwNC3gXhwFy 18:10
 ## Queue (% week; 5 % reserve)
 1. (rc 9; 1 %) SOAK-R3 running (sl-9 MAJOR; end_probes each round); verdict closes or keeps sl-9.
-2. (rc 3, 7) LEAK-CELL r1 (sh-35); train119 h-rf + leak-cell (harness), then train120 docs-rc-r2, guard-3.
+2. (rc 3, 7) LEAK-CELL r1 (sh-35); train119 h-rf + leak-cell, then train120 docs-rc-r2, guard-3.
 3. (rc 3, 9; F5) fs-r6: 0/5 green (keys sh-34 x4, acts x1 stalls): FLAKE-SERIES r7 after train118.
 4. (rc 1, 2; 2 %) CO-REACH r1 starting (co-52 raised MAJOR, co-54 lost window, co-51, co-57). (rc 1, 2; 1 %) rcf-8, rcf-10, co-44, co-45, ti-30, sh-31 once the look has no open MAJOR.
 5. (F5, F7; 3.5 %) SH-32 I14 after tiling-disc; TOUR-BASE (I6, rv9 = MAJOR) after xp-readable; need_fuzzel guard xp-run, e2e with FLAKE-SERIES r7.
