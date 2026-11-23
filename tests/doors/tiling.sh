@@ -130,7 +130,7 @@ cell_helper_door() {
     doors_voice || return 1
     (sleep 3 && helper_start) &
     pids+=($!)
-    helper_says "coder · idle" || why "the helper word is $(module_text helper)" || return 1
+    until_ok 'helper_says "coder · idle"' 40 || why "the helper word is $(module_text helper)" || return 1
     ink_at "$helper_x" || why "no word in the bar at $helper_x" || return 1
     chat_close
     click "$helper_x" "$bar_y"
