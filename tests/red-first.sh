@@ -106,7 +106,7 @@ id_verdict() {
 red_first_hook() {
     local message subject ids notes
     [ -e "$(git rev-parse --git-path MERGE_HEAD)" ] && return 0
-    message=$(grep -v '^#' "$1") || true
+    message=$(sed '/^# -* >8 -*$/,$d' "$1" | grep -v '^#') || true
     subject=$(grep -m1 . <<<"$message")
     needs_test "$subject" || return 0
     grep -Eq '^No test: .+' <<<"$message" && return 0
