@@ -8,6 +8,7 @@ Step 0 (no setup script): `git fetch origin claude/xp-front-bar`, `git fetch --u
 2) Show red: `cargo test -p chora-xp <the new hosted test name>` fails on commit A; paste the failing line.
 3) Commit B (fix): `git checkout 40292419 -- plugins/chora-xp/src/wm/dispatch.rs`; commit "fix(xp): the taskbar tooltip follows the front face (rcf-11)". The same test passes; paste it.
 4) `git diff 40292419 HEAD` is empty (paste "empty"); `tests/merge-gate.sh --red-first-check` passes on d588d573..HEAD; `cargo clippy -p chora-xp --all-targets -- -D warnings` clean. No full gate: the tree equals 40292419, whose full gate was green (63 PASS).
+Never end a turn to wait; poll any long command in the same turn.
 Done when: A red and B green with shas, the empty diff, the red-first check and clippy pasted.
 Report: reports/xp-front-bar.md "## r2" on claude/session-log; send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 4 lines with the head sha.
 Rules: push claude/xp-front-bar-r2 and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).
