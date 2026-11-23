@@ -183,7 +183,7 @@ impl Wm {
     /// tooltip of a part of the taskbar that it rests on.
     pub fn menu_rest(&mut self, now: Instant) -> Result<(), ClientError> {
         let mut commands = self.menu.rest(&mut self.theme, &mut self.icons, now);
-        let area = self.bars.first().map_or([0, 0, 1280, 800], Bar::area);
+        let area = self.front_bar().map_or([0, 0, 1280, 800], Bar::area);
         commands.extend(self.tip.show(&mut self.theme, MENUS, area, now));
         if commands.is_empty() {
             return Ok(());
