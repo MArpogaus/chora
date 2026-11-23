@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-23 21:49 UTC)
+## Now (2026-11-23 22:23 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 21:33 PM 4.9 % (11-22) + 5.2 % (11-23) + 0.7 % (11-24 BKK), week about 23 % vs 39 % pace
 session branch: 1ec04694 (t117 green 16:38); 70 greens; train118 h-rf red 18:08 at leak (sh-35 flake; rerun 1 ok).
@@ -22,7 +22,7 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| train121: h-rf, leak-cell, co-reach, xp-readable, docs-rc-r2, guard-3, soak-r3, mc-host, xp-cube-faces | PM | head 8c411416; gate running 21:35 |
+| train121: h-rf, leak-cell, co-reach, xp-readable, docs-rc-r2, guard-3, soak-r3, mc-host, xp-cube-faces | PM | head 8c411416; gate rerun 22:23 (container restart killed 21:35 run at chat-keys) |
 | tiling-disc-r4.md (rc 2; 0.5 %) | sonnet medium, claude/tiling-disc 7adb149c | rtd-6 MAJOR; session_016iS3kPsxASY615A4VFhFxR 21:37 |
 | soak-r4.md (rc 9; 1 %) | haiku high, claude/soak-r4 39283655 | session_016iS3kLADrjFVxyE2AdpCzk 20:23 |
 | flake-series-r7.md (rc 3; 1 %) | sonnet high, claude/flake-series-r7 1ec04694 | session_016iS3kLkxQHS3DxoJnqt8Xk 19:00 |
