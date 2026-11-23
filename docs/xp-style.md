@@ -94,9 +94,9 @@ honest state words.
 ## Desktop and helper
 
 11. **A grid of 80 by 88 pixel cells from 8, 8.** The Recycle Bin stands
-    at the right edge, 8 px from it. The paperclip stands 8 px from the right
-    edge and 8 px above the taskbar, the bin 8 px above the paperclip on
-    the same centre line. The tail of the balloon ends on the head of the
+    at the right edge, 8 px from it, and 8 px from the top: at the bottom
+    right it lay under the balloon of the paperclip or a notice. The
+    paperclip stands 8 px from the right edge and 8 px above the taskbar. The tail of the balloon ends on the head of the
     paperclip, and the border of every balloon is black.
 
 ## The helper's balloon

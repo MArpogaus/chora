@@ -1,6 +1,6 @@
 //! The icons on the desktop, as on XP: My Documents, My Computer and the
 //! files of the Desktop folder in columns from the top left, and the
-//! Recycle Bin at the bottom right. Each icon is an image node with the
+//! Recycle Bin at the top right. Each icon is an image node with the
 //! 32-pixel icon and its label in white with a black shadow below it. A
 //! click selects an icon, a double click opens it, a drag moves it to
 //! another cell of the grid. A drag on the empty desktop draws XP's
@@ -42,13 +42,11 @@ const LINE: i32 = 13;
 /// The widest line of a label.
 const LABEL_PX: i32 = 72;
 const LABEL_WIDTH: f64 = LABEL_PX as f64;
-/// The Recycle Bin from the bottom right of the work area: its cell is
-/// 8 pixels above the taskbar, one cell left of the paperclip, whose
-/// column is at the right edge. The chat balloon and the greeting stand
-/// on the paperclip and reach down to its head, 16 pixels above the
-/// paperclip at most, so none of them covers the bin.
-const BIN_FROM_RIGHT: i32 = MARGIN + 2 * CELL_W;
-const BIN_FROM_BOTTOM: i32 = MARGIN + CELL_H;
+/// The Recycle Bin from the top right of the work area: its cell is 8
+/// pixels from the right edge and from the top. The chat balloon and the
+/// greeting stand on the paperclip, and the notices at the bottom right,
+/// so at the bottom right the bin would lie under one of them.
+const BIN_FROM_RIGHT: i32 = MARGIN + CELL_W;
 /// A press moves this far before it drags the icon.
 const DRAG_START: f64 = 4.0;
 const WHITE: [u8; 4] = [255, 255, 255, 255];
@@ -268,7 +266,7 @@ impl DesktopIcons {
 
     /// Where each icon goes: its moved place, else the cell it kept, else
     /// the next free cell of the columns, and the Recycle Bin at the
-    /// bottom right.
+    /// top right.
     fn place(&self, kept: &HashMap<String, [i32; 2]>) -> Vec<[i32; 2]> {
         // Enough cells for the new icons beside the kept ones.
         let (grid, bin) = layout(self.items.len() + kept.len(), self.area);
@@ -746,10 +744,10 @@ fn by_type(items: &mut [Item]) {
 }
 
 /// The cells of `count` icons in columns from the top left of a work
-/// area, and the cell of the Recycle Bin at its bottom right; the columns
+/// area, and the cell of the Recycle Bin at its top right; the columns
 /// skip the cell of the bin.
 fn layout(count: usize, [x, y, w, h]: Rect) -> (Vec<[i32; 2]>, [i32; 2]) {
-    let bin = [x + w - BIN_FROM_RIGHT, y + h - BIN_FROM_BOTTOM];
+    let bin = [x + w - BIN_FROM_RIGHT, y + MARGIN];
     let rows = ((h - MARGIN - LABEL_TOP - 2 * LINE - 2) / CELL_H + 1).max(1);
     let cells = (0..)
         .map(|n| {
@@ -1013,14 +1011,14 @@ mod tests {
     }
 
     #[test]
-    fn icons_fill_columns_and_the_bin_sits_bottom_right() {
+    fn icons_fill_columns_and_the_bin_sits_top_right() {
         let (cells, bin) = layout(9, [0, 0, 800, 570]);
-        assert_eq!(bin, [632, 474]);
+        assert_eq!(bin, [712, 8]);
         assert_eq!(cells[..2], [[8, 8], [8, 96]]);
         assert_eq!(cells[6], [88, 8]);
         let (cells, bin) = layout(5, [0, 0, 200, 260]);
-        assert_eq!(bin, [32, 164]);
-        assert_eq!(cells, [[8, 8], [88, 8], [168, 8], [168, 96], [168, 184]]);
+        assert_eq!(bin, [112, 8]);
+        assert_eq!(cells, [[8, 8], [8, 96], [8, 184], [88, 96], [88, 184]]);
     }
 
     #[test]
