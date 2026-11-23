@@ -21,14 +21,14 @@ pub const CHIP: &str = "tiling-chip";
 /// the gap of 12 under it, on both sides, so that it stays clear of it.
 const BAR_CLEARANCE: f64 = 52.0;
 /// The width of the panel of the key list.
-const PANEL_WIDTH: f64 = 880.0;
+const PANEL_WIDTH: f64 = 984.0;
 /// The height of the header, above the first row.
 const TOP: f64 = 84.0;
 /// The space below the last row.
 const BOTTOM: f64 = 24.0;
 /// The space left of the first column, and the distance of the columns.
 const LEFT: f64 = 24.0;
-const COLUMN: f64 = 416.0;
+const COLUMN: f64 = 520.0;
 /// The pitches of the rows that the panel tries, in order. The caps are 4
 /// px less high, and never less than [`CAP_MIN`].
 const PITCHES: [f64; 3] = [24.0, 22.0, 20.0];
@@ -705,12 +705,12 @@ pub fn fit_list(output: [f64; 2], height: f64, right: f64) -> Vec<Command> {
 /// The commands of the items of a plan, under the group `body`.
 fn draw(items: &[Item], body: &str, colors: &Colors) -> Vec<Command> {
     let mut commands = Vec::new();
-    let (text_rgb, muted_rgb) = (channels(&colors.text), channels(&colors.muted));
+    let text_rgb = channels(&colors.text);
     for (n, item) in items.iter().enumerate() {
         let id = format!("{body}-{n}");
         match item {
             Item::Title { at, text: words } => {
-                let face = Face::new(*at, 14.0, 600, muted_rgb);
+                let face = Face::new(*at, 14.0, 600, text_rgb);
                 commands.push(text(&id, body, words, &face));
             }
             Item::Cap {
@@ -1045,7 +1045,7 @@ mod tests {
             })
             .fold(0.0, f64::max);
         assert!((plan.size[1] - low - BOTTOM).abs() < 1e-9, "{plan:?}");
-        assert_eq!(plan.size[0], 880.0);
+        assert_eq!(plan.size[0], PANEL_WIDTH);
         let tight = laid_out(696.0);
         assert!(tight.size[1] <= 696.0, "the panel is {}", tight.size[1]);
     }
