@@ -28,7 +28,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (closes on the flake lanes + ha
 | record-v9-r4.md (F7, rc 11; 1.5 %) | sonnet medium, claude/record-v9 6949cddb | r4 review MERGE-OK 10:56 (rr9-1 MINOR); t115 running |
 | sim-long-r2.md (rc 9; 1 %) | haiku high, claude/sim-long-r2 230ea0e5 | session_016iS3kLH4cr6VJ5SxZZeob1 09:33 |
 | tiling-disc-r1.md (rc 2; 1.5 %) | sonnet high, claude/tiling-disc 230ea0e5 | session_016iS3kLr3z3YfoMNYBqXya5 10:10 |
-| xp-readable-r1.md (F7, rc 11; 1.5 %) | sonnet high, claude/xp-readable 5b34d4b1 | starting 11:12 |
+| xp-readable-r1.md (F7; 1.5 %) | sonnet high, claude/xp-readable 5b34d4b1 | session_016iS3kMVx3PinxquBDuK1wo 11:12 |
 ## Queue (% week; 5 % reserve)
 3. (rc 8) DOCS-RC r2 (pr-1..5) on the Thu head.
 4. (rc 1, 2) co-focus r3 MERGE-OK, t115; rcf-8, rcf-10 MINOR next round. (F7, rc 11) record-v9 r3 in t114; r4 done (88 regressions, causes named), review then t115 or t116; xp-readable r1 started (xp-39..41, 19, 9, 10, 13); co-44, co-45, ti-30, sh-31 once no MAJOR is open on the look.
