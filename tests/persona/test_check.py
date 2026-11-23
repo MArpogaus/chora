@@ -607,5 +607,83 @@ class WaitForApp(unittest.TestCase):
         self.assertFalse(got)
 
 
+def face_snap(mode="use", shown=True, holder="xp", new=("s2",), owner="xp", menu_on=None):
+    """The construct with its cube open and xp on its faces: xp holds `s2`
+    (shown on the front face, or on another one) after a window of the face
+    came; the construct holds nothing. With `menu_on` xp holds its Start
+    menu instead, which draws on that output, and focuses no window."""
+    cube = {
+        "faces": [{"output": f"V-{i}", "manager": "xp"} for i in range(4)],
+        "front": 0,
+        "mode": mode,
+    }
+    focused = holder if menu_on is None else None
+    xp = {
+        "windows": [{"surface": "s2", "shown": shown, "output": "V-0" if shown else "V-1"}],
+        "focus": {"holder": holder, "surface": "s2" if focused else None},
+    }
+    states = {"construct": construct_state(), "xp": xp}
+    nodes = [surface(sid, owner, focused=menu_on is None) for sid in new]
+    boxes = None
+    if menu_on is not None:
+        menu = {"id": "xp-menu", "kind": "group", "owner": "xp", "parent": "root", "focused": True}
+        frame = {"id": "xp-menu-frame", "kind": "image", "owner": "xp", "parent": "xp-menu"}
+        nodes += [menu, frame]
+        box = {"node": "xp-menu-frame", "layer": "scene", "rect": [0, 600, 300, 170]}
+        boxes = {f"V-{i}": {"boxes": [box] if f"V-{i}" == menu_on else []} for i in range(4)}
+    s = snap(states=states, nodes=nodes, toplevels=new, cube=cube, clients=("construct", "xp"))
+    s.boxes = boxes
+    return s
+
+
+class FaceManager(unittest.TestCase):
+    """co-48, co-49 (p2-r6-co r6): in use mode the pointer and the keys of
+    a face reach its window manager and its windows (docs/cube-modes.md,
+    States). A window that the xp of the front face owns and focuses is a
+    focused window of the construct session, not a red of C3, T1 or T3."""
+
+    def contract(self, task, after, hist=(), entries=()):
+        before = face_snap(new=())
+        c = check.Ctx("construct", list(hist), [], None, [], list(entries))
+        return check.contracts(task, c, before).check(before, after)
+
+    def test_c3_takes_the_manager_of_the_front_face_as_the_holder(self):
+        self.assertEqual(self.contract("C3", face_snap()), [])
+
+    def test_t1_takes_a_new_window_of_the_front_face(self):
+        self.assertEqual(self.contract("T1", face_snap()), [])
+
+    def test_t3_takes_the_manager_of_the_front_face_back_with_the_focus(self):
+        hist = [{"helper": {"construct": w}} for w in ("idle", "working", "idle")]
+        entries = [{"role": "agent", "text": "Hello"}]
+        got = self.contract("T3", face_snap(), hist=hist, entries=entries)
+        self.assertEqual(got, [])
+
+    def test_a_window_of_a_face_that_does_not_show_is_no_holder(self):
+        self.assertNotEqual(self.contract("C3", face_snap(shown=False)), [])
+
+    def test_in_navigate_mode_the_manager_is_no_holder(self):
+        self.assertNotEqual(self.contract("C3", face_snap(mode="navigate")), [])
+
+    def test_t1_takes_no_new_window_of_a_face_that_does_not_show(self):
+        """rcf-1: the new focused window of xp is on a face out of sight."""
+        self.assertNotEqual(self.contract("T1", face_snap(shown=False)), [])
+
+    def test_c3_takes_the_start_menu_of_the_front_face_as_the_holder(self):
+        self.assertEqual(self.contract("C3", face_snap(menu_on="V-0")), [])
+
+    def test_c3_takes_no_node_of_a_face_that_does_not_show(self):
+        """rcf-2: xp holds the keys with its Start menu on a face out of
+        sight; it holds no surface."""
+        self.assertNotEqual(self.contract("C3", face_snap(menu_on="V-1")), [])
+
+    def test_t3_takes_no_node_of_a_face_that_does_not_show(self):
+        """rcf-2: as C3, for the focus that T3 wants back."""
+        hist = [{"helper": {"construct": w}} for w in ("idle", "working", "idle")]
+        entries = [{"role": "agent", "text": "Hello"}]
+        got = self.contract("T3", face_snap(menu_on="V-1"), hist=hist, entries=entries)
+        self.assertNotEqual(got, [])
+
+
 if __name__ == "__main__":
     unittest.main()

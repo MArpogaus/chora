@@ -747,3 +747,273 @@ kind = "pixel"
 act = "t2"
 cause = "bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
 kind = "pixel"
+
+[[change]]
+act = "t10b"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+kind = "pixel"
+
+[[change]]
+act = "t1d"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+kind = "pixel"
+
+[[change]]
+act = "t3"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+kind = "pixel"
+
+[[change]]
+act = "t3b"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+kind = "pixel"
+
+[[change]]
+act = "t3c"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+kind = "pixel"
+
+[[change]]
+act = "t3d"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+kind = "pixel"
+
+[[change]]
+act = "t3e"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+kind = "pixel"
+
+[[change]]
+act = "t3f"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+kind = "pixel"
+
+[[change]]
+act = "t3g"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+kind = "pixel"
+
+[[change]]
+act = "t3h"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+kind = "pixel"
+
+[[change]]
+act = "t4"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+kind = "pixel"
+
+[[change]]
+act = "t5"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+kind = "pixel"
+
+[[change]]
+act = "t6b"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+kind = "pixel"
+
+[[change]]
+act = "t6d"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+kind = "pixel"
+
+[[change]]
+act = "t8b"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+kind = "pixel"
+
+[[change]]
+act = "t9b"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+kind = "pixel"
+
+[[change]]
+act = "x1"
+cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
+kind = "meta"
+
+[[change]]
+act = "x10"
+cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "rect"
+
+[[change]]
+act = "x10"
+cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
+kind = "meta"
+
+[[change]]
+act = "x10b"
+cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "rect"
+
+[[change]]
+act = "x10c"
+cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "rect"
+
+[[change]]
+act = "x10c"
+cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
+kind = "meta"
+
+[[change]]
+act = "x11"
+cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "rect"
+
+[[change]]
+act = "x11"
+cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
+kind = "meta"
+
+[[change]]
+act = "x11b"
+cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "rect"
+
+[[change]]
+act = "x11b"
+cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
+kind = "meta"
+
+[[change]]
+act = "x12"
+cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
+kind = "meta"
+
+[[change]]
+act = "x12b"
+cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "rect"
+
+[[change]]
+act = "x12b"
+cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
+kind = "meta"
+
+[[change]]
+act = "x12c"
+cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
+kind = "meta"
+
+[[change]]
+act = "x2"
+cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
+kind = "meta"
+
+[[change]]
+act = "x2b"
+cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
+kind = "meta"
+
+[[change]]
+act = "x2c"
+cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "rect"
+
+[[change]]
+act = "x2c"
+cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
+kind = "meta"
+
+[[change]]
+act = "x3"
+cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "rect"
+
+[[change]]
+act = "x3"
+cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
+kind = "meta"
+
+[[change]]
+act = "x4"
+cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "rect"
+
+[[change]]
+act = "x4"
+cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
+kind = "meta"
+
+[[change]]
+act = "x5e"
+cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "rect"
+
+[[change]]
+act = "x5e"
+cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
+kind = "meta"
+
+[[change]]
+act = "x5g"
+cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "rect"
+
+[[change]]
+act = "x5g"
+cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
+kind = "meta"
+
+[[change]]
+act = "x6e"
+cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "rect"
+
+[[change]]
+act = "x6e"
+cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
+kind = "meta"
+
+[[change]]
+act = "x7"
+cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "rect"
+
+[[change]]
+act = "x7"
+cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
+kind = "meta"
+
+[[change]]
+act = "x7b"
+cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "rect"
+
+[[change]]
+act = "x7b"
+cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
+kind = "meta"
+
+[[change]]
+act = "x8"
+cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "rect"
+
+[[change]]
+act = "x8"
+cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
+kind = "meta"
+
+[[change]]
+act = "x9"
+cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "rect"
+
+[[change]]
+act = "x9"
+cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
+kind = "meta"
+
+[[change]]
+act = "x9b"
+cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "rect"
+
+[[change]]
+act = "x9b"
+cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
+kind = "meta"

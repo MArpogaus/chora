@@ -268,9 +268,11 @@ impl Wm {
     /// The keyboard of the plugin's nodes: the desktop's while no window
     /// has the focus, for Shift+F10 and the Menu key; else none, so that
     /// the focused window gets it. A window of another window manager
-    /// with the focus keeps it, so that one look holds the keys (I3).
+    /// with the focus keeps it, so that one look holds the keys (I3), and
+    /// so does a node of another client (rcf-9): xp's none releases only
+    /// a node of xp.
     pub(super) fn desktop_keys(&self) -> Command {
-        let desktop = self.focused.is_none() && !self.focus_away();
+        let desktop = self.focused.is_none() && !self.focus_away() && !self.node_away();
         Command::FocusNode {
             node: desktop.then(|| desktop_icons::GROUP.into()),
         }
