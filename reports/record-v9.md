@@ -474,3 +474,20 @@ Full `tests/merge-gate.sh --jobs 2` (no --only), detached, on claude/record-v9 6
 
 ### Next
 F7 is not met: 88 regressions remain. What is left is mostly not a harness defect: the I6 flips are breaches the baseline could not measure (rv9-1 to rv9-6), the mc chapter diverges by page after Home (fa7faabd), and the xp rows wait for those I6 findings to be fixed. Suggest: the baseline replay learns to say "I6: not measured" (no green) so that it is not a flip, and a build between 733967aa and head that has `scene.boxes` but not the look changes (bisect) as a second baseline for I6.
+
+## Review r4 (review-record-v9, claude/record-v9 6949cddb vs a346972e)
+
+Step 0 green (unshallow, cargo check, PIL). `tests/test_tour.py` 82 passed at the head. Not run here: the merge gate (the lane's 62 PASS taken as given).
+
+1. Red first: a88073e7 and f3c05f1e each add their test in the same commit as the fix (`git show --stat`: tests/test_tour.py with launch.py), so "red before fix" is the lane's word, not visible in history. Nothing else differs.
+2. Rows: 54 added `[[change]]` rows (16 tiling 573496e5, 17 xp 09ff8ff9/bd5af4b3, 21 xp 29281054; the report's 38 xp rows match 17+21). All eight shas exist (`git cat-file -e`). Every row's act is a generated act id of its chapter; kinds pixel/rect/meta. No row names 20e4ad6e, fa7faabd or any mc act: no unproven row of that sort. Duplicate act ids are the two-kind rows (rect + meta).
+3. No row text, act or kind names I2 or I6; the flipped acts are not touched by a row.
+4. Stubs: `foot_stub`/`date_stub` are defined only in demo/tour/launch.py, used from launch.py's two launchers and chapters/tiling.py; no product code or other suite imports them.
+5. Counts 1/21/88: not reproducible here (`run.py --check` fails: no target/debug/chora-tiling, the step-0 brief builds only `cargo check`). Static cross-check: 54 new rows plus the 4 earlier tiling rows give the tiling 4 to 20 change; consistent with the report.
+
+Findings:
+- rr9-1 | MINOR | demo/tour/intended.toml (16 tiling rows, e.g. t10b) | the cause text of every tiling row lists five shas (573496e5 plus bbb105ba, 3a9a426f, 136bbd82, 6a5cfc1d), but only 573496e5 is proved by the gap_inner 10 take; the bar shas are asserted per row, not checked per act | fix: say in the row which sha explains which diff, or keep only 573496e5 where the bar is not in the diff.
+- rr9-2 | NIT | tests/test_tour.py, a88073e7/f3c05f1e | the red-first run cannot be seen in history | fix: none needed; optionally a WIP test commit before the fix next time.
+- rr9-3 | NIT | demo/tour/launch.py `foot_stub` | the shell `cd /home/user/notes` and `TILE_WAIT` 3 s are fixed sleeps, a slow machine can still show another scroll | fix: none now; revisit if the tiling take flakes.
+
+Verdict: MERGE-OK (no BLOCK, no MAJOR open).
