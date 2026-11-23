@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-23 13:50 UTC)
+## Now (2026-11-23 13:57 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 13:09 PM 4.9 % (11-22) + 4.2 % (11-23), week about 19 % vs 34 % pace
 session branch: bc153929 (t115 green 12:46); 69 greens.
@@ -25,7 +25,7 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 | docs-rc-r2.md (rc 8; 0.5 %) | sonnet medium, claude/docs-rc-r2 bc153929 | session_016iS3kN9ocLnwiwQ9UmSdQR 13:31 |
 | guard-3-r1.md (rc 7, F8, F5; 0.4 %) | sonnet medium, claude/guard-3 bc153929 | session_016iS3kQXc6CfmWM1E25AtoY 13:21 |
 | tiling-disc-r1.md (rc 2; 1.5 %) | sonnet high, claude/tiling-disc 230ea0e5 | 8df47cc8 review MERGE-OK (rtd-1 MINOR); train116 |
-| xp-readable-r1.md (F7; 1.5 %) | sonnet high, claude/xp-readable 5b34d4b1 | session_016iS3kMVx3PinxquBDuK1wo |
+| review-xp-readable-r1.md (F7; 0.5 %, review) | sonnet medium, claude/review-xp-readable 2d2413f6 | starting |
 | mc-tidy-r2.md (F7; 1.5 %) | sonnet medium, claude/mc-tidy 5b34d4b1 | session_016iS3kP9Js7yxNibyrZocXb; r1 12:52: mc-55, mc-57 close, keys red (sh-34) -> r2 |
 | leak-r1.md (rc 9; 2 %) | opus high, claude/leak 5b34d4b1 | session_016iS3kMw4PZJnXirCxCD1cb 12:19 |
 | h-rf-r1.md (process, rc 3; 1 %) | sonnet high, claude/h-rf bc153929 | session_016iS3kLtmCrsEF9Th9qFLi4 13:10 |
