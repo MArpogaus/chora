@@ -1,0 +1,64 @@
+task C2 pass [scene: cube in a face, face 1, pane room no, walk no]
+breach I6 in look: on VIRTUAL-1 '3:36 AM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-2 '3:36 AM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-3 '3:36 AM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-4 '3:36 AM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in key: on VIRTUAL-1 '3:36 AM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in key: on VIRTUAL-2 '3:36 AM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in key: on VIRTUAL-3 '3:36 AM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in key: on VIRTUAL-4 '3:36 AM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-1 '3:36 AM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-2 '3:36 AM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-3 '3:36 AM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-4 '3:36 AM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in click: on VIRTUAL-1 'User' (xp-menu-frame) has the contrast 4.32:1 ((255, 255, 255) on (39, 121, 221)), the guide wants 4.5:1
+breach I6 in click: on VIRTUAL-1 '3:36 AM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in click: on VIRTUAL-2 '3:36 AM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in click: on VIRTUAL-3 '3:36 AM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in click: on VIRTUAL-4 '3:36 AM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-1 'User' (xp-menu-frame) has the contrast 4.32:1 ((255, 255, 255) on (39, 121, 221)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-1 '3:36 AM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-2 '3:36 AM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-3 '3:36 AM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-4 '3:36 AM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in click: on VIRTUAL-1 '3:37 AM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in click: on VIRTUAL-2 '3:37 AM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in click: on VIRTUAL-3 '3:37 AM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in click: on VIRTUAL-4 '3:37 AM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-1 '3:37 AM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-2 '3:37 AM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-3 '3:37 AM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-4 '3:37 AM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in drag: on VIRTUAL-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((36, 36, 36) on (36, 36, 36)), the guide wants 4.5:1
+breach I6 in drag: on VIRTUAL-1 '3:37 AM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in drag: on VIRTUAL-2 '3:37 AM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in drag: on VIRTUAL-3 '3:37 AM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in drag: on VIRTUAL-4 '3:37 AM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((36, 36, 36) on (36, 36, 36)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-1 '3:37 AM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-2 '3:37 AM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-3 '3:37 AM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-4 '3:37 AM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in click: on VIRTUAL-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((36, 36, 36) on (36, 36, 36)), the guide wants 4.5:1
+breach I6 in click: on VIRTUAL-1 '3:38 AM' (xp-tray-VIRTUAL-1) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1
+breach I6 in click: on VIRTUAL-2 '3:38 AM' (xp-tray-VIRTUAL-2) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1
+breach I6 in click: on VIRTUAL-3 '3:38 AM' (xp-tray-VIRTUAL-3) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1
+breach I6 in click: on VIRTUAL-4 '3:38 AM' (xp-tray-VIRTUAL-4) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((36, 36, 36) on (36, 36, 36)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-1 '3:38 AM' (xp-tray-VIRTUAL-1) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-2 '3:38 AM' (xp-tray-VIRTUAL-2) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-3 '3:38 AM' (xp-tray-VIRTUAL-3) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-4 '3:38 AM' (xp-tray-VIRTUAL-4) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1
+breach I3 in click: the focused s1 is no shown window of xp
+breach I6 in click: on VIRTUAL-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((36, 36, 36) on (36, 36, 36)), the guide wants 4.5:1
+breach I6 in click: on VIRTUAL-1 '3:38 AM' (xp-tray-VIRTUAL-1) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1
+breach I6 in click: on VIRTUAL-2 '3:38 AM' (xp-tray-VIRTUAL-2) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1
+breach I6 in click: on VIRTUAL-3 '3:38 AM' (xp-tray-VIRTUAL-3) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1
+breach I6 in click: on VIRTUAL-4 '3:38 AM' (xp-tray-VIRTUAL-4) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1
+breach I3 in look: the focused s1 is no shown window of xp
+breach I6 in look: on VIRTUAL-1 'Recycle Bin' (xp-icon-2) has the contrast 1.00:1 ((36, 36, 36) on (36, 36, 36)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-1 '3:38 AM' (xp-tray-VIRTUAL-1) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-2 '3:38 AM' (xp-tray-VIRTUAL-2) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-3 '3:38 AM' (xp-tray-VIRTUAL-3) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-4 '3:38 AM' (xp-tray-VIRTUAL-4) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1
+breaches 62
