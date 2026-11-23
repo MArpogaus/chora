@@ -93,3 +93,4 @@ Verdict: **FIX** (1 MAJOR, 2 MINOR, 3 NIT; no BLOCK).
 - rhr-4, NIT, tests/red-first.sh:42: ids glued by a hyphen or a letter run (`sh-33-sh-34`, `sh-33ab`, `sh-1-`) match nothing, so such a fix is green with no test; `sh-1.2` reads `sh-1`. Fix: split also on `-` where a digit run ends (or accept and note it in CONTRIBUTING.md).
 - rhr-5, NIT, tests/red-first.sh:115 (design note): a secondary id mentioned in the body as a side note makes the fix red (`ac327bc0`: "rw-4: the doc paragraph moves"). The rule says "names"; the PM decision 11-23 14:50 keeps it strict. No change asked; lane briefs should say "name in the fix only the ids it closes".
 - rhr-6, NIT, reports/h-rf.md "## r1": says 8 new cases are red at `73525d9c`; the selftest shows 10 FAIL lines. Fix: correct the number.
+- 11-23 15:00 PM: review r1 FIX (rhr-1 MAJOR). Decision: in-flight commits before the cut keep the old rule (no reword, no force). r2: briefs/h-rf-r2.md.
