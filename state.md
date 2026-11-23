@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-23 01:33 UTC)
+## Now (2026-11-23 01:35 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.67 %/h = 16 %/day, no day cap; tokens.py 00:09 PM 4.9 % (Bangkok 11-22) + 1.7 % (11-23), week about 14 % (lanes est.) vs 28 % pace; under pace: 6 lanes
-session branch: 40a2ba92 (t110f green 00:40: t110b list + CORE-FIX, MC-HELPER); 64 greens. t110e red FLK-HANG (lane flk-hang); t111 00:43: HARNESS-LEAK alone.
+session branch: 40a2ba92 (t110f green 01:32: t110b list + CORE-FIX, MC-HELPER); 64 greens. t110e red FLK-HANG (lane flk-hang); t111 01:33: HARNESS-LEAK alone.
 burn-down: F1-F4, F6, F8 met (audit r4); F5 open (closes on the flake lanes + haiku series 5 at 2 jobs); F7 open.
 
 ## RC
@@ -11,7 +11,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (closes on the flake lanes + ha
 |---|---|---|
 | 1, 1b | No BLOCK/MAJOR, independent pass; owner sees v9 | open: RECORD-V9 (ti-38 next train) |
 | 2 | Persona round 4 | xp, mc meet; co T1 T2, tiling I2 T1 T3 open |
-| 3 | 3 greens, no flake | series r5 5/5 on 3b14c825; open: FLAKE-WAIT, FLAKE-K1, FLK-K1b, PIX-CAPSULE, TILING-LAYOUT, HANG |
+| 3 | 3 greens, no flake | series r5 5/5 on 3b14c825; open: FLAKE-WAIT, FLAKE-K1, FLK-K1b, PIX-CAPSULE, TILING-LAYOUT |
 | 4, 5 | CI green on a PR; packaging | pre-commit green; CI PR at release |
 | 6 | Review per area | r1 MERGE-OK (0 MAJOR; MC-FOCUS) |
 | 7 | deny, machete; updates | clean; 7 bumps (DEPS) |
@@ -29,13 +29,13 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (closes on the flake lanes + ha
 | harness-leak-r1.md (F5, rc 3, 9: HARNESS-LEAK; 0.5 %) | sonnet medium, claude/harness-leak 6b01c976 | MERGE-OK 7982d549; own train t111 first |
 | tiling-round-r1.md (rc 2, 1: T1, T3, I2, TF-1; 1 %) | sonnet medium, claude/tiling-round 011db749 | 00:05 INCOMPLETE (gate cut); I2, TF-1 ok; T3 closed; T1: D55 holds, T1b new; gate rerun |
 | pix-capsule-r1.md (F5, rc 3; 0.6 %) | sonnet medium, claude/pix-capsule e905195e | session_016iS3kQCc5SxBL77HLj5CXY 00:10 |
-| flk-hang-r1.md (F5, rc 3; 0.3 %) | sonnet low, claude/flk-hang 6b01c976 | session_016iS3kPSM42BDT1rimk4Y1T 00:14 |
+| flk-hang-r1.md (F5, rc 3; 0.3 %) | sonnet low, claude/flk-hang 6b01c976 | MERGE-OK 022fa50c; t112 |
 | xp-idle-r1.md (F5, rc 3; 0.5 %) | sonnet medium, claude/xp-idle db7a7acd | MERGE-OK; t111 |
 
 ## Queue (% week; 5 % reserve)
 3. (rc 8) DOCS-RC r2 (pr-1..5) on the Thu head.
 4. (F7, rc 11) record-v9 r2 after ti-38.
-5. (rc 1, 3, 8, 9) t111 running: HARNESS-LEAK alone; t112: XP-IDLE, MC-ROUND, TILING-FIX, CUBE-SETTLE, FLAKE-HINT as they pass. Then: eprintln ratchet; haiku series 5 (F5).
+5. (rc 1, 3, 8, 9) t111 running: HARNESS-LEAK alone; t112: XP-IDLE, MC-ROUND, FLK-HANG, TILING-FIX, CUBE-SETTLE, FLAKE-HINT as they pass. Then: eprintln ratchet; haiku series 5 (F5).
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
