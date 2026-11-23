@@ -27,7 +27,7 @@ burn-down: F1-F4, F6, F8 met (audit r4); F5 open (closes on the flake lanes + ha
 | tiling-flake-r2.md (F5, rc 3; 1 %) | sonnet medium, claude/tiling-flake 15a5d2fc | r2 DONE 09:24; PM review MERGE-OK; train t115 after t114 |
 | record-v9-r4.md (F7, rc 11; 1.5 %) | sonnet medium, claude/record-v9 088d36de | r3 MERGE-OK (PM review), train t114 07:41, killed 3x by container restarts; 09:42 as a harness background task (friction 11-23); r4 session_016iS3kP9SomnoWqm2LHMfr4 07:42 |
 | sim-long-r2.md (rc 9; 1 %) | haiku high, claude/sim-long-r2 230ea0e5 | session_016iS3kLH4cr6VJ5SxZZeob1 09:33 |
-| tiling-disc-r1.md (rc 2; 1.5 %) | sonnet high, claude/tiling-disc 230ea0e5 | starting 10:09 (p2-r5: round 5 not met, L1 L2 T6 T7 not reached, no new BLOCK/MAJOR) |
+| tiling-disc-r1.md (rc 2; 1.5 %) | sonnet high, claude/tiling-disc 230ea0e5 | session_016iS3kLr3z3YfoMNYBqXya5 10:10 (p2-r5: round 5 not met, L1 L2 T6 T7 not reached, no new BLOCK/MAJOR) |
 ## Queue (% week; 5 % reserve)
 3. (rc 8) DOCS-RC r2 (pr-1..5) on the Thu head.
 4. (rc 1, 2) co-focus r3 MERGE-OK, t115; rcf-8, rcf-10 MINOR next round. (F7, rc 11) record-v9 r3 in t114 (108 regressions); r4 pins takes and names causes; its finding lines open fix lanes per look.
