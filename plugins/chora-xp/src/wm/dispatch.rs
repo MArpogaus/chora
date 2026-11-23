@@ -117,7 +117,7 @@ impl Wm {
     pub(super) fn call(&mut self, call: Call) -> Result<Value, RpcError> {
         let commands = match call {
             Call::StartMenu { open } => {
-                let bar = self.bars.first().map(|bar| bar.output.clone());
+                let bar = self.front_bar().map(|bar| bar.output.clone());
                 if open && self.dialog.is_some() {
                     return Err(RpcError::new(
                         RpcError::REJECTED,

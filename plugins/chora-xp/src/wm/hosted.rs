@@ -135,6 +135,14 @@ impl Wm {
             .map(String::as_str)
     }
 
+    /// The taskbar of the face at the front of the cube of the host; the
+    /// first one without a host.
+    pub(super) fn front_bar(&self) -> Option<&Bar> {
+        (self.front_face())
+            .and_then(|output| self.bars.iter().find(|b| b.output == output))
+            .or(self.bars.first())
+    }
+
     /// Whether the window `surface` lies on the face at the front of the
     /// cube of the host; every window does without a host.
     pub(super) fn on_front(&self, surface: &str) -> bool {
@@ -147,13 +155,15 @@ impl Wm {
     /// or on its own nodes, go to the topmost window of the front face,
     /// else to its icons (co-50); keys on the icons go to the topmost
     /// window of the face. Keys that another client holds stay there, also
-    /// when a menu shuts (rcf-9).
+    /// when a menu shuts (rcf-9). The icons move to the work area of the
+    /// front face (rcf-8).
     pub(super) fn host_turned(&mut self, turned: cube::Turned) -> Vec<Command> {
         if turned.turning {
             return Vec::new();
         }
         self.front = turned.front;
-        let mut commands = self.shut_menus_off_front();
+        let mut commands = self.refresh_icons();
+        commands.extend(self.shut_menus_off_front());
         if self.own_node() && (self.menu.is_open() || self.context.is_some()) {
             return commands;
         }
@@ -511,7 +521,13 @@ mod tests {
         wm.focused = None;
         wm.core_focus = None;
         wm.key_node = Some("construct".into());
-        assert_eq!(wm.host_turned(turned(2)), Vec::new());
+        let commands = wm.host_turned(turned(2));
+        assert!(
+            !commands
+                .iter()
+                .any(|c| matches!(c, Command::FocusNode { .. })),
+            "xp takes the keys of another client: {commands:?}"
+        );
         assert_eq!(wm.focused, None);
     }
 
@@ -561,6 +577,56 @@ mod tests {
         let commands = wm.key("Ctrl+Escape");
         assert_eq!(wm.menu.output(), Some("V-1"), "flat: {commands:?}");
         assert!(commands.contains(&start_focus), "{commands:?}");
+    }
+
+    /// rcf-8: after a turn to face 2 at rest, the icons lie on the work
+    /// area of the front face, not on face 0 out of sight, so the keys to
+    /// the icons of the front face go to icons that show. Back on face 0
+    /// they return; without a host they stay on the first bar. The first
+    /// refresh is the tick that follows the screen leaving.
+    #[test]
+    fn the_icons_follow_the_front_face_of_a_hosted_cube() {
+        let inside = |wm: &Wm, output: &str| {
+            let [x, y, w, h] = wm
+                .bars
+                .iter()
+                .find(|b| b.output == output)
+                .unwrap()
+                .usable();
+            let places = wm.desk.places();
+            assert!(!places.is_empty(), "no icons");
+            places
+                .iter()
+                .all(|p| (x..x + w).contains(&p[0]) && (y..y + h).contains(&p[1]))
+        };
+        let mut wm = hosted("host-icons-front");
+        let _ = wm.refresh_icons();
+        assert!(
+            inside(&wm, "V-1"),
+            "at rest on face 0: {:?}",
+            wm.desk.places()
+        );
+        let _ = wm.host_turned(turned(2));
+        assert!(inside(&wm, "V-3"), "face 2 at rest: {:?}", wm.desk.places());
+        let _ = wm.host_turned(turned(0));
+        assert!(inside(&wm, "V-1"), "face 0 again: {:?}", wm.desk.places());
+        wm.host = None;
+        let _ = wm.host_turned(turned(2));
+        assert!(inside(&wm, "V-1"), "flat: {:?}", wm.desk.places());
+    }
+
+    /// rcf-10: the exported `start_menu` call opens the menu on the face
+    /// at the front of a hosted cube, as the key does (rcf-7).
+    #[test]
+    fn the_start_menu_call_opens_on_the_front_face() {
+        let mut wm = hosted("host-start-call");
+        wm.front = 2;
+        let _ = wm.call(super::super::Call::StartMenu { open: true });
+        assert_eq!(wm.menu.output(), Some("V-3"));
+        let _ = wm.close_menu();
+        wm.host = None;
+        let _ = wm.call(super::super::Call::StartMenu { open: true });
+        assert_eq!(wm.menu.output(), Some("V-1"), "flat");
     }
 
     /// co-51: the focused window of the front face closes (the window of

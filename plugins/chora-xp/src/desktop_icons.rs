@@ -306,6 +306,12 @@ impl DesktopIcons {
         }
     }
 
+    /// Where the icons lie, for the tests.
+    #[cfg(test)]
+    pub fn places(&self) -> &[[i32; 2]] {
+        &self.places
+    }
+
     /// The icons as layers of a picture of the work area, for the faces
     /// of the cube: XP has one desktop, so every face shows its icons.
     pub fn paint(&self, theme: &mut Theme, icons: &mut Icons, mut face: Picture) -> Picture {

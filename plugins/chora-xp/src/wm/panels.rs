@@ -618,9 +618,10 @@ impl Wm {
     }
 
     /// Looks at the Desktop folder and the trash, and shows the icons on
-    /// the work area of the first output.
+    /// the work area of the face at the front of a hosted cube, else of
+    /// the first output.
     pub(super) fn refresh_icons(&mut self) -> Vec<Command> {
-        let Some(area) = self.bars.first().map(Bar::usable) else {
+        let Some(area) = self.front_bar().map(Bar::usable) else {
             return Vec::new();
         };
         self.desk.refresh(&mut self.theme, &mut self.icons, area)
