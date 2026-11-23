@@ -288,7 +288,7 @@ xp-run|BIN=$repo/target/debug tests/gate-xp-run.sh
 demo|BIN=$repo/target/debug tests/gate-demo.sh
 tiling-bar|BIN=$repo/target/debug tests/gate-tiling-bar.sh && BIN=$repo/target/debug tests/gate-tiling-spacing.sh && BIN=$repo/target/debug tests/gate-tiling-notice.sh
 tiling-theme|BIN=$repo/target/debug tests/gate-tiling-theme.sh
-tiling-disc|BIN=$repo/target/debug tests/gate-tiling-focus-key.sh && BIN=$repo/target/debug tests/gate-tiling-settings.sh
+tiling-disc|BIN=$repo/target/debug tests/gate-tiling-focus-key.sh && BIN=$repo/target/debug tests/gate-tiling-settings.sh && BIN=$repo/target/debug tests/gate-persona-keep.sh
 mc-host|BIN=$repo/target/debug tests/gate-mc-host.sh
 e2e|tests/e2e-sequence.sh "$repo/target/debug"
 STEPS
