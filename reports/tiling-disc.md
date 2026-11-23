@@ -69,3 +69,10 @@ Findings:
 - Cause: tiling-disc adds flavors/tiling/applications/chora-settings.desktop ("Edit settings"); the row lands between Alpha and Mid, so the cell's fixed Mid row (tests/gate-launcher-click.sh:123, row tiling 35 15 400 259) now holds Edit settings.
 - The lane gate could not see it: launcher-click needs fuzzel >= 1.11 and lane containers have 1.9.2 (sh-34).
 - rtd-2, MAJOR (verdict FIX): tiling-disc breaks a gate cell; fix in r2 (keep the Mid row where the cell expects it, or the cell finds the row by name), red first. tiling-disc leaves the train; train117 runs without it.
+
+## r2
+
+- c9d57fb9 on claude/tiling-disc, merged with origin/claude/autonomous-dev-session-3w-i33pg7 (head 3b32b9b4).
+- rtd-2: tests/gate-launcher-click.sh names its test rows "Aa Alpha", "Ab Mid", "Ac Zebra", before every flavor row (Chat, Dark, Edit settings, Light, Screenshot, System); Mid is the second row in both looks (y 219 tiling, 184 construct, 800-scale). Red: fuzzel 1.11.1 ran the cell here; with the r1 rows it was the train116 line ("a click on the Mid row ... did not start mid (alpha ...: 0, the chat: 0)"). With the rename and the old y it stayed red; with the new y green 3/3 alone (4 ok each run), PASS in the gate (19 s). "Edit settings" stays in the launcher.
+- rtd-1: round.sh stop sends kill -KILL to PERSONA_SESSION_PID when session.sh --stop fails; tests/gate-persona-keep.sh gains a session that ignores TERM (the test was written with the fix in the same commit, not run red first).
+- Gate (merge-gate.sh --jobs 2, full): 56 PASS, 1 FAIL: acts (234 pass, 3 known red, 2 blocking), both in tiling "the keys key opens the key list": I5 overlap 'Start a program or run a command' / 'System' and I6 contrast 6.51:1 on 'Windows'. A keys-list fault of the tiling flavor, not of the launcher rows or round.sh; not rerun.
