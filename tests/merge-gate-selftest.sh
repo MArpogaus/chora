@@ -441,6 +441,9 @@ check "the hook reads the id in the body" "$(hook_rc "fix(h): no id here" "" "Cl
 check "the hook takes a No test: line on a fix naming an id" "$(hook_rc "fix(h): for sh-2" "" "No test: a pure move")" 0
 check "the hook takes a fix without an id after any test" "$(hook_rc "fix(h): no id")" 0
 check "the hook takes a feat naming an id after any test" "$(hook_rc "feat(h): for sh-2")" 0
+scissors="# ------------------------ >8 ------------------------"
+check "the hook reads no id below the scissors line" "$(hook_rc "fix(h): for sh-1" "" "$scissors" "diff --git a/x b/x" "+a sh-99 and utf-8 in a diff line")" 0
+check "the hook still reads the ids above the scissors line" "$(hook_rc "fix(h): for sh-2" "" "$scissors" "diff --git a/x b/x")" 1
 rr_file tests/gate-h2.sh t
 git -C "$rr" add tests/gate-h2.sh
 check "the hook takes a staged test with a fix naming an id" "$(hook_rc "fix(h): for sh-2")" 0
