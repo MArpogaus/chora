@@ -16,6 +16,12 @@
 # needs, for each id, a commit before it on the branch (or this commit
 # itself) that names the same id and changes a test: a test that another
 # id brought does not count. A fix that names no id keeps the rule above.
+# per_id_rule_from (seconds since the epoch) is the committer date of the
+# commit that brought the per id rule: a commit committed before it is
+# checked by the rule before it (a test in the fix or before it, not one per
+# id). The hook always sees a commit made now.
+# The words that look like an id but are none (utf-8, sha-256, gate-0.8)
+# are skipped, and the hook cuts its message file at the scissors line.
 #
 # Usage: tests/red-first.sh MSG_FILE
 #   RED_FIRST_BASE  the base of the branch (default
@@ -38,6 +44,8 @@ is_fix() {
     grep -Eq '^fix(\([^)]*\))?!?:' <<<"$1"
 }
 
+per_id_rule_from=1795446458
+
 finding_ids() {
     tr -c 'A-Za-z0-9.-' '\n' <<<"$1" | grep -v '\.[0-9]' | tr . '\n' |
         sed 's/\([0-9]\)-/\1\n/g' | grep -xE '[a-z]{1,6}-[0-9]+[a-z]?' | grep -vE '^(utf|sha|base|ipv|gate|gtk)-' | sort -u
@@ -56,6 +64,11 @@ commit_changes_test() {
 
 commit_ids() {
     finding_ids "$(git log -1 --format=%B "$1")"
+}
+
+fix_ids() {
+    [ "$(git log -1 --format=%ct "$1")" -ge "$per_id_rule_from" ] || return 0
+    commit_ids "$1"
 }
 
 on_base_branch() {

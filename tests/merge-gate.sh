@@ -42,7 +42,8 @@
 # word of its subject or body like sh-1, mc-55 or rtd-2) needs, for each id,
 # a commit of the range before it, or itself, that names the same id and
 # changes a test; the step prints one line with the sha and the id that
-# misses. `pre-commit` runs the hooks over all files (as CI does; ~2 min),
+# misses. A fix committed before the cut time in tests/red-first.sh is
+# checked by the any-test rule, not per id. `pre-commit` runs the hooks over all files (as CI does; ~2 min),
 # with SKIP=cargo-clippy,lychee,vale as CI does, and fails when
 # pre-commit is not installed.
 # `ci-check` also runs tools/lint-ratchet (the allow, no-reason and eprintln counts may not grow),
@@ -200,7 +201,7 @@ red_first() {
         body=$(git -C "$repo" log -1 --format=%b "$sha")
         grep -Eq '^No test: .+' <<<"$body" && continue
         ids=""
-        ! is_fix "$subject" || ids=$(cd "$repo" && commit_ids "$sha")
+        ! is_fix "$subject" || ids=$(cd "$repo" && fix_ids "$sha")
         if [ -n "$ids" ]; then
             notes=$(id_verdict "$ids" "$test_ids" "$(git -C "$repo" log -1 --format=%h "$sha")") && continue
             echo "RED-FIRST MISSING: $(git -C "$repo" log -1 --format='%h %s' "$sha")"
