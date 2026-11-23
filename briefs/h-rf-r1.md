@@ -14,7 +14,7 @@ The merge gate's red-first step applies the same per-id rule to the range and na
 
 Done when:
 1) Red first: a commit with failing cases in the red-first selftest (new or tests/red-first-selftest.sh) before the change; cases: fix naming sh-1 with a test commit naming sh-1 before it passes; fix naming sh-1 with a test commit naming only sh-2 fails; fix naming sh-1 and sh-2 with tests for both passes, for one fails; fix with no id and any test passes; `No test:` passes; merge commit passes; test commit after the fix fails.
-2) Selftest green 3x; `bash tests/merge-gate.sh --only red-first` (or the step's own selftest) green.
+2) Selftest green 3x.
 3) Check the rule against the last 30 non-merge commits of the session branch (`git log --no-merges -30 bc153929`): list which would now fail; none may be a valid red-first pair. Write the list in the report.
 4) Full gate (tests/merge-gate.sh, no --only, --jobs 2) on the branch; foreign reds named by cell (known: keys sh-34, fuzzel 1.9.2 cells in lane containers) count as done.
 5) No change outside tests/red-first.sh, tests/merge-gate.sh red-first step, its selftest and CONTRIBUTING.md (one paragraph on the rule).
