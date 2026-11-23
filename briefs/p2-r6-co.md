@@ -1,0 +1,15 @@
+# p2-r6-co (RC 2 persona round 6 on construct): after co-42, co-43, co-46 closed (t106, t110)
+
+Model: sonnet, effort medium (driver of a scripted round; personas are haiku subagents, model haiku)
+Lane: cloud, branch claude/p2-r6-co at 86e619f3 (session head after t111). Run only: no product or test code changes. One round, stop at 250 k. Cost at most 0.8 %.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, then `cargo build --workspace`; then `bash tests/persona/round.sh --help` and one smoke `round.sh begin smoke` + `check.py end smoke` on construct. A failure: send_message the PM "p2-r6-co BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Read on claude/session-log: reports/p2-plan.md sections 1, 2 (construct rows); reports/p2-r5-co.md (r5: T1, T2 red, the I3 rows, Max T5 and T3 not run, the look cap slip); findings/construct.md co-42, co-43, co-46, co-47; feedback/README.md; tests/persona/README.md on the branch.
+Items:
+1. R6-co: the same three construct personas as r5 (explorer mouse first; Max ricer, keys and mouse, with `round.sh probe`; demo watcher), the p2-plan.md tasks T1-T7 and C1-C3, each a haiku Agent driving tests/persona/act.py only, under the section 2 limits (45 actions, 20 looks, no retries past 3, no coaching), via tests/persona/round.sh (binary snapshot once, construct 1280x800, 2 slots, PERSONA_CHECK=1). Seed the helper transcript first. `round.sh begin TASK` before each goal and `check.py end TASK` after it. Before the run, write the per-goal caps of each persona so they sum to at most its total (r4 and r5 breached the look cap); every task of every persona runs (r5 left Max T5, T3 out).
+2. Fix check against r5: explorer T1 (terminal in a face), explorer T2 (key list by mouse in a face, co-42), the I3 double focus on clicks in the xp face (co-43, co-46), Max C3 (two panes, fly, Tab). Each: pass, fail or not reached, with the capture.
+3. feedback/2026-11-23-p2r6co-<persona>.md per persona in the README form; each breach and red contract an `issue` with its capture. Run `tools/triage.py` over the three; its output into the report. No ledger edits.
+Poll each run in the same turn; never end a turn to wait.
+Done when: three feedback files; reports/p2-r6-co.md "## r6" with per task (a) contract, (b) breaches, (c) reached; the fix-check table; triage output; sha of the round's binaries; a stop-rule line per p2-plan.md (does construct meet round 6: T1-T7, C1-C3 reached, no new check-backed BLOCK or MAJOR?).
+Known, not findings: co-44 (I2 mode chips), co-45 (I6 key overlay), co-47 (keys after cube close); I7 at the first click before the faces draw (harness).
+Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 6 lines).
+Rules: push claude/session-log only (fetch and merge on reject, no force); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; no host power call (stand-ins only).
