@@ -56,5 +56,7 @@ co-53 | MINOR (older than co-focus) | review co-focus r1 rcf-6 | open (rules.md 
 co-54 | MAJOR (rc bar: no lost window) | p2-r7-co r7 Max C2 | open: co-reach r1 | After Super+C the terminal is lost behind the xp desktop: the user cannot see or reach it
 co-55 | MINOR (POLS: tiling users press Super+Return) | p2-r7-co r7 Max C3, r6 | open (rules.md 6: after co-52, co-54) | Super+Return on a construct face opens nothing
 co-56 | MINOR | p2-r7-co r7 demo C2 | open (rules.md 6) | Dragging a window onto pager button 2 of the xp face does not move it (tooltip only)
-co-57 | MAJOR candidate (rc bar: lock reachable) | p2-r7-co r7 demo T4 | open: co-reach r1 (verify: stand-in or product) | Start, Lock calls swaylock -f but no lock window is drawn
+co-57 | NIT (harness; was MAJOR candidate) | p2-r7-co r7 demo T4 | closed co-reach r1: the stand-in draws an untitled square, not a product fault | Start, Lock calls swaylock -f but no lock window is drawn
 co-58 | NIT (harness) | p2-r7-co r7 Max T5 | open | The probe window has no title (app id chora-probe); a persona cannot name it
+co-59 | MINOR | co-reach r1 notes; gate-construct-cube until_ok masks it | open (rules.md 6) | cube.open within ~0.4 s after cube.close of a connected xp is refused "a client xp runs already" (core lists the connection after close_cube ends xp)
+co-60 | MINOR candidate | co-reach r1 notes, seen once by hand | open: verify | A pane flown into from the cube stood back keeps the cube hints in the hint bar (Return Step in, turn keys); docs/cube-modes.md says no chip in a pane

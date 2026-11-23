@@ -47,3 +47,11 @@ Two full runs of `tests/merge-gate.sh --jobs 2` (no --only), detached, polled in
 - New MINOR candidate (construct, pre-existing race): `cube.open` within about 0.4 s after `cube.close` of a connected xp is refused "a client xp runs already": `close_cube` kills and waits for xp (`cube.rs:1132` `end`), but the core lists its connection for a few hundred ms more (measured: close answered at +806 ms after Super+C, xp listed until +1203 ms, a retry 1 s later opens). On bc153929 the gate's Super+C, cube.close ran 226 ms after the key, before xp connected; with the cube stood back xp connects first. A person who closes and at once reopens gets the refusal notice once.
 - In a pane flown into from the cube stood back, the hint bar keeps the cube's hints (`Return Step in`, turn keys); docs/cube-modes.md says no chip shows in a pane. Seen once by hand, not checked on bc153929.
 - C1 for the demo now goes row (cube stood back), then Return or a click on a face, then xp's Start: the steps of T4 lock after C1 need the step in.
+
+## PM review r1 (2026-11-23 18:5x UTC; diff 7 files +105/-40, under 200 lines; PM not the builder)
+- Red first: 1b3abdfc red, d9b2c4f1 fix, fe369799 gates. ok.
+- co-52, co-54: input.rs cube_key opens then StepBack (stood back, POLS); aside.rs make_way moves every pane in front. Cells gate-construct-cube, gate-construct-placed 10/10 green. Closed.
+- co-51, co-57: harness NIT (checker race; stand-in square). co-57 closed as NIT.
+- New: co-59 MINOR (reopen race, masked by until_ok in the gate), co-60 MINOR candidate (hint bar).
+- Gate: 60 PASS, mc-host red foreign, tiling-bar, e2e, fuzzel not run: the full gate runs in train119.
+- Verdict (computed): 0 open MAJOR -> MERGE-OK fe369799, train119 (the train is the full gate; red there = INCOMPLETE, back to the lane).
