@@ -970,15 +970,15 @@ impl Wm {
     }
 
     /// The claim of the plugin (D55): the box around the work areas of
-    /// its outputs, reaching up to the top edge of the outputs, where its
-    /// bar is, so that a key with the pointer on the bar is tiling's. A
-    /// panel below the work area is another look's. ponytail: one box, so
-    /// the gaps between outputs of another shape count too, for new
-    /// toplevels under the pointer; a drop uses [`Wm::output_at`].
+    /// its outputs. ponytail: one box, so the gaps between outputs of
+    /// another shape count too, for new toplevels under the pointer; a
+    /// drop uses [`Wm::output_at`].
     pub fn claim(&self) -> Option<[f64; 4]> {
         let areas = self.outputs.iter().map(|o| o.area);
-        let x0 = areas.clone().map(|a| a[0]).min()?;
-        let y0 = self.outputs.iter().map(|o| o.full[1]).min()?;
+        let [x0, y0] = [
+            areas.clone().map(|a| a[0]).min()?,
+            areas.clone().map(|a| a[1]).min()?,
+        ];
         let x1 = areas.clone().map(|a| a[0] + a[2]).max()?;
         let y1 = areas.map(|a| a[1] + a[3]).max()?;
         Some([x0, y0, x1 - x0, y1 - y0].map(f64::from))
@@ -1740,25 +1740,10 @@ mod tests {
         assert_eq!(new.arrange(), old.arrange());
     }
 
-    /// A panel of another look at the bottom is not in the claim: a key
-    /// with the pointer on the taskbar of xp is xp's.
     #[test]
-    fn the_claim_leaves_a_panel_below_the_work_area_to_its_look() {
+    fn the_claim_holds_the_work_areas_of_all_outputs() {
         let mut wm = wm(&[]);
-        assert_eq!(wm.claim(), Some([0.0, 0.0, 100.0, 60.0]), "work area only");
-        wm.set_output("A", [0, 20, 100, 40], [0, 0, 100, 80]);
-        assert_eq!(
-            wm.claim(),
-            Some([0.0, 0.0, 100.0, 60.0]),
-            "bar above, panel below"
-        );
-    }
-
-    #[test]
-    fn the_claim_holds_the_bar_above_the_work_area() {
-        let mut wm = wm(&[]);
-        wm.set_output("A", [0, 20, 100, 40], [0, 0, 100, 80]);
-        assert_eq!(wm.claim(), Some([0.0, 0.0, 100.0, 60.0]), "the bar too");
+        assert_eq!(wm.claim(), Some([0.0, 0.0, 100.0, 60.0]));
         wm.set_output("B", [100, 10, 50, 40], [100, 0, 50, 50]);
         assert_eq!(wm.claim(), Some([0.0, 0.0, 150.0, 60.0]));
     }

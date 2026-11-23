@@ -388,8 +388,8 @@ stays across relayouts, layout changes, tag moves and restarts with
 `resume`. The `style` applies only when `chora-tiling` takes a new
 window, so a requested value wins over the style for that window.
 
-`chora-tiling` claims the box around the work areas of its outputs, up to
-the top edge with its bar (D55). `--output NAME` limits it to some outputs, as for `chora-xp`, and
+`chora-tiling` claims the box around the work areas of its outputs
+(D55). `--output NAME` limits it to some outputs, as for `chora-xp`, and
 can come more than once. So each window manager takes its own outputs.
 It leaves a new window that the core reserves for another client to that
 client. When the last of its `--output` outputs goes, it gives its
