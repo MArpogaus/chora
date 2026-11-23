@@ -1741,11 +1741,11 @@ mod tests {
     }
 
     #[test]
-    fn the_claim_holds_the_work_areas_of_all_outputs() {
+    fn the_claim_holds_the_whole_outputs_with_the_bar() {
         let mut wm = wm(&[]);
-        assert_eq!(wm.claim(), Some([0.0, 0.0, 100.0, 60.0]));
+        assert_eq!(wm.claim(), Some([0.0, 0.0, 100.0, 80.0]), "the bar too");
         wm.set_output("B", [100, 10, 50, 40], [100, 0, 50, 50]);
-        assert_eq!(wm.claim(), Some([0.0, 0.0, 150.0, 60.0]));
+        assert_eq!(wm.claim(), Some([0.0, 0.0, 150.0, 80.0]));
     }
 
     /// Tiling on outputs 1 and 3, another window manager on 2: a drop on
