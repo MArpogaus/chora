@@ -3,6 +3,8 @@
 # A gate script answers "ok: ..." or "SKIP: <why>" with exit 0 (non-zero
 # when CI is set), or
 # "FAIL: <why>" with exit 1. Sources cleanly from any directory.
+# TILING_LOAD=N: session_start also starts N busy shell loops per CPU for the
+# run (a loaded host), the stress of the timed checks of the tiling gates.
 # session_pids PGREP_ARGS... prints the pids that pgrep finds whose
 # environment has the XDG_RUNTIME_DIR of the gate, so that a gate beside
 # it never counts, and exits 1 when it finds none.
@@ -121,6 +123,13 @@ session_start() {
     "$repo/tests/headless-session.sh" "$@" >"$env_file" 2>&1 &
     pids+=($!)
     trap gate_cleanup EXIT
+    if [ "${TILING_LOAD:-0}" -gt 0 ] && [ -z "${load_started:-}" ]; then
+        load_started=1
+        for _ in $(seq $((TILING_LOAD * $(nproc)))); do
+            (while :; do :; done) &
+            pids+=($!)
+        done
+    fi
     for _ in $(seq 60); do
         grep -q CHORA_SOCKET "$env_file" && break
         sleep 0.5
