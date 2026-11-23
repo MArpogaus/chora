@@ -310,3 +310,13 @@ Media: tour-diff-r3.json and flipped-checks.json under media/2026-11-23/tour-v9/
 
 ### Gate
 Head claude/record-v9 088d36de (merge of origin/claude/autonomous-dev-session-3w-i33pg7 at 2c1748a4; commits: test fix in 05fa9abb, fix BarClock, fix --no-companions 367cc167, fix code window 978aaf1e, rows 3df340a7). Full `tests/merge-gate.sh --jobs 2` (no --only), detached: 62 cells PASS, EXIT 0, "all steps passed". No foreign red. `pgrep -fa 'chora --headless'` empty.
+
+## Review r3 (PM, 07:45 UTC; harness only, code diff under 200 lines; PM is not the builder)
+Base 230ea0e5..088d36de: 8 files, +1079 -10; code: tests/tour-diff.py +26, demo/tour/launch.py +21, chapters +6, tests +111; data: intended.toml +726, sample.rs +199 (copy of the 733967aa file).
+- RV9-5: test builds ids with tour.act_id, one id scheme (intended.toml header, tour-diff `r["act"] == act`): met; acts cell PASS in the lane gate.
+- RV9-1: mask only where node `tiling` exists, width from the PNG header; BarClock 3 tests (masked, not without node, beside still a diff): met.
+- RV9-2/3: two-bar harness defect (--no-companions probed via --help), red first TilingArgv; code window pinned (CodeWindow): met. fa3e20a6 rows now cover nothing: debt, drop in r4.
+- RV9-4: flipped-checks.json with element and line: met.
+- Slip: test fix folded into merge 05fa9abb by --amend (no force); no rule broken that a gate checks; noted.
+- F7 not met: 108 regressions remain (r4).
+Verdict: 0 BLOCK, 0 MAJOR in the diff: MERGE-OK; harness branch, own train t114 at 07:41.
