@@ -12,7 +12,8 @@
 #                      panel fill, exempt in known-red.toml (white on it 2.1:1)
 #   cancel-target      Cancel of Turn off computer is 24 px high or more
 #   inactive-title     the title of a window that is not active has 4.5:1
-#   bin-clear          the Recycle Bin is not under the chat balloon
+#   bin-clear          the Recycle Bin stands at the bottom right, above the paperclip, and
+#                      no balloon (greeting, empty chat) and no notice (one, three) lies on it
 #   datetime-metrics   the push buttons of Date and Time are the 75 x 23 of XP
 #
 # Every cell runs and prints; the gate fails when one is red.
@@ -27,7 +28,7 @@
 set -u
 . "$(dirname "$0")/gate-lib.sh"
 need jq
-need_bins chora choractl chora-xp chora-assistant
+need_bins chora choractl chora-xp chora-assistant chora-notify
 shots=${SHOTS:-$(mktemp -d /tmp/gate-xp-readable.XXXXXX)}
 mkdir -p "$shots"
 temp_config
@@ -35,6 +36,8 @@ export HOME=$XDG_CONFIG_HOME/home
 mkdir -p "$HOME"
 session_start "1280x800@1" -- "$bin/chora-xp" --theme "$repo/flavors/xp/theme"
 "$bin/chora-assistant" >"$shots/assistant.log" 2>&1 &
+pids+=($!)
+"$bin/chora-notify" --assets "$repo/flavors/xp/assets/notify" >"$shots/notify.log" 2>&1 &
 pids+=($!)
 grant screen.capture input.inject
 sleep 3
@@ -47,6 +50,18 @@ red() {
 inj() { echo "$1" | ctl inject >/dev/null || fail "inject $1"; }
 key() { inj "[{\"shortcut\": {\"keys\": \"$1\"}}]"; }
 rect() { ctl query "id:$1" | jq -r '.[0].rects | to_entries[0].value | map(floor) | join(" ")'; }
+bin_clear() {
+    local label=$1 bx by bw bh id x y w h
+    read -r bx by bw bh <<<"$(rect xp-icon-2)"
+    [ -n "${bx:-}" ] || { red "bin-clear: $label: no Recycle Bin"; return; }
+    while read -r id x y w h; do
+        if [ "$w" -gt 0 ] && [ "$h" -gt 0 ] && [ "$bx" -lt $((x + w)) ] && [ "$x" -lt $((bx + bw)) ] &&
+            [ "$by" -lt $((y + h)) ] && [ "$y" -lt $((by + bh)) ]; then
+            red "bin-clear: $label: $id $x,$y ${w}x$h lies on the Recycle Bin $bx,$by ${bw}x$bh"
+        fi
+    done < <(ctl query '*' | jq -r '.[] | select(.owner == "assistant" or .owner == "notify") | .id as $id |
+        .rects | to_entries[] | "\($id) \(.value | map(floor) | join(" "))"')
+}
 at_least() {
     awk -v r="$1" -v m="$2" 'BEGIN { exit !(r + 0 >= m + 0) }' || red "$3: $1:1, wants $2:1"
 }
@@ -60,6 +75,10 @@ pager_digits() {
 }
 
 sleep 1
+read -r bx by bw bh <<<"$(rect xp-icon-2)"
+{ [ "$((bx + bw))" -ge 1256 ] && [ "$by" -ge 400 ] && [ "$((by + bh))" -le 770 ]; } ||
+    red "bin-clear: the Recycle Bin $bx,$by ${bw}x$bh is not at the bottom right of 1280x800 (XP: right edge 8 px from the edge, above the taskbar)"
+bin_clear "greeting of the paperclip"
 ctl capture "$shots/rest.png" >/dev/null || fail "no capture"
 pager_digits "$shots/rest.png" "pager at rest"
 read -r x y w h <<<"$(rect xp-pager-1-HEADLESS-1)"
@@ -122,12 +141,17 @@ sleep 1
 ctl call assistant chat.show '{"name": "atlas"}' >/dev/null || fail "chat.show failed"
 sleep 2.5
 ctl capture "$shots/chat.png" >/dev/null
-read -r bx by bw bh <<<"$(rect xp-icon-2)"
-read -r cx cy cw ch <<<"$(rect hud-chat)"
-if [ -n "${bx:-}" ] && [ -n "${cx:-}" ] && [ "$bx" -lt $((cx + cw)) ] && [ "$cx" -lt $((bx + bw)) ] &&
-    [ "$by" -lt $((cy + ch)) ] && [ "$cy" -lt $((by + bh)) ]; then
-    red "bin-clear: the Recycle Bin $bx,$by ${bw}x$bh lies under the chat balloon $cx,$cy ${cw}x$ch"
-fi
+bin_clear "empty chat balloon"
+ctl call notify notify.show '{"app": "gate", "summary": "Notice 1", "body": "the first notice", "expire_ms": 0}' >/dev/null || fail "notify.show failed"
+sleep 1.5
+ctl capture "$shots/notice1.png" >/dev/null
+bin_clear "one notice"
+for n in 2 3; do
+    ctl call notify notify.show "{\"app\": \"gate\", \"summary\": \"Notice $n\", \"body\": \"notice number $n\", \"expire_ms\": 0}" >/dev/null || fail "notify.show failed"
+done
+sleep 1.5
+ctl capture "$shots/notice3.png" >/dev/null
+bin_clear "three notices"
 
 [ "$reds" = 0 ] || fail "$reds cells red (captures in $shots)"
 ok "xp is readable: pager, captions, Cancel, inactive title, Recycle Bin, Date and Time"
