@@ -33,6 +33,10 @@ mkdir -p "$ROUND_DIR/run"
 export ROUND_STOP_WAIT=30 CHORA_BIN=$bin
 "$repo/tests/persona/round.sh" start both tiling+xp >"$dir/start.out" 2>&1 || fail "start: $(cat "$dir/start.out")"
 env_file=$(cat "$ROUND_DIR/run/both.env")
+core_env=$(tr '\0' '\n' <"/proc/$(sed -n 's/^CHORA_CORE_PID=//p' "$env_file")/environ")
+grep -qx "CHORA_FLAVOR_DIR=$repo/flavors/tiling" <<<"$core_env" ||
+    fail "the core of a tiling session has no CHORA_FLAVOR_DIR of the checkout, so Super+s finds no settings.sh: $(grep CHORA_FLAVOR <<<"$core_env")"
+ok "the core of a tiling session knows the flavor folder of the checkout"
 out=$("$repo/tests/persona/round.sh" stop both 2>&1) || fail "stop of a tiling+xp session failed: $out"
 keep=$ROUND_DIR/keep/both
 [ -d "$keep/shots" ] || fail "no shots/ in $keep: $(ls -A "$keep" 2>&1)"
