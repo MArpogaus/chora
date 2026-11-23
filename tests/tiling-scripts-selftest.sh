@@ -92,8 +92,24 @@ for dir in $made; do
 done
 find /tmp -maxdepth 1 -name 'chora-tiling*' -newer "$work/stamp" -exec rm -rf {} + 2>/dev/null
 
-if command -v python3 >/dev/null && python3 -I -c 'import PIL' 2>/dev/null && [ -f /usr/share/fonts/opentype/inter/Inter-Medium.otf ]; then
+inter=${SELFTEST_INTER:-/usr/share/fonts/opentype/inter/Inter-Medium.otf}
+if ! command -v python3 >/dev/null; then
+    echo "skip: clock selftest, python3 is missing"
+elif ! python3 -I -c 'import PIL' 2>/dev/null; then
+    echo "skip: clock selftest, the Python module PIL is missing"
+elif [ ! -f "$inter" ]; then
+    echo "skip: clock selftest, the font Inter is missing ($inter)"
+else
     python3 -I "$repo/tests/clock-width.py" --selftest >"$work/cw.log" 2>&1 || fail "clock-width selftest: $(tail -3 "$work/cw.log")"
+fi
+
+if [ -z "${SELFTEST_INNER:-}" ]; then
+    skipped=$(SELFTEST_INNER=1 SELFTEST_INTER=/nonexistent/Inter-Medium.otf bash "$0" 2>&1)
+    case $skipped in
+    *"skip: clock selftest"*Inter*) ;;
+    *) fail "without Inter the clock selftest did not print a skip line naming Inter (TF-1)" ;;
+    esac
+    unset skipped
 fi
 
 if [ "$failures" -gt 0 ]; then
