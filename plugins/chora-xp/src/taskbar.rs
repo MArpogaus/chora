@@ -87,6 +87,19 @@ const PAGER_GAP: i32 = 2;
 const PAGER_WIDTH: i32 = DESKTOPS as i32 * PAGER_BUTTON + (DESKTOPS as i32 - 1) * PAGER_GAP + 6;
 const WHITE: [u8; 4] = [255, 255, 255, 255];
 
+/// The fill and the edge of a workspace button: our own element, not Luna,
+/// dark enough under its white digit for 4.5:1 in every state, also when
+/// Turn off computer takes the color from the screen. The one in use is
+/// pressed, the one under the pointer lighter.
+fn pager_colors(current: bool, hovered: bool) -> (&'static str, &'static str) {
+    match (current, hovered) {
+        (true, true) => ("#1D57C4", "#0F3C96"),
+        (true, false) => ("#164EB8", "#0F3C96"),
+        (false, true) => ("#2C64D0", "#1A4BB0"),
+        (false, false) => ("#1E54BE", "#1A4BB0"),
+    }
+}
+
 /// The settings of Taskbar and Start Menu Properties.
 #[allow(clippy::struct_excessive_bools, reason = "independent check boxes")]
 #[derive(
@@ -474,12 +487,7 @@ impl Bar {
         (0..DESKTOPS)
             .zip(0..)
             .map(|(desktop, i)| {
-                let prefix = match (desktop == current, hovered == Some(desktop)) {
-                    (true, true) => "focus-hover",
-                    (true, false) => "focus",
-                    (false, true) => "hover",
-                    (false, false) => "normal",
-                };
+                let (fill, edge) = pager_colors(desktop == current, hovered == Some(desktop));
                 let label = Text::new(
                     &(i + 1).to_string(),
                     Font::UiBold,
@@ -487,8 +495,11 @@ impl Bar {
                     [0, 0, PAGER_BUTTON, PAGER_BUTTON],
                 )
                 .centered();
+                let size = f64::from(PAGER_BUTTON) - 1.0;
                 let picture = Picture::new(PAGER_BUTTON, PAGER_BUTTON)
-                    .frame(sheets::TASKS, prefix, [0, 0, PAGER_BUTTON, PAGER_BUTTON])
+                    .svg(format!(
+                        r#"<rect x="0.5" y="0.5" width="{size}" height="{size}" rx="3" fill="{fill}" stroke="{edge}"/>"#
+                    ))
                     .text(label);
                 update(
                     &self.pager_id(desktop),
