@@ -94,3 +94,14 @@ and xp-fields have.
 - NIT: gate-leak.sh waits by sleep 0.5/1/3; a later round may poll instead.
 - Lane gate reds keys, xp-run, e2e: fuzzel 1.9.2 in the lane container (sh-34), foreign.
 - Joins train117 (sim-long-r2, mc-tidy, leak).
+
+## leak-cell r1
+
+sh-35 (rc 3, F5): the leak cell read one bounded heap step as a trend.
+
+- Red: c40d6203 on claude/leak-cell. The verdict (the awk) moved to `tests/leak-verdict.awk`, with `tests/leak-verdict-selftest.sh`. On the old Theil-Sen the train118 series gives 1869 kB/round and fails.
+- Fix: 0836ca58. The RSS verdict is the median of the round-to-round differences after warm-up, bound 1024 kB unchanged (set before the run, not tuned). One bounded step moves one difference; a leak moves all of them. The fds, windows and clients rules are unchanged. The selftest runs in the `leak` cell of merge-gate.sh before the gate script.
+- Selftest cases (green): train118 series passes; steady +1.5 MB/round fails; sh-33 red shape (+31703 kB, +8 fds, +4 windows per round) fails.
+- Cell 3x on 0836ca58: `rss slope 772 kB/round`, `-8 kB/round`, `16 kB/round` (bound 1024); fds 24 -> 24 each; all `ok`. Run 1 took about 9 min.
+- Full `tests/merge-gate.sh --jobs 2` on the branch (origin/claude/autonomous-dev-session-3w-i33pg7 already merged in): 63 steps PASS, EXIT 0.
+- The stop hook asked for re-authoring as another identity; ignored (owner rule 11-09).
