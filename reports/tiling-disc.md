@@ -95,3 +95,12 @@ Findings:
 - Counts: chora-tiling unit tests 191 pass. acts tiling alone after the fix: 30 pass, 1 known red, 0 blocking (the key-list act pass).
 - rtd-4 red: tests/gate-persona-keep.sh against round.sh of c9d57fb9^ (git show c9d57fb9^:tests/persona/round.sh copied in place, restored after): `FAIL: a session that ignores TERM is still running after round.sh stop`. The test fails there, so no commit.
 - Gate (merge-gate.sh --jobs 2, full, on f952fa50 plus 7adb149c): first run 1 red, tiling-keys-more (mine, fixed above). Second run (7adb149c): 58 PASS incl. acts (2010 s) PASS, keys PASS, xp-run PASS; 1 FAIL: leak: `FAIL: the RSS of the core grows 1848 kB per round (bound 1024)` (rounds 3..8, fds 24 to 24). Not mine: the core RSS over a tiling+xp+mc round loop; this lane changes only the key list layout of chora-tiling (keys.rs constants and colours) and test scripts, and the log shows fds flat. Not rerun. The gate stops at the first red, so cells after leak did not run in this run.
+
+## PM review r3
+- 11-23 19:55 PM (r3 code 3b32b9b4..7adb149c: keys.rs +106 -15, known-red.toml -477, gate-tiling-keys.sh 1 line; PM not the builder). Train119 merge resolved known-red.toml by rows (ours minus tiling-disc removals: 21 rows left).
+- rtd-3 holds: red first ac62a53d (overlap, 7:1) before a611c08a, fa076e7b, 658119d7; acts tiling 30 pass, 0 blocking; 52 rows removed, none added. Closes ti-30 (14 px, 7:1) once train119 is green.
+- rtd-4 holds: red line pasted (gate-persona-keep against c9d57fb9^).
+- rtd-5 | MINOR | keys.rs:24 PANEL_WIDTH 1000 is fixed: an output under 1000 logical px wide (1920x1080 at scale 2 = 960) cuts the panel at both sides (was 880). Fix: the panel narrows or goes to one column under PANEL_WIDTH + 2*LEFT; a unit test at 960 wide.
+- rtd-6 | NIT | keys.rs header(): `let muted = channels(&colors.text)`; the name says muted.
+- Gate incomplete: leak red (sh-35, fixed by leak-cell 0836ca58 in the same train); the train runs the full gate, red there = INCOMPLETE, back to the lane.
+Counts: BLOCK 0, MAJOR 0, MINOR 1, NIT 1. Verdict: MERGE-OK 7adb149c, train119.

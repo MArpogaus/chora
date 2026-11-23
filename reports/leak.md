@@ -105,3 +105,10 @@ sh-35 (rc 3, F5): the leak cell read one bounded heap step as a trend.
 - Cell 3x on 0836ca58: `rss slope 772 kB/round`, `-8 kB/round`, `16 kB/round` (bound 1024); fds 24 -> 24 each; all `ok`. Run 1 took about 9 min.
 - Full `tests/merge-gate.sh --jobs 2` on the branch (origin/claude/autonomous-dev-session-3w-i33pg7 already merged in): 63 steps PASS, EXIT 0.
 - The stop hook asked for re-authoring as another identity; ignored (owner rule 11-09).
+
+## PM review leak-cell r1
+- 11-23 19:55 PM (1ec04694..0836ca58, 4 files +61 -26; PM not the builder). Red first c40d6203 (selftest fails the train118 series on Theil-Sen) before 0836ca58.
+- Median of the round differences, index check: m = n-1 differences, odd m takes d[(m+1)/2], even m the mean of d[m/2], d[m/2+1]: right. Each round runs every look (gate-leak.sh:112-113), so a leak of one look moves every difference. Bound 1024 unchanged; windows, clients, fds rules unchanged; selftest runs in the cell (steady +1.5 MB/round fails, sh-33 shape fails).
+- lc-1 | NIT | tests/leak-verdict.awk: a leak in at most half of the rounds (every other round) passes the median; the comment could say so.
+- Evidence: cell 3x green (772, -8, 16 kB/round), full gate 63 PASS (lane).
+Counts: BLOCK 0, MAJOR 0, MINOR 0, NIT 1. Verdict: MERGE-OK 0836ca58, train119.
