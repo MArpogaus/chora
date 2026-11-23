@@ -390,7 +390,7 @@ check_full_history() {
 
 tool_minimums() {
     cat <<TOOLS
-fuzzel|1.11|launcher-click|findings/mc.md mc-47 (1.9.2 ignores clicks, 1.11.1 works), tests/gate-package-deps.sh (fuzzel >= 1.11)
+fuzzel|1.11|launcher-click,keys|findings/mc.md mc-47 (1.9.2 ignores clicks, 1.11.1 works), tests/gate-package-deps.sh (fuzzel >= 1.11)
 TOOLS
 }
 
