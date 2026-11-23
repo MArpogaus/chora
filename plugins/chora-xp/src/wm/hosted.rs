@@ -508,6 +508,54 @@ mod tests {
         assert_eq!(wm.focused, None);
     }
 
+    /// rcf-9: the Start menu is still open on face 0 while another client
+    /// holds the keys (the construct's walk took them) and xp has no
+    /// focused window. A turn at rest to face 1 shuts the menu out of
+    /// sight, but sends no node: the keys stay with the other client.
+    #[test]
+    fn a_turn_that_shuts_a_menu_leaves_the_keys_of_another_client() {
+        let mut wm = hosted("host-turn-menu-other");
+        wm.focused = None;
+        wm.core_focus = None;
+        let _ = wm.press_taskbar(crate::taskbar::Part::Start("V-1".into()));
+        wm.key_node = Some("construct".into());
+        let commands = wm.host_turned(turned(1));
+        assert_eq!(wm.menu.output(), None, "the menu stays open: {commands:?}");
+        assert!(
+            !commands
+                .iter()
+                .any(|c| matches!(c, Command::FocusNode { node: Some(_) })),
+            "xp takes the keys of another client: {commands:?}"
+        );
+        assert_eq!(wm.focused, None, "{commands:?}");
+    }
+
+    /// rcf-7: face 2 is at the front of a hosted cube. Ctrl+Escape and
+    /// Super alone open the Start menu on the bar of face 2 and give it
+    /// the keys there, not on face 0 out of sight. Without a host, the
+    /// first bar as before.
+    #[test]
+    fn the_start_key_opens_the_menu_on_the_front_face() {
+        let start_focus = Command::FocusNode {
+            node: Some(crate::startmenu::FOCUS.into()),
+        };
+        let mut wm = hosted("host-start-key");
+        wm.front = 2;
+        let commands = wm.key("Ctrl+Escape");
+        assert_eq!(wm.menu.output(), Some("V-3"), "Ctrl+Escape: {commands:?}");
+        assert!(commands.contains(&start_focus), "{commands:?}");
+        let _ = wm.close_menu();
+        wm.key("Super+Super_L");
+        let commands = wm.key_released("Super+Super_L");
+        assert_eq!(wm.menu.output(), Some("V-3"), "Super alone: {commands:?}");
+        assert!(commands.contains(&start_focus), "{commands:?}");
+        let _ = wm.close_menu();
+        wm.host = None;
+        let commands = wm.key("Ctrl+Escape");
+        assert_eq!(wm.menu.output(), Some("V-1"), "flat: {commands:?}");
+        assert!(commands.contains(&start_focus), "{commands:?}");
+    }
+
     /// co-51: the focused window of the front face closes (the window of
     /// the lock). The core first focuses nothing and then destroys it: the
     /// keys go to the icons of the front face, never to nobody and never
