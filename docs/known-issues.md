@@ -53,8 +53,9 @@ MINOR
 - ti-6, ti-19: tooltips "Run a program" and "Every key" stay after a click or Esc.
 - ti-7: in fullscreen the bar floats over the window and covers the first terminal line.
 - ti-11: after changing look.theme, running programs and assistant surfaces keep the old palette.
-- ti-12: there is no focus-left/right key; Super+Right switches the tag and Super+l widens the master (by design, to be listed).
+- ti-12: there is no focus-left/right key; Super+Right switches the tag and Super+l widens the master (by design). Super+j and Super+k, and Alt+Tab, move the focus; the key list names them first (Move focus).
 - ti-14: the key list shows only keyboard chords, no mouse basics.
+- ti-31: the Apps launcher (fuzzel) shows an empty list, not "Nothing found", while the typed text matches no row; the row "Nothing found for ..." shows after Return. fuzzel (1.9.2 here, 1.11 for the mouse) has no option for a text of an empty list, and the list is drawn by fuzzel alone, so the shipped config cannot change it. Open: it needs a feature of fuzzel or a launcher of our own.
 - ti-25: stale or torn buffers after a re-tile; the launcher shows raw .desktop text; a floated window can land half off-screen.
 - ti-8, ti-9, ti-10, ti-13 (unverified since 2026-11-22 (the ledger holds no newer check)): new windows do not take focus; key list is 692 px high; key list is translucent over seams; bar network shows the address.
 
