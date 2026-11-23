@@ -1053,7 +1053,12 @@ impl Assistant {
             Some((anchor, margin)) => origin(anchor, self.area, [w, h], margin),
             None => beside([w, h], self.with_word(), self.area),
         };
-        self.speech_node(theme, &picture, [bx - self.origin[0], by - self.origin[1]])
+        self.speech_node(
+            theme,
+            &picture,
+            text,
+            [bx - self.origin[0], by - self.origin[1]],
+        )
     }
 
     /// The balloon of a sentence.
@@ -1067,7 +1072,7 @@ impl Assistant {
         let anchor = (self.area, y + self.values.figure.size()[1]);
         let style = (&self.values.speech, self.values.line.tail_left);
         let (picture, [bx, by], _) = speech(theme, style, text, (tip, anchor));
-        self.speech_node(theme, &picture, [bx - x, by - y])
+        self.speech_node(theme, &picture, text, [bx - x, by - y])
     }
 
     /// The node of the balloon picture at `at` in the group.
@@ -1075,10 +1080,12 @@ impl Assistant {
         &mut self,
         theme: &mut Theme,
         picture: &Picture,
+        text: &str,
         [bx, by]: [i32; 2],
     ) -> Vec<Command> {
         let props = PropsUpdate {
             image: Some(theme.render(picture)),
+            meta: Some([("text".to_owned(), text.to_owned())].into()),
             transform: Some(Transform::translate(f64::from(bx), f64::from(by), 0.0)),
             opacity: Some(1.0),
             visible: Some(true),

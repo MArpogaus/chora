@@ -100,7 +100,7 @@ impl Wm {
             w.minimized = k.minimized;
         } else if first && !self.windows[i].maximized() {
             let (turn, outer) = (self.windows[i].turn, self.windows[i].outer());
-            self.windows[i].pos = self.places.place(turn, outer, area);
+            self.windows[i].pos = self.places.place(turn, outer, area, self.desk.strip(area));
         }
         self.windows[i].shown = true;
         if self.windows[i].minimized {

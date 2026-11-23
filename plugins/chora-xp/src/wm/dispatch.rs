@@ -88,11 +88,13 @@ impl Wm {
             Event::ClientDisconnected { name } => {
                 self.floats.owner_gone(&name);
                 self.refresh_looks();
-                if name == "voice" && heard {
+                let mut commands = self.look_gone();
+                commands.extend(if name == "voice" && heard {
                     self.trays()
                 } else {
                     self.host_gone(&name)
-                }
+                });
+                commands
             }
             Event::Emitted { event, .. } if self.left.is_some() => self.host_back(&event),
             event @ (Event::InputKey { .. } // injected: hears drops an injected key unless xp accepts them
