@@ -303,7 +303,7 @@ tiling-system|BIN=$repo/target/debug tests/gate-tiling-reload.sh && BIN=$repo/ta
 handover|BIN=$repo/target/debug tests/gate-handover.sh
 mc-scale|BIN=$repo/target/debug tests/gate-mc-scale.sh
 watchdog-starved|BIN=$repo/target/debug tests/gate-watchdog-starved.sh
-leak|BIN=$repo/target/debug tests/gate-leak.sh
+leak|tests/leak-verdict-selftest.sh && BIN=$repo/target/debug tests/gate-leak.sh
 xp-run|BIN=$repo/target/debug tests/gate-xp-run.sh
 demo|BIN=$repo/target/debug tests/gate-demo.sh
 tiling-bar|BIN=$repo/target/debug tests/gate-tiling-bar.sh && BIN=$repo/target/debug tests/gate-tiling-spacing.sh && BIN=$repo/target/debug tests/gate-tiling-notice.sh
