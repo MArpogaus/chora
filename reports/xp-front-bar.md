@@ -37,3 +37,7 @@ Verdict (computed): FIX. r2 splits the commit (test, then fix) on claude/xp-fron
 - `tests/merge-gate.sh --red-first-check --base d588d573` passes.
 - `cargo clippy -p chora-xp --all-targets -- -D warnings` is clean.
 - No full gate run: the tree equals 40292419, whose full gate was green (63 PASS).
+
+## PM review r2 (2026-11-23 23:24 UTC)
+d588d573..da8b8fa9: 477cc802 test only (wm.rs, hosted.rs; red per worker), da8b8fa9 dispatch.rs fix. `git diff 40292419 da8b8fa9` empty (checked); identity checked. rxf-1 closed.
+Verdict (computed): 0 open MAJOR -> MERGE-OK da8b8fa9, train122.
