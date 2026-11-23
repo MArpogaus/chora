@@ -1,0 +1,5 @@
+freeze          2.50    4.67
+freeze          5.67    7.60
+freeze          8.53   10.60
+freeze         10.60   12.13
+tour-video-check: 4 flagged
