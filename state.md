@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-23 18:59 UTC)
+## Now (2026-11-23 19:00 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 18:59 PM 4.9 % (11-22) + 5.2 % (11-23) + 0.2 % (11-24 BKK), week about 22 % vs 39 % pace
 session branch: 1ec04694 (t117 green 16:38); 70 greens; train118 h-rf red 18:08 at leak (sh-35 flake; rerun 1 ok).
@@ -30,7 +30,7 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 | soak-r3.md (rc 9; 1 %) | haiku high, claude/soak-r3 1ec04694 | session_016iS3kPTaTUWz9CUtmLJXzF 16:40 |
 | h-rf-r2.md (rc 3; 0.6 %) | sonnet high | c9d8d9f0 MERGE-OK; t118 red leak (sh-35); train119
 | leak-cell-r1.md (rc 3; 0.5 %) | sonnet medium, claude/leak-cell 1ec04694 | session_016iS3kNzHeMKkwNC3gXhwFy 18:10
-| flake-series-r7.md (rc 3; 1 %) | sonnet high, claude/flake-series-r7 1ec04694 | starting |
+| flake-series-r7.md (rc 3; 1 %) | sonnet high, claude/flake-series-r7 1ec04694 | session_016iS3kLkxQHS3DxoJnqt8Xk 19:00 |
 ## Queue (% week; 5 % reserve)
 1. (rc 9; 1 %) SOAK-R3 running (sl-9 MAJOR; end_probes each round); verdict closes or keeps sl-9.
 2. (rc 3, 7) LEAK-CELL r1 (sh-35); train119 h-rf + leak-cell, then train120 docs-rc-r2, guard-3.
