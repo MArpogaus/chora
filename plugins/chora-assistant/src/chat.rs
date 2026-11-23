@@ -390,6 +390,8 @@ pub struct Session {
     transcript: Transcript,
     link: Option<Box<dyn Link>>,
     keyboard: bool,
+    /// The changes of `keyboard` that the host has not told yet.
+    edges: Vec<bool>,
     keys: Keys,
     card: Option<Where>,
     status: Status,
@@ -703,7 +705,16 @@ impl Session {
     /// The changes of the keyboard of the field since the last call, in
     /// their order: the host tells each one with `assistant.chat.keyboard`.
     pub fn take_keyboard_edges(&mut self) -> Vec<bool> {
-        vec![self.keyboard]
+        std::mem::take(&mut self.edges)
+    }
+
+    /// The field has the keyboard or not; a change is noted for the host,
+    /// also when the next change follows before the host looks.
+    fn set_keyboard(&mut self, on: bool) {
+        if self.keyboard != on {
+            self.keyboard = on;
+            self.edges.push(on);
+        }
     }
 
     /// Shows the chat with `name`, or the list without one. `token` is the
@@ -906,7 +917,7 @@ impl Session {
         self.close_chat(out);
         let held = matches!(self.mode, Mode::List(_, Some(_)));
         self.mode = Mode::Closed;
-        self.keyboard = false;
+        self.set_keyboard(false);
         self.spoken = None;
         if let Some(link) = self.link.as_mut() {
             if held {
@@ -932,7 +943,7 @@ impl Session {
     pub fn field_events(&mut self, out: &mut dyn Outside, frame: &Frame) -> bool {
         if self.link.as_mut().is_some_and(|link| !link.alive()) {
             self.link = None;
-            self.keyboard = false;
+            self.set_keyboard(false);
             if self.is_open() {
                 let _ = self.place_field(out, frame, None);
             }
@@ -948,7 +959,7 @@ impl Session {
                     changed |= self.field_height != Some(height);
                     self.field_height = Some(height);
                 }
-                FieldEvent::Keyboard(on) => self.keyboard = on,
+                FieldEvent::Keyboard(on) => self.set_keyboard(on),
                 FieldEvent::Closed => {
                     self.hide(out);
                     changed = true;
@@ -1529,6 +1540,7 @@ mod tests {
         log.borrow_mut().events.push(FieldEvent::Keyboard(true));
         session.field_events(&mut out, &frame);
         assert_eq!(session.take_keyboard_edges(), [true]);
+        assert!(session.take_keyboard_edges().is_empty(), "told once");
         log.borrow_mut()
             .events
             .extend([FieldEvent::Keyboard(false), FieldEvent::Keyboard(true)]);

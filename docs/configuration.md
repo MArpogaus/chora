@@ -508,7 +508,7 @@ with `mc.theme {theme}` at its start, when its settings change and on
 `assistant.ready` of the host, and the host draws the mc folder in that
 theme.
 The host emits `assistant.chat.keyboard {on}` when the field of the chat
-gets or loses the keyboard; a test that sends Esc waits for `on: true`.
+gets or loses the keyboard, each change in its order, also a loss and a return that come between two looks of the host; a test that sends Esc waits for `on: true`.
 
 | Method | Parameters |
 |--------|------------|
