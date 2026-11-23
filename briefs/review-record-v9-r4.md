@@ -3,6 +3,7 @@
 Model: sonnet, effort medium (tour harness and intended rows, no product code; routine but rows can hide regressions)
 Lane: cloud, read-only on code: claude/record-v9 head 6949cddb, base a346972e (4 files, +361 -10; 270 lines of demo/tour/intended.toml). One round.
 Stop at 120 k context; cost at most 0.5 %; at most 8 findings. No merge gate run (the lane ran it green, 62 PASS).
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, `python3 -c "import PIL"`; a failure: send_message the PM "review-record-v9 BLOCKED: <line>" and stop.
 Read briefs/record-v9-r4.md (done criteria) and reports/record-v9.md "## r4" on claude/session-log; `git diff a346972e..6949cddb`.
 Checks, each with its command and files:
 1) Red first: a88073e7 and f3c05f1e each hold their test before the fix (`git show --stat`); `python3 -m pytest tests/test_tour.py -q` green at the head.
