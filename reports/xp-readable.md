@@ -42,3 +42,4 @@ Checked: cargo check --workspace green. (1) Red first: `tests/gate-xp-readable.s
 - rxr-5, nit, docs/xp-style.md:98-99: row 11 has an over-long reflowed line. Fix: rewrap.
 
 Known, not findings: sh-34, fuzzel 1.9.2 reds, xp-10 single click on the clock and taskbar.
+- 11-23 PM: rxr-2 the replica wins: Recycle Bin bottom right, the xp balloon and notices move (vision card: pixel-perfect XP; notify placed per look).
