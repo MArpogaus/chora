@@ -314,7 +314,8 @@ mod tests {
         assert_eq!(abort_after(Some("7")), Some(7 * S));
     }
 
-    /// A main loop that blocks for 5 s triggers the watchdog thread; an
+    /// A main loop that blocks for 5 s triggers the watchdog thread; `start`
+    /// is taken before the stop timer, whose deadline is `created + 9 s`. An
     /// idle loop does not.
     #[test]
     fn a_main_loop_that_blocks_for_5_s_triggers_the_watchdog() {
@@ -325,6 +326,7 @@ mod tests {
             seen.send(hang).unwrap();
         })
         .unwrap();
+        let start = Instant::now();
         let handle = event_loop.handle();
         // The debug hook: a source that blocks the loop after 2 idle
         // seconds.
@@ -341,7 +343,6 @@ mod tests {
                 TimeoutAction::Drop
             })
             .unwrap();
-        let start = Instant::now();
         run_beating(&mut event_loop, &mut (), &beats, &mut |()| {}).unwrap();
         assert!(start.elapsed() >= 9 * S);
         drop(beats);
@@ -354,16 +355,5 @@ mod tests {
             }
             _ => panic!("the watchdog saw {hangs:?}"),
         }
-    }
-
-    /// FLK-HANG: a stop timer created before `start` is due before
-    /// `start + 9 s`, so measuring `start` after insertion is unsafe.
-    #[test]
-    fn a_start_taken_after_the_timer_is_created_cannot_bound_its_deadline() {
-        let created = Instant::now();
-        let deadline = created + 9 * S;
-        while Instant::now() == created {}
-        let start = Instant::now();
-        assert!(deadline >= start + 9 * S, "deadline precedes start + 9 s");
     }
 }
