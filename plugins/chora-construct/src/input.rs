@@ -457,12 +457,16 @@ impl Construct {
     }
 
     /// The end of a press: a moved pane drops, a click on a pane that
-    /// shows a node texture flies into it. A click on the space moves
-    /// nothing.
+    /// shows a node texture flies into it, and so does a click on a pane
+    /// while the cube stands back, as Tab and Return do. A click on the
+    /// space moves nothing.
     pub(crate) fn release(&mut self, at: [f64; 2], pane: Option<usize>) -> Result<(), ClientError> {
         self.pointer = Some(at);
         if self.hand_released()? {
             return Ok(());
+        }
+        if let Some(i) = self.clicked_pane_stood_back(at) {
+            return self.fly_in(i);
         }
         if self.moving.is_some() && self.cube.is_some() {
             let screen = (self.output.as_ref())
@@ -482,6 +486,22 @@ impl Construct {
         }
         let commands = self.label_commands();
         self.rt.conn.apply(commands)
+    }
+
+    /// The pane of a press that the cube stood back gave to a pane and
+    /// that ends as a click, within `CLICK` of the press: the press moves
+    /// that pane no more.
+    fn clicked_pane_stood_back(&mut self, at: [f64; 2]) -> Option<usize> {
+        let stood_back = (self.cube.as_ref())
+            .is_some_and(|c| c.view().mode() == chora_kit::modes::Mode::Navigate);
+        let moving = self.moving.as_ref().filter(|_| stood_back)?;
+        let far = (at[0] - moving.from[0]).hypot(at[1] - moving.from[1]);
+        if far > crate::cube::CLICK {
+            return None;
+        }
+        let moving = self.moving.take()?;
+        self.effects.release(&moving.name);
+        self.pane_named(&moving.name).ok()
     }
 
     /// The top left corner of the output in the scene.
