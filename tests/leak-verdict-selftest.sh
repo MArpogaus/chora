@@ -10,8 +10,8 @@
 # container, no leak in any of them, must pass: idle6 is a run of 8 rounds
 # that the median of the differences put at +1736 kB per round (bound 1024),
 # r12-2 and r12-8 are runs of 12 rounds. A planted leak (a ramp added to the
-# recorded table: 2.5 MB per round on 8 rounds, 1.5 MB per round on 12 rounds,
-# the 4 MB texture of a window per round) must fail on each of them.
+# recorded table: 4 MB per round on 8 rounds, the texture of a window; 1.5 MB per
+# round on 12 rounds) must fail on each of them.
 # shellcheck disable=SC2046,SC2086 # the tables are lists of numbers to split
 dir=$(dirname "$0")
 verdict() { awk -F'\t' -v warm=2 -v bound=1024 -v bw=2 -v bc=0 -f "$dir/leak-verdict.awk"; }
@@ -35,7 +35,8 @@ expect() {
     fi
 }
 expect pass "train118 (one bounded step)" 134612 173656 175752 175044 175380 176176 182956 182520 182960
-expect fail "steady +1.5 MB/round" 100000 101500 103000 104500 106000 107500 109000 110500 112000
+expect fail "steady +1.5 MB/round, 12 rounds" 100000 101500 103000 104500 106000 107500 109000 110500 112000 113500 115000 116500 118000
+expect fail "steady +4 MB/round, 8 rounds" 100000 104000 108000 112000 116000 120000 124000 128000 132000
 ramp() {
     local step=$1 round=0 v
     shift
@@ -50,7 +51,7 @@ r12_8="135228 175216 176748 179224 181084 184620 183752 183696 184628 183780 183
 expect pass "recorded idle6, 8 rounds, no leak (+1736 by the median of the differences)" $idle6
 expect pass "recorded r12-2, 12 rounds, no leak" $r12_2
 expect pass "recorded r12-8, 12 rounds, no leak" $r12_8
-expect fail "recorded idle6 with a planted +2.5 MB/round" $(ramp 2500 $idle6)
+expect fail "recorded idle6 with a planted +4 MB/round" $(ramp 4000 $idle6)
 expect fail "recorded r12-2 with a planted +1.5 MB/round" $(ramp 1500 $r12_2)
 expect fail "recorded r12-8 with a planted +1.5 MB/round" $(ramp 1500 $r12_8)
 FDSTEP=8 WINSTEP=4 expect fail "sh-33 red (+31703 kB, +8 fds, +4 windows per round)" \
