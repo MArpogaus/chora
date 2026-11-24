@@ -1,0 +1,7 @@
+ 1343  1326      18 dbus-run-session -- sh /home/user/chora/flavors/tiling/waybar/waybar.sh /home/user/chora/flavors/tiling/waybar
+ 1350  1343      18 sh /home/user/chora/flavors/tiling/waybar/waybar.sh /home/user/chora/flavors/tiling/waybar
+ 1365  1350      18 waybar --config /tmp/chora-hl.x9ME6f/chora-tiling-waybar.json --style /tmp/chora-hl.x9ME6f/chora-tiling-waybar/style.css
+ 1493     1      18 dbus-run-session -- sh /home/user/chora/flavors/tiling/waybar/waybar.sh /home/user/chora/flavors/tiling/waybar
+ 1498  1493      18 sh /home/user/chora/flavors/tiling/waybar/waybar.sh /home/user/chora/flavors/tiling/waybar
+ 1526  1498      18 waybar --config /tmp/chora-hl.x9ME6f/chora-tiling-waybar.json --style /tmp/chora-hl.x9ME6f/chora-tiling-waybar/style.css
+ 2339    95       0 /bin/bash -c source /root/.claude/shell-snapshots/snapshot-bash-1795483858542-cr77sa.sh 2>/dev/null || true && \builtin

@@ -1,0 +1,4 @@
+task T4:power FAIL: expected open [], got ['tiling-keys']; expected open [], got ['tiling-keys']
+breach I6 in click: on HEADLESS-1 'Tags' (tiling-keys-body-72) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Tags' (tiling-keys-body-72) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breaches 2

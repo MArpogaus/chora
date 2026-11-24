@@ -1,0 +1,2 @@
+{"time": 1795484379.451, "action": "click", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Tags' (tiling-keys-body-72) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1"}
+{"time": 1795484383.726, "action": "look", "look": "tiling", "invariant": "I6", "breach": "on HEADLESS-1 'Tags' (tiling-keys-body-72) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1"}
