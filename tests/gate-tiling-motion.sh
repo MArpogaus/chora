@@ -53,20 +53,27 @@ shown=$(groups) || fail "the query of the groups"
 ok "every window is opaque once it stands"
 
 settled=$(groups) || fail "the query of the groups"
-ctl call tiling set_layout '{"layout": "tile_left"}' >/dev/null || fail "set_layout"
-query_after_the_slide() { sleep 0.3 && groups; }
-moving=$(query_after_the_slide) || fail "the query of the groups"
-[ "$moving" != "$settled" ] || fail "the windows did not start to slide"
-sleep 1
-end=$(groups) || fail "the query of the groups"
+ctl capture --output HEADLESS-1 "$shot" >/dev/null || fail "the capture"
+cp "$shot" "$XDG_CONFIG_HOME/settled.png"
+"$bin/choractl" grant choractl methods.call >/dev/null || fail "the grant"
+slide=$XDG_CONFIG_HOME/slide
+mkdir -m 700 "$slide"
+printf '{"frame": 1, "method": "methods.call", "params": {"client": "tiling", "method": "set_layout", "params": {"layout": "tile_left"}}}\n' >"$slide/script"
+timeout 60 "$bin/choractl" record --frames 24 --out "$slide" --script "$slide/script" >/dev/null || fail "the recording"
+for _ in $(seq 60); do
+    end=$(groups) && [ "$end" != "$settled" ] && [ "$end" = "$(groups)" ] && break
+    sleep 0.25
+done
 [ "$end" != "$settled" ] || fail "the windows did not move"
 [ "$(awk '$3 != 1' <<<"$end" | wc -l)" = 0 ] || fail "a window is transparent after its move: $end"
-python3 -I - "$moving" "$settled" "$end" <<'PY' || fail "the slide is not between the places"
-import sys
-rows = [{l.split()[0]: float(l.split()[1]) for l in s.splitlines()} for s in sys.argv[1:]]
-moving, before, after = rows
-assert any(min(before[k], after[k]) < moving[k] < max(before[k], after[k]) for k in moving if before[k] != after[k]), f"first sample {moving}, settled {before}, end {after}"
-PY
+ctl capture --output HEADLESS-1 "$shot" >/dev/null || fail "the capture"
+gap=640
+between=0
+for n in $(seq 2 12); do
+    got=$(pixel "$slide/$(printf 'frame-%05d.png' "$n")" "$gap" 400)
+    [ "$got" != "$(pixel "$XDG_CONFIG_HOME/settled.png" "$gap" 400)" ] && [ "$got" != "$(pixel "$shot" "$gap" 400)" ] && between=$((between + 1))
+done
+[ "$between" -gt 0 ] || fail "the slide is not between the places: no frame of the 200 ms shows a window in the gap at $gap,400"
 ok "a layout change slides the windows and they end at their places"
 
 ctl call tiling view_tag '{"tag": 2}' >/dev/null || fail "view_tag 2"
@@ -78,7 +85,6 @@ done
 frames=$XDG_CONFIG_HOME/frames
 mkdir -m 700 "$frames"
 printf '{"frame": 1, "method": "methods.call", "params": {"client": "tiling", "method": "view_tag", "params": {"tag": 1}}}\n' >"$frames/script"
-"$bin/choractl" grant choractl methods.call >/dev/null || fail "the grant"
 timeout 60 "$bin/choractl" record --frames 24 --out "$frames" --script "$frames/script" >/dev/null || fail "the recording"
 for _ in $(seq 60); do
     there=$(groups) && [ "$(awk '$4 != 1' <<<"$there" | wc -l)" = 0 ] && break
