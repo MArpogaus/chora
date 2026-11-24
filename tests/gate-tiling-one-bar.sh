@@ -18,7 +18,15 @@
 # The cells run in the order product, unit (the unit starts after
 # chora-tiling.service), persona.
 #
-# Usage: tests/gate-tiling-one-bar.sh [product|unit|persona ...]
+# The lock itself (rtr-1, rtr-3), the cell "lock", with no session (a fake
+# waybar says whether descriptor 9 of the lock is open in it; the second
+# start has a PATH with every tool of the script but flock): waybar
+# must not inherit the descriptor of panel.lock (a child of waybar that
+# outlives it would keep the lock and the next start would end with no bar),
+# and a machine without flock says so on stderr once instead of skipping the
+# lock silently.
+#
+# Usage: tests/gate-tiling-one-bar.sh [lock|product|unit|persona ...]
 #   BIN: the binaries (default target/debug); the cells to run (default all)
 set -u
 . "$(dirname "$0")/gate-lib.sh"
@@ -58,10 +66,54 @@ stop_session() {
 }
 
 cells=("$@")
-[ ${#cells[@]} -gt 0 ] || cells=(product unit persona)
+[ ${#cells[@]} -gt 0 ] || cells=(lock product unit persona)
 want() { [[ " ${cells[*]} " == *" $1 "* ]]; }
 
 temp_config
+
+lock_cell() {
+    local d fakebin out tool
+    d=$(mktemp -d /tmp/gate-one-bar-lock.XXXXXX)
+    tmp_dirs+=("$d")
+    fakebin=$d/bin
+    mkdir -p "$fakebin" "$d/run"
+    chmod 700 "$d/run"
+    cat >"$fakebin/waybar" <<'FAKE'
+#!/bin/sh
+if [ -e "/proc/$$/fd/9" ]; then echo open >"$LOCK_OUT"; else echo closed >"$LOCK_OUT"; fi
+exec sleep 60
+FAKE
+    cat >"$fakebin/choractl" <<'FAKE'
+#!/bin/sh
+case $1 in
+call) echo '{"outputs": [{"name": "X"}]}' ;;
+outputs) echo '[{"name": "X"}]' ;;
+esac
+FAKE
+    chmod +x "$fakebin/waybar" "$fakebin/choractl"
+    out=$d/fd9
+    LOCK_OUT=$out XDG_RUNTIME_DIR=$d/run PATH=$fakebin:$PATH setsid sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >"$d/log" 2>&1 &
+    run_pid $!
+    until_ok "[ -s $out ]" 40 || fail "lock: the fake waybar did not start: $(cat "$d/log")"
+    [ "$(cat "$out")" = closed ] || fail "lock: waybar inherits the descriptor of panel.lock (9), so a child that outlives it keeps the lock (rtr-1)"
+    ok "lock: waybar does not inherit the lock descriptor"
+    mkdir -p "$d/noflock" "$d/run2"
+    chmod 700 "$d/run2"
+    for tool in sh jq id stat mkdir cp cat dirname kill sleep sed; do
+        ln -s "$(command -v "$tool")" "$d/noflock/$tool"
+    done
+    cp "$fakebin/waybar" "$fakebin/choractl" "$d/noflock/"
+    rm -f "$out"
+    LOCK_OUT=$out XDG_RUNTIME_DIR=$d/run2 PATH=$d/noflock setsid sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >"$d/log2" 2>&1 &
+    run_pid $!
+    until_ok "[ -s $out ]" 40 || fail "lock: with no flock the panel did not start: $(cat "$d/log2")"
+    [ "$(grep -c flock "$d/log2")" = 1 ] || fail "lock: with no flock the lock is skipped silently, not with one line on stderr (rtr-3): $(cat "$d/log2")"
+    ok "lock: without flock one line on stderr says the lock is skipped"
+}
+
+if want lock; then
+    lock_cell
+fi
 
 if want product || want unit; then
     session_start 1280x800 -- "$bin/chora-tiling"
