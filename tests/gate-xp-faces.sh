@@ -7,7 +7,13 @@
 #   faces-have-bars      every virtual output has its taskbar and its
 #                        wallpaper
 #   opens-under-pointer  a new window opens on the virtual output whose
-#                        pane is under the pointer, here the second one
+#                        pane is under the pointer, here the second one;
+#                        the gate starts foot only after xp has heard the
+#                        pointer.entered of the wall of that output (xp-42:
+#                        xp reads the output of the pointer from that event),
+#                        and it moves the pointer away and back when the
+#                        entry does not come in 1 s (the late-pointer cell
+#                        forces that)
 #   opens-under-late-pointer  the same with the motion of the pointer
 #                        forced to land 3 s late, after foot has started
 #                        (xp-42; `motion_late` makes the next `motion` of the
@@ -153,10 +159,28 @@ opens_state() {
     echo "opens-under-pointer: xp.log $(tail -n 3 "$shots/xp.log" | tr '\n' ' ')" >&2
 }
 
+wall_entries() { grep -c "\"pointer.entered\",\"node\":\"xp-wall-$1\"" "$shots/pointer.log"; }
+
+pointer_lands_on() {
+    local face=$1 point=$2
+    ctl events >"$shots/pointer.log" 2>&1 &
+    run_pid $!
+    for _ in $(seq 10); do
+        motion "[{\"pointer_move\": {\"position\": $point}}]"
+        if until_ok "[ \"\$(wall_entries $face)\" -gt 0 ]" 4; then
+            ctl state xp >/dev/null
+            return 0
+        fi
+        inject '[{"pointer_move": {"position": [300, 200]}}]'
+    done
+    echo "opens-under-pointer: no pointer.entered of xp-wall-$face after 10 moves to $point" >&2
+    return 1
+}
+
 cell_opens_under_pointer() {
     local moved seen
     moved=$(date +%s.%N)
-    motion '[{"pointer_move": {"position": [960, 200]}}]'
+    pointer_lands_on "${faces[1]}" '[960, 200]' || return 1
     foot -f "DejaVu Sans Mono:size=10" -a probe sh -c 'sleep 900' >"$shots/foot.log" 2>&1 &
     probe_pid=$!
     run_pid "$probe_pid"
