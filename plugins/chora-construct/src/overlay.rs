@@ -622,6 +622,7 @@ impl Construct {
         if !self.pane_beside() {
             return Vec::new();
         }
+        let pulls = self.pull_acts();
         let item = |keys: Vec<String>, word: String, hit: &str| Item {
             keys,
             word,
@@ -630,14 +631,24 @@ impl Construct {
             chip: false,
         };
         let fly_in = chora_kit::words::Word::FlyIn.text(language).to_owned();
-        vec![
-            item(click_caps(language), fly_in, "click-pane"),
-            item(
+        let mut hints = vec![item(click_caps(language), fly_in, "click-pane")];
+        if pulls {
+            hints.push(item(
                 crate::glass::chord(pull_key()),
                 pull_word(language).into(),
                 "pull-out",
-            ),
-        ]
+            ));
+        }
+        hints
+    }
+
+    /// Whether the pull key acts now: it gives the window with the
+    /// keyboard, else the one noted at the step back, to the construct,
+    /// and a pane window is the construct's already, so the key does
+    /// nothing there; the hint is told only where it acts (co-68).
+    pub(crate) fn pull_acts(&self) -> bool {
+        let noted = (self.cube.as_ref()).and_then(crate::cube::Host::noted_focus);
+        (self.core_focus.clone().or(noted)).is_some_and(|window| !self.own_window(&window))
     }
 
     /// The hints of the cube stood back: the turn keys, and Return, which
@@ -667,6 +678,20 @@ impl Construct {
         ]
     }
 
+    /// What the hints of a set depend on besides the set: they are drawn
+    /// anew when it changes.
+    fn hint_stamp(&self, set: Option<crate::hints::Set>) -> usize {
+        match set {
+            Some(crate::hints::Set::Walk) => {
+                self.panes.len().min(2) * 2 + usize::from(self.pane_ahead().is_some())
+            }
+            _ => {
+                (self.cube_stamp() * 2 + usize::from(self.pane_beside())) * 2
+                    + usize::from(self.pull_acts())
+            }
+        }
+    }
+
     /// The hints anew when their set or the hint of the pointer changed.
     pub(crate) fn draw_hints(&mut self) -> Result<(), ClientError> {
         if self.output.is_none() {
@@ -683,12 +708,7 @@ impl Construct {
                 crate::log::log_warn!("chora-construct: emit the view: {err}");
             }
         }
-        let stamp = match set {
-            Some(crate::hints::Set::Walk) => {
-                self.panes.len().min(2) * 2 + usize::from(self.pane_ahead().is_some())
-            }
-            _ => self.cube_stamp() * 2 + usize::from(self.pane_beside()),
-        };
+        let stamp = self.hint_stamp(set);
         let wanted = set.map(|s| (s, self.hovered_hint(), stamp));
         if wanted == self.hints.shown && !std::mem::take(&mut self.hints.stale) {
             self.follow_label()?;

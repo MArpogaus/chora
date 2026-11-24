@@ -47,7 +47,7 @@ in a construct without a cube and in xp (principle 1).
 | step back, from use mode | a click on `STEP BACK` | `fly_out`: `Alt+Escape`; `Escape` alone when the grant `input.grab-any` lets the construct take it | "step back"; `view.step_back` |
 | step in, from navigate mode | a click on a face, or on `STEP IN` for the front face | `fly_in`: `Return` | "step in"; `view.step_in` |
 | fly into a pane beside the cube, in navigate mode | a click on the pane, or on the hint `Click Fly in` | `Tab`, then `Return` on its row | `window.show` |
-| pull a window out of a face into a pane | a title drag off the face; a click on the hint `Super Alt 4 Pull out` | `Super+Alt+4`, the give key of the construct | `window.give` |
+| pull a window out of a face into a pane | a title drag off the face; a click on the hint `Super Alt 4 Pull out`, which shows only while a window of a face is there to pull | `Super+Alt+4`, the give key of the construct | `window.give` |
 | turn the cube by one face | a click on `TURN LEFT` or `TURN RIGHT`; in navigate mode also a drag on the cube | `Ctrl+Alt+Left` and `Ctrl+Alt+Right`, in both modes | "turn left", "turn right"; `cube.turn` |
 | walk and look, in navigate mode | a drag on the empty space, the wheel | the walk keys of the construct | the methods of the walk |
 | show the keys, in navigate mode | none | `F1`, and `Super+F1` | none |
@@ -117,9 +117,12 @@ walk hints name it,
 `Super C  Cube`, and a click on that hint does the same. Stood back, the
 hints at the bottom centre are the chips of the cube: `Ctrl Alt ← Turn
 left`, `Return Step in` and `Turn right Ctrl Alt →`; while a pane shows
-beside the cube, also `Click Fly in`, the click on the pane, and
-`Super Alt 4 Pull out`, the key that pulls the focused window of a face
-out into a pane; and the face label
+beside the cube, also `Click Fly in`, the click on the pane, and, only
+where it acts, `Super Alt 4 Pull out`, the key that pulls the window of
+a face that has the keyboard (or had it at the step back) out into a
+pane. The key gives a window to the construct, and the window of a pane
+is its own already, so with the keyboard in a pane, or in no window,
+the hint is not told (co-68); and the face label
 under the cube names the window manager and the face, with a dot per
 face. A refusal, for example while another client `xp` runs, shows in
 the HUD.
