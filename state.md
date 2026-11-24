@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-24 21:21 UTC)
+## Now (2026-11-24 21:24 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 20:13 PM 5.2 % (11-23) + 5.1 % (11-24) + 0.8 % (11-25), week about 32 % vs 53 % pace: under-spending, fill 6 lanes
 session branch: c3c37c2e (t132 19:20); 80 greens; t132: tiling-honest r1 (ti-52, ti-53), co-pull r2 (co-70, co-71).
@@ -9,7 +9,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 ## RC
 | # | Criterion | State |
 |---|---|---|
-| 1, 1b | No BLOCK/MAJOR, independent pass; owner sees v9 | open: xp, mc: xp-46, mc-60 (r3 MERGE-OK; train133); sh-42 MAJOR 5/5 (SH42-FIX r1); xp-47 merged t131; tiling: ti-52, ti-53 merged t132; construct: co-75 BLOCK, co-76 MAJOR (rc1-pass r1; CO-CLOSE r1); sh-38 merged t130 |
+| 1, 1b | No BLOCK/MAJOR, independent pass; owner sees v9 | open: xp, mc: xp-46, mc-60 (r3 MERGE-OK; train133); sh-42 MAJOR 5/5 (SH42-FIX r1); xp-47 merged t131; tiling: ti-52, ti-53 merged t132; construct: co-75 BLOCK, co-76 MAJOR (CO-CLOSE r1 8517022f; review r1); sh-38 merged t130 |
 | 2 | Persona r4 | xp, mc meet; co r9 not met; tiling r8 not met (ti-55 T7, ti-56 L1) |
 | 3 | 3 greens, no flake | t130, t131, t132 green; FLAKE-SERIES r9 5/5 on c3c37c2e running |
 | 4, 5 | CI green on a PR; packaging | pre-commit green; CI PR at release |
@@ -26,7 +26,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 | train133 (rc 1, 2; stray-super r3 73c6b19c, tiling-doors r1 b1ba6743) | PM, 84f66d43 | gate running |
 | flake-series-r9.md (rc 3, F5; 5/5; 0.6 %) | haiku high, claude/flake-series-r9 c3c37c2e | session_016iS3kL6R9aghhfvTsKiyJx |
 | sh42-fix-r1.md (rc 1; sh-42 MAJOR; 1.5 %) | opus high, claude/sh42-fix-r1 c3c37c2e | session_016iS3kMHuyqcookRmRRXXJB |
-| co-close-r1.md (rc 1; co-75 BLOCK, co-76 MAJOR; 1.5 %) | opus high, claude/co-close-r1 280b9dcf | session_016iS3kN4bp8VEeTupxTZ58i |
+| review-co-close-r1.md (rc 1; co-75, co-76; 0.5 %) | opus high, claude/co-close-r1 8517022f | starting |
 ## Queue (% week; 5 % reserve)
 1. (rc 1, 2) TRAIN132 green c3c37c2e (ti-52, ti-53, co-70, co-71). TRAIN133 84f66d43 (stray-super r3, tiling-doors r1) running.
 2. (rc 1, 2) construct after CO-CLOSE r1: co-79 MAJOR round (+co-77, co-78 MINOR confirmed by CO-REPRO r1). sh-42: SH42-FIX r1 (repro r2 5/5).
