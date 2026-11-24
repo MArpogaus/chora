@@ -9,6 +9,7 @@ Questions to answer, each with one recommended change (KISS, POLS, smallest chan
 2. ti-56: a keyboard user guesses Super+q (unbound, swallowed, silent). Weigh: a short bar or notice hint on an unbound Super chord ("not bound: Super+F1 shows the keys", rate-limited), versus binding Super+q to close (ti-12, ti-28 keymap by design: say whether that decision still holds and cost of each). Pick one.
 3. ti-50: the helper row sits below the 9 visible Apps rows: where should it sit, and should give and setting rows (rpt1-6) move below the programs?
 For each: the exact on-screen text, files to change, the red test (gate cell or act check) that proves it, risk to tour tiling 28/28 and handover 11/11, and size (lines).
+Never end a turn to wait; poll any long command in the same turn.
 Done when: reports/tiling-doors-plan.md "## r1" with the three decisions, a ready-to-paste build brief body for TILING-DOORS r1 (sonnet high, red tests first), and any open question for the PM in one line.
 Report: send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 5 lines.
 Rules: push claude/session-log only (fetch and merge on reject, no force; change only your report); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; before ending `pgrep -fa 'chora --headless'` empty.
