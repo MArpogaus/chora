@@ -77,5 +77,32 @@ line 1 >tests/a.sh
 grep -q "lower the list: ${word} is 1, listed 3; run tools/sleep-ratchet --update" "$work/out" ||
     fail "$label: a fall does not ask to lower the list: $(cat "$work/out")"
 
+label="update does not raise"
+rm -rf tests
+mkdir tests
+line 1 >tests/a.sh
+"$tool" --root "$work/repo" --update >/dev/null 2>&1 || fail "$label: a fall or equal count failed"
+line 2 >>tests/a.sh
+"$tool" --root "$work/repo" --update >"$work/out" 2>&1 && fail "$label: --update raised the list"
+grep -q 'ratchet-raise' "$work/out" || fail "$label: no hint to raise by hand: $(cat "$work/out")"
+got=$(awk '$1 == "sleep" { print $2 }' tools/sleep-ratchet.list)
+[ "$got" = 1 ] || fail "$label: the list holds '$got', want 1 (unchanged)"
+
+label="sub and python"
+rm -rf tests tools/sleep-ratchet.list
+mkdir -p tests/sub
+line 1 >tests/a.sh
+line 2 >tests/sub/x.sh
+printf '    time.%s(0.5)\n' "$word" >tests/b.sh
+"$tool" --root "$work/repo" --update >/dev/null 2>&1 || fail "$label: --update failed"
+got=$(awk '$1 == "sleep" { print $2 }' tools/sleep-ratchet.list)
+[ "$got" = 1 ] || fail "$label: sleep is '$got', want 1 (the audit count, tests/*.sh only)"
+got=$(awk '$1 == "sleep-all" { print $2 }' tools/sleep-ratchet.list)
+[ "$got" = 3 ] || fail "$label: sleep-all is '$got', want 3 (tests/*.sh, a subdirectory, time.sleep)"
+"$tool" --root "$work/repo" >"$work/out" 2>&1 || fail "$label: the tree fails its own list"
+line 3 >>tests/sub/x.sh
+"$tool" --root "$work/repo" >"$work/out" 2>&1 && fail "$label: a new wait in a subdirectory passed"
+grep -q 'sleep-all: list 3, tree 4; most in: tests/sub/x.sh (3)' "$work/out" || fail "$label: no cause line: $(cat "$work/out")"
+
 [ "$failures" = 0 ] && echo "ok: sleep-ratchet-selftest"
 exit "$failures"
