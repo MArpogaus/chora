@@ -162,3 +162,34 @@ Gate 1 (e97848a4 merged with origin/claude/autonomous-dev-session-3w-i33pg7 at c
 - Red-first gate refused e97848a4 (message cites co-61); the lane pushes the same tree as 909bc57b to claude/co-reach-r3b (no force). Its full gate: 64 PASS, 1 foreign FAIL gate-tiling-apps-click "Zebra row did not start zebra" (not construct; the train shows whether it repeats).
 - New: co-67 MAJOR candidate (lane, 10/10): a program started while the cube stands back lands inside the cube and is lost after Alt+Escape. Pre-existing (make_way runs only at step back); next round, not this verdict.
 - Verdict (computed): 0 MAJOR in the diff -> MERGE-OK for claude/co-reach-r3b once the tree equals e97848a4.
+
+## r4
+Lane: cloud, claude/co-reach-r4 from 909bc57b. Step 0 green: unshallow, `cargo check --workspace`, `cargo build --workspace`. Shas: **red 624c85cc** (test: a window that opens while the cube stands back shows beside it; names co-67 only), **fix f1457035** (same subject as fix), head f1457035 (pushed). Diff of the fix 3 files +61/-2 (adopt.rs, cube/aside.rs, docs/cube-modes.md); construct only, no other plugin, no core or kit change. The red-first gate and the identity cell PASS on the merge.
+
+### Step 1: reproduction (909bc57b, script media/2026-11-24/co-reach-r4/co67.sh, one fresh construct session per run, 1280x800, row "A cube of desktops", Super+c, 6 s, dump, start Foot, 8 s, dump, Alt+Escape, dump)
+- Foot by its key (Super+t): **5/5 lost**. Every run: before, mode `navigate`, front 0, camera [0, 0], no pane, construct holder `construct`. After the start: camera [0, 1168] (the fly-in into the new pane), pane `foot` at **[0, 2000]**, surface s1 visible on the screen (rect [0, 0, 1280, 800]), keyboard on s1. After Alt+Escape: camera [0, 0], mode `navigate`, pane still at [0, 2000], **surface s1 rect None** (not on screen: it lies inside the stood-back cube), the keyboard stays on s1 (construct `{"holder": "construct", "surface": "s1"}`).
+- Foot from Programs (click Programs, fuzzel, Foot row, fuzzel cache cleared per run): **5/5 lost**, the same dump line for line.
+- Reachable? On screen: no (rect None, 10/10). In the switcher: Tab lists it `ahead` (r3, by hand; not re-run here). Focusable: the keyboard is on s1 but the person sees nothing; only the switcher reaches it. Started more than 60 s after Programs (no fly-in, adopt.rs `LAUNCHED`) r3 saw it never show at all (not re-run).
+
+### Step 2: severity
+co-67 **MAJOR** (confirmed, 10/10): design/rc.md:19 row 9 "no known window loss" and vision-card.md:20 "no lost window"; docs/cube-modes.md:239 says of the pane in front of the cube "so that ... no window is lost behind it", and the new pane is exactly the case it did not cover. The person started a program and cannot see it after the way out the hint bar names (`Alt Esc Step back`).
+
+### Step 3: cause (909bc57b)
+- plugins/chora-construct/src/cube/aside.rs:144 `make_way` is the only place that moves a pane beside the cube, and its only caller is modes.rs:331 (`if act == Act::StepBack { self.make_way(); }`): it runs once, as the cube starts to step back. A pane that is adopted later (adopt.rs `adopt`, ending `self.panes.push(pane); self.frame()`, its place from panes.rs:388 `place`, `pane_distance` ahead = [0, 2000]) is never looked at. The stood-back cube is centred there (camera [0, 0], cube centre [0, 2000]), so the new pane lands inside it.
+
+### Step 4: red and green
+Red 624c85cc (on 909bc57b), `cargo test -p chora-construct --bin chora-construct a_window_that_opens`: `a_window_that_opens_while_the_cube_stands_back_shows_beside_it` panicked at tests_construct.rs:1300 "the new pane is clear of the cube: [373.76, 233.6, 906.24, 566.4] [416.4, 254.9, 863.6, 545.1]" (the pane box lies inside the cube box; the assertion that it shows on the screen passed).
+Fix f1457035: adopt.rs:149 `self.panes.push(pane); self.show_new_pane()` (it was `frame()`); cube/aside.rs:183 `show_new_pane` (while the cube stands back, `!view().forwards()`, and the new pane's box covers the cube's box, `open_beside_cube`, aside.rs:200, takes the place `place_beside` gives a pane at the step back: on the side where it is, past the room of the panes already beside the cube, clear of the cube, inside the leash, then one `placed` update and the frame). The pane has **no home** and no entry in `asides`: it stays beside the cube after Alt+Escape and after a step in, as a pane the person moved does. A pane that clears the cube where it opens (a pane file's place) is not moved. docs/cube-modes.md:240 says so. No new mode, no sleep, no known row, no raised bar.
+Green: chora-construct 275/275 (274 + the test); clippy clean (`adopt` kept under 60 lines).
+
+### Step 5: counts (f1457035, binaries /tmp/persona-after/bin, the same script plus a step in by Return at the end)
+- Foot by its key: **5/5** green; Foot from Programs: **5/5** green (old 10/10 lost). Every run: after the start camera [-1191, 2391] (the fly-in into the pane at [-1562, 3136], beside the cube), s1 rect [0, 0, 1280, 800], keyboard on s1; after Alt+Escape: mode `navigate`, camera [0, 0], **s1 visible on the screen** at rect [17, 283, 365, 233] (left of the cube), keyboard on s1; after Return (step in): mode `use`, camera [0, 0], pane at [-1562, 3136], s1 still on the screen at the same rect.
+- `tests/gate-construct-i3.sh`: **10/10** rc 0, "ok: one focus holder after a click in the xp face with a window in a pane (construct: -, xp: xp)" (co-61, co-62, co-64, co-65 hold: the pane beside the cube is the pane of co-64, its hint bar and click path unchanged; co-65's in-pane hint bar unchanged, as the cell and the unit tests are green).
+
+### Gate
+One full run: f1457035 merged with fresh origin/claude/autonomous-dev-session-3w-i33pg7 (ce866b0d; local merge 7e3f08c4, detached), `tests/merge-gate.sh --jobs 2`, no --only: **EXIT 0, 65 cells PASS, 0 FAIL** (the Zebra row cell gate-tiling-apps-click of r3 is PASS here). `pgrep -fa 'chora --headless'` empty after.
+
+### Notes (not touched)
+- A program started more than 60 s after Programs (no fly-in) was not re-checked here; with this fix it goes through the same `adopt`, so it opens beside the cube too, but no run shows it.
+- The rc.md row 9 text "no known window loss" can be read as met for the started-while-stood-back case once this merges.
+- MINOR co-44, co-47, co-53, co-55, co-56, co-59, co-63, co-66, rco3-1..3 not touched.
