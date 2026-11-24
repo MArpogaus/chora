@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-24 09:44 UTC)
+## Now (2026-11-24 09:45 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 08:18 PM 4.9 % (11-22) + 5.2 % (11-23) + 2.9 % (11-24), week about 26 % vs 45 % pace
 session branch: 2235551f (t125 green 07:50: xp-title); 75 greens; t126 red: sh-39 flake (e2e apps-click, alone 3/3); train127 09:03 guard-4+co-reach-r4+tiling-reach.
@@ -22,7 +22,7 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin: W9 779 = RC; GUARD-4
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| co-pull-r1.md (rc 1, 2; co-68 MAJOR; 1 %) | sonnet high, claude/co-pull f1457035 | starting |
+| co-pull-r1.md (rc 1, 2; co-68 MAJOR; 1 %) | sonnet high, claude/co-pull f1457035 | session_016iS3kQUTaRWZ2y3if8gWjd |
 | flake-series-r8.md (F5, F4; 1.2 %) | sonnet high, claude/flake-series-r7 6f7bcb26 | session_016iS3kPwWVUYse7EqYxr313 |
 | tiling-calm-r1.md (rc 2, 8; 1 %) | sonnet high, claude/tiling-calm ad0093ba | session_016iS3kLdvEtaUtMWPs87vDJ |
 | xp-polish-r1.md (rc 8; 1 %) | sonnet high, claude/xp-polish 2235551f | session_016iS3kNmUxToFmubQNgEQYh |
