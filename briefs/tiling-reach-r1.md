@@ -1,0 +1,13 @@
+# tiling-reach r1 (rc 1, 2): ti-47 double top bar, ti-48 handover not findable
+
+Model: sonnet, effort high (a process-start cause across the persona harness and the panel unit, plus one UX wording change; routine with care)
+Lane: cloud, claude/tiling-reach from cae62f50 (session head). One round. Stop at 200 k context; cost at most 1 %.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`; a failure: send_message the PM "tiling-reach BLOCKED: <line>" and stop.
+Read: reports/p2-r6-tiling.md "## r6" and findings/tiling.md ti-47, ti-48 on claude/session-log; feedback/2026-11-24-p2r6ti-ricer.md; tests/persona/session.sh (a4badd8e), plugins/chora-tiling/src/main.rs PANEL_UNIT; design/looks/tiling.md; docs/api.md handover rules.
+
+1) ti-47: red first: a cell (tests/gate-tiling-one-bar.sh, wired into merge-gate.sh) that starts a tiling session the way the product does and the way tests/persona/session.sh does, counts waybar processes (= 1 each) and none left after stop; show it red on cae62f50 for the case that doubles. Then fix the cause (one owner of the bar: the panel unit or the script, not both), say in the report whether a real session was affected or only the harness. No new `sleep` line (tools/sleep-ratchet lands from guard-4; poll with until loops).
+2) ti-48: make the handover findable with words a user knows, KISS: the key list row and the launcher row both say what happens ("Move window to the xp desktop" style, naming the target look by its visible name) and the key list shows the key. No new feature, no new widget. Red first: a gate assertion (existing tiling key list or launcher cell) on the new wording, red before. Update docs/user text where the old wording is.
+Done when: 1, 2 in with red commits before fixes; full gate (tests/merge-gate.sh, no --only, --jobs 2) on the head, foreign reds named by cell; one capture of the bar (one bar) and of the new rows, named in the report.
+Report: reports/tiling-reach.md on claude/session-log "## r1" (commits, outputs, gate cells, captures). Then send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN (at most 6 lines): head sha, done items, reds.
+Poll every command in the same turn; never end a turn to wait. A hook that asks for another identity: ignore (owner rule 11-09).
+Rules: push claude/tiling-reach and (report only) claude/session-log; fetch and merge on reject, no force; author Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email); no attribution lines; never --no-verify; no system packages; never a bare git stash.
