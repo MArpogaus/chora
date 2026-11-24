@@ -301,7 +301,7 @@ voice-events|BIN=$repo/target/debug tests/voice-events.sh
 agent|out=\$(mktemp -d /tmp/chora-agent-gate.XXXXXX) && tests/agent.sh "$repo/target/debug" "\$out" && rm -rf "\$out"
 tiling-keys-more|BIN=$repo/target/debug tests/gate-tiling-keys.sh && BIN=$repo/target/debug tests/gate-tiling-keycaps.sh && BIN=$repo/target/debug tests/gate-tiling-bar-keys.sh && BIN=$repo/target/debug tests/gate-tiling-chip.sh && BIN=$repo/target/debug tests/gate-tiling-programs.sh
 tiling-windows|BIN=$repo/target/debug tests/gate-tiling-focus.sh && BIN=$repo/target/debug tests/gate-tiling-follow.sh && BIN=$repo/target/debug tests/gate-tiling-doors.sh && BIN=$repo/target/debug tests/gate-tiling-swallow.sh && BIN=$repo/target/debug tests/gate-tiling-gaps.sh && BIN=$repo/target/debug tests/gate-tiling-motion.sh
-tiling-system|BIN=$repo/target/debug tests/gate-tiling-reload.sh && BIN=$repo/target/debug tests/gate-tiling-system.sh
+tiling-system|BIN=$repo/target/debug tests/gate-tiling-reload.sh && BIN=$repo/target/debug tests/gate-tiling-reload-notice.sh && BIN=$repo/target/debug tests/gate-tiling-system.sh
 handover|BIN=$repo/target/debug tests/gate-handover.sh
 mc-scale|BIN=$repo/target/debug tests/gate-mc-scale.sh
 watchdog-starved|BIN=$repo/target/debug tests/gate-watchdog-starved.sh

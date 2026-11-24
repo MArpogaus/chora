@@ -71,6 +71,13 @@ why() {
     echo "tiling: $*"
     return 1
 }
+type_text() {
+    local i
+    for ((i = 0; i < ${#1}; i++)); do
+        key "${1:i:1}"
+    done
+}
+helper_got() { grep -q "$2" "$XDG_DATA_HOME/chora/agents/$1.log" 2>/dev/null; }
 helper_says() { [ "$(module_text helper)" = "$1" ]; }
 module_text() { sh "$flavor/waybar/$1.sh" 2>/dev/null | jq -r .text; }
 
@@ -135,6 +142,13 @@ cell_helper_door() {
     chat_close
     click "$helper_x" "$bar_y"
     until_ok chat_open || why "the click opened no chat: $(tail -n 4 "$work/assistant.log" "$GATE_ENV")" || return 1
+    wait_for_field || why "the click gave the chat field no keyboard: $(field_state)" || return 1
+    local keys_before
+    keys_before=$(grep -c '^key ' "$work/window")
+    type_text hallo
+    key Return
+    until_ok 'helper_got coder hallo' 40 || why "typed text did not reach the helper after the click: $(field_state)" || return 1
+    [ "$(grep -c '^key ' "$work/window")" = "$keys_before" ] || why "typed text reached the window after the click" || return 1
     click_node hud-chat-close
     until_ok '! chat_open' || why "Close did not close the chat"
 }
