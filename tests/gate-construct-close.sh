@@ -1,7 +1,11 @@
 #!/bin/bash
-# Gate of Super+x in a face of the cube (co-75, rpc1-1 of rc1-pass r1):
-# the close acts only on the window that the person sees focused.
-# 1. A window is a pane in the walk; the cube opens beside it
+# Gate of the way out of a pane (co-76, rpc1-2 of rc1-pass r1) and of
+# Super+x in a face of the cube (co-75, rpc1-1): the close acts only on the
+# window that the person sees focused.
+# 0. Flown into a pane in the walk, after its 3 s of hints, the hint
+#    `Step back` stays on the screen, and a click on it steps out (no key
+#    known, no pointer rest at the bottom).
+# 1. That window is a pane in the walk; the cube opens beside it
 #    (Super+c, it stands back) and Return steps into face 0, so the pane
 #    waits at home in front of the cube, out of view.
 # 2. A window of the xp of face 0 has the keys; Super+x closes it, and the
@@ -38,7 +42,18 @@ pane_pid=$!
 pids+=("$pane_pid")
 until_ok 'test "$(panes_n)" = 1' 40 || fail "the window in the walk became no pane: $(dump)"
 until_ok quiet 80 || fail "the construct is still busy after the pane"
-key Alt+Escape
+# shellcheck disable=SC2034 # until_ok reads it
+read -r pane < <(pane_sources)
+until_ok 'core_focus | grep -qx "$pane"' 8 || key Return
+until_ok 'core_focus | grep -qx "$pane"' 40 || fail "the camera is in no pane: $(dump)"
+sleep 5
+read -r x y w h < <(rect_of construct-hint-step-back)
+[ -n "${h:-}" ] || fail "co-76: after the 3 s of the hints nothing in the pane leads out: no hint Step back ($(dump))"
+read -r _ _ _ kh < <(rect_of construct-hint-keys)
+[ -n "${kh:-}" ] || fail "co-76: after the 3 s of the hints nothing in the pane leads to the key list ($(dump))"
+echo "[{\"pointer_move\": {\"position\": [$((${x%.*} + ${w%.*} / 2)), $((${y%.*} + ${h%.*} / 2))]}}, {\"click\": {}}]" | ctl inject >/dev/null
+until_ok 'ctl query id:construct-look | jq -e ".[0].focused == true" >/dev/null' 40 || fail "co-76: a click on the hint Step back did not step out of the pane: $(dump)"
+ok "flown into a pane, after the 3 s of its hints, Step back and All keys stay, and a click on Step back steps out"
 until_ok quiet 40 || true
 key Super+c
 until_ok 'ctl query id:xp-bar-VIRTUAL-1 | grep -q xp-bar' 80 || fail "Super+c opened no cube with xp: $(dump)"

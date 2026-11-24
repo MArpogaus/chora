@@ -1503,3 +1503,28 @@ fn super_x_in_a_face_without_a_focused_window_closes_nothing() {
     );
     assert_eq!(construct.panes.len(), 1, "the pane stays");
 }
+
+/// co-76 (rc 1, MAJOR): flown into a pane in the walk, with no cube, after
+/// the 3 s of its hints something stays on the screen that leads to the
+/// key list and out, as in a face: the resting hint bar with `Step back`
+/// and `All keys`; a mouse user is never stranded in a pane (rpc1-2).
+#[test]
+fn a_pane_flown_into_in_the_walk_keeps_its_way_out_after_the_hints_went() {
+    let (mut construct, core, _lines) = with_hint_bar("pane-rest");
+    construct.cube = None;
+    construct.fly_in(0).unwrap();
+    assert!(construct.in_pane(), "the camera flies into the pane");
+    construct.glide = None;
+    construct.draw_hints().unwrap();
+    construct.hints.until = None;
+    construct.draw_hints().unwrap();
+    let model = core.model();
+    assert!(
+        has(&model, "construct-hint-keys"),
+        "a hint leads to the key list after the 3 s"
+    );
+    assert!(
+        has(&model, "construct-hint-step-back"),
+        "a hint leads out of the pane after the 3 s"
+    );
+}
