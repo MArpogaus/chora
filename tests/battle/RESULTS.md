@@ -172,3 +172,38 @@ Verdict against the bar (growth at most 5 %/h with the window count flat):
 - **sl-10** (new, sampled core RSS): open. The sampled fit is +21.5 MB/h, about 7 %/h, over the bar, with the window count flat. The sampled series is a sawtooth between 212 and 496 MB, so the rise rests on the peaks at 5401, 6601, 7801 and 8401 s. The round-end series does not rise. Whether the sampled peaks grow with the round count is not decided by this run: they recur at the sample instants, which fall at different round phases. A follow-up samples RSS at a fixed phase of the round (after the window close) and keeps the round count.
 
 Chora-tiling and chora-mc are flat on both RSS and fds.
+
+## soak r4 2026-11-23
+
+Head `claude/soak-r4` `47da935a` (script change: settled and peak RSS per round; the report is in the next commit). One core for the whole run, one session: chora-tiling on output HEADLESS-2, chora-mc with `--manage-windows` (restarted every 5th round), confined client box0. `SOAK_MIN=180 SAMPLE_S=600`, started 20:31:16 UTC, DONE 23:31:18 UTC. Rounds: 1008. Raw data, not in git: the run file `soak.run` and `samples.csv` in the session scratchpad (`sim-long-r4/`), the core log `tests/battle/chora-soak.log` (git-ignored).
+
+Per round, the run file has two RSS sets (kB) per process, chora, chora-tiling and chora-mc:
+
+- **settled:** after `end_probes`, read only when no probe window is open (`settled RSS kB:`; `n/a` otherwise). Window count was 0 in all 1008 rounds, so every round has a settled value.
+- **peak:** VmHWM of the process, reset at the round start by writing 5 to `/proc/PID/clear_refs` (the kernel sets the peak back to the current RSS), so VmHWM read at the round end is the peak of that round (`peak RSS kB (VmHWM since round start):`). Checked on this kernel: a 216 MB peak reset to the 11 MB current RSS.
+
+Fits are least-squares slopes against the round number, converted to MB per hour at the run average of 336 rounds per hour (1008 rounds in 3 h). First hour = rounds 1 to 336, last hour = rounds 673 to 1008. The per-round time is assumed uniform.
+
+| process | settled first h | settled last h | settled fit per hour | peak first h | peak last h | peak fit per hour |
+|---|---|---|---|---|---|---|
+| chora (core) | 249.4 MB | 258.0 MB | +4.2 MB (+1.7 % of the first-hour mean) | 479.6 MB | 474.9 MB | -3.6 MB (-0.7 %) |
+| chora-tiling | 14.4 MB | 14.4 MB | 0.0 MB (0.0 %) | 14.5 MB | 14.5 MB | 0.0 MB (0.0 %) |
+| chora-mc | 18.4 MB | 18.4 MB | 0.0 MB (0.0 %) | 18.4 MB | 18.4 MB | 0.0 MB (0.0 %) |
+
+Other measures:
+
+- **Core settled series** by 100-round block (mean, max): 246 / 310, 255 / 356, 250 / 357, 248 / 311, 249 / 311, 251 / 341, 255 / 327, 257 / 341, 253 / 311, 263 / 379, 260 / 295 MB (the last block is rounds 1001 to 1008). Means stay between 246 and 263 MB. The maxima are single-round excursions of 40 to 130 MB above the mean; they do not climb block by block.
+- **Core peak series** by block (mean, max): 485 / 647, 477 / 615, 478 / 617, 479 / 615, 486 / 679, 482 / 639, 476 / 648, 480 / 646, 472 / 618, 469 / 615, 462 / 582 MB. No upward trend; the last block is the lowest mean.
+- **Core fds** at the samples: 30 to 56 (the 30 at the start and at the end); fit +2.9 per hour. Flat.
+- **Sampled RSS** (the 600 s samples, the r3 measure): core fit +18 MB per hour (first hour 241 MB, last hour 278 MB). The samples land at random round phases, so this fit follows the phase of the sample instants, not the growth of the process: the settled and peak series, measured at fixed phases, do not rise. The sampled measure is kept for the record only, and the verdict below does not use it.
+- **Deaths:** none. Core pid 23613 alive to DONE; no `core gone` and no `did not come back` line.
+- **Watchdog disconnects:** 0 (`-- watchdog lines: 0`; `grep -ci 'watchdog|disconnect' tests/battle/chora-soak.log`: 0).
+- **Panics** in the core log: 0.
+- **Findings in the run file:** none.
+- **Probe windows:** 0 open after `end_probes` in all 1008 rounds; no `windows left after close` line.
+- **Box0 client:** the 200 creates and the 200 removes returned ok in all 1008 rounds; the 1008 `box0 settings.set: refused` lines are the expected refusal (no `TOOK` line).
+- **Not in this run:** W10 (chora-xp) and W16 (voice), as in r2 and r3.
+
+Verdict against the bar (growth at most 5 %/h with the window count flat; design/rc.md row 9):
+
+- **sh-36** (sampled core RSS rise: peaks or growth?): **closed.** The settled fit is +1.7 %/h, under the 5 %/h bar; the peak fit is -0.7 %/h, under the bar and flat after the first hour; the window count is 0 in every round. The round-end level is flat, and the rise in the sampled series came from where the sample instants fell in the round, as the r3 note suspected. The sampled measure stays phase-dependent and is not a verdict basis.
