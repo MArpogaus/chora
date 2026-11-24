@@ -215,7 +215,9 @@ impl Mc {
         }
         let mut ours = self.windows.values().chain(self.docks.values());
         if ours.any(|s| s == node) {
-            self.focus.take();
+            if self.focus.lost_to_other(crate::NAME) {
+                self.focus.reclaim();
+            }
             if self.focus.sends(Some(node)) {
                 self.focus(Some(node.into()))?;
             }
