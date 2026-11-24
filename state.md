@@ -22,7 +22,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| review-tour-base-r5.md (F7; 0.5 %) | sonnet high, claude/tour-base-r5 61d0ef7a | starting |
+| review-tour-base-r5.md (F7; 0.5 %) | sonnet high, claude/tour-base-r5 61d0ef7a | session_016iS3kLPEvxMgyCgZB8GFY3 |
 | stray-super-r2.md (rc 1; rss-1, rss-2 MAJOR; 1.5 %) | opus high, claude/stray-super-r2 e1183766 | session_016iS3kM7GXtGirZm9qkxpMf |
 | tiling-doors-r1.md (rc 2; ti-55, ti-56, ti-50; 1 %) | sonnet high, claude/tiling-doors-r1 b02dbea9 | session_016iS3kLja4YEVy42LaEmr7i |
 | co-repro-r1.md (rc 2; co-77, co-78 5x; 0.4 %) | haiku high, claude/co-repro-r1 280b9dcf | session_016iS3kPjhLSuijoa2h3Uxsv |
@@ -32,7 +32,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 1. (rc 1, 2) TRAIN131 green 73925ee2. TRAIN132 running: tiling-honest r1 b02dbea9 (MERGE-OK 16:59), co-pull r2 280b9dcf (MERGE-OK 17:23). (rc 2) TILING-DOORS r1 running.
 2. (rc 2) P2-R12-CO not met (co-77 cand., co-79 MAJOR); CO-REPRO r1; co-79 next.
 3. (rc 3, F5) FLAKE-SERIES r8, TILING-FLAKE r3 merged t130; next: haiku 5/5 series on the train132 head.
-4. (F7, rc 11) JUDGE r1 rv9j-1..5 MINOR; TOUR-BASE r5 done 61d0ef7a (open 82 to 71, regr 2 to 0), review r5; then v9 take.
+4. (F7, rc 11) JUDGE r1 rv9j-1..5 MINOR; TOUR-BASE r5 61d0ef7a (open 82->71), review r5; then v9 take.
 5. (F4, F5) after train127: FLAKE-SERIES r8 5/5 on final head (haiku), TOUR-V9 final take + 5 reviews (2.5 %), CI-PR (rc 4, 5). (rc 1) after reviews: co-44, co-45 only when construct has no open MAJOR (rules.md 6); rtd-5, rtd-7 MINOR backlog.
 
 ## Needs owner
