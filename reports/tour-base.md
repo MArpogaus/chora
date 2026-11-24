@@ -272,7 +272,30 @@ Per family (acts): xp change 20, open 11; tiling change 25, same 1, open 2; mc c
 Not a finding in `--check` but seen: the mc-only take of the head (`run.py mc`, twice) has act 7 (Escape closes the chat, capture m9b) red: `the chat is shown: ['hud-chat']`; `--check` and the full take of the same head have it green. A timing flake of the 0.2 s settle after 8ba700f5 or 8d0645cc (busy while the regions cross-fade), not bisected: **mc-60 (proposed, MINOR verify, harness or product)**.
 
 ### Gate
-GATE_PLACEHOLDER
+`CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` (no --only) on 1e62811f, detached; last 20 lines:
+```
+voice-acp  PASS    11s /tmp/merge-gate.tLezTV/voice-acp.log
+voice-events PASS     1s /tmp/merge-gate.tLezTV/voice-events.log
+agent      PASS    39s /tmp/merge-gate.tLezTV/agent.log
+acts       PASS  1732s /tmp/merge-gate.tLezTV/acts.log
+tiling-keys-more PASS    41s /tmp/merge-gate.tLezTV/tiling-keys-more.log
+tiling-system PASS    11s /tmp/merge-gate.tLezTV/tiling-system.log
+handover   PASS    25s /tmp/merge-gate.tLezTV/handover.log
+mc-scale   PASS    14s /tmp/merge-gate.tLezTV/mc-scale.log
+watchdog-starved PASS    52s /tmp/merge-gate.tLezTV/watchdog-starved.log
+tiling-windows PASS   174s /tmp/merge-gate.tLezTV/tiling-windows.log
+xp-run     PASS    13s /tmp/merge-gate.tLezTV/xp-run.log
+demo       PASS   235s /tmp/merge-gate.tLezTV/demo.log
+leak       PASS   315s /tmp/merge-gate.tLezTV/leak.log
+tiling-theme PASS    18s /tmp/merge-gate.tLezTV/tiling-theme.log
+tiling-disc PASS    72s /tmp/merge-gate.tLezTV/tiling-disc.log
+mc-host    PASS    19s /tmp/merge-gate.tLezTV/mc-host.log
+tiling-bar PASS   135s /tmp/merge-gate.tLezTV/tiling-bar.log
+e2e        PASS   262s /tmp/merge-gate.tLezTV/e2e.log
+all steps passed; no --push, nothing is pushed
+EXIT 0
+```
+No red cell. `pgrep -fa 'chora --headless'` is empty at the end.
 
 ### Limits
 - The bisect names a sha only where both sides of it were built (675ebd55, 6fa86c16); the other intervals are commit ranges, so their rows are open, not named. fa7faabd was built once (as an interval boundary), its credit is the controlled take of r1.
