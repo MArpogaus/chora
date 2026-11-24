@@ -597,14 +597,16 @@ impl Construct {
                     })
                     .collect()
             }
-            Set::Flown | Set::Rest => vec![
-                item(
+            Set::Flown | Set::Rest => {
+                let mut hints = vec![item(
                     chord(&self.settings.value.fly_out),
                     Word::StepBack,
                     "step-back",
-                ),
-                item(self.hint_keys_chord(), Word::AllKeys, "keys"),
-            ],
+                )];
+                hints.extend(self.pull_out_hint(language));
+                hints.push(item(self.hint_keys_chord(), Word::AllKeys, "keys"));
+                hints
+            }
             Set::Cube => {
                 let mut hints = self.cube_hints(language);
                 hints.extend(self.pane_hints(language));
@@ -619,27 +621,33 @@ impl Construct {
     /// flies into a pane beside the cube (co-64), and the pull key, named
     /// wherever it acts, with or without a pane beside (co-70).
     fn pane_hints(&self, language: chora_kit::words::Language) -> Vec<crate::hints::Item> {
-        use crate::hints::{HINT, Item, click_caps, pull_key, pull_word};
-        let item = |keys: Vec<String>, word: String, hit: &str| Item {
-            keys,
-            word,
-            keys_last: false,
-            hit: format!("{HINT}{hit}"),
-            chip: false,
-        };
+        use crate::hints::{HINT, Item, click_caps};
         let mut hints = Vec::new();
         if self.pane_beside() {
-            let fly_in = chora_kit::words::Word::FlyIn.text(language).to_owned();
-            hints.push(item(click_caps(language), fly_in, "click-pane"));
+            hints.push(Item {
+                keys: click_caps(language),
+                word: chora_kit::words::Word::FlyIn.text(language).to_owned(),
+                keys_last: false,
+                hit: format!("{HINT}click-pane"),
+                chip: false,
+            });
         }
-        if self.pull_acts() {
-            hints.push(item(
-                crate::glass::chord(pull_key()),
-                pull_word(language).into(),
-                "pull-out",
-            ));
-        }
+        hints.extend(self.pull_out_hint(language));
         hints
+    }
+
+    /// The hint `Super Alt 4 Pull out`, in every set where the key acts
+    /// (`pull_acts`): stood back (co-70) and stepped into a face with the
+    /// keyboard in its window (co-79); never in a pane (co-68).
+    fn pull_out_hint(&self, language: chora_kit::words::Language) -> Option<crate::hints::Item> {
+        use crate::hints::{HINT, Item, pull_key, pull_word};
+        self.pull_acts().then(|| Item {
+            keys: crate::glass::chord(pull_key()),
+            word: pull_word(language).into(),
+            keys_last: false,
+            hit: format!("{HINT}pull-out"),
+            chip: false,
+        })
     }
 
     /// Whether the pull key acts now: it gives the window with the

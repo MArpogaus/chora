@@ -95,7 +95,14 @@ in their row, so that they cover no label. In use mode one chip shows,
 with the work on the face. The hint bar at the bottom centre names the
 way out as well: stepped into a face it shows `Alt Esc Step back` beside
 `Super F1 All keys`, also after the first 3 s, so the person who stepped
-in always sees how to step out. The same holds in a pane that the
+in always sees how to step out. Between them it shows
+`Super Alt 4 Pull out` while the keyboard is in a window of the face,
+by the same rule as stood back: the hint is told wherever the key acts
+(`pull_acts`, co-79). The rule names the key where the person is; a
+step out of a pane that lands stood back instead would not help, since
+a pane's window is the construct's own and then nothing in a face is
+there to pull; with the keyboard in the pane in front of the face the
+key is not told there either (co-68). The same holds in a pane that the
 camera flew into from the cube stood back, as a program started from
 `Programs` opens: the hint bar shows `Alt Esc Step back` and `All keys`,
 never the hints of the cube, whose keys do not hold there. The
