@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-24 09:45 UTC)
+## Now (2026-11-24 10:29 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 08:18 PM 4.9 % (11-22) + 5.2 % (11-23) + 2.9 % (11-24), week about 26 % vs 45 % pace
+budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 10:29 PM 4.9 % (11-22) + 5.2 % (11-23) + 3.3 % (11-24), week about 27 % vs 46 % pace
 session branch: 2235551f (t125 green 07:50: xp-title); 75 greens; t126 red: sh-39 flake (e2e apps-click, alone 3/3); train127 09:03 guard-4+co-reach-r4+tiling-reach.
 burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin: W9 779 = RC; GUARD-4); F5 7 rows, no series; F7 open (r4 take stale, 24 acts)
 
@@ -25,9 +25,9 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin: W9 779 = RC; GUARD-4
 | co-pull-r1.md (rc 1, 2; co-68 MAJOR; 1 %) | sonnet high, claude/co-pull f1457035 | session_016iS3kQUTaRWZ2y3if8gWjd |
 | flake-series-r8.md (F5, F4; 1.2 %) | sonnet high, claude/flake-series-r7 6f7bcb26 | session_016iS3kPwWVUYse7EqYxr313 |
 | tiling-calm-r1.md (rc 2, 8; 1 %) | sonnet high, claude/tiling-calm ad0093ba | session_016iS3kLdvEtaUtMWPs87vDJ |
-| xp-polish-r1.md (rc 8; 1 %) | sonnet high, claude/xp-polish 2235551f | session_016iS3kNmUxToFmubQNgEQYh |
+| review-xp-polish-r1.md (rc 8; 0.5 %) | sonnet high, claude/xp-polish 64478c66 | starting |
 ## Queue (% week; 5 % reserve)
-0. (rc 8) VERIFY-MINOR r2: 9 of 14 closed; xp-14, xp-15, xp-17 -> XP-POLISH r1; xp-34 known; xp-18 verify.
+0. (rc 8) VERIFY-MINOR r2: 9 of 14 closed; xp-14, xp-15, xp-17 XP-POLISH r1 done 64478c66, REVIEW r1; xp-34 known; xp-18 verify.
 1. (F4, F5, rc 1) TRAIN127 guard-4, co-reach-r4 f1457035, tiling-reach 4e257c06; TILING-CALM r1 (ti-27, ti-50), then persona r8.
 2. (rc 1, 2; 2 %) co-64, co-65 fixed (CO-REACH r3 MERGE-OK, train127 r3b); co-67 r4 (train127); persona r10 not met: co-68 MAJOR (pull key told, does nothing) -> CO-PULL r1, then persona r11; TILING-REACH r1, then persona r7.
 3. (rc 3, 9; F5) FLAKE-SERIES r8 (rfs7-1, rfs7-2; sh-38 leak slope).
