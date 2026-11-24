@@ -26,6 +26,7 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin: W9 779 = RC; GUARD-4
 | co-reach-r4.md (rc 1, 2; co-67; 1 %) | sonnet high, claude/co-reach-r4 909bc57b | session_016iS3kQqSPtSAjLg9NseHmk 06:31 |
 | tour-base-r2.md (F7, rc 11; 1.2 %) | sonnet high, claude/tour-base 645afaf5 | session_016iS3kQ1y8Tx71ijH6jpEzF 03:35 |
 | flake-series-r8.md (F5, F4; 1.2 %) | sonnet high, claude/flake-series-r7 6f7bcb26 | session_016iS3kPwWVUYse7EqYxr313 05:12 |
+| ledger-audit-r1.md (rc 1; 0.5 %) | sonnet medium, claude/ledger-audit ce866b0d | starting |
 ## Queue (% week; 5 % reserve)
 1. (F7) TRAIN125 xp-title r1 MERGE-OK (rxt-1, rxt-2 MINOR); next train: guard-4 (harness) after review.
 2. (rc 1, 2; 2 %) co-64, co-65 fixed (CO-REACH r3 MERGE-OK, train127 r3b); co-67 MAJOR candidate -> CO-REACH r4, then persona r10; TILING-REACH r1, then persona r7.
