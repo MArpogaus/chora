@@ -229,3 +229,57 @@ A join costs the earlier look one batch of about 200 `input.ungrab` and every su
 many events; while two looks run the unbound chords belong to the one that joined last. tiling and mc subscribe to
 `input.ungrabbed` (one line each in `plugins/chora-tiling` and `plugins/chora-mc`, outside the listed key paths of
 tiling, needed for the joiner's retry).
+
+## Review r2
+
+Reviewer lane review-stray-super-r2 (opus, high, cloud), read-only on `claude/stray-super-r2` 1eb30643, base e1183766.
+Step 0: `git fetch --unshallow` ok, `cargo check --workspace` ok. `cargo test -p chora-kit -p chora-xp -p chora-mc -p chora-tiling`:
+EXIT 0 (kit 330, xp 197, mc 353, tiling 193 passed). `bash tests/gate-join-keys.sh` on head: EXIT 0, 4 cells
+(tiling-first, xp-first, xp-window: tiling refused 15, mc-first: tiling refused 19; Super+h, Shift+Super+1, Super+1..8 act;
+`start::end` in both clients). `pgrep -fa 'chora --headless'` empty after.
+Verdict: **FIX** (0 BLOCK, 1 MAJOR, 2 MINOR, 1 NIT).
+
+Checks:
+1. Red first holds. 429ce20f (cells xp-window, mc-first, three kit unit tests) before d88dee68 and 160b62fd. 6a8bd3b9: the existing
+   ci-check `tests/grab-gap-check.py` is red at 4455b2a3 (`swallow.rs:394: grab_swallowed skips its grab on a branch`, rerun here)
+   and clean at 6a8bd3b9. 1eb30643: the existing gate cell xp-notepad was red at 6a8bd3b9 (lane gate run 2, pasted line). No fix without a red.
+2. The rule (`swallow.rs:212-264`, `runtime.rs:378-420`) holds for two joiners (a BTreeSet; the earlier look swallows again only
+   when the set is empty), one leaving while another stays, a look reloading (a fresh runtime swallows, the others yield: D119
+   "counts as the last"), and ungrab events before or after `client.disconnected` (waiting swallows are dropped at the yield,
+   bound ones retried). A refused bound chord stays bound (`free_chords` skips it). But the rule assumes that the joiner always
+   swallows and hears `input.ungrabbed` from its first grab: neither holds for the construct, and xp grabs before it subscribes
+   (rss-7, rss-8, rss-9).
+3. rss-1, rss-2 fixed (gate-join-keys on head, above); xp-46, mc-60 stay fixed in the cells and in xp-notepad (gate run 3).
+4. 160b62fd: no `Chords`, `first_window` or `Swallowed` left in plugins/chora-xp; one dead binding in a test (rss-10).
+5. Cost (about 200 `input.ungrab` per join, as many `input.ungrabbed` events, the unbound chords with the last joiner): accepted,
+   no finding. It is one batch per join, D117 already counts the event cost, and who holds a swallow does not matter to the
+   person as long as someone does: a swallow of tiling beside xp still ends xp's lone Super tap (`end_lone_taps_of_others`,
+   `crates/chora/src/input.rs:322`), so Start stays closed. It breaks where the joiner swallows nothing (rss-7).
+6. No change in crates/chora; 47aad40d polls (`until_ok menu_visible 4 && fail`), no new `sleep` in tests; D118 text matches
+   the code except "the joiner gets every chord that it binds and swallows the rest itself", which rss-7..9 make untrue for the
+   construct and racy for xp.
+
+Repro of rss-7 on 1eb30643 (headless 1280x800, gate-join-keys helpers, script in the reviewer's scratchpad, not committed):
+tiling, a typing foot focused, `start:` Super+x Super+k Super+m Super+q `:end` -> `start::end`; then `chora-construct --overlay`
+starts (alive, waiting, no `construct.load`), the foot keeps the keyboard, the same typing -> `start:xq:end`. Control without
+the construct: `start::endstart::end`. On e1183766 tiling never yields its swallow.
+
+Findings:
+- rss-7, MAJOR, crates/chora-kit/src/swallow.rs:215, every client of `give::KEYS` counts as a joiner, also `chora-construct --overlay`
+  (docs/configuration.md:1092, a documented flow beside tiling, mc or xp) and the construct while no pane window has the keyboard,
+  which swallow nothing (`camera.rs:567` swallows only with `keys_with_pane` and no cube): the flavor lets its swallow go and nobody
+  holds the chords, so Super+x and Super+q type into a tiling window again (repro above), and by the same path into xp and mc
+  windows (xp-46, mc-60 back) and tiling loses its D118 swallow of base; fix: yield only to a joiner that swallows (for instance the
+  construct as joiner keeps the swallow of the earlier look, or the construct swallows from its start like the others), with a
+  gate-join-keys cell tiling plus `construct --overlay` that types `start::end`.
+- rss-8, MINOR, plugins/chora-xp/src/wm/startup.rs:118, xp grabs (`wm.grab()`) before `announce` subscribes, and the core sends no event to
+  a connection without a subscription (`crates/chora/src/ipc.rs:645`): when xp joins and the earlier look's yield lands between xp's
+  refused grab and its subscribe, xp never hears `input.ungrabbed` and the chord stays free (a bound key of xp dead, or an unbound
+  chord typing into an xp window); the same window hides a `client.connected` of a manager that joins then, so xp never yields
+  (rss-2 back); 1eb30643 narrowed the window (one batch), not closed it; fix: subscribe before the first grab, as tiling (`Runtime::start`)
+  and mc (`lifecycle.rs:178`) do.
+- rss-9, MINOR, plugins/chora-construct/src/main.rs:747, the construct's `EVENTS` lack `input.ungrabbed`, so as a joiner it never asks
+  again for a binding that the swallow of an earlier look held at its grab, against D118 r2 "xp, mc, tiling and the construct share
+  the code"; fix: add `input.ungrabbed` to the construct's events (one line, as tiling and mc got).
+- rss-10, NIT, plugins/chora-xp/src/wm.rs:1205, `let _ = calls;` is left of the reverted call check in `a_moved_cube_key_has_no_stand_in`;
+  fix: use `on_fake_core_refusing(..).0` or drop the recorder.
