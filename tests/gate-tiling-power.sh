@@ -84,7 +84,7 @@ for n in 1 2 3; do
 done
 ok "the power icon opens the menu 3 of 3 times"
 
-list_open() { ctl query 'kind:text' 2>/dev/null | grep -q "Next window"; }
+list_open() { ctl query 'kind:text' 2>/dev/null | grep -q "Move focus"; }
 keys Super+slash
 for _ in $(seq 20); do
     list_open && break

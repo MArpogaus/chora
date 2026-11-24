@@ -21,26 +21,26 @@ pub const CHIP: &str = "tiling-chip";
 /// the gap of 12 under it, on both sides, so that it stays clear of it.
 const BAR_CLEARANCE: f64 = 52.0;
 /// The width of the panel of the key list.
-const PANEL_WIDTH: f64 = 880.0;
+const PANEL_WIDTH: f64 = 1000.0;
 /// The height of the header, above the first row.
-const TOP: f64 = 88.0;
+const TOP: f64 = 84.0;
 /// The space below the last row.
 const BOTTOM: f64 = 24.0;
 /// The space left of the first column, and the distance of the columns.
 const LEFT: f64 = 24.0;
-const COLUMN: f64 = 416.0;
+const COLUMN: f64 = 536.0;
 /// The pitches of the rows that the panel tries, in order. The caps are 4
 /// px less high, and never less than [`CAP_MIN`].
 const PITCHES: [f64; 3] = [24.0, 22.0, 20.0];
 /// How close to the room the panel may come before it takes all of it, so
 /// that its top stands on the grid line under the bar.
 const SNAP: f64 = 8.0;
-/// The least height of a keycap: the keys in 13 px with their descenders
+/// The least height of a keycap: the keys in 14 px with their descenders
 /// and 2 px to spare above and below.
 const CAP_MIN: f64 = 18.0;
-/// How far the top of the 13 px keys sits below the top of the 14 px label
+/// How far the top of the 14 px keys sits below the top of the 14 px label
 /// beside them, so that both stand on one baseline.
-const CAP_TEXT_DY: f64 = 1.0;
+const CAP_TEXT_DY: f64 = 0.0;
 /// The air above a group title that follows a group in its column.
 const GROUP_GAP: f64 = 8.0;
 /// The padding of a keycap left and right, and the space to its label.
@@ -48,8 +48,8 @@ const CAP_PAD: f64 = 6.0;
 const CAP_GAP: f64 = 10.0;
 /// The height of a line of 14 px text, which sits in the middle of a pitch.
 const LINE: f64 = 17.0;
-/// The advance of a character of the keycap font at 13 px: 0.6 em.
-const MONO_ADVANCE: f64 = 7.8;
+/// The advance of a character of the keycap font at 14 px: 0.6 em.
+const MONO_ADVANCE: f64 = 8.4;
 /// The faces of the overlays: single family names, as the renderer takes
 /// no list.
 const UI_FONT: &str = "Inter";
@@ -87,9 +87,26 @@ pub fn layout_word(layout: Layout, lang: Language) -> &'static str {
     }
 }
 
+/// The groups of the key list, in the order they are shown: the give keys,
+/// which no file binds, as the first two lines, then the windows, whose
+/// first row is the focus keys.
+const LOOKS: usize = 0;
+const WINDOWS: usize = 1;
+const LAYOUTS: usize = 2;
+const TAGS: usize = 3;
+const PROGRAMS: usize = 4;
+const SYSTEM: usize = 5;
+
+/// Whether an action is the settings door, which the list shows beside the
+/// key that reads the settings again.
+fn opens_settings(action: &Action) -> bool {
+    matches!(action, Action::System(System::Run(command)) if command.ends_with("--launch settings"))
+}
+
 /// The group of the key list that an action belongs to.
 fn group_of(action: &Action) -> usize {
     match action {
+        Action::System(System::Run(_)) if opens_settings(action) => SYSTEM,
         Action::System(
             System::Run(_)
             | System::Terminal
@@ -98,19 +115,19 @@ fn group_of(action: &Action) -> usize {
             | System::Lock
             | System::Power
             | System::Screenshot,
-        ) => 3,
-        Action::System(System::Close | System::Drag) => 0,
-        Action::System(_) => 4,
+        ) => PROGRAMS,
+        Action::System(System::Close | System::Drag) => WINDOWS,
+        Action::System(_) => SYSTEM,
         Action::Look(own) => {
             let own = Action::Look(own.clone());
             if window_words(&own).is_some() {
-                0
+                WINDOWS
             } else if layout_words(&own).is_some() {
-                1
+                LAYOUTS
             } else if tag_words(&own).is_some() {
-                2
+                TAGS
             } else {
-                4
+                SYSTEM
             }
         }
     }
@@ -139,12 +156,10 @@ type Words = [&'static str; 2];
 
 fn window_words(action: &Action) -> Option<Words> {
     Some(match action {
-        Action::Look(Own::FocusNext) => ["Next window", "Nächstes Fenster"],
-        Action::Look(Own::FocusPrevious) => ["Previous window", "Voriges Fenster"],
+        Action::Look(Own::FocusNext | Own::FocusPrevious) => ["Move focus", "Fokus bewegen"],
         Action::Look(Own::FocusBack) => ["Window before", "Fenster davor"],
         Action::Look(Own::FocusUrgent) => ["Window that asks", "Fenster, das ruft"],
-        Action::Look(Own::SwapNext) => ["Move window down", "Fenster nach hinten"],
-        Action::Look(Own::SwapPrevious) => ["Move window up", "Fenster nach vorn"],
+        Action::Look(Own::SwapNext | Own::SwapPrevious) => ["Swap window", "Fenster tauschen"],
         Action::Look(Own::MoveToMaster) => ["Make window main", "Fenster zum Hauptfenster"],
         Action::Look(Own::ToggleFloating) => ["Float window", "Fenster schweben lassen"],
         Action::Look(Own::ToggleFullscreen) => ["Full screen", "Vollbild"],
@@ -204,6 +219,7 @@ fn own_words(action: &Action) -> Option<Words> {
 /// The title of a group of the key list.
 fn title(group: usize, de: bool) -> &'static str {
     let names = [
+        ["Other looks", "Andere Fenstermanager"],
         ["Windows", "Fenster"],
         ["Layouts", "Anordnung"],
         ["Tags", "Tags"],
@@ -223,18 +239,22 @@ fn number(action: &Action) -> Option<usize> {
     }
 }
 
+/// Whether an action moves the focus to another window: its key shows in
+/// the list without `MOD`, as Alt+Tab does.
+fn moves_focus(action: &Action) -> bool {
+    matches!(action, Action::Look(Own::FocusNext | Own::FocusPrevious))
+}
+
 /// A row before it is sorted: its rank, its keys and its words.
 type Entry = (usize, String, String);
 
 /// The English words of the rows in the order that the key list shows
 /// them, by group; a row that is not here follows the others, by its keys.
-const ORDER: [&str; 47] = [
-    "Next window",
-    "Previous window",
+const ORDER: [&str; 46] = [
+    "Move focus",
     "Window before",
     "Window that asks",
-    "Move window down",
-    "Move window up",
+    "Swap window",
     "Make window main",
     "Close window",
     "Float window",
@@ -274,6 +294,7 @@ const ORDER: [&str; 47] = [
     "Volume up",
     "Volume down",
     "Mute",
+    "Edit settings",
     "Read the settings again",
     "All keys",
 ];
@@ -340,12 +361,12 @@ pub fn rows(config: &Config, lang: Language) -> Vec<(&'static str, Vec<(String, 
         )
     };
     let resolved = (config.common.bindings.iter())
-        .filter(|(binding, action)| binding.contains("MOD") || media(action))
+        .filter(|(binding, action)| binding.contains("MOD") || media(action) || moves_focus(action))
         .map(|(binding, action)| (binding.replace("MOD", &config.modifier), action));
     let sheet = keysheet::rows(resolved, lang, |binding, action| {
         named(config, binding, action, de)
     });
-    let mut groups: Vec<Vec<Entry>> = vec![Vec::new(); 5];
+    let mut groups: Vec<Vec<Entry>> = vec![Vec::new(); SYSTEM + 1];
     let mut volume_keys: Vec<Entry> = Vec::new();
     for row in &sheet {
         let entry = entry(config, row);
@@ -364,10 +385,10 @@ pub fn rows(config: &Config, lang: Language) -> Vec<(&'static str, Vec<(String, 
         let join =
             |part: fn(&Entry) -> &str| volume_keys.iter().map(part).collect::<Vec<_>>().join(" / ");
         let row = (rank, join(|e| &e.1), join(|e| &e.2));
-        groups[4].push(row);
+        groups[SYSTEM].push(row);
     }
     let (keys, words) = keysheet::give_row(lang);
-    groups[4].push((ORDER.len(), keys, words));
+    groups[LOOKS].push((ORDER.len(), keys, words));
     groups
         .into_iter()
         .enumerate()
@@ -684,12 +705,12 @@ pub fn fit_list(output: [f64; 2], height: f64, right: f64) -> Vec<Command> {
 /// The commands of the items of a plan, under the group `body`.
 fn draw(items: &[Item], body: &str, colors: &Colors) -> Vec<Command> {
     let mut commands = Vec::new();
-    let (text_rgb, muted_rgb) = (channels(&colors.text), channels(&colors.muted));
+    let text_rgb = channels(&colors.text);
     for (n, item) in items.iter().enumerate() {
         let id = format!("{body}-{n}");
         match item {
             Item::Title { at, text: words } => {
-                let face = Face::new(*at, 14.0, 600, muted_rgb);
+                let face = Face::new(*at, 14.0, 600, text_rgb);
                 commands.push(text(&id, body, words, &face));
             }
             Item::Cap {
@@ -707,7 +728,7 @@ fn draw(items: &[Item], body: &str, colors: &Colors) -> Vec<Command> {
                 };
                 commands.push(create(&format!("{id}-cap"), NodeKind::Rect, body, keycap));
                 let inset = (size[0] - cap_width(keys)) / 2.0 + CAP_PAD;
-                let mut mono = Face::new([at[0] + inset, *text_y], 13.0, 400, text_rgb);
+                let mut mono = Face::new([at[0] + inset, *text_y], 14.0, 400, text_rgb);
                 mono.mono = true;
                 commands.push(text(&format!("{id}-k"), body, keys, &mono));
             }
@@ -739,7 +760,7 @@ fn header(body: &str, colors: &Colors, lang: Language) -> Vec<Command> {
              power icon: lock, log out, screenshot",
         )
     };
-    let muted = channels(&colors.muted);
+    let muted = channels(&colors.text);
     vec![
         text(
             &format!("{body}-t"),
@@ -1024,7 +1045,7 @@ mod tests {
             })
             .fold(0.0, f64::max);
         assert!((plan.size[1] - low - BOTTOM).abs() < 1e-9, "{plan:?}");
-        assert_eq!(plan.size[0], 880.0);
+        assert_eq!(plan.size[0], PANEL_WIDTH);
         let tight = laid_out(696.0);
         assert!(tight.size[1] <= 696.0, "the panel is {}", tight.size[1]);
     }
@@ -1095,13 +1116,83 @@ mod tests {
     fn the_rows_follow_the_order_of_a_person_not_of_the_keys() {
         let groups = groups();
         let names: Vec<&str> = groups.iter().map(|(n, _)| *n).collect();
-        assert_eq!(names, ["Windows", "Layouts", "Tags", "Programs", "System"]);
+        assert_eq!(
+            names,
+            [
+                "Other looks",
+                "Windows",
+                "Layouts",
+                "Tags",
+                "Programs",
+                "System"
+            ]
+        );
         let first = |g: usize| groups[g].1[0].1.clone();
-        assert_eq!(first(0), "Next window");
-        assert_eq!(first(1), "Next layout");
-        assert_eq!(first(2), "Show tag 1-9");
-        assert_eq!(first(3), "Open a terminal");
-        assert_eq!(groups[0].1[1].1, "Previous window");
+        assert_eq!(first(0), "Give window to a look");
+        assert_eq!(first(1), "Move focus");
+        assert_eq!(first(2), "Next layout");
+        assert_eq!(first(3), "Show tag 1-9");
+        assert_eq!(first(4), "Open a terminal");
+        assert_eq!(groups[1].1[1].1, "Window before");
+    }
+
+    #[test]
+    fn the_focus_keys_are_the_first_row_in_plain_words() {
+        let groups = groups();
+        let (keys, words) = &groups[1].1[0];
+        assert_eq!(words, "Move focus");
+        for key in ["Super+J", "Super+K", "Alt+Tab"] {
+            assert!(keys.split(" / ").any(|k| k == key), "{key} in {keys}");
+        }
+    }
+
+    #[test]
+    fn edit_settings_stands_beside_the_reload_key() {
+        let groups = groups();
+        let system = &groups[groups.len() - 1].1;
+        let at = system
+            .iter()
+            .position(|(_, words)| words == "Edit settings")
+            .expect("a row Edit settings in the system group");
+        assert_eq!(system[at].0, "Super+S");
+        assert_eq!(
+            system[at + 1],
+            (
+                "Super+Ctrl+R".to_owned(),
+                "Read the settings again".to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn the_give_keys_have_a_group_of_their_own_above_the_windows() {
+        let groups = groups();
+        assert_eq!(groups[0].0, "Other looks");
+        assert_eq!(
+            groups[0].1,
+            [(
+                "Super+Alt+1-4".to_owned(),
+                "Give window to a look".to_owned()
+            )]
+        );
+        let de = rows(&parse::<Config>(DEFAULT).unwrap(), Language::De);
+        assert_eq!(de[0].0, "Andere Fenstermanager");
+    }
+
+    #[test]
+    fn the_give_keys_and_the_focus_keys_are_both_in_the_top_part() {
+        let plan = laid_out(696.0);
+        let top = |words: &str| {
+            plan.items
+                .iter()
+                .find_map(|i| match i {
+                    Item::Title { at, text } if text == words => Some(at[1]),
+                    _ => None,
+                })
+                .unwrap_or_else(|| panic!("no heading {words}"))
+        };
+        assert!(top("Other looks") < 100.0, "{}", top("Other looks"));
+        assert!(top("Windows") < 160.0, "{}", top("Windows"));
     }
 
     fn words_of(commands: &[Command]) -> Vec<String> {
@@ -1237,6 +1328,83 @@ mod tests {
                 .expect("a scrim");
             let [r, g, b] = channels(&colors.base);
             assert_eq!(color, [r, g, b, SCRIM], "{scheme:?}");
+        }
+    }
+
+    /// The box of an item, the words as wide as 14 px Inter draws them.
+    fn boxes(plan: &Plan) -> Vec<(String, [f64; 4])> {
+        let words = |at: &[f64; 2], text: &str, em: f64| {
+            [at[0], at[1], px(text.chars().count()) * em, LINE]
+        };
+        plan.items
+            .iter()
+            .map(|item| match item {
+                Item::Title { at, text } => (text.clone(), words(at, text, 7.6)),
+                Item::Cap { at, size, keys, .. } => {
+                    (keys.clone(), [at[0], at[1], size[0], size[1]])
+                }
+                Item::Label { at, text } => (text.clone(), words(at, text, 7.3)),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn no_box_of_the_list_overlaps_another() {
+        for lang in [Language::En, Language::De] {
+            let rows = rows(&parse::<Config>(DEFAULT).unwrap(), lang);
+            let boxes = boxes(&plan(&rows, 1000.0));
+            for (n, (a, x)) in boxes.iter().enumerate() {
+                for (b, y) in &boxes[n + 1..] {
+                    let apart = x[0] + x[2] <= y[0]
+                        || y[0] + y[2] <= x[0]
+                        || x[1] + x[3] <= y[1]
+                        || y[1] + y[3] <= x[1];
+                    assert!(apart, "{lang:?}: {a:?} {x:?} overlaps {b:?} {y:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn the_titles_and_the_header_read_at_7_to_1_on_the_panel() {
+        let luminance = |rgb: [f64; 3]| {
+            let [r, g, b] = rgb.map(|c| {
+                if c <= 0.039_28 {
+                    c / 12.92
+                } else {
+                    ((c + 0.055) / 1.055).powf(2.4)
+                }
+            });
+            0.2126 * r + 0.7152 * g + 0.0722 * b
+        };
+        for scheme in [Scheme::Ink, Scheme::Paper] {
+            let colors = Colors::of(scheme);
+            let list = key_list(
+                "screen:X",
+                [1280.0, 800.0],
+                &groups(),
+                &colors,
+                Language::En,
+            );
+            for want in [
+                "tiling-keys-body-3",
+                "tiling-keys-body-h",
+                "tiling-keys-body-m",
+            ] {
+                let title = list
+                    .iter()
+                    .find_map(|c| match c {
+                        Command::Create { id, props, .. } if id == want => props.color,
+                        _ => None,
+                    })
+                    .expect("a text");
+                let (a, b) = (
+                    luminance([title[0], title[1], title[2]]),
+                    luminance(channels(&colors.surface)),
+                );
+                let ratio = (a.max(b) + 0.05) / (a.min(b) + 0.05);
+                assert!(ratio >= 7.0, "{scheme:?} {want}: {ratio:.2}");
+            }
         }
     }
 

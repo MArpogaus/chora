@@ -994,11 +994,19 @@ mod tests {
     ///
     /// The windows of these cells are not in the scene: the fake core takes
     /// the commands as they come, and the test reads them.
+    pub(super) fn wm_on_fake_core(tag: &str) -> (Wm, Log) {
+        wm_on_fake_core_logging(tag, |method, _| Some(method.to_owned()))
+    }
+
+    /// As [`wm_on_fake_core`], the log holding what `line` makes of each request.
     #[allow(
         clippy::disallowed_methods,
         reason = "the test answers the requests of its fake core"
     )]
-    pub(super) fn wm_on_fake_core(tag: &str) -> (Wm, Log) {
+    pub(super) fn wm_on_fake_core_logging(
+        tag: &str,
+        line: impl Fn(&str, &Value) -> Option<String> + Send + Sync + 'static,
+    ) -> (Wm, Log) {
         let dir = chora_kit::testing::TempDir::new(&format!("chora-xp-wm-{tag}")).keep();
         std::fs::create_dir_all(&dir).unwrap();
         let output = chora_scene::OutputInfo {
@@ -1018,7 +1026,7 @@ mod tests {
             "scene.apply" => Some(Value::Null),
             _ => None,
         });
-        let methods = core.record(|method, _| Some(method.to_owned()));
+        let methods = core.record(line);
         (wm_on(core.runtime(NAME), &dir), methods)
     }
 
