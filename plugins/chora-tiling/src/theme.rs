@@ -728,11 +728,11 @@ impl LaunchError {
                 "Die Datei power.sh des gemeinsamen Ordners fehlt.",
             ),
             ("look", false) => (
-                "Look switch not installed",
+                "Theme switch not installed",
                 "The file look.sh of the tiling flavor was not found.",
             ),
             ("look", true) => (
-                "Look-Umschalter nicht installiert",
+                "Theme-Umschalter nicht installiert",
                 "Die Datei look.sh des Tiling-Flavors fehlt.",
             ),
             ("settings", false) => (

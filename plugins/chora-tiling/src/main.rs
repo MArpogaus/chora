@@ -309,9 +309,8 @@ fn launch(argv: &[String]) -> ExitCode {
     let line = match theme::launch_line(program, rest, &dirs, theme::written_scheme(&dirs)) {
         Ok(line) => line,
         Err(err) => {
-            eprintln!("chora-tiling: cannot start {program}: {err}");
             tell_launch_error(&err);
-            return ExitCode::FAILURE;
+            return cannot_start(program, &err);
         }
     };
     if program == "power" || program == "looks" || (program == "fuzzel" && rest.is_empty()) {
@@ -346,7 +345,11 @@ fn launch(argv: &[String]) -> ExitCode {
             command.env("XDG_DATA_DIRS", data);
         }
     }
-    let err = command.exec();
+    cannot_start(program, &command.exec())
+}
+
+/// Says on stderr why a program of a launch did not start.
+fn cannot_start(program: &str, err: &dyn std::fmt::Display) -> ExitCode {
     eprintln!("chora-tiling: cannot start {program}: {err}");
     ExitCode::FAILURE
 }
@@ -363,10 +366,7 @@ fn launch_looks(dirs: &[std::path::PathBuf]) -> ExitCode {
         launch_conn().and_then(|mut conn| conn.call::<_, Value>("clients.list", Value::Null));
     let clients = match clients {
         Ok(clients) => clients,
-        Err(err) => {
-            eprintln!("chora-tiling: the looks that run: {err}");
-            return ExitCode::FAILURE;
-        }
+        Err(err) => return cannot_start("looks", &err),
     };
     let running = looks::running(&clients);
     let scheme = theme::written_scheme(dirs);
@@ -385,10 +385,7 @@ fn launch_looks(dirs: &[std::path::PathBuf]) -> ExitCode {
         .spawn();
     let mut child = match spawned {
         Ok(child) => child,
-        Err(err) => {
-            eprintln!("chora-tiling: cannot start fuzzel: {err}");
-            return ExitCode::FAILURE;
-        }
+        Err(err) => return cannot_start("fuzzel", &err),
     };
     if let Some(mut stdin) = child.stdin.take() {
         let _ = stdin.write_all(looks::rows(&running, language).join("\n").as_bytes());
@@ -401,11 +398,10 @@ fn launch_looks(dirs: &[std::path::PathBuf]) -> ExitCode {
         return ExitCode::SUCCESS;
     };
     match theme::launch_line("give", &[look.to_owned()], dirs, scheme) {
-        Ok(give) => {
-            let err = std::process::Command::new(&give[0]).args(&give[1..]).exec();
-            eprintln!("chora-tiling: cannot start give.sh: {err}");
-            ExitCode::FAILURE
-        }
+        Ok(give) => cannot_start(
+            "give.sh",
+            &std::process::Command::new(&give[0]).args(&give[1..]).exec(),
+        ),
         Err(err) => {
             tell_launch_error(&err);
             ExitCode::FAILURE
