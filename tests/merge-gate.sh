@@ -494,30 +494,35 @@ stray_pids() {
         echo "$pid $comm"
     done
 }
+poll() {
+    local tries=$1 n
+    shift
+    for ((n = 0; n < tries; n++)); do
+        "$@" && return 0
+        sleep 0.1
+    done
+    return 1
+}
+no_strays() { [ -z "$(stray_pids "$@")" ]; }
+none_alive() {
+    local pid
+    for pid in "${!running[@]}"; do
+        ! group_alive "$pid" || return 1
+    done
+}
 end_strays() {
-    local tries pids
+    local pids
     mapfile -t pids < <(stray_pids "$@" | cut -d' ' -f1)
     [ "${#pids[@]}" -gt 0 ] || return 0
     kill -TERM "${pids[@]}" 2>/dev/null
-    for ((tries = 0; tries < 30; tries++)); do
-        [ -n "$(stray_pids "$@")" ] || return 0
-        sleep 0.1
-    done
-    kill -KILL "${pids[@]}" 2>/dev/null
+    poll 30 no_strays "$@" || kill -KILL "${pids[@]}" 2>/dev/null
 }
 stop_children() {
-    local pid tries alive
+    local pid
     for pid in "${!running[@]}"; do
         kill -TERM -- "-$pid" 2>/dev/null
     done
-    for ((tries = 0; tries < 50; tries++)); do
-        alive=0
-        for pid in "${!running[@]}"; do
-            ! group_alive "$pid" || alive=1
-        done
-        [ "$alive" = 1 ] || break
-        sleep 0.1
-    done
+    poll 50 none_alive
     for pid in "${!running[@]}"; do
         ! group_alive "$pid" || kill -KILL -- "-$pid" 2>/dev/null
     done
@@ -551,7 +556,7 @@ start_step() {
 }
 
 wait_step() {
-    local pid code i try name log left result=PASS
+    local pid code i name log left result=PASS
     wait -n -p pid "${!running[@]}"
     code=$?
     i=${running[$pid]}
@@ -561,12 +566,8 @@ wait_step() {
     if [ "$code" != 0 ] || log_failed "$log"; then
         result=FAIL
     fi
-    left=
-    for ((try = 0; try < 30; try++)); do
-        left=$(stray_pids "$name")
-        [ -n "$left" ] || break
-        sleep 0.1
-    done
+    poll 30 no_strays "$name"
+    left=$(stray_pids "$name")
     if [ -n "$left" ]; then
         {
             echo "FAIL: the step left chora processes behind (pid, name):"
