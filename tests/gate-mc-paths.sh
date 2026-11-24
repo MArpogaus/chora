@@ -580,15 +580,14 @@ cell_stray_super() {
     rm -f "$log"
     foot --app-id=mcstray sh -c "stty raw -echo; cat >$log" &
     until_ok 'stray_alive && [ "$(current)" = mcstray ]' 40 || { stray_end; fail "the window of a program has no page: $(current)"; }
-    sleep 2
     key Return
-    sleep 1
+    until_ok '[ "$(jq -r .surface <<<"$(mc_focus)")" != null ]' 20 || { stray_end; fail "Return does not give the keyboard to the window: $(mc_focus)"; }
     echo '[{"text": {"text": "start:"}}]' | ctl inject >/dev/null || { stray_end; fail "inject text"; }
     for chord in Super+x Super+k Super+m Super+q; do
         key "$chord"
     done
     echo '[{"text": {"text": ":end"}}]' | ctl inject >/dev/null || { stray_end; fail "inject text"; }
-    sleep 1
+    until_ok '[ "$(tr -d "\r" <"$log" 2>/dev/null)" = "start::end" ]' 20
     typed=$(tr -d '\r' <"$log" 2>/dev/null)
     stray_end
     [ "$typed" = "start::end" ] || fail "mc-60: the window page typed '$typed' and not start::end"
