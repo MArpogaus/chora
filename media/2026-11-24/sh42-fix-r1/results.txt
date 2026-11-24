@@ -1,0 +1,19 @@
+xp join #1 | pre: core=["s1"] xp="xp" mc= tiling= | post: core=["s1"] xp="xp" mc= tiling=null | typed-after-switch-reaches: yes | recovered: NA | file=echo a1echo r1
+mc join #1 | pre: core=["s1"] xp= mc="mc" tiling= | post: core=["s1"] xp= mc="mc" tiling=null | typed-after-switch-reaches: yes | recovered: NA | file=^Mecho a1echo r1
+xp join #2 | pre: core=["s1"] xp="xp" mc= tiling= | post: core=["s1"] xp="xp" mc= tiling=null | typed-after-switch-reaches: yes | recovered: NA | file=echo a2echo r2
+mc join #2 | pre: core=["s1"] xp= mc="mc" tiling= | post: core=["s1"] xp= mc="mc" tiling=null | typed-after-switch-reaches: yes | recovered: NA | file=^Mecho a2echo r2
+xp join #3 | pre: core=["s1"] xp="xp" mc= tiling= | post: core=["s1"] xp="xp" mc= tiling=null | typed-after-switch-reaches: yes | recovered: NA | file=echo a3echo r3
+mc join #3 | pre: core=["s1"] xp= mc="mc" tiling= | post: core=["s1"] xp= mc="mc" tiling=null | typed-after-switch-reaches: yes | recovered: NA | file=^Mecho a3echo r3
+xp join #4 | pre: core=["s1"] xp="xp" mc= tiling= | post: core=["s1"] xp="xp" mc= tiling=null | typed-after-switch-reaches: yes | recovered: NA | file=echo a4echo r4
+mc join #4 | pre: core=["s1"] xp= mc="mc" tiling= | post: core=["s1"] xp= mc="mc" tiling=null | typed-after-switch-reaches: yes | recovered: NA | file=^Mecho a4echo r4
+xp join #5 | pre: core=["s1"] xp="xp" mc= tiling= | post: core=["s1"] xp="xp" mc= tiling=null | typed-after-switch-reaches: yes | recovered: NA | file=echo a5echo r5
+mc join #5 | pre: core=["s1"] xp= mc="mc" tiling= | post: core=["s1"] xp= mc="mc" tiling=null | typed-after-switch-reaches: yes | recovered: NA | file=^Mecho a5echo r5
+xp switch #1 | pre: core=["s1"] xp="xp" mc= tiling= | post: core=["s1"] xp="xp" mc=null tiling= | typed-after-switch-reaches: yes | recovered: NA | file=echo a1echo r1
+xp nowin_join #1 | pre: core=[] xp="xp" mc= tiling= | post: core=[] xp="xp" mc= tiling=null | typed-after-switch-reaches: no | recovered: none | file=
+mc nowin_join #1 | pre: core=[] xp= mc="mc" tiling= | post: core=[] xp= mc="mc" tiling=null | typed-after-switch-reaches: no | recovered: none | file=
+xp switch #2 | pre: core=["s1"] xp="xp" mc= tiling= | post: core=["s1"] xp="xp" mc=null tiling= | typed-after-switch-reaches: yes | recovered: NA | file=echo a2echo r2
+xp nowin_join #2 | pre: core=[] xp="xp" mc= tiling= | post: core=[] xp="xp" mc= tiling=null | typed-after-switch-reaches: no | recovered: none | file=
+mc nowin_join #2 | pre: core=[] xp= mc="mc" tiling= | post: core=[] xp= mc="mc" tiling=null | typed-after-switch-reaches: no | recovered: none | file=
+xp switch #3 | pre: core=["s1"] xp="xp" mc= tiling= | post: core=["s1"] xp="xp" mc=null tiling= | typed-after-switch-reaches: yes | recovered: NA | file=echo a3echo r3
+xp nowin_join #3 | pre: core=[] xp="xp" mc= tiling= | post: core=[] xp="xp" mc= tiling=null | typed-after-switch-reaches: no | recovered: none | file=
+mc nowin_join #3 | pre: core=[] xp= mc="mc" tiling= | post: core=[] xp= mc="mc" tiling=null | typed-after-switch-reaches: no | recovered: none | file=
