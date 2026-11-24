@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-24 07:58 UTC)
+## Now (2026-11-24 07:59 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 06:06 PM 4.9 % (11-22) + 5.2 % (11-23) + 2.1 % (11-24), week about 25 % vs 43 % pace
 session branch: 2235551f (t125 green 07:50: xp-title); 75 greens; train126 07:45 (guard-4 284ce9a5).
@@ -25,7 +25,7 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin: W9 779 = RC; GUARD-4
 | co-reach-r4.md (rc 1, 2; co-67; 1 %) | sonnet high, claude/co-reach-r4 909bc57b | session_016iS3kQqSPtSAjLg9NseHmk |
 | tour-base-r3.md (F7, rc 11; 0.8 %) | sonnet high, claude/tour-base 883214b5 | session_016iS3kLPAifTAZd7mvFfrRp |
 | flake-series-r8.md (F5, F4; 1.2 %) | sonnet high, claude/flake-series-r7 6f7bcb26 | session_016iS3kPwWVUYse7EqYxr313 |
-| p2-r7-tiling.md (rc 2; 0.8 %) | sonnet medium, claude/p2-r7-tiling ad0093ba | starting |
+| p2-r7-tiling.md (rc 2; 0.8 %) | sonnet medium, claude/p2-r7-tiling ad0093ba | session_016iS3kNwmLnhQzJYTaRrbNv |
 | verify-minor-r2.md (rc 8; 0.5 %) | sonnet medium, claude/verify-minor-r2 2235551f | session_016iS3kNQHFDd8Sfe5DbUGAM |
 ## Queue (% week; 5 % reserve)
 0. (rc 8) VERIFY-MINOR r1: 4 fixed (xp-8, mc-9..11); r2 runs for the 10 verify rows.
