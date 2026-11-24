@@ -1,0 +1,116 @@
+task T6 pass
+breach I6 in look: on HEADLESS-1 'Tags' (tiling-keys-body-72) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Move focus' (tiling-keys-body-5-l) has the contrast 1.34:1 ((46, 51, 68) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Window before' (tiling-keys-body-7-l) has the contrast 3.77:1 ((101, 123, 131) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Window that asks' (tiling-keys-body-9-l) has the contrast 3.77:1 ((101, 123, 131) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Swap window' (tiling-keys-body-11-l) has the contrast 6.82:1 ((17, 19, 26) on (167, 139, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Make window main' (tiling-keys-body-13-l) has the contrast 6.18:1 ((26, 29, 39) on (167, 139, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Float window' (tiling-keys-body-17-l) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Maximize wide' (tiling-keys-body-23-l) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Keep on top' (tiling-keys-body-27-l) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Drag window' (tiling-keys-body-33-l) has the contrast 1.42:1 ((53, 55, 65) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Start a program or run a command' (tiling-keys-body-38-l) has the contrast 1.42:1 ((53, 55, 65) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+H' (tiling-keys-body-56-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+Shift+H' (tiling-keys-body-58-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+Shift+L' (tiling-keys-body-60-k) has the contrast 6.18:1 ((26, 29, 39) on (167, 139, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+Ctrl+H' (tiling-keys-body-62-k) has the contrast 1.00:1 ((167, 139, 250) on (167, 139, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+Ctrl+L' (tiling-keys-body-64-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+Ctrl+J' (tiling-keys-body-66-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+Ctrl+K' (tiling-keys-body-68-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+O' (tiling-keys-body-70-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Tags' (tiling-keys-body-72) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+1-9' (tiling-keys-body-73-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+Ctrl+1-9' (tiling-keys-body-75-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+Shift+1-9' (tiling-keys-body-77-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+Ctrl+Shift+1-9' (tiling-keys-body-79-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+\u2009→' (tiling-keys-body-81-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+\u2009←' (tiling-keys-body-83-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+Esc' (tiling-keys-body-85-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'System' (tiling-keys-body-87) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Move focus' (tiling-keys-body-5-l) has the contrast 1.34:1 ((46, 51, 68) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Window before' (tiling-keys-body-7-l) has the contrast 3.77:1 ((101, 123, 131) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Window that asks' (tiling-keys-body-9-l) has the contrast 3.77:1 ((101, 123, 131) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Swap window' (tiling-keys-body-11-l) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Make window main' (tiling-keys-body-13-l) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Close window' (tiling-keys-body-15-l) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Float window' (tiling-keys-body-17-l) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Full screen' (tiling-keys-body-19-l) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Maximize' (tiling-keys-body-21-l) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Maximize wide' (tiling-keys-body-23-l) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Maximize tall' (tiling-keys-body-25-l) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Keep on top' (tiling-keys-body-27-l) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Hide window' (tiling-keys-body-29-l) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Bring back window' (tiling-keys-body-31-l) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Drag window' (tiling-keys-body-33-l) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Open a terminal' (tiling-keys-body-36-l) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Start a program or run a command' (tiling-keys-body-38-l) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super+H' (tiling-keys-body-56-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super+Shift+H' (tiling-keys-body-58-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super+Shift+L' (tiling-keys-body-60-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super+Ctrl+H' (tiling-keys-body-62-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super+Ctrl+L' (tiling-keys-body-64-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super+Ctrl+J' (tiling-keys-body-66-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super+Ctrl+K' (tiling-keys-body-68-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super+O' (tiling-keys-body-70-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Tags' (tiling-keys-body-72) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super+1-9' (tiling-keys-body-73-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super+Ctrl+1-9' (tiling-keys-body-75-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super+Shift+1-9' (tiling-keys-body-77-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super+Ctrl+Shift+1-9' (tiling-keys-body-79-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super+\u2009→' (tiling-keys-body-81-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super+\u2009←' (tiling-keys-body-83-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super+Esc' (tiling-keys-body-85-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'System' (tiling-keys-body-87) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Move focus' (tiling-keys-body-5-l) has the contrast 1.34:1 ((46, 51, 68) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Window before' (tiling-keys-body-7-l) has the contrast 3.77:1 ((101, 123, 131) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Window that asks' (tiling-keys-body-9-l) has the contrast 3.77:1 ((101, 123, 131) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Swap window' (tiling-keys-body-11-l) has the contrast 6.82:1 ((17, 19, 26) on (167, 139, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Make window main' (tiling-keys-body-13-l) has the contrast 6.60:1 ((22, 22, 32) on (167, 139, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Float window' (tiling-keys-body-17-l) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Maximize wide' (tiling-keys-body-23-l) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Keep on top' (tiling-keys-body-27-l) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Start a program or run a command' (tiling-keys-body-38-l) has the contrast 1.42:1 ((53, 55, 65) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+H' (tiling-keys-body-56-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+Shift+H' (tiling-keys-body-58-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+Shift+L' (tiling-keys-body-60-k) has the contrast 6.18:1 ((26, 29, 39) on (167, 139, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+Ctrl+H' (tiling-keys-body-62-k) has the contrast 1.00:1 ((167, 139, 250) on (167, 139, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+Ctrl+L' (tiling-keys-body-64-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+Ctrl+J' (tiling-keys-body-66-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+Ctrl+K' (tiling-keys-body-68-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+O' (tiling-keys-body-70-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Tags' (tiling-keys-body-72) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+1-9' (tiling-keys-body-73-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+Ctrl+1-9' (tiling-keys-body-75-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+Shift+1-9' (tiling-keys-body-77-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+Ctrl+Shift+1-9' (tiling-keys-body-79-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+\u2009→' (tiling-keys-body-81-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+\u2009←' (tiling-keys-body-83-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super+Esc' (tiling-keys-body-85-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'System' (tiling-keys-body-87) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Move focus' (tiling-keys-body-5-l) has the contrast 1.34:1 ((46, 51, 68) on (26, 29, 39)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Window before' (tiling-keys-body-7-l) has the contrast 3.77:1 ((101, 123, 131) on (26, 29, 39)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Window that asks' (tiling-keys-body-9-l) has the contrast 3.77:1 ((101, 123, 131) on (26, 29, 39)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Swap window' (tiling-keys-body-11-l) has the contrast 6.82:1 ((17, 19, 26) on (167, 139, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Make window main' (tiling-keys-body-13-l) has the contrast 6.60:1 ((22, 22, 32) on (167, 139, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Float window' (tiling-keys-body-17-l) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Maximize wide' (tiling-keys-body-23-l) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Keep on top' (tiling-keys-body-27-l) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Start a program or run a command' (tiling-keys-body-38-l) has the contrast 1.42:1 ((53, 55, 65) on (26, 29, 39)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super+H' (tiling-keys-body-56-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super+Shift+H' (tiling-keys-body-58-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super+Shift+L' (tiling-keys-body-60-k) has the contrast 6.18:1 ((26, 29, 39) on (167, 139, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super+Ctrl+H' (tiling-keys-body-62-k) has the contrast 1.00:1 ((167, 139, 250) on (167, 139, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super+Ctrl+L' (tiling-keys-body-64-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super+Ctrl+J' (tiling-keys-body-66-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super+Ctrl+K' (tiling-keys-body-68-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super+O' (tiling-keys-body-70-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Tags' (tiling-keys-body-72) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super+1-9' (tiling-keys-body-73-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super+Ctrl+1-9' (tiling-keys-body-75-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super+Shift+1-9' (tiling-keys-body-77-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super+Ctrl+Shift+1-9' (tiling-keys-body-79-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super+\u2009→' (tiling-keys-body-81-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super+\u2009←' (tiling-keys-body-83-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super+Esc' (tiling-keys-body-85-k) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'System' (tiling-keys-body-87) has the contrast 1.00:1 ((26, 29, 39) on (26, 29, 39)), the guide wants 7:1
+breaches 114

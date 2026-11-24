@@ -1,0 +1,2 @@
+task T7 FAIL: no window changed look: every window has the owner it had at the begin
+breaches 11
