@@ -26,7 +26,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 | train133 (rc 1, 2; stray-super r3 73c6b19c, tiling-doors r1 b1ba6743) | PM, 84f66d43 | gate running |
 | flake-series-r9.md (rc 3, F5; 5/5; 0.6 %) | haiku high, claude/flake-series-r9 c3c37c2e | session_016iS3kL6R9aghhfvTsKiyJx |
 | sh42-fix-r1.md (rc 1; sh-42 MAJOR; 1.5 %) | opus high, claude/sh42-fix-r1 c3c37c2e | session_016iS3kMHuyqcookRmRRXXJB |
-| co-close-r2.md (rc 1; rcc1-1 MAJOR; 0.8 %) | sonnet high, claude/co-close-r2 8517022f | starting |
+| co-close-r2.md (rc 1; rcc1-1 MAJOR; 0.8 %) | sonnet high, claude/co-close-r2 8517022f | session_016iS3kPX44dZpETU2t5uKgY |
 ## Queue (% week; 5 % reserve)
 1. (rc 1, 2) TRAIN132 green c3c37c2e (ti-52, ti-53, co-70, co-71). TRAIN133 84f66d43 (stray-super r3, tiling-doors r1) running.
 2. (rc 1, 2) construct after CO-CLOSE r1: co-79 MAJOR round (+co-77, co-78 MINOR confirmed by CO-REPRO r1). sh-42: SH42-FIX r1 (repro r2 5/5).
