@@ -24,7 +24,7 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 |---|---|---|
 | train122: notify-text, tiling-disc, xp-front-bar-r2 | PM | on 8c411416; gate 23:55 |
 | soak-r4 (rc 9) | MERGE-OK f0c45fcf, sh-36 closed | train123 |
-| co-reach-r2.md (rc 1, 2; 2 %) | opus high, claude/co-reach-r2 8c411416 | starting 00:5x |
+| co-reach-r2.md (rc 1, 2; 2 %) | opus high, claude/co-reach-r2 8c411416 | session_016iS3kQjgrwECodJywoZZU8 00:48 |
 | tour-base-r1.md (F7, rc 11; 1.5 %) | sonnet high, claude/tour-base 8c411416 | session_016iS3kLwgpLsqzbCZvy458S 23:54 |
 | flake-series-r7.md (rc 3; 1 %) | sonnet high, claude/flake-series-r7 1ec04694 | session_016iS3kLkxQHS3DxoJnqt8Xk 19:00 |
 ## Queue (% week; 5 % reserve)
