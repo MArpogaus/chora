@@ -1017,3 +1017,823 @@ kind = "rect"
 act = "x9b"
 cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
 kind = "meta"
+
+[[change]]
+act = "c2"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-61 (proposed): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "rect"
+
+[[change]]
+act = "c2"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-61 (proposed): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "pixel"
+
+[[change]]
+act = "c2"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+kind = "check"
+
+[[change]]
+act = "c2b"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
+kind = "rect"
+
+[[change]]
+act = "c2b"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable)"
+kind = "pixel"
+
+[[change]]
+act = "c2b"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+kind = "check"
+
+[[change]]
+act = "c3"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
+kind = "rect"
+
+[[change]]
+act = "c3"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+kind = "check"
+
+[[change]]
+act = "c3b"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
+kind = "rect"
+
+[[change]]
+act = "c3b"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable)"
+kind = "pixel"
+
+[[change]]
+act = "c3b"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+kind = "check"
+
+[[change]]
+act = "c3c"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
+kind = "rect"
+
+[[change]]
+act = "c3c"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable)"
+kind = "pixel"
+
+[[change]]
+act = "c3c"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+kind = "check"
+
+[[change]]
+act = "c3d"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
+kind = "rect"
+
+[[change]]
+act = "c3d"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable)"
+kind = "pixel"
+
+[[change]]
+act = "c3d"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+kind = "check"
+
+[[change]]
+act = "c3e"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+kind = "check"
+
+[[change]]
+act = "c3f"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+kind = "check"
+
+[[change]]
+act = "c3g"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+kind = "check"
+
+[[change]]
+act = "c3h"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+kind = "check"
+
+[[change]]
+act = "c4"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-61 (proposed): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "missing"
+
+[[change]]
+act = "c4"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
+kind = "rect"
+
+[[change]]
+act = "c4"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip)"
+kind = "visible"
+
+[[change]]
+act = "c4"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-61 (proposed): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "pixel"
+
+[[change]]
+act = "c4"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+kind = "check"
+
+[[change]]
+act = "c4b"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
+kind = "rect"
+
+[[change]]
+act = "c4b"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable)"
+kind = "pixel"
+
+[[change]]
+act = "c4b"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+kind = "check"
+
+[[change]]
+act = "c5c"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
+kind = "rect"
+
+[[change]]
+act = "c5c"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+kind = "check"
+
+[[change]]
+act = "c5d"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
+kind = "rect"
+
+[[change]]
+act = "c5d"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable)"
+kind = "pixel"
+
+[[change]]
+act = "c5d"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+kind = "check"
+
+[[change]]
+act = "c5e"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-61 (proposed): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "rect"
+
+[[change]]
+act = "c5e"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-61 (proposed): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "visible"
+
+[[change]]
+act = "c5e"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-61 (proposed): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "missing"
+
+[[change]]
+act = "c5e"
+cause = "co-44 (1e7cc905 hide the chip words under the key list; cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-61 (proposed): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "pixel"
+
+[[change]]
+act = "h1"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-61 (proposed): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "missing"
+
+[[change]]
+act = "h1"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-61 (proposed): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "rect"
+
+[[change]]
+act = "h1"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "h1"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-61 (proposed): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "pixel"
+
+[[change]]
+act = "h1b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-61 (proposed): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "missing"
+
+[[change]]
+act = "h1b"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-61 (proposed): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "rect"
+
+[[change]]
+act = "h1b"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "h1b"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-61 (proposed): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "pixel"
+
+[[change]]
+act = "h1c"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-61 (proposed): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "missing"
+
+[[change]]
+act = "h1c"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-61 (proposed): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "rect"
+
+[[change]]
+act = "h1c"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "h1c"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-61 (proposed): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "h1d"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-61 (proposed): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "missing"
+
+[[change]]
+act = "h1d"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-61 (proposed): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "rect"
+
+[[change]]
+act = "h1d"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "h1d"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-61 (proposed): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "m1"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "rect"
+
+[[change]]
+act = "m10"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "rect"
+
+[[change]]
+act = "m10"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "visible"
+
+[[change]]
+act = "m10"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "pixel"
+
+[[change]]
+act = "m1b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "rect"
+
+[[change]]
+act = "m1c"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "rect"
+
+[[change]]
+act = "m2"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "rect"
+
+[[change]]
+act = "m2"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "visible"
+
+[[change]]
+act = "m2"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "added"
+
+[[change]]
+act = "m2"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "pixel"
+
+[[change]]
+act = "m2b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "rect"
+
+[[change]]
+act = "m2b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "visible"
+
+[[change]]
+act = "m2b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "added"
+
+[[change]]
+act = "m2b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "pixel"
+
+[[change]]
+act = "m3"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "rect"
+
+[[change]]
+act = "m3"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "visible"
+
+[[change]]
+act = "m3"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "added"
+
+[[change]]
+act = "m3"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "pixel"
+
+[[change]]
+act = "m3b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "rect"
+
+[[change]]
+act = "m3b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "missing"
+
+[[change]]
+act = "m3b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "visible"
+
+[[change]]
+act = "m3b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "added"
+
+[[change]]
+act = "m3b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "pixel"
+
+[[change]]
+act = "m4"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "rect"
+
+[[change]]
+act = "m4"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "visible"
+
+[[change]]
+act = "m4b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "rect"
+
+[[change]]
+act = "m4b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "visible"
+
+[[change]]
+act = "m4c"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "rect"
+
+[[change]]
+act = "m4c"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "visible"
+
+[[change]]
+act = "m4c"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "pixel"
+
+[[change]]
+act = "m5"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "rect"
+
+[[change]]
+act = "m5"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "visible"
+
+[[change]]
+act = "m5"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "pixel"
+
+[[change]]
+act = "m5b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "rect"
+
+[[change]]
+act = "m5b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "visible"
+
+[[change]]
+act = "m5b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "pixel"
+
+[[change]]
+act = "m6"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "rect"
+
+[[change]]
+act = "m6"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "visible"
+
+[[change]]
+act = "m6"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "pixel"
+
+[[change]]
+act = "m6b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "rect"
+
+[[change]]
+act = "m6b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "visible"
+
+[[change]]
+act = "m6b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "pixel"
+
+[[change]]
+act = "m7b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "rect"
+
+[[change]]
+act = "m7c"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "rect"
+
+[[change]]
+act = "m7c"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "visible"
+
+[[change]]
+act = "m7c"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "pixel"
+
+[[change]]
+act = "m8"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "rect"
+
+[[change]]
+act = "m8"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "visible"
+
+[[change]]
+act = "m8"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "pixel"
+
+[[change]]
+act = "m8b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "rect"
+
+[[change]]
+act = "m8b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "visible"
+
+[[change]]
+act = "m8b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "pixel"
+
+[[change]]
+act = "m9"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "rect"
+
+[[change]]
+act = "m9"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "visible"
+
+[[change]]
+act = "m9"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "added"
+
+[[change]]
+act = "m9"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "pixel"
+
+[[change]]
+act = "m9b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "rect"
+
+[[change]]
+act = "m9b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "visible"
+
+[[change]]
+act = "m9b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page: the pages after m4c differ (controlled take of the head with fa7faabd reverted: the mc-s-* visible diffs go, the rest stays); region slot, right panel and footer of the other regions: mc-59 (proposed, cause not found)"
+kind = "pixel"
+
+[[change]]
+act = "t10"
+cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 573496e5 the inner gap is 12 (I2)"
+kind = "pixel"
+
+[[change]]
+act = "t10c"
+cause = "675ebd55 chora-notify shows the notices (sh-31)"
+kind = "added"
+
+[[change]]
+act = "t10c"
+cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 675ebd55 chora-notify shows the notices (sh-31)"
+kind = "pixel"
+
+[[change]]
+act = "t6"
+cause = "b8872054 one key list for all four looks, kit::keysheet (ti-30)"
+kind = "rect"
+
+[[change]]
+act = "t6"
+cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 573496e5 the inner gap is 12 (I2); b8872054 one key list for all four looks, kit::keysheet (ti-30)"
+kind = "pixel"
+
+[[change]]
+act = "t6c"
+cause = "b8872054 one key list for all four looks, kit::keysheet (ti-30)"
+kind = "rect"
+
+[[change]]
+act = "t6c"
+cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 573496e5 the inner gap is 12 (I2); b8872054 one key list for all four looks, kit::keysheet (ti-30)"
+kind = "pixel"
+
+[[change]]
+act = "t7"
+cause = "675ebd55 chora-notify shows the notices (sh-31)"
+kind = "added"
+
+[[change]]
+act = "t7"
+cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 675ebd55 chora-notify shows the notices (sh-31)"
+kind = "pixel"
+
+[[change]]
+act = "t8"
+cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 573496e5 the inner gap is 12 (I2)"
+kind = "pixel"
+
+[[change]]
+act = "t9"
+cause = "573496e5 the inner gap is 12 (I2)"
+kind = "rect"
+
+[[change]]
+act = "t9"
+cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 573496e5 the inner gap is 12 (I2)"
+kind = "pixel"
+
+[[change]]
+act = "x1"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
+kind = "rect"
+
+[[change]]
+act = "x1"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "x10"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "x10b"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found"
+kind = "added"
+
+[[change]]
+act = "x10b"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "x10c"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "x11b"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "x12"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
+kind = "rect"
+
+[[change]]
+act = "x12b"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "x12c"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 20e4ad6e menus shut on a new window (xp-item, xp-menu at x12c)"
+kind = "rect"
+
+[[change]]
+act = "x12c"
+cause = "20e4ad6e menus shut on a new window (xp-item, xp-menu at x12c)"
+kind = "visible"
+
+[[change]]
+act = "x2"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 675ebd55 chora-notify shows the notices (sh-31)"
+kind = "rect"
+
+[[change]]
+act = "x2"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 675ebd55 chora-notify shows the notices (sh-31); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "x2b"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 675ebd55 chora-notify shows the notices (sh-31)"
+kind = "rect"
+
+[[change]]
+act = "x2b"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 675ebd55 chora-notify shows the notices (sh-31); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "x2c"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "x5"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only; xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found"
+kind = "rect"
+
+[[change]]
+act = "x5b"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only; xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found"
+kind = "rect"
+
+[[change]]
+act = "x5b"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "x5c"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only; xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found"
+kind = "rect"
+
+[[change]]
+act = "x5c"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "x5d"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only; xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found"
+kind = "rect"
+
+[[change]]
+act = "x5d"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "x5e"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "x5f"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only; xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found"
+kind = "rect"
+
+[[change]]
+act = "x5f"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "x5g"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "x6"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only; xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found"
+kind = "rect"
+
+[[change]]
+act = "x6"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "x6b"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only; xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found"
+kind = "rect"
+
+[[change]]
+act = "x6b"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "x6c"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only; xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found"
+kind = "rect"
+
+[[change]]
+act = "x6c"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "x6d"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only; xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found"
+kind = "rect"
+
+[[change]]
+act = "x6d"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "x7"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "x7b"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "x8"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
+
+[[change]]
+act = "x9b"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable); 09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+kind = "pixel"
