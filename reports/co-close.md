@@ -99,3 +99,32 @@ come). `pgrep -fa 'chora --headless'`: empty.
 - act.py clicks take positions of the last capture (800 wide at 1280): the rc1-pass repro `click 480 363` is the screen
   point 768, 581; the row Terminal is `click 300 227` on an 800x500 capture.
 - Context used about 200 k.
+
+## Review r1
+
+Seeded review, opus high, cloud, read-only on code: `claude/co-close-r1` 280b9dcf..8517022f (14 files). Step 0 green
+(`git fetch --unshallow`, `cargo check --workspace`); `cargo test -p chora-construct` 282 ok, `cargo test -p chora-xp`
+348 ok; `tools/lint-ratchet` ok, `tools/size-ratchet` ok. No merge gate run (lane: EXIT 0, 64 PASS).
+
+Checks:
+1) Red first: holds. At 5e42478a the two co-75 unit tests, the co-76 pane test and the xp `node.requested` close test
+   all FAIL; 272940fc turns them green; 090d17cf and 8517022f touch tests only. 8517022f does not weaken K1 beyond the
+   chip: `hint_boxes` masks only drawn layers of `construct-hint*` (query rects come from the draw lists), so the resting
+   capsule and its shadow; the rest of the output is still compared pixel for pixel, and the chip is asserted present.
+2) co-75: the rpc1-1 path holds (face window closed, pane and its process kept, nothing closed with no face focus);
+   stood back, a pane hidden in front of the cube is spared (`covers_cube`). One path left: rcc1-1.
+3) xp: holds. The new arm answers `close` only for `self.index(&node).is_some()`, as tiling's `answer_request` checks
+   `wm.has(node)`; other looks untouched; xp's close button and Alt+F4 paths unchanged.
+4) co-76: holds by code. `Set::Rest` is the same two items (`Step back`, `All keys`) at the same place in a pane as in
+   a face, so it covers no more of the pane than a face's chip; `hint_set` returns None while `self.help`, so it hides
+   under the key list; both chips are hits (the gate clicks Step back; the lane's 5x clicked both).
+5) Docs match the code except the rcc1-1 state; merge-gate.sh only adds the cell (rcc1-4).
+
+| id | severity | file:line | text | fix |
+|---|---|---|---|---|
+| rcc1-1 | MAJOR | plugins/chora-construct/src/adopt.rs:314 | the face branch is taken whenever the cube is in use mode, also while the camera is flown into a pane from a face (the co-77 / co-79 state: Super+t or Programs in a face adopted as a pane and flown into); `core_focus` is then the pane's window, the filter drops it, and Super+x closes nothing while that pane fills the screen focused; a regression (`close_ahead` closed it) and against docs/configuration.md:953 ("the pane flown into" first). Probe on 8517022f (`in_a_face_beside_a_pane`, `fly_in(0)`, `take_flight`, focus s1, `Host::close`): `mode=Use closed=[] panes 1->1` | take the face branch only when `!self.in_pane()`, so a pane flown into always closes, and add that unit test (red first) |
+| rcc1-2 | MINOR | plugins/chora-construct/src/adopt.rs:320 | with `cube_manager: chora-mc` (a documented choice, names.rs:217) the close of a face window goes to mc as `node.requested` close (D31), which mc does not answer (no `NodeRequested` arm in plugins/chora-mc), so Super+x on a focused mc face window silently does nothing, though configuration.md says it closes | answer `close` for mc's own windows as xp now does, or say in the docs and a notice that the face manager must answer it |
+| rcc1-3 | NIT | tests/gate-construct-close.sh:61,95,103 | three fixed sleeps (5, 1, 2 s) where polls could stand, and no `tools/sleep-ratchet` exists in the tree to bound them; step 3 never asserts that no face window has the keys (`until_ok ... \|\| true`), so "no window focused" is assumed | poll the resting set (`rect_of construct-hint-step-back` with the 3 s passed) instead of `sleep 5`, and fail step 3 unless the core focus holds no xp window |
+| rcc1-4 | NIT | tests/merge-gate.sh:24 | the help text lost the "and" between `3d (...)` and `i3 (...)` | restore the comma and "and" before the last item |
+
+Verdict: **FIX** (open: 0 BLOCK, 1 MAJOR rcc1-1; 1 MINOR, 2 NIT). Known, not findings: co-77, co-78, co-79, co-44, co-45.
