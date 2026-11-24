@@ -59,10 +59,10 @@ while [ "$n" -le 7 ]; do
     n=$((n + 1))
 done
 line 0 >tests/g.sh
-"$tool" --root "$work/repo" >"$work/out" 2>&1 && fail "$label: 29 lines over a list of 4 passed"
+"$tool" --root "$work/repo" >"$work/out" 2>&1 && fail "$label: 29 lines over a list of 3 passed"
 cause=$(grep "^  ${word}: list " "$work/out" || true)
 case $cause in
-"  ${word}: list 4, tree 29; most in: "*) ;;
+"  ${word}: list 3, tree 29; most in: "*) ;;
 *) fail "$label: no cause line: $(cat "$work/out")" ;;
 esac
 for n in 7 6 5 4 3; do
@@ -74,7 +74,7 @@ label="under the list"
 rm -f tests/*.sh
 line 1 >tests/a.sh
 "$tool" --root "$work/repo" >"$work/out" 2>&1 || fail "$label: a fall failed: $(cat "$work/out")"
-grep -q "lower the list: ${word} is 1, listed 4; run tools/sleep-ratchet --update" "$work/out" ||
+grep -q "lower the list: ${word} is 1, listed 3; run tools/sleep-ratchet --update" "$work/out" ||
     fail "$label: a fall does not ask to lower the list: $(cat "$work/out")"
 
 [ "$failures" = 0 ] && echo "ok: sleep-ratchet-selftest"

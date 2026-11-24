@@ -1,0 +1,2 @@
+# Sleep lines of tests/*.sh (tools/sleep-ratchet). The count only falls.
+sleep 779
