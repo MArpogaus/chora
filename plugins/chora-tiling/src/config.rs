@@ -327,9 +327,20 @@ pub struct Config {
     pub labels: BTreeMap<String, String>,
 }
 
+impl Config {
+    /// With `modifier: Alt` the key `MOD+Tab` is Alt+Tab, and one key has
+    /// one binding: the extra binding of the default file is dropped.
+    fn drop_alt_tab_under_alt(&mut self) {
+        if self.modifier == "Alt" {
+            self.common.bindings.remove("Alt+Tab");
+        }
+    }
+}
+
 impl Settings for Config {
     fn refuse(&mut self) -> Vec<String> {
         let mut warnings = Vec::new();
+        self.drop_alt_tab_under_alt();
         self.common.bindings.retain(|key, action| {
             let unfit = matches!(action, Action::System(s) if !acts_in_tiling(s));
             if unfit {
@@ -433,6 +444,27 @@ mod tests {
     use super::*;
 
     #[test]
+    fn alt_tab_moves_the_focus_and_gives_way_to_mod_tab_under_alt() {
+        use chora_kit::settings::Settings;
+        let config = parse::<Config>(DEFAULT).unwrap();
+        assert_eq!(
+            config.common.bindings["Alt+Tab"],
+            Action::Look(Own::FocusNext)
+        );
+        let mut config = parse::<Config>(DEFAULT).unwrap();
+        config.modifier = "Alt".into();
+        assert!(config.check().is_err(), "one key, two bindings");
+        let warnings = config.refuse();
+        assert_eq!(warnings.len(), 0, "{warnings:?}");
+        config.check().unwrap();
+        assert!(!config.common.bindings.contains_key("Alt+Tab"));
+        assert_eq!(
+            config.common.bindings["MOD+Tab"],
+            Action::Look(Own::FocusBack)
+        );
+    }
+
+    #[test]
     fn a_key_twice_and_a_step_without_a_number_fail() {
         let twice = DEFAULT.replace(
             "  MOD+Ctrl+r: reload\n",
@@ -498,6 +530,16 @@ mod tests {
             config.binding("MOD+Shift+1").unwrap().to_string(),
             "Shift+Super+1"
         );
+    }
+
+    #[test]
+    fn super_s_opens_the_settings_in_an_editor() {
+        let config = parse::<Config>(DEFAULT).unwrap();
+        assert_eq!(
+            config.common.bindings["MOD+s"],
+            Action::System(System::Run("chora-tiling --launch settings".into()))
+        );
+        assert_eq!(config.labels["MOD+s"], "Edit settings");
     }
 
     #[test]

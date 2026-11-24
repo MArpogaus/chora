@@ -31,7 +31,7 @@ pub const GRAY: [u8; 4] = [161, 161, 146, 255];
 /// The caption of a group box.
 const CAPTION: [u8; 4] = [0, 70, 213, 255];
 /// The size of OK, Cancel and Apply.
-pub const BUTTON: [i32; 2] = [73, 21];
+pub const BUTTON: [i32; 2] = [75, 23];
 /// The height of a tab; the selected one is 2 pixels higher.
 const TAB_HEIGHT: i32 = 18;
 /// The box of a check box or a radio button.
@@ -1342,9 +1342,9 @@ pub mod tests {
             Control::check("c", "Disabled", [24, 100, 160, 17], true).enabled(false),
             Control::radio("d", "Start menu", [24, 120, 160, 17], true),
             Control::radio("e", "Classic Start menu", [24, 140, 160, 17], false),
-            Control::push("ok", "OK", [156, 287]).default(),
-            Control::push("cancel", "Cancel", [237, 287]),
-            Control::push("apply", "Apply", [318, 287]).enabled(false),
+            Control::push("ok", "OK", [156, 285]).default(),
+            Control::push("cancel", "Cancel", [237, 285]),
+            Control::push("apply", "Apply", [318, 285]).enabled(false),
             Control::push("hot", "Hover", [237, 200]),
         ]);
         dialog.create(

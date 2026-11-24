@@ -7,6 +7,7 @@
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 
 use crate::{
+    decoration::TITLE_SHADOW,
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
 };
@@ -18,6 +19,10 @@ pub const SIZE: [i32; 2] = [314, 200];
 const BUTTON_HEIGHT: i32 = 54;
 const ICON: i32 = 33;
 const ICON_Y: i32 = 81;
+/// The backing of the captions of our own buttons (Lock, Log Off, Restart): the tone of the workspace
+/// buttons of the taskbar, a little darker, 7.5:1 under the white caption where the panel alone gives 2.4 to 3.7.
+/// Stand By and Turn Off keep the Luna panel behind them.
+const CAPTION_BACKING: &str = "#1C4FB0";
 const CANCEL: Rect = [222, 164, 80, 28];
 const GROUP: &str = "xp-session";
 const SHIELD: &str = "xp-session-shield";
@@ -363,8 +368,23 @@ impl Dialog {
                 } else {
                     [178, 196, 240, 255]
                 };
-                picture
-                    .text(Text::new(button.title, Font::UiBold, color, [0, 37, w, 16]).centered())
+                let mut label =
+                    Text::new(button.title, Font::UiBold, color, [0, 37, w, 16]).centered();
+                if button.enabled {
+                    label = label.shadow(TITLE_SHADOW);
+                }
+                if button.enabled
+                    && matches!(
+                        button.choice,
+                        Choice::Lock | Choice::LogOff | Choice::Restart
+                    )
+                {
+                    picture = picture.svg(format!(
+                        r#"<rect x="2" y="37" width="{}" height="16" rx="3" fill="{CAPTION_BACKING}"/>"#,
+                        w - 4
+                    ));
+                }
+                picture.text(label)
             }
         };
         theme.render(&picture)

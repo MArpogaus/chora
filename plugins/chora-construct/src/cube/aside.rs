@@ -1,7 +1,7 @@
-//! Panes that give way to a cube that steps back (co-21). The cube steps
-//! back away from the eye, and a pane that the person placed in front of
-//! the face, as one pulled out of it, stays near the eye: it would cover
-//! the cube and read as a face that juts out. Such a pane moves beside
+//! Panes that give way to a cube that steps back (co-21, co-54). The cube
+//! steps back away from the eye, and a pane in front of the face, as one
+//! pulled out of it or a terminal that stood where the cube opened, stays
+//! near the eye: it would cover the cube and read as a face that juts out. Such a pane moves beside
 //! the cube, at its depth, while the cube stands back, and goes home when
 //! the cube steps in or closes. A pane that the person moves meanwhile
 //! stays where they put it.
@@ -136,10 +136,11 @@ impl Construct {
         })
     }
 
-    /// As the cube starts to step back: each pane that the person placed
-    /// in front of it, and that would cover it once it stands back, gets
-    /// a place beside it. The panes nearest the cube take the places
-    /// nearest it, and no place overlaps another.
+    /// As the cube starts to step back: each pane in front of it, placed
+    /// by the person or not, that would cover it once it stands back, gets
+    /// a place beside it, so that no window is lost behind the cube
+    /// (co-54). The panes nearest the cube take the places nearest it,
+    /// and no place overlaps another.
     pub(crate) fn make_way(&mut self) {
         let (lens, pose) = (self.lens, self.pose);
         let Some((centre, Some(cube))) = (self.cube.as_mut()).map(|h| h.stood(&lens, &pose)) else {
@@ -151,7 +152,6 @@ impl Construct {
         let depth = space::depth(&pose, centre);
         let eye = [pose.x, pose.z];
         let mut covering: Vec<(usize, f64)> = (self.panes.iter().enumerate())
-            .filter(|(_, p)| p.placed)
             .filter(|(_, p)| !self.asides.contains_key(&p.name))
             .filter(|(_, p)| space::depth(&pose, p.at) < depth)
             .filter(|(_, p)| crate::frame::overlaps(cube, self.screen_box_of(p)))

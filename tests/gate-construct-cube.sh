@@ -48,7 +48,8 @@
 #    the probe window is not lost: a screen shows it, or a client other
 #    than the ended xp owns it.
 # 5. A window manager that never connects: the outputs go after the
-#    wait. cube.close removes a cube, and Super+C opens a cube.
+#    wait. cube.close removes a cube, and Super+C opens a cube, stood
+#    back; the next cube.open waits until the core lets the ended xp go.
 # 6. A construct that is killed (C2) leaves the xp of the cube flat on
 #    the screen with every window within 3 s. A construct that starts
 #    again reopens the cube around that xp, with the windows on its faces.
@@ -617,11 +618,11 @@ if not n or "HEADLESS-1" not in n[0]["rects"]:
 else:
     print(round(1000 * n[0]["rects"]["HEADLESS-1"][2] / (n[0]["size"][0] * face / 1280)))' "$(width construct-cube-face-0)"
 }
-hint_gone='test "$(prop construct-hint-step-back visible)" != True'
+hint_rests='test "$(prop construct-hint-step-back visible)" = True'
+steady() { ctl capture "$work/$1.png" >/dev/null && ctl capture "$work/$1-again.png" >/dev/null && cmp -s "$work/$1.png" "$work/$1-again.png"; }
 floats() {
-    until_ok "$hint_gone" 40 || { echo "the hint Step back stays after the step in: $(prop construct-hint-step-back visible)"; return 1; }
-    hint_flat=$(prop construct-hint-step-back visible)
-    ctl capture "$work/flat.png" >/dev/null || return 1
+    until_ok "$hint_rests" 40 || { echo "the face names no way out after the step in: $(prop construct-hint-step-back visible)"; return 1; }
+    until_ok 'steady flat' 40 || { echo "the face does not come to rest after the step in"; return 1; }
     call view.step_back >/dev/null || return 1
     until_ok "$stood_back" 20 || return 1
     sleep 1
@@ -638,10 +639,9 @@ floats() {
     until_ok "$stepped_in" 20 || return 1
     until_ok 'test "$(prop "construct-cube-float-0-$surface" visible)" = gone && test "$(opacity "$surface")" = 1 && test "$(opacity "$upper")" = 1' 20 ||
         { echo "the windows did not land: plane $(prop "construct-cube-float-0-$surface" visible), opacity $(opacity "$surface") $(opacity "$upper")"; return 1; }
-    until_ok "$hint_gone" 40 || { echo "the hint Step back stays after the landing: $(prop construct-hint-step-back visible)"; return 1; }
-    hint_landed=$(prop construct-hint-step-back visible)
-    ctl capture "$work/landed.png" >/dev/null || return 1
-    cmp -s "$work/flat.png" "$work/landed.png" || { echo "the face after the step in differs from the face before the step back (hint Step back: $hint_flat before, $hint_landed after)"; return 1; }
+    until_ok "$hint_rests" 40 || { echo "the face names no way out after the landing: $(prop construct-hint-step-back visible)"; return 1; }
+    until_ok 'steady landed' 40 || { echo "the face does not come to rest after the landing"; return 1; }
+    cmp -s "$work/flat.png" "$work/landed.png" || { echo "the face after the step in differs from the face before the step back"; return 1; }
     echo "$lower_lift and $upper_lift"
 }
 rest() {
@@ -827,7 +827,7 @@ ok "Super+C opens the cube"
 call cube.close >/dev/null || fail "cube.close after the key"
 until_ok 'test -z "$(virtuals)"' || fail "cube.close after the key left $(virtuals)"
 
-call cube.open '{}' >/dev/null || fail "cube.open before the kill"
+until_ok "call cube.open '{}' >/dev/null 2>&1" || fail "cube.open before the kill: $(call cube.open '{}' 2>&1)"
 until_ok 'test "$(virtuals | wc -w)" = 4' || fail "no outputs before the kill"
 until_ok 'test "$(bars)" = 4' 80 || fail "no xp taskbars before the kill: $(bars)"
 known=" $(probe | awk '{print $1}' | tr '\n' ' ') "
@@ -865,8 +865,9 @@ call cube.open '{}' >/dev/null || fail "cube.open with a pane open"
 until_ok 'test "$(virtuals | wc -w)" = 4' || fail "no outputs with a pane open"
 call view.step_back >/dev/null || fail "view.step_back with a pane open"
 until_ok '[ "$(prop construct-cube-face-0 forward)" = False ]' 20 || fail "no step back with a pane open"
-until_ok '[ "$(prop "$pane_node" visible)" = False ]' 20 || fail "the pane stays in front of the cube stood back: visible $(prop "$pane_node" visible)"
+beside() { [ "$(prop "$pane_node" visible)" = True ] && [ "$(call state.get '{}' | jq -r '.windows[0].shown')" = true ]; }
+until_ok beside 20 || fail "the pane in front of the cube stood back does not show beside it (co-54): visible $(prop "$pane_node" visible), $(call state.get '{}' | jq -c .windows)"
 until_ok '[ "$(prop construct-label visible)" != True ] || [ "$(prop construct-label-body opacity)" = 0.0 ]' 20 || fail "the pane label shows over the cube stood back"
 until_ok '[ "$(edge construct-face-label-glass 1)" -gt 0 ]' 20 || fail "no face label with a pane open"
-ok "stood back with a pane open, the pane gives way to the cube and its label hides, the face label stays under the cube"
+ok "stood back with a pane open, the pane goes beside the cube and shows, its label hides, the face label stays under the cube"
 call view.step_in >/dev/null || fail "view.step_in with a pane open"

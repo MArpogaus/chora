@@ -1069,7 +1069,13 @@ impl Assistant {
         let [x, y] = self.origin;
         let [head_x, head_y] = self.values.figure.head();
         let tip = [x + head_x, y + head_y];
-        let anchor = (self.area, y + self.values.figure.size()[1]);
+        let chat = self.values.chat();
+        let area = if chat.style == chora_kit::hud::ChatStyle::Bubble {
+            crate::chat::narrowed(self.area, chat.margin)
+        } else {
+            self.area
+        };
+        let anchor = (area, y + self.values.figure.size()[1]);
         let style = (&self.values.speech, self.values.line.tail_left);
         let (picture, [bx, by], _) = speech(theme, style, text, (tip, anchor));
         self.speech_node(theme, &picture, text, [bx - x, by - y])
@@ -1621,6 +1627,56 @@ mod tests {
             })
             .map(|t| t.translation_2d().0)
             .expect("the sentence is drawn")
+    }
+
+    /// The place of the sentence balloon of a folder, and the place it
+    /// has at the whole work area.
+    fn balloon_places(folder: &std::path::Path, test: &str) -> (f64, f64) {
+        let cache = crate::tests::cache(test);
+        let (mut theme, values) =
+            crate::load_folder(folder, &chora_kit::hud::Context::default(), &cache)
+                .expect("the folder loads");
+        let mut a = assistant(&values, "speaking", Instant::now());
+        a.area = [0, 0, 1280, 770];
+        a.origin = origin_of(&values, a.area);
+        a.home = a.origin;
+        let drawn = a.say(
+            &mut theme,
+            "Hello there, I am here.",
+            Duration::ZERO,
+            Instant::now(),
+        );
+        let x = drawn
+            .iter()
+            .find_map(|c| match c {
+                Command::Create { id, props, .. } if id == SPEECH => props.transform,
+                _ => None,
+            })
+            .map(|t| t.translation_2d().0)
+            .expect("the sentence is drawn");
+        let [hx, hy] = values.figure.head();
+        let tip = [a.origin[0] + hx, a.origin[1] + hy];
+        let style = (&values.speech, values.line.tail_left);
+        let anchor = (a.area, a.origin[1] + values.figure.size()[1]);
+        let (_, [wide, _], _) = speech(&mut theme, style, "Hello there, I am here.", (tip, anchor));
+        let _ = std::fs::remove_dir_all(cache);
+        (x + f64::from(a.origin[0]), f64::from(wide))
+    }
+
+    /// Only a folder that keeps a column free at the edge (a bubble chat,
+    /// xp) narrows the sentence balloon: neutral and tiling stand where
+    /// they did (rxr-6).
+    #[test]
+    fn only_a_bubble_folder_narrows_the_sentence_balloon() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let (x, wide) = balloon_places(&root.join("huds/neutral"), "balloon-neutral");
+        assert_eq!(x, wide, "neutral: the balloon stands as in the whole area");
+        let xp = root.join("../../flavors/xp/assets/assistant");
+        let (x, wide) = balloon_places(&xp, "balloon-xp");
+        assert!(
+            x < wide,
+            "xp: the balloon leaves the column free: {x} {wide}"
+        );
     }
 
     #[test]

@@ -287,9 +287,10 @@ its rows and 24 px more, centred on the current output, with the heading "Keys",
 "Super+F1 shows this list again. Esc closes it.", a line **Mouse** with the
 basics of the pointer (the Apps button starts a program, a click on a tag shows it,
 `Super+drag` moves a window, the power icon locks or ends the session) and the rows of every
-binding of the file in the groups Windows, Layouts, Tags, Programs and
-System: the keys on a keycap in JetBrains Mono, then the words of the
-action in Inter ("Next window"; the actions that every look has are named as in the other looks, `run` shows its command unless a label names it). Each group is
+binding of the file in the groups Windows (the first row is Move focus:
+`Super+J`, `Super+K` and `Alt+Tab`), Other looks (the give keys), Layouts, Tags,
+Programs and System: the keys on a keycap in JetBrains Mono, then the words of the
+action in Inter ("Move focus"; the actions that every look has are named as in the other looks, `run` shows its command unless a label names it). Each group is
 whole in one of two columns, and the columns are as even as they can be.
 The rows of a group go in the order of a person, not of the keys, rows
 are 24 px apart with caps of 20 px, or 22 px with caps of 18 px, or 20 px
@@ -366,7 +367,7 @@ later `settings.set` or `settings.reload` leaves it as it is.
 | `view_tag` | `tag`: a tag number | `MOD+1` to `MOD+9` |
 | `move_to_tag` | `surface`, `tag` | `MOD+Shift+1` to `MOD+Shift+9`, for this window |
 | `focus` | `surface` | a click: focuses and raises the window, and its output; a window that shows nowhere only gets the urgent mark |
-| `focus_next`, `focus_prev` | none | `MOD+j` and `MOD+k` |
+| `focus_next`, `focus_prev` | none | `MOD+j` and `MOD+k`; `focus_next` also `Alt+Tab` |
 | `swap_master` | `surface` | `MOD+Ctrl+Return`, for this window |
 | `settings.get`, `settings.set`, `settings.reload` | see [API](api.md#plugin-methods) | an edit of the file and `MOD+Ctrl+r` |
 
@@ -508,7 +509,7 @@ with `mc.theme {theme}` at its start, when its settings change and on
 `assistant.ready` of the host, and the host draws the mc folder in that
 theme.
 The host emits `assistant.chat.keyboard {on}` when the field of the chat
-gets or loses the keyboard; a test that sends Esc waits for `on: true`.
+gets or loses the keyboard, each change in its order, also a loss and a return that come between two looks of the host; a test that sends Esc waits for `on: true`.
 
 | Method | Parameters |
 |--------|------------|
@@ -765,7 +766,16 @@ to open it), `Super+Home` for the agenda, `Super+Return` for the terminal
 scene, `Super+n` for the right side, `Super+Up` and `Super+Down` for the
 header and the footer, and `Super+F1` for all keys, with `Super+slash` as a
 silent alias that has no row of its own. `Super+Space` starts the launcher,
-and its list has the entry Chat with a helper. `Super+Right` and `Super+Left` turn to the next and the previous page, `Super+o` opens the overview and `Super+F12` shows the test sheet in the drawer. On a page, which has no program, a plain `Right` and `Left` also turn the page, `Home` and `XF86HomePage` go to the first page and `Escape` goes back one step; `XF86Back` goes back from a window too. `Super` with the left mouse button drags a window (only with `--manage-windows`). Changed since rc 3: `Super+a` opens the chat (it went to the agenda), `Super+Return` goes to the terminal scene (it toggled the drawer) and `Super+Home` goes to the agenda. `Super+Shift+Escape` locks the
+and its list has the entry Chat with a helper. `Super+Right` and `Super+Left`
+turn to the next and the previous page, `Super+o` opens the overview and
+`Super+F12` shows the test sheet in the drawer. On a page, which has no
+program, a plain `Right` and `Left` also turn the page, `Home` and
+`XF86HomePage` go to the first page and `Escape` goes back one step;
+`XF86Back` goes back from a window too. `Super` with the left mouse button
+drags a window (only with `--manage-windows`). Changed since rc 3: `Super+a`
+opens the chat (it went to the agenda), `Super+Return` goes to the terminal
+scene (it toggled the drawer) and `Super+Home` goes to the agenda.
+`Super+Shift+Escape` locks the
 screen, `Super+Shift+e` opens the power menu (Lock, Log out, Restart, Shut
 down) and `Super+Print` takes a screenshot; these three run the scripts that
 every look shares. `XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and
@@ -1596,6 +1606,7 @@ The package installs the tiling flavor (D51):
 ├── fuzzel.ini                        # the launcher: opaque, the palette
 ├── swaylock.conf                     # the lock screen in the palette
 ├── look.sh                           # Light look, Dark look and System look: look.theme at once
+├── settings.sh                       # Edit settings: chora-tiling.yaml in $EDITOR (else vi) in foot
 ├── wallpaper.sh                      # swaybg again after a new theme, where no unit runs it
 ├── applications/                     # the entries of the three looks
 └── waybar/
@@ -1967,7 +1978,8 @@ The desktop of the first output shows XP's icons in its grid of 75 by 75
 pixels: My Documents (`XDG_DOCUMENTS_DIR`, else the home directory) and My
 Computer at the top left, then the folders and files of the Desktop folder
 (`XDG_DESKTOP_DIR`, else `~/Desktop`) by name, folders first, in columns
-from the top. The Recycle Bin sits at the bottom right and shows whether
+from the top. The Recycle Bin sits at the bottom right, 8 px above the
+paperclip of the helper, and shows whether
 `$XDG_DATA_HOME/Trash/files` has files. A desktop file shows its name and
 icon. A program, a desktop file or a window without an icon gets XP's
 icon of a program, `application-x-executable` of the icon theme. Each

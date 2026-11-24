@@ -117,7 +117,7 @@ impl Wm {
     pub(super) fn call(&mut self, call: Call) -> Result<Value, RpcError> {
         let commands = match call {
             Call::StartMenu { open } => {
-                let bar = self.bars.first().map(|bar| bar.output.clone());
+                let bar = self.front_bar().map(|bar| bar.output.clone());
                 if open && self.dialog.is_some() {
                     return Err(RpcError::new(
                         RpcError::REJECTED,
@@ -183,7 +183,7 @@ impl Wm {
     /// tooltip of a part of the taskbar that it rests on.
     pub fn menu_rest(&mut self, now: Instant) -> Result<(), ClientError> {
         let mut commands = self.menu.rest(&mut self.theme, &mut self.icons, now);
-        let area = self.bars.first().map_or([0, 0, 1280, 800], Bar::area);
+        let area = self.front_bar().map_or([0, 0, 1280, 800], Bar::area);
         commands.extend(self.tip.show(&mut self.theme, MENUS, area, now));
         if commands.is_empty() {
             return Ok(());

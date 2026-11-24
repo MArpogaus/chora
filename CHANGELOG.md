@@ -3,7 +3,7 @@
 ### Feat
 
 - **mc**: default keys changed: Super+a opens the chat (was the agenda), Super+Return goes to the terminal scene (was the drawer), Super+Home goes to the agenda (R4, 89807480)
-- **tiling**: the bar has a 1 px line hairline and radius 10, like the rest of the look (ti-21, bbb105ba)
+- **tiling**: the bar has a 1 px hairline and radius 10, like the rest of the look (ti-21, bbb105ba)
 - **tiling**: notices go through chora-notify, not mako (f4e03e75)
 - **construct**: notices go through chora-notify (0a615ccc)
 - **core**: the root groups draw by their order (D89, 72920499)
@@ -44,10 +44,26 @@ not a relative `~/.local/share` below the current directory
 - **core**: a click into the claim of another look takes the keyboard (363276e8)
 - **core**: the watchdog forgets an output that went away (9a9351ef)
 - **tiling**: the scripts make their runtime directories mode 0700 and use mktemp for fallbacks (6fa066c6, 29b5611b)
+- **xp**: new windows start right of the desktop icons, on their own output (xp-28, 09ff8ff9, bd5af4b3)
+- **xp**: the paperclip greets once at the first start (xp-30, 4fec75c3)
+- **xp**: the greeting names no X and uses the Sie forms; the state directory is private (4c20c21d)
+- **xp**: a joining xp leaves a click on another claim and the keyboard to its holder (ti-38, 4441f1d4, ac366c40); Arrival settles when the other look leaves (ti-43, ti-44, 7e49b273)
+- **tiling**: a reload leaves no window half transparent (ti-39, 4e46028b)
+- **tiling**: the claim holds the bar of the output and not a panel below it (22b82d63, ccce3e6f)
+- **tiling**: the inner gap is 12, the layout chip keeps its width (573496e5, 136bbd82)
+- **mc**: the doors stay beside the open chat and hide under a cover (97efc46a, 8ba700f5, a3037cb2, mc-56, 42585079)
+- **mc**: the page of the helpers says Helpers, not agent (mc-55, c5acd4d0, 31f53dc9)
+- **mc**: the clock gives way to the running head (043af297, 9ed1fbc8)
+- **mc**: one holder keeps the keys when focus.node arrives (rd-5, e22f824d)
+- **construct**: a cube frees the keys of a window it covers (co-46, 83033ed6); the keys stay on the front face of a hosted cube and none go to a hidden face or a shut menu (866382dd, 8a599917, 3a625261)
+- **kit**: no 30 s timer for a program that runs without a window (629faf7b)
+- **core**: the core ends when the script of its watcher is killed (8cdbb31a); a thread new in the second read adds no wait to a frame (WD3, 92245e0e); a hang at start is gone (022fa50c)
 
 ### Perf
 
 - **construct**: cube.open adds its outputs in one round trip (f075a20d)
+- **core**: a view that resizes drops the old size of a layer texture (0d9e7de8, 4fedd240)
+- **chora-mc**: a write setting that changes no look builds nothing (75623a87)
 - **core**: mesh sizes of a resized layer leave after their time (dc6a266d; the review finding on two views of one scale stays open)
 
 ### Refactor
