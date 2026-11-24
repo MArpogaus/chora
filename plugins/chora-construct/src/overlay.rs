@@ -597,7 +597,7 @@ impl Construct {
                     })
                     .collect()
             }
-            Set::Flown => vec![
+            Set::Flown | Set::Rest => vec![
                 item(
                     chord(&self.settings.value.fly_out),
                     Word::StepBack,
@@ -610,7 +610,6 @@ impl Construct {
                 hints.push(item(self.hint_keys_chord(), Word::AllKeys, "keys"));
                 hints
             }
-            Set::Rest => vec![item(self.hint_keys_chord(), Word::AllKeys, "keys")],
             Set::Pull => vec![item(Vec::new(), Word::PullHint, "pull")],
         }
     }
