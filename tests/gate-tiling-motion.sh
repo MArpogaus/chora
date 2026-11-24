@@ -54,7 +54,8 @@ ok "every window is opaque once it stands"
 
 settled=$(groups) || fail "the query of the groups"
 ctl call tiling set_layout '{"layout": "tile_left"}' >/dev/null || fail "set_layout"
-moving=$(groups) || fail "the query of the groups"
+query_after_the_slide() { sleep 0.3 && groups; }
+moving=$(query_after_the_slide) || fail "the query of the groups"
 [ "$moving" != "$settled" ] || fail "the windows did not start to slide"
 sleep 1
 end=$(groups) || fail "the query of the groups"
@@ -64,7 +65,7 @@ python3 -I - "$moving" "$settled" "$end" <<'PY' || fail "the slide is not betwee
 import sys
 rows = [{l.split()[0]: float(l.split()[1]) for l in s.splitlines()} for s in sys.argv[1:]]
 moving, before, after = rows
-assert any(min(before[k], after[k]) < moving[k] < max(before[k], after[k]) for k in moving if before[k] != after[k]), (moving, before, after)
+assert any(min(before[k], after[k]) < moving[k] < max(before[k], after[k]) for k in moving if before[k] != after[k]), f"first sample {moving}, settled {before}, end {after}"
 PY
 ok "a layout change slides the windows and they end at their places"
 
