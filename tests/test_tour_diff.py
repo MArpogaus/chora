@@ -369,6 +369,67 @@ class IntendedRows(unittest.TestCase):
         self.assertEqual(h2, ["added", "meta", "rect"])
 
 
+class IntendedCauses(unittest.TestCase):
+    """TOUR-BASE r2 (rtb-2, rtb-5, rtb-6, rtb-7): what a row of intended.toml may claim."""
+
+    WIDE_BEFORE_R1 = {
+        ("c1", "pixel"),
+        ("c2b", "added"),
+        ("c4b", "added"),
+        ("c5b", "pixel"),
+        ("c5e", "added"),
+        ("m10", "missing"),
+        ("m7", "pixel"),
+        ("m7", "rect"),
+        ("m9", "missing"),
+        ("m9b", "missing"),
+        ("t1", "pixel"),
+        ("t10b", "pixel"),
+        ("t1b", "pixel"),
+        ("t1c", "pixel"),
+        ("t1d", "pixel"),
+        ("t2", "pixel"),
+        ("t3", "pixel"),
+        ("t3b", "pixel"),
+        ("t3c", "pixel"),
+        ("t3d", "pixel"),
+        ("t3e", "pixel"),
+        ("t3f", "pixel"),
+        ("t3g", "pixel"),
+        ("t3h", "pixel"),
+        ("t4", "pixel"),
+        ("t5", "pixel"),
+        ("t6b", "pixel"),
+        ("t6d", "pixel"),
+        ("t8b", "pixel"),
+        ("t9b", "pixel"),
+    }
+    """The 30 rows of record-v9 r2 that name more than three causes; the rows of tour-base r1 do not."""
+
+    @classmethod
+    def rows(cls):
+        import tomllib
+
+        return tomllib.loads((HERE.parent / "demo/tour/intended.toml").read_text())["change"]
+
+    def test_a_row_names_at_most_three_causes_or_is_open(self):
+        wide = [(r["act"], r["kind"], len(r["cause"].split("; "))) for r in self.rows() if len(r["cause"].split("; ")) > 3 and not r.get("open") and (r["act"], r["kind"]) not in self.WIDE_BEFORE_R1]
+        self.assertEqual(wide, [])
+
+    def test_no_row_cites_co_61_the_ledger_id_of_another_finding(self):
+        self.assertEqual([(r["act"], r["kind"]) for r in self.rows() if "co-61" in r["cause"]], [])
+
+    def test_a_check_row_names_its_check(self):
+        self.assertEqual([r["act"] for r in self.rows() if r["kind"] == "check" and not r.get("check")], [])
+
+    def test_xp_43_is_cited_only_on_the_acts_that_finding_names(self):
+        named = {"x10b", "x5e", "x5g", "x7", "x8", "x9b"}
+        self.assertEqual(sorted({r["act"] for r in self.rows() if "xp-43" in r["cause"]} - named), [])
+
+    def test_an_open_row_says_what_is_open(self):
+        self.assertEqual([(r["act"], r["kind"]) for r in self.rows() if r.get("open") and "open" not in r["cause"]], [])
+
+
 @unittest.skipUnless(shutil.which("ffmpeg"), "no ffmpeg")
 class VideoCheck(unittest.TestCase):
     def clip(self, *parts):
