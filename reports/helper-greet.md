@@ -55,3 +55,16 @@ EXIT 0
 
 `tools/sleep-ratchet`: ok (sleep 779, sleep-all 930). `pgrep -fa 'chora --headless'`: empty.
 Not done: a welcome balloon wording (xp-30) and the wait for the voice agent stay as they were.
+
+## PM review r1 (diff 124 lines; seeded, PM under 200)
+Base d40142e4, head 0a0fca76; 2 files, +124/-4.
+| Check | Result |
+|---|---|
+| Red first | d3870732 tests only (main.rs +96), 3 failed pasted; fix 0a0fca76 after |
+| (a) greeting follows the agent | greeting_follows_helper on connect, helper state, voice state; no new type, no new timer (KISS) |
+| (b) chat open after connect | no "no helper" line; test an_open_chat_after_a_helper_connected... |
+| (c) stale balloon sentence | chat_toggled takes only `until > now`; test a_balloon_sentence_older... |
+| xp tour x1, x5, x6 | clean (report) |
+| Full gate | EXIT 0; sleep-ratchet ok |
+Findings: none. Note (not a finding): the redone greeting is the plain one, it does not name the helper; the brief allows it.
+Verdict (computed): 0 open MAJOR -> MERGE-OK 0a0fca76. Next train.
