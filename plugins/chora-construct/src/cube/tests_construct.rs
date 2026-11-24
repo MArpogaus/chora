@@ -1001,6 +1001,27 @@ fn a_press_on_the_close_of_the_key_sheet_closes_it() {
     assert!(!construct.help, "the Close button closes the sheet");
 }
 
+/// co-71: a press outside the key sheet, on its scrim, closes it, as Escape
+/// and the Close do, and one on the sheet itself does not.
+#[test]
+fn a_press_outside_the_key_sheet_closes_it() {
+    let (mut construct, _core, _lines) = on_core("help-outside", cube_core(json!([])));
+    construct.toggle_help().unwrap();
+    assert!(construct.help);
+    let press = |node: &str| Event::PointerPressed {
+        node: node.into(),
+        button: 272,
+        position: [0.0; 2],
+        local: [0.0; 2],
+        modifiers: Vec::new(),
+        injected: false,
+    };
+    chora_kit::runtime::Plugin::event(&mut construct, press("construct-help-body-panel")).unwrap();
+    assert!(construct.help, "a press on the sheet keeps it open");
+    chora_kit::runtime::Plugin::event(&mut construct, press("construct-help-scrim")).unwrap();
+    assert!(!construct.help, "a press outside the sheet closes it");
+}
+
 /// co-pane r1: a window of a pane that the cube hides does not get the
 /// keyboard back when the key sheet closes: the focus stays a shown window.
 #[test]

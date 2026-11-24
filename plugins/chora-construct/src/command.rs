@@ -948,4 +948,58 @@ mod tests {
             "the window list has no hit nothing handles"
         );
     }
+
+    /// co-71: a node under a group with `pass` or `block` takes no press (the
+    /// core hands a mode other than `accept` down to the whole subtree), so
+    /// no ancestor of the Close may be one, and the scrim takes the press
+    /// that closes the sheet from outside.
+    #[test]
+    fn the_close_and_the_scrim_of_the_key_sheet_can_be_pressed() {
+        let config: crate::config::Config = serde_saphyr::from_str(crate::config::DEFAULT).unwrap();
+        let metrics = crate::Metrics::default();
+        let look = Look {
+            style: &config.style,
+            colors: &config.style.themes.light,
+            plain: false,
+            shader: "/glass.frag",
+            shadow: "/shadow.frag",
+            glass: chora_kit::glass::Material::of(false),
+            metrics: &metrics,
+        };
+        let model = HelpModel {
+            groups: &[],
+            query: "",
+            sel: 0,
+            scope: String::new(),
+            placeholder: String::new(),
+            every_look: String::new(),
+            or: String::new(),
+            note: String::new(),
+            footer: vec![(vec!["Esc".to_owned()], "Close".to_owned())],
+        };
+        let commands = help(&look, &model, ("help", "root"), [1280.0, 720.0]);
+        let made: std::collections::BTreeMap<&str, (&str, Option<InputMode>)> = commands
+            .iter()
+            .filter_map(|c| match c {
+                Command::Create {
+                    id, parent, props, ..
+                } => Some((id.as_str(), (parent.as_str(), props.input))),
+                _ => None,
+            })
+            .collect();
+        let hit = "help-body-foot-0-hit";
+        let mut at = hit;
+        while let Some((parent, input)) = made.get(at) {
+            assert!(
+                !matches!(input, Some(InputMode::Pass | InputMode::Block)),
+                "{at} would hand pass or block down to the Close"
+            );
+            at = parent;
+        }
+        assert_eq!(
+            made["help-scrim"].1,
+            Some(InputMode::Accept),
+            "a press outside the sheet reaches the plugin"
+        );
+    }
 }
