@@ -151,10 +151,12 @@ impl<A: Clone> Runtime<A> {
     /// The socket fails, or the core knows no such key.
     pub fn grab_swallowed(&mut self, modifier: &str, swallow: &A) -> Result<(), ClientError> {
         self.swallow = Some((modifier.to_owned(), swallow.clone()));
-        if !self.joined.is_empty() {
-            return Ok(());
-        }
-        for binding in self.free_chords(modifier)? {
+        let free = if self.joined.is_empty() {
+            self.free_chords(modifier)?
+        } else {
+            Vec::new()
+        };
+        for binding in free {
             self.grab_as(binding, swallow.clone(), true)?;
         }
         Ok(())
