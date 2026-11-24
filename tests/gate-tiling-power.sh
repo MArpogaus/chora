@@ -91,19 +91,9 @@ ok "the power icon opens the menu 3 of 3 times"
 list_open() { ctl query 'kind:text' 2>/dev/null | grep -q "Move focus"; }
 open_list() {
     keys Super+slash
-    for _ in $(seq 20); do
-        list_open && return 0
-        sleep 0.25
-    done
-    fail "Super+slash opened no key list"
+    until_ok list_open 10 || fail "Super+slash opened no key list"
 }
-list_gone() {
-    for _ in $(seq 20); do
-        list_open || return 0
-        sleep 0.25
-    done
-    return 1
-}
+list_gone() { until_ok '! list_open' 10; }
 open_list
 click 1238 24
 wait_menu || fail "the power menu did not open over the key list"

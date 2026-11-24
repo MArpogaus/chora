@@ -81,7 +81,7 @@ lock_cell() {
     cat >"$fakebin/waybar" <<'FAKE'
 #!/bin/sh
 if [ -e "/proc/$$/fd/9" ]; then echo open >"$LOCK_OUT"; else echo closed >"$LOCK_OUT"; fi
-exec sleep 60
+exec tail -f /dev/null
 FAKE
     cat >"$fakebin/choractl" <<'FAKE'
 #!/bin/sh
@@ -99,7 +99,7 @@ FAKE
     ok "lock: waybar does not inherit the lock descriptor"
     mkdir -p "$d/noflock" "$d/run2"
     chmod 700 "$d/run2"
-    for tool in sh jq id stat mkdir cp cat dirname kill sleep sed; do
+    for tool in sh jq id stat mkdir cp cat dirname kill sed tail sleep; do
         ln -s "$(command -v "$tool")" "$d/noflock/$tool"
     done
     cp "$fakebin/waybar" "$fakebin/choractl" "$d/noflock/"
