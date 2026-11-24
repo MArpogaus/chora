@@ -10,7 +10,11 @@
 # motion of the pointer as its start (wayland.c wl_pointer_motion) and
 # selects the row under the pointer from the second motion on, and a
 # pointer_move that enters the surface is an enter, not a motion: the
-# pointer moves three times, as a hand does.
+# pointer moves three times, as a hand does. The cell runs with a fuzzel
+# that comes 3 s late and a tag switch of the bar after the empty capture
+# (the clock of the bar ticks every minute, a loaded host starts fuzzel
+# late): the launcher is waited for in the row, not in any change of the
+# screen (sh-39).
 #
 # Usage: tests/gate-tiling-apps-click.sh   BIN: directory with the binaries
 # shellcheck disable=SC2016
@@ -39,7 +43,13 @@ entry() {
 }
 entry zebra "Ab Zebra" "foot -a zebra sh -c 'sleep 600'"
 entry alpha "Aa alpha" "foot -a alpha sh -c 'sleep 600'"
-export PATH=$bin:$PATH
+late_fuzzel() {
+    mkdir -p "$work/lag"
+    printf '#!/bin/sh\nsleep 3\nexec %s "$@"\n' "$(command -v fuzzel)" >"$work/lag/fuzzel"
+    chmod +x "$work/lag/fuzzel"
+}
+late_fuzzel
+export PATH=$work/lag:$bin:$PATH
 session_start 1280x800 -- "$bin/chora-tiling"
 grant screen.capture input.inject
 
@@ -49,6 +59,8 @@ row_h=37
 zebra_index=1
 zebra_row_y=$((first_row_y + zebra_index * row_h))
 ctl capture "$work/empty.png" >/dev/null || fail "capture of the empty desktop"
+bar_changes() { ctl call tiling view_tag '{"tag": 2}' >/dev/null || fail "view_tag 2"; }
+bar_changes
 started=$(ctl run "$bin/chora-tiling" --launch fuzzel) || fail "the run of the launcher"
 run_pid "$(sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p' <<<"$started")"
 until_ok 'ctl capture "$work/launcher.png" >/dev/null && ! cmp -s "$work/empty.png" "$work/launcher.png"' 80 || fail "the launcher did not show"
