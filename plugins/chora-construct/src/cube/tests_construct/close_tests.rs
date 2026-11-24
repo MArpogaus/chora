@@ -16,7 +16,7 @@ use crate::{Construct, PANES};
 /// A cube stepped into with the terminal pane `s1` of `with_hint_bar` at
 /// home in front of it, and the window `s2` of the face manager `xp` on
 /// the front face; `s2` has the keyboard when `focused`.
-fn in_a_face_beside_a_pane(tag: &str, focused: bool) -> (Construct, FakeCore, Log) {
+pub(super) fn in_a_face_beside_a_pane(tag: &str, focused: bool) -> (Construct, FakeCore, Log) {
     let (mut construct, core, lines) = with_hint_bar(tag);
     let host = construct.cube.as_mut().unwrap();
     assert!(host.act(Act::StepIn, Instant::now()), "the cube steps in");
@@ -64,7 +64,7 @@ fn in_a_face_beside_a_pane(tag: &str, focused: bool) -> (Construct, FakeCore, Lo
 }
 
 /// The surfaces that the recorded requests asked to close.
-fn closed(lines: &Log) -> Vec<String> {
+pub(super) fn closed(lines: &Log) -> Vec<String> {
     (lines.lock().unwrap().iter())
         .filter(|line| line.starts_with("scene.apply "))
         .filter_map(|line| serde_json::from_str::<Value>(&line["scene.apply ".len()..]).ok())
