@@ -25,7 +25,7 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin: W9 779 = RC; GUARD-4
 | co-pull-r1.md (rc 1, 2; co-68 MAJOR; 1 %) | sonnet high, claude/co-pull f1457035 | session_016iS3kQUTaRWZ2y3if8gWjd |
 | flake-series-r8.md (F5, F4; 1.2 %) | sonnet high, claude/flake-series-r7 6f7bcb26 | session_016iS3kPwWVUYse7EqYxr313 |
 | tiling-calm-r1.md (rc 2, 8; 1 %) | sonnet high, claude/tiling-calm ad0093ba | session_016iS3kLdvEtaUtMWPs87vDJ |
-| review-xp-polish-r1.md (rc 8; 0.5 %) | sonnet high, claude/xp-polish 64478c66 | starting |
+| review-xp-polish-r1.md (rc 8; 0.5 %) | sonnet high, claude/xp-polish 64478c66 | session_016iS3kNpiBFhFxoDjJywi7Z |
 ## Queue (% week; 5 % reserve)
 0. (rc 8) VERIFY-MINOR r2: 9 of 14 closed; xp-14, xp-15, xp-17 XP-POLISH r1 done 64478c66, REVIEW r1; xp-34 known; xp-18 verify.
 1. (F4, F5, rc 1) TRAIN127 guard-4, co-reach-r4 f1457035, tiling-reach 4e257c06; TILING-CALM r1 (ti-27, ti-50), then persona r8.
