@@ -523,3 +523,91 @@ EXIT 1
 - rtb5-3 MINOR, demo/tour/chapters/handover.py:105: `choractl run setsid` for the bar and wallpaper runs with `check=False, capture_output=True`, and the test reads only the command lines, so a missing swaybg or a failed waybar leaves the tiling screen black again and the act stays green. Fix: after the loop wait for the two processes (or check the returncode) and raise on a miss, as the chapter does for `owner:*`.
 
 Not findings: rv9j-1, rv9j-3, xp-47, the 71 open (F7 rest), 6d336bdf not in the head (said plainly by the builder).
+
+## r6 (F7, rc 11: rtb5-1 MAJOR, rtb5-2, rtb5-3)
+
+Branch claude/tour-base-r6, base 61d0ef7a (r5 head). Step 0 green: `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`, `pytest tests/test_tour.py -q` (87 passed), `python3 -I tests/test_tour_diff.py` (74 OK). The chapter file is `demo/tour/chapters/handover.py`.
+
+### Red, then fix
+
+| id | red | fix | red lines |
+|---|---|---|---|
+| rtb5-1 | 356120cc | 41140d74 (tests/tour-diff.py), 9408d181 and 9311e155 (intended.toml) | `FAIL: test_an_added_row_without_nodes_absorbs_nothing`, `AssertionError: 'change' != 'open'`; `FAIL: test_compare_dirs_passes_the_blobs_of_the_diff`, `AssertionError: Lists differ: ['change', 'change', 'change'] != ['change', 'regression', 'open']`; `FAIL: test_a_closed_added_visible_or_pixel_row_names_its_nodes_or_boxes`; 7 more `TypeError: verdict() got an unexpected keyword argument 'blobs'`; `Ran 84 tests ... FAILED (failures=4, errors=7)` |
+| rtb5-3 | 1d59e949 | 632ea8bd | `AttributeError: module 'chapters.handover' has no attribute 'companions_missing'` (and `companions_running`); `AssertionError: 'companions_missing(' not found in 'def start_multi(): ...'`; `6 failed, 87 passed` |
+| rtb5-2 | 5214aa8e | 9408d181 | `FAIL: test_a_row_cites_a_judge_capture_only_for_the_act_the_judge_looked_at`, `AssertionError: Lists differ: [('h1b', 'pixel', 'h1'), ('h1d', 'pixel', ...` |
+
+Every red commit holds tests only. After the fixes: `python3 -I tests/test_tour_diff.py` `Ran 85 tests ... OK`; `pytest tests/test_tour.py -q` `93 passed`. Pre-commit ran on every commit (no `--no-verify`).
+
+### What changed
+
+- **tests/tour-diff.py (rtb5-1, 41140d74).** `verdict(..., blobs=None)`; `compare()` passes the blobs of the pixel diff. A row of kind `added` or `visible` matches the nodes it lists in `nodes`; a `pixel` row matches the blobs that lie in one of its `boxes` (`[[x, y, w, h], ...]` in the pixels of the capture, 2 px slack). A row of those kinds without the list matches nothing as proof: the diff is named by it but the act is `open` (the output says `[unproven: ... rows list no nodes or boxes]`), so a closed row without nodes or boxes can no longer turn an unrelated diff into `change`. A node no row lists (all rows with lists) is unnamed, `regression`; so is a blob outside every box. A pixel diff with no blob to place (`[]` or `None`) is not proven by boxes. The run of the finding (`verdict('x1', [unrelated added node, meta xp-item-3], False, rows)`) now gives `open` with the r5 rows and `regression` (unnamed `added`, `pixel`) with the new rows. One test of red 356120cc listed the causes in the wrong order (scene order); corrected in 41140d74.
+- **demo/tour/intended.toml (rtb5-1, rtb5-2).** Data from a fresh pair (below). `xp-desktop` is the only `added` node of 371f0fa1 (its diff declares `const DESKTOP: &str = "xp-desktop"`): 38 `added` rows of x1..x12c and h1..h1d get `nodes = ["xp-desktop"]`; x12c `visible` gets `nodes = ["xp-menu"]` (20e4ad6e); m4, m4b `visible` get `mc-regions-0`, `mc-regions-1` (675ebd55, bisect r2). 32 pixel rows get `boxes` from the rects of the take: the pager (4 buttons, [1052,694,94,22]), the bin (base and cand rect of `xp-icon-2`, [1192,470,80,67]), the Notepad frame (`xp-frame-s1`), the notify card (`notify-card-body`), only those that hold a blob of the act. The eyes of the paperclip (box [1213,593,39,20], blink in both builds, no commit) appear in x5g, x6e, x12b of this take (in r5 only in x8): in the boxes of the acts that show them, x8 stays open. New `hud-line` rows: **`hud-line`, an `added` node in 31 acts, was absorbed by the closed 371f0fa1 row of r5 (wrong cause; 371f0fa1 adds `xp-desktop`).** Its text is the greeting of the helper ("Hi, I am your helper ..."), so the row cites 4fec75c3 (xp-30) and is `open = true`: that the greeting makes the node new is not proven (the finding xp-43 names it for x10b, where the row stays). The 37 closed rows of the construct, tiling and mc acts that list neither nodes nor boxes (c*, t6..t10c, m2..m10) are `open = true` with that said in the cause: their acts were open before for other rows; I did not prove their nodes (up to 190 `tiling-keys-body-*` nodes). m1 and m1c get one pixel row with the box [880,370,352,44] (the hairline of the KEYS heading, 675ebd55, judge r1 m1c, m1-col.jpg): the blob was an unnamed regression in m1 in this take and in r5's m1c in the judge's. rtb5-2: the pixel rows cite "judge r1 <act>, <still>" only where the judge looked at that act (x7, x10b, h1, h1c); the others cite "r6 take, captures/<act>.Q.png".
+- **demo/tour/chapters/handover.py (rtb5-3, 632ea8bd).** `companions_missing(output)` looks in /proc for `swaybg -o <tiling output> --color` and `waybar.sh` of the tiling flavor (no pgrep, no signal); `start_multi` polls it 10 s after `choractl run setsid` and raises `RuntimeError("the companions of the tiling screen: ...")` on a miss, as for `owner:*`; the first act ("Two screens") has `both(windows_only(), companions_running(TI))`, so an act on a black tiling screen is no longer green. Six tests (names on a miss, none when up, one named, the output in the pattern, the raise after `tiling_companions(`, the check on the act).
+
+### The pair and the counts
+
+The stills of the judge's pair are not on claude/session-log, so a fresh pair as in r5: v9 = `demo/tour/run.py` of 61d0ef7a (a frozen worktree, the toml is not read by the take; xp 30 green 1 known, tiling 28 green, mc 22 green, construct 14 red (I2 co-44, I6 co-45), handover 11 green), v8 = replay on a built worktree of 733967aa (`TOUR_BASELINE=1`, one after the other; xp, tiling, mc 0 green as before, construct `baseline: none` at `cube.list`, handover BROKE at handover.py:190). `tests/tour-diff.py BASE CAND --intended demo/tour/intended.toml`:
+
+| | same | change | open | regression | none |
+|---|---|---|---|---|---|
+| before (tour-diff.py and toml of 61d0ef7a, this pair) | 1 | 26 | 71 | 1 (m1, an unnamed `pixel`) | 11 |
+| after (9311e155) | 1 | 4 | 94 | 0 | 11 |
+
+Acts that left `change` for `open` (23): **x1, x2, x2b, x2c, x3, x4, x5e, x5g, x6e, x7, x7b, x9, x9b, x10, x10c, x11, x11b, x12, x12b, x12c** (the row: `added hud-line`, 4fec75c3 xp-30, open: the node was hidden by the closed `added` row of 371f0fa1 in r5; the other rows of these acts are closed) and **t8, t9, t10** (the `pixel` row of the bar hairline bbb105ba and the inner gap 573496e5 lists no boxes; the blobs are the bar and the tiles that move by 1 px: not placed, so open). Regression to change: **m1** (new pixel row). Left `change`: m1, m1c, m4, m4b. None went from `open` to `change`. The 13 acts that r5 moved to `change` are all `open` again; that is the honest count: r5's `added` row hid `hud-line`. More `open` than r5's 71 (94), as the brief allows.
+
+### Gate
+
+Full gate `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` on 9311e155: **EXIT 0, all steps passed** (65 cells PASS, no FAIL line; `acts PASS 1910s`; r5's xp I6 flake did not recur). `tools/sleep-ratchet` ok (sleep 779, sleep-all 930). `pgrep -fa 'chora --headless'` empty. Last 20 lines of /tmp/gate.log:
+
+```
+voice-acp  PASS    11s /tmp/merge-gate.1BTts8/voice-acp.log
+voice-events PASS     2s /tmp/merge-gate.1BTts8/voice-events.log
+agent      PASS    38s /tmp/merge-gate.1BTts8/agent.log
+tiling-keys-more PASS    41s /tmp/merge-gate.1BTts8/tiling-keys-more.log
+tiling-windows PASS   151s /tmp/merge-gate.1BTts8/tiling-windows.log
+tiling-system PASS    10s /tmp/merge-gate.1BTts8/tiling-system.log
+handover   PASS    24s /tmp/merge-gate.1BTts8/handover.log
+acts       PASS  1910s /tmp/merge-gate.1BTts8/acts.log
+mc-scale   PASS    12s /tmp/merge-gate.1BTts8/mc-scale.log
+watchdog-starved PASS    51s /tmp/merge-gate.1BTts8/watchdog-starved.log
+xp-run     PASS    12s /tmp/merge-gate.1BTts8/xp-run.log
+demo       PASS   234s /tmp/merge-gate.1BTts8/demo.log
+leak       PASS   320s /tmp/merge-gate.1BTts8/leak.log
+tiling-theme PASS    18s /tmp/merge-gate.1BTts8/tiling-theme.log
+tiling-disc PASS    69s /tmp/merge-gate.1BTts8/tiling-disc.log
+mc-host    PASS    19s /tmp/merge-gate.1BTts8/mc-host.log
+tiling-bar PASS   173s /tmp/merge-gate.1BTts8/tiling-bar.log
+e2e        PASS   272s /tmp/merge-gate.1BTts8/e2e.log
+all steps passed; no --push, nothing is pushed
+EXIT 0
+```
+
+### Deviations, said plainly
+
+1. **The pair is not the judge's** (its stills are not on claude/session-log); a fresh one, as r5. The v9 take ran from a frozen worktree of 61d0ef7a, so the handover.py fix of 632ea8bd (the companion check) is in no take; it is covered by the six tests and the gate cell `handover`, not by a take.
+2. **`hud-line` is open, not proven.** Its cause is a guess from the node text (the helper's greeting, 4fec75c3, xp-30); xp-43 stays the ledger id for it. The 20 xp acts that went to `open` for it are the price of removing the wrong closed cause.
+3. **t8, t9, t10 are open for want of boxes**, not for a found fault: the pixel diffs there are the bar and the tiles shifted by 1 px (573496e5, bbb105ba), judged proven by the judge at t3 and t1 but not placed per blob here.
+4. The 37 construct, tiling and mc rows set `open = true` are not proven wrong either: they list no nodes or boxes (c*, t6..t10c, m2..m10: their acts were `open` before); nodes for them (up to 190 `tiling-keys-body-*`) were not enumerated.
+5. rtb5-1 and rtb5-2 share the data commit 9408d181 (the cause strings and the boxes of one row are one edit); the pre-commit TOML formatter reflowed intended.toml once.
+6. The blink of the paperclip eyes (box [1213,593,39,20]) is closed as an animation, not a commit: the builder's reading in r5 and r6 (x8, x5g, x6e, x12b), not a judge's.
+
+## Review r6 (F7, rc 11: seeded review of claude/tour-base-r6, head 9311e155, base 61d0ef7a)
+
+**Verdict: FIX** (one MAJOR, rtb6-1). Step 0 green on 9311e155: `cargo check --workspace`, `pytest tests/test_tour.py -q` (93 passed), `python3 -I tests/test_tour_diff.py` (Ran 85 OK). No takes; checked by git log, diffs, tests, `verdict()` runs on the real intended.toml and the judge report. `tools/sleep-ratchet`: ok (sleep 779, sleep-all 930).
+
+1. **Red first: ok.** At 5214aa8e (all three red commits, tests only) in a worktree: `python3 -I tests/test_tour_diff.py` has `FAIL: test_a_visible_row_without_nodes_absorbs_nothing` (`AssertionError: 'change' != 'open'`), `FAIL: test_a_closed_added_visible_or_pixel_row_names_its_nodes_or_boxes`, `FAIL: test_a_row_cites_a_judge_capture_only_for_the_act_the_judge_looked_at` (`Lists differ: [('h1b', 'pixel', 'h1'), ...`) and 7 `TypeError: verdict() got an unexpected keyword argument 'blobs'`; `pytest tests/test_tour.py -q`: `6 failed, 87 passed` (all `HandoverCompanionsRun`). At head: 85 OK, 93 passed. The fix commits 41140d74 (tour-diff.py), 632ea8bd (handover.py), 9408d181 and 9311e155 (toml) follow. 41140d74 also edits one red test (cause order, 2 lines): said in its message, harmless.
+2. **rtb5-1, scene and pixel kinds: closed.** Run on the real toml: `verdict('x1', [added unrelated-popup, meta xp-item-3], False, rows, None, [(10,10,200,200)])` is `regression` (unnamed added, pixel); `verdict('x7', [added unrelated-popup])` is `regression`; `verdict('m4', [visible unrelated])` is `regression`; `verdict('t8', [], False, rows, None, [blob])` is `open` (unproven pixel); `verdict('m1', [], False, rows, None, [(10,10,200,200)])` is `regression`, a blob inside [880,370,352,44] is `change`; blobs `[]` is `regression`. A row of added, visible or pixel without `nodes`/`boxes` leaves its act `open` (`unproven`), compare() passes `pixel["blobs"]`. **A path is left: rtb6-1.**
+3. **rtb5-2: ok.** Of the 88 pixel rows, the judge's still is cited where the judge looked (x1 via x7-tray.jpg, x7, h1, h1c, the c* group of its table, m1c); x2..x12b and h1b, h1d cite `r6 take, captures/<act>.Q.png`. The rows of 10 acts sampled (x1, x7, h1, h1c, x2, x10b, c2b, c4, c5e, x5) match the judge's table. The new test checks x and h1 acts only (c and m rows are not under it).
+4. **rtb5-3: ok, one MINOR.** `start_multi` polls `companions_missing` 40 x 0.25 s after the `choractl run setsid` and raises `RuntimeError("the companions of the tiling screen: ...")`; the first act has `both(windows_only(), companions_running(TI))`, as the other acts do (`both` from chapters/checks.py). A poll loop, no new fixed sleep. See rtb6-3.
+5. **Counts: not reproducible here, reasoned.** The r6 pair and its tour-diff output are not on claude/session-log (the r5 text is, 27 change / 71 open); I could not re-run 26/71/1 -> 4/94/0. The 23 acts to `open`: the `added hud-line` row has `nodes = ["hud-line"]` and `open = true` (xp-30, "not proven"), x10b keeps its xp-43 row; r5's closed 371f0fa1 row named `xp-desktop` only, so hiding `hud-line` was a wrong cause: honest. t8, t9, t10 open for a pixel row without boxes: honest. m1 regression to change: the row is a real mechanism (judge r1 m1c: the KEYS hairline follows the column content, 675ebd55) but it closes a diff the judge called "intended by the commit, not by the design" (rv9j-2) without saying so: rtb6-4. The remaining 4 `change` acts (m1, m1c, m4, m4b) rest on bare closed `missing` and `rect` rows: rtb6-1.
+6. **Rows: KISS ok, citations short.** The only fields are `nodes`, `boxes`, `open`, `check`, `unmeasured`. 38 closed added/visible rows list nodes; 33 closed pixel rows list boxes; 0 closed row of those kinds without a sha. The 35 `xp-desktop` rows cite no capture (rtb6-5); two boxes are large (rtb6-2).
+
+### Findings
+
+- rtb6-1 MAJOR, tests/tour-diff.py:182-186 (`STRICT`, `named`, `verdict`) and demo/tour/intended.toml (rows `missing` 30 and `rect` 11 closed without `nodes`, in m1, m1b, m1c, m2..m4c, m7..m10, c*, t6, t9, h2): only added, visible and pixel are strict, so a closed `missing` or `rect` row still absorbs any unrelated node of its kind, and the 4 acts left `change` (m1, m1c, m4, m4b) depend on them. Run here: `verdict('m1', [{missing unrelated-node}], True, rows)` gives `change`; `verdict('m1', [{rect unrelated-node}], ...)` gives `change`; `verdict('m4', [missing unrelated, rect unrelated, visible mc-regions-0], True, rows)` gives `change`. Fix: put `missing`, `rect` (and `meta`, `owner`) in `STRICT` with the same `nodes` rule, and give the m1, m1c, m4, m4b rows the column nodes of 675ebd55 (bisect r2), the rest `open = true`.
+- rtb6-2 MINOR, demo/tour/intended.toml (pixel rows of x2c, x3, x5..x12b, h1c, h1d; boxes [274,84,816,549], [14,14,816,549]): the box is the whole Notepad frame, so any change of the frame's content (the typed text) is named by the closed row "new windows start right of the icons" (09ff8ff9); it bites once hud-line is closed. Fix: box the frame edge and caption only, or leave the frame rows `open` until the content is compared.
+- rtb6-3 MINOR, demo/tour/chapters/handover.py:76-100 (`alive`, `companions_missing`): `alive` scans /proc of the whole machine with a pattern that names the output and the repo path but not this session, so a swaybg or waybar.sh of another session (the gate runs two cells at once, `--jobs 2`) can satisfy the check while this tiling screen is black. Fix: also compare `XDG_RUNTIME_DIR` of /proc/PID/environ with the launcher's.
+- rtb6-4 MINOR, demo/tour/intended.toml (m1, m1c pixel rows, 9311e155): the row closes the hairline blob as `change` by 675ebd55 and the judge's m1c, but does not name rv9j-2 (mc-v2 section 3 asks for "Nothing new." in the column), so the design question reads as settled. Fix: add "rv9j-2 (design decision open)" to the cause, or set `open = true` until the PM decides.
+- rtb6-5 MINOR, demo/tour/intended.toml (35 `added xp-desktop` rows, x12c `visible xp-menu`, m4/m4b `visible`): the cause is a sha only; the brief asked each row to cite its act and capture. Fix: add "r6 take, captures/<act>.Q.png" to each as the pixel rows do, and commit the r6 tour-diff output under media/2026-11-24/tour-base-r6/ so 4/94/0 can be re-read.
+
+Not findings: rv9j-1..5, the 94 open (F7 rest, v9 take after merge).
