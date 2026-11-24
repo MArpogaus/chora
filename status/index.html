@@ -57,7 +57,7 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-24T17:40:00Z",
+  updated: "2026-11-24T19:25:00Z",
   start: "2026-11-21T04:00:00Z",   // budget reset (owner)
   end: "2026-11-28T03:59:00Z",     // next reset; F5, F7 carried over
   budget: 31,                       // % of the new week used (reset 04:00)
@@ -66,18 +66,18 @@ const S = {
     ["F2", "Shared code in one kit, no copies", "done", "met by audit r2 (19:13): 0 copies; kit-report keeps it after debt-down"],
     ["F3", "Window-manager core, first slices", "done", "met by audit r2: wm parts and records D107-D116"],
     ["F4", "No file over 1,500 lines", "done", "met again by audit r6: 0 files over, debt 17 of 47; but sleep lines in tests are exactly at their limit (779), so a guard lane now freezes that count"],
-    ["F5", "No flaky tests, coverage over 80 %", "risk", "coverage 91.76 % holds; flake series r8 (leak cell bound, leftover processes, test waits back under the limit) and the two tiling flake fixes are merged; trains 130 and 131 were green. Still to prove: five full gates in a row green on the final head (runs after train 132)"],
-    ["F6", "Every change through the merge gate", "done", "79 green merges, all reviewed; train 131 green 17:30 UTC (00:30 Bangkok); train 132 runs with the tiling honest-states fix and the construct pull fix"],
+    ["F5", "No flaky tests, coverage over 80 %", "risk", "coverage 91.76 % holds; trains 130, 131 and 132 were green. Still to prove: five full gates in a row green on the head of train 132; that series runs now (testing model)"],
+    ["F6", "Every change through the merge gate", "done", "80 green merges, all reviewed; train 132 green 19:20 UTC (02:20 Bangkok): tiling honest key states and the construct pull fix"],
     ["F7", "No visual regression vs tour v8", "behind", "new v9 take 14:49 UTC (21:49 Bangkok), video below: xp, tiling, mc and the handover pass their own checks; construct has 14 acts red on one spacing rule. Against v8: 1 act same, 13 intended changes, 3 regressions and 82 differences whose cause is named but not yet proven; a review on the strongest model now judges each one, then one fix lane per look"],
     ["F8", "Docs and decision records", "done", "met by audit r6 (01:40 UTC, 08:40 Bangkok): the kit log module is documented and decision record D120 exists; every decision named in a commit has its record"]
   ],
   now: [
-    "Trains 130 and 131 are green (00:30 Bangkok): xp test race, flake series r8, two tiling flakes, the tour comparison fix, the tiling key list closing under popups, the helper named in the Apps list, and the xp helper greeting that no longer says no helper is set up when one answers.",
-    "Train 132 runs: tiling now states honestly what a key did (two serious faults from the independent check), and construct pulls a window across faces by the key the screen names, with a key sheet that closes (two serious faults from test round 11).",
-    "A fix lane (strongest model) stops unused Super key combinations from typing into the open window in xp and mc (two serious faults), second round after its review.",
+    "Train 132 is green (02:20 Bangkok): tiling now states honestly what a key did, and construct pulls a window across faces by the key the screen names, with a key sheet that closes.",
+    "A fix lane (strongest model) stops unused Super key combinations from typing into the open window in xp and mc, third round: its review found one more client kind that must not count.",
+    "A construct fix lane (strongest model) closes a blocking and a serious fault from the independent construct check; a test lane reproduces two new construct candidates five times each.",
     "A tiling lane names the Looks word in the bar and shows a hint when a key does nothing (tiling test round 8).",
-    "A tour lane fixes the comparison rows so tour v9 can be taken again and judged against v8.",
-    "Spending is under pace (31 %; the line is at 51 %): more lanes start after train 132 (five-gate flake series, construct test round 12, independent checks)."
+    "A tour lane fixes the comparison rows a second time (review found rows that absorb unrelated changes), so tour v9 can be taken and judged against v8.",
+    "A test lane runs five full gates in a row on the new head (F5). Spending is under pace (31 % vs 51 %): six lanes run."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
 };
