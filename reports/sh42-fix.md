@@ -174,3 +174,53 @@ Not done / left as seen: xp says holder "xp" while the core focuses no
 surface (seen in the no-window control, before and after); not touched,
 out of scope (no keys lost there). `pgrep -fa 'chora --headless'` empty
 at the end.
+
+## Review r1
+
+Lane: cloud, read-only, claude/sh42-fix-r1 head b92de049, base c3c37c2e
+(5 files, +116 -3). Step 0 green (unshallow, `cargo check --workspace`).
+`cargo test -p chora-kit`, `-p chora-mc`, `-p chora-tiling`: all ok, 0 failed.
+
+Checks:
+1. Red first: a04b395e, 68a4ff1b (gate cells) and db469100 (kit and mc
+   unit tests, tests only) come before 7a110c34 (kit) and b92de049 (mc).
+   Both unit tests fail on the base logic: a fresh `Focus` answered
+   `sends(None)` yes; the old `take()` reset nothing after an empty focus.
+2. Kit `Focus::sends` (focus.rs:167): callers are tiling windows.rs:109
+   (relayout) and mc manage.rs:221 (always `Some`); xp and construct do
+   not call it. The new rule only differs when `surface` is None, `lost`
+   is false and `sent` is false (a look that never sent, or that reclaimed
+   after `gave`/`sent(None)`). A look that sent a window keeps `surface`,
+   so a closed window, an empty tag or an emptied layout still sends
+   `focus: null`. A look switch goes through `gave` (lost). A window that
+   the core focused without the look sets `lost` by `moved`, unchanged.
+   No stale-focus path found. Side gain: `turn()` after `gave` no longer
+   sends a null that took the keys from the window just handed over.
+3. mc click (manage.rs:218): after an empty focus, `lost_to_other` is true
+   (`sent`, `surface` s1, `core` None), `reclaim` and one send. The normal
+   case (s1 sent and focused) sends nothing; s2 sends once. D119 stays:
+   no free-keyboard path changed, `a_page_beside_other_window_managers_takes_no_keyboard`
+   green. New: a click on an mc window also reclaims from a foreign node
+   (`taken_by_other`), as tiling's `pointer_focus` does (rw-1); POLS-sound.
+4. Return deviation: sound. With fix 1 the join drops no keys (cells
+   join-xp, join-mc; table 0/5), so a user in mc after a tiling join does
+   not type into nothing. The no-holder state is now reached only when
+   another client drops the focus (or a look drops its own last window,
+   as before this branch); a click recovers it. Making Return grab a free
+   keyboard beside another look would undo D119.
+5. Gate: the new cells run in the `matrix` step, which passed in the full
+   run 1 (334 s). No cell found whose result depends on order: `mc-back`
+   reuses the `join-mc` session on purpose (written in the header); each
+   join cell starts a fresh session after `end_session`.
+6. gate-handover-shared.sh: join-xp and join-mc assert the lost-key case
+   (text reaches the foot after the join, core still focuses it), mc-back
+   the click back. Two fixed `sleep 2` added (sleep-ratchet 777 -> 779 of
+   the listed 779: within the list, but they spend its slack): below.
+
+Findings:
+- rsf1-1 MINOR tests/gate-handover-shared.sh:182 `join_tiling` waits a fixed `sleep 2` for tiling's first transaction; a slower first relayout lets the `focus: null` land after the typed text, a false green, and it spends 1 of the 2 counts of ratchet slack. Fix: wait until `ctl state tiling` answers (its first transaction is applied) before typing, no fixed sleep.
+- rsf1-2 MINOR tests/gate-handover-shared.sh:219 `join-mc` waits a fixed `sleep 2` before `key Return`; a slow mc eats the Return and `focused 10` fails (flake path). Fix: retry `key Return` inside `until_ok 'focused 1'`, no fixed sleep.
+- rsf1-3 MINOR plugins/chora-mc/src/manage.rs:218 the new `lost_to_other` also reclaims when a node of another client holds the keys (`taken_by_other`), a behaviour change with no unit test (db469100 covers only the empty focus). Fix: add an mc unit test where a `focus.node` of another owner holds the keys and a click sends the window focus once.
+
+Counts: BLOCK 0, MAJOR 0, MINOR 3.
+Verdict: MERGE-OK.
