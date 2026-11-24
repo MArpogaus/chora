@@ -11,6 +11,11 @@
 # lists: it shows when the middle of a capture has the surface colour of
 # Ink.
 #
+# The helper is findable from the launcher (ti-50): one row with the word
+# Helper and the name of the helper, the row of Super+a (chora-chat). A
+# stand-in for chora-chat --door says "atlas · idle" or "No helper" (the file
+# door holds the word).
+#
 # Usage: tests/gate-tiling-apps.sh   BIN: directory with the binaries
 #   SHOTS  a directory that keeps the capture tiling-apps-nothing.png
 set -u
@@ -40,6 +45,9 @@ case " \$* " in *" --dmenu "*) cat >"$work/fake/rows.\$n" ;; esac
 [ "\$n" != 1 ] || echo zzqq
 FAKE
 chmod +x "$work/fake/fuzzel"
+printf '#!/bin/sh\ncat "%s/fake/door"\n' "$work" >"$work/fake/chora-chat"
+chmod +x "$work/fake/chora-chat"
+echo "atlas · idle" >"$work/fake/door"
 real_path=$bin:$PATH
 export PATH=$real_path
 session_start 1280x800 -- "$bin/chora-tiling"
@@ -64,6 +72,15 @@ ok "the launcher moves a window to the xp, media center and construct desktop in
     fail "text that finds nothing gives no row that says so: $(head -n 1 "$work/fake/rows.2" 2>/dev/null)"
 [ "$(sed -n 2p "$work/fake/rows.2")" = "$(head -n 1 "$rows")" ] || fail "the list does not show again under the row"
 ok "text that finds nothing shows the list again under the row Nothing found"
+
+grep -qxF "Chat with a helper · atlas" "$rows" ||
+    fail "no launcher row \"Chat with a helper · atlas\" for the helper that the door names: $(tr '\n' '|' <"$rows")"
+[ "$(grep -ci 'helper' "$rows")" = 1 ] || fail "more than one launcher row for the helper: $(tr '\n' '|' <"$rows")"
+echo "No helper" >"$work/fake/door"
+PATH=$work/fake:$real_path timeout 20 "$bin/chora-tiling" --launch fuzzel >/dev/null 2>&1
+grep -qxF "Chat with a helper" "$work/fake/rows.3" ||
+    fail "without a helper the row is not plain \"Chat with a helper\": $(tr '\n' '|' <"$work/fake/rows.3")"
+ok "the launcher has one helper row, with the name of the helper (ti-50)"
 
 shot=$work/apps.png
 shown() {
