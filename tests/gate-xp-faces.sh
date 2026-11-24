@@ -7,12 +7,7 @@
 #   faces-have-bars      every virtual output has its taskbar and its
 #                        wallpaper
 #   opens-under-pointer  a new window opens on the virtual output whose
-#                        pane is under the pointer, here the second one;
-#                        the gate starts foot only after xp has heard the
-#                        pointer.entered of the wall of that output (xp-42:
-#                        xp reads the output of the pointer from that event),
-#                        and it moves the pointer away and back when the
-#                        entry does not come in 1 s
+#                        pane is under the pointer, here the second one
 #   moves-to-face        `window.move` of xp moves the window to the third
 #                        virtual output, where it shows with the focus
 #   tasks-of-own-face    the task button of the window is on the taskbar
@@ -137,32 +132,10 @@ opens_state() {
     echo "opens-under-pointer: xp.log $(tail -n 3 "$shots/xp.log" | tr '\n' ' ')" >&2
 }
 
-wall_entries() { grep -c "\"pointer.entered\",\"node\":\"xp-wall-$1\"" "$shots/pointer.log"; }
-
-pointer_lands_on() {
-    local face=$1 point=$2
-    ctl events >"$shots/pointer.log" 2>&1 &
-    run_pid $!
-    for _ in $(seq 10); do
-        inject "[{\"pointer_move\": {\"position\": $point}}]"
-        for _ in $(seq 10); do
-            if [ "$(wall_entries "$face")" -gt 0 ]; then
-                ctl state xp >/dev/null
-                return 0
-            fi
-            sleep 0.1
-        done
-        inject '[{"pointer_move": {"position": [300, 200]}}]'
-        sleep 0.3
-    done
-    echo "opens-under-pointer: no pointer.entered of xp-wall-$face after 10 moves to $point" >&2
-    return 1
-}
-
 cell_opens_under_pointer() {
     local moved seen
     moved=$(date +%s.%N)
-    pointer_lands_on "${faces[1]}" '[960, 200]' || return 1
+    inject '[{"pointer_move": {"position": [960, 200]}}]'
     foot -f "DejaVu Sans Mono:size=10" -a probe sh -c 'sleep 900' >"$shots/foot.log" 2>&1 &
     run_pid $!
     w=$(ctl wait "app_id:probe kind:surface" --timeout 20 | jq -r '.[0].id') || fail "foot does not show"
