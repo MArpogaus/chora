@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-24 13:13 UTC)
+## Now (2026-11-24 13:23 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 11:58 PM 4.9 % (11-22) + 5.2 % (11-23) + 3.6 % (11-24), week about 28 % vs 47 % pace
 session branch: d40142e4 (t127b 12:28); 76 greens, series 2/3; t128 red (sleep-ratchet); t129 12:40 co-pull.
@@ -22,7 +22,6 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin); F5 7 rows, no serie
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| tiling-flake-r3.md (sh-39, sh-40; 1 %) | sonnet high, claude/tiling-flake-r3 4e257c06 | session_016iS3kPxH8AyTt14UBrf3hi |
 | p2-r11-co.md (rc 1, 2; C2 reach; 0.8 %) | sonnet medium, claude/p2-r11-co be6e62ec | session_016iS3kQipmnHGXsM6fERjZp |
 | tour-base-r4.md (F7; rtb3-1; 0.5 %) | sonnet medium, claude/tour-base-r4 d40142e4 | session_016iS3kNJtZ94HWpr1njZs7F |
 | tiling-calm-r2.md (rc 2; t128 red sleep-ratchet 782/779; 0.6 %) | sonnet medium, claude/tiling-calm-r2 e9387fb2 | session_016iS3kNyLMFdcTUGYBG8Fui |
@@ -30,9 +29,9 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin); F5 7 rows, no serie
 | rc1-pass-xp-mc-r1.md (rc 1; 1.5 %) | opus high, d40142e4 | session_016iS3kQn1Gh16spcxCmjMs1 |
 ## Queue (% week; 5 % reserve)
 0. (rc 8) VERIFY-MINOR r2: 12 of 14 closed; xp-34 known; xp-18 verify.
-1. (F4, F5, rc 1, 3) TRAIN129 co-pull 12:40; next train: XP-38 r2 31b5a11d, FLAKE-SERIES r8 d2c2174c (opus review 13:10; both MERGE-OK), tiling-calm r2; then tiling persona r8.
+1. (F4, F5, rc 1, 3) TRAIN129 co-pull 12:40; next train: XP-38 r2 31b5a11d, FLAKE-SERIES r8 d2c2174c, TILING-FLAKE r3 f68f596a (all MERGE-OK), tiling-calm r2; then tiling persona r8.
 2. (rc 1, 2) CO-PULL be6e62ec MERGE-OK (co-68) in train129; then persona r11 on construct (C2 reach).
-3. (rc 3, 9; F5) FLAKE-SERIES r8 (rfs7-1, rfs7-2; sh-38 leak slope); TILING-FLAKE r3 (sh-39, sh-40).
+3. (rc 3, 9; F5) FLAKE-SERIES r8 (rfs7-1, rfs7-2; sh-38 leak slope); TILING-FLAKE r3 MERGE-OK (sh-39, sh-40).
 4. (F7, rc 11) TOUR-BASE r3 merged d40142e4 (rtb3-1 MINOR open); TOUR-V9 take lane.
 5. (F4, F5) after train127: FLAKE-SERIES r8 5/5 on final head (haiku), TOUR-V9 final take + 5 reviews (2.5 %), CI-PR (rc 4, 5). (rc 1) after reviews: co-44, co-45 only when construct has no open MAJOR (rules.md 6); rtd-5, rtd-7 MINOR backlog.
 
