@@ -22,7 +22,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| review-co-pull-r2.md (rc 2; co-70, co-71; 0.5 %) | opus high, claude/co-pull-r2 280b9dcf | starting |
+| review-co-pull-r2.md (rc 2; co-70, co-71; 0.5 %) | opus high, claude/co-pull-r2 280b9dcf | session_016iS3kQHZV6AZKTYrXL1qnj |
 | tour-base-r5.md (F7; rv9j-4, rv9j-5, rtb4-1; 1 %) | sonnet high, claude/tour-base-r5 d0801b7e | session_016iS3kQ1eXAcuS9WmgxHfSS |
 | stray-super-r2.md (rc 1; rss-1, rss-2 MAJOR; 1.5 %) | opus high, claude/stray-super-r2 e1183766 | session_016iS3kM7GXtGirZm9qkxpMf |
 | tiling-doors-r1.md (rc 2; ti-55, ti-56, ti-50; 1 %) | sonnet high, claude/tiling-doors-r1 b02dbea9 | session_016iS3kLja4YEVy42LaEmr7i |
