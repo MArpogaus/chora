@@ -96,13 +96,13 @@ line 2 >tests/sub/x.sh
 printf '    time.%s(0.5)\n' "$word" >tests/b.sh
 "$tool" --root "$work/repo" --update >/dev/null 2>&1 || fail "$label: --update failed"
 got=$(awk '$1 == "sleep" { print $2 }' tools/sleep-ratchet.list)
-[ "$got" = 1 ] || fail "$label: sleep is '$got', want 1 (the audit count, tests/*.sh only)"
+[ "$got" = 1 ] || fail "$label: the audit count is '$got', want 1 (the audit count, tests/*.sh only)"
 got=$(awk '$1 == "sleep-all" { print $2 }' tools/sleep-ratchet.list)
 [ "$got" = 3 ] || fail "$label: sleep-all is '$got', want 3 (tests/*.sh, a subdirectory, time.sleep)"
 "$tool" --root "$work/repo" >"$work/out" 2>&1 || fail "$label: the tree fails its own list"
 line 3 >>tests/sub/x.sh
 "$tool" --root "$work/repo" >"$work/out" 2>&1 && fail "$label: a new wait in a subdirectory passed"
-grep -q 'sleep-all: list 3, tree 4; most in: tests/sub/x.sh (3)' "$work/out" || fail "$label: no cause line: $(cat "$work/out")"
+grep -q 'sleep-all: list 3, tree 4; most in: tests/sub/x.sh (2)' "$work/out" || fail "$label: no cause line: $(cat "$work/out")"
 
 [ "$failures" = 0 ] && echo "ok: sleep-ratchet-selftest"
 exit "$failures"
