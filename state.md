@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-24 07:42 UTC)
+## Now (2026-11-24 07:43 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 06:06 PM 4.9 % (11-22) + 5.2 % (11-23) + 2.1 % (11-24), week about 25 % vs 43 % pace
 session branch: ce866b0d (t124 green 04:34: co-reach-r2); 74 greens; train125 running 06:05 (xp-title f65e7f70).
@@ -10,7 +10,7 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin: W9 779 = RC; GUARD-4
 | # | Criterion | State |
 |---|---|---|
 | 1, 1b | No BLOCK/MAJOR, independent pass; owner sees v9 | open: ti-47, ti-48, sh-38, co-67 (ledger-audit r1: 11 closed); RECORD-V9  |
-| 2 | Persona r4 | xp, mc meet; co r9 not met: co-61 ok, co-64, co-65 MAJOR, CO-REACH r3; tiling r6 not met (T7 reach, T6 ti-49 MINOR; L1, L2 hold): ti-47, ti-48 MAJOR, TILING-REACH r1 |
+| 2 | Persona r4 | xp, mc meet; co r9 not met: co-61 ok, co-64, co-65 MAJOR, CO-REACH r3; tiling r6 not met (T7 reach, T6 ti-49 MINOR; L1, L2 hold): ti-47, ti-48 MAJOR: r1 4e257c06 in review |
 | 3 | 3 greens, no flake | r6 0/5; r7 2/3 (sh-38); FLAKE-SERIES r8; mc-58 fixed t121 |
 | 4, 5 | CI green on a PR; packaging | pre-commit green; CI PR at release |
 | 6 | Review per area | r1 MERGE-OK (0 MAJOR; MC-FOCUS) |
@@ -22,7 +22,7 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin: W9 779 = RC; GUARD-4
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| review-tiling-reach-r1.md (rc 1; 0.5 %) | sonnet high, claude/tiling-reach 4e257c06 | starting |
+| review-tiling-reach-r1.md (rc 1; 0.5 %) | sonnet high, claude/tiling-reach 4e257c06 | session_016iS3kLhDfRCapF43Mfpsy1 |
 | co-reach-r4.md (rc 1, 2; co-67; 1 %) | sonnet high, claude/co-reach-r4 909bc57b | session_016iS3kQqSPtSAjLg9NseHmk |
 | tour-base-r3.md (F7, rc 11; 0.8 %) | sonnet high, claude/tour-base 883214b5 | session_016iS3kLPAifTAZd7mvFfrRp |
 | flake-series-r8.md (F5, F4; 1.2 %) | sonnet high, claude/flake-series-r7 6f7bcb26 | session_016iS3kPwWVUYse7EqYxr313 |
