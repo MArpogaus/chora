@@ -1020,6 +1020,41 @@ class TilingArgv(unittest.TestCase):
             self.assertNotIn('[f"{BIN}/chora-tiling"', text, chapter)
 
 
+class HandoverCompanions(unittest.TestCase):
+    """rv9j-4: the handover chapter starts chora-tiling with `--no-companions` (tiling_argv), so the act
+    "tiling desktop empty" needs the bar and the wallpaper from the chapter, as tiling.py starts them
+    (`companions=` of the tiling chapter); without them the tiling screen of 05-01..05-03b is black."""
+
+    def commands(self):
+        module = importlib.import_module("chapters.handover")
+        fn = getattr(module, "tiling_companions", None)
+        self.assertIsNotNone(fn, "chapters/handover.py builds no companion command for the tiling output")
+        return fn("HEADLESS-3")
+
+    def test_a_bar_and_a_wallpaper_start_as_the_tiling_chapter_starts_them(self):
+        commands = self.commands()
+        tiling = (ROOT / "demo" / "tour" / "chapters" / "tiling.py").read_text()
+        wallpaper = [c for c in commands if c[0] == "swaybg"]
+        self.assertEqual(len(wallpaper), 1, commands)
+        self.assertIn("#2e3440", wallpaper[0])
+        self.assertIn('["swaybg", "--color", "#2e3440"]', tiling)
+        bar = [c for c in commands if any(a.endswith("flavors/tiling/waybar/waybar.sh") for a in c)]
+        self.assertEqual(len(bar), 1, commands)
+        self.assertEqual(bar[0][:3], ["dbus-run-session", "--", "sh"], bar)
+        self.assertTrue(bar[0][-1].endswith("flavors/tiling/waybar"), bar)
+
+    def test_the_wallpaper_covers_the_tiling_output_only(self):
+        """The other three outputs draw their own desktops (xp, mc, construct): a swaybg on every output paints under them."""
+        [wallpaper] = [c for c in self.commands() if c[0] == "swaybg"]
+        self.assertEqual(wallpaper[wallpaper.index("-o") + 1], "HEADLESS-3", wallpaper)
+
+    def test_the_chapter_starts_them_after_tiling(self):
+        text = (ROOT / "demo" / "tour" / "chapters" / "handover.py").read_text()
+        start = text.index("def start_multi")
+        body = text[start : text.index("\ndef run(", start)]
+        self.assertLess(body.index('tiling_argv(f"{BIN}/chora-tiling"'), body.index("tiling_companions("), body)
+
+
 class CodeWindow(unittest.TestCase):
     """RV9-3: the code window of the tiling chapter showed crates/chora-kit/src/wobbly.rs of the
     checkout, and that file differs between the baseline and the candidate: a pixel diff of the
