@@ -19,8 +19,10 @@
 #   join-xp, join-mc  (fresh sessions, sh-42) a foot in xp, then on the
 #         page of mc, has the keys; tiling joins with --no-companions; the
 #         next text reaches the foot and the core still focuses it (D119)
-#   mc-back  another client drops the focus of the page window of mc;
-#         Return, then a click on it, give it the keys back
+#   mc-back  another client drops the focus of the page window of mc; a
+#         click on it gives it the keys back (with no holder of the keys,
+#         Return reaches no client: mc takes no free keyboard beside
+#         another look)
 #
 # The holder is the act invariant I3 of tests/acts/invariants.py (one_holder
 # prints its breaches), on
@@ -227,15 +229,11 @@ drop_focus() {
     until_ok '! focused 1' 8 || fail "$1: the core still focuses $w"
 }
 drop_focus mc-back
-key Return
-typed "mc k1"
-reaches "mc k1" || fail "mc-back: another client dropped the focus and Return does not give $w the keys back (mc $(ctl state mc | jq -c .focus))"
-drop_focus mc-back
 rect=$(ctl query "id:$w" | jq -r '.[0].rects | to_entries[0].value | "\(.[0] + .[2] / 2 | floor) \(.[1] + .[3] / 2 | floor)"')
 read -r wx wy <<<"$rect"
 click "$wx" "$wy"
 typed "mc c1"
 reaches "mc c1" || fail "mc-back: another client dropped the focus and a click on $w at $wx,$wy does not give it the keys back (mc $(ctl state mc | jq -c .focus))"
 focused 2 || fail "mc-back: the core focuses no $w after the click"
-ok "mc-back: after another client drops the focus, Return and a click give the page window of mc the keys back"
+ok "mc-back: after another client drops the focus, a click gives the page window of mc the keys back"
 ok "gate-handover-shared: tiling and xp on one output hand over with one holder (${SECONDS}s)"
