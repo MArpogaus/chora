@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-24 23:20 UTC)
+## Now (2026-11-24 23:23 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 21:59 PM 5.2 % (11-23) + 5.1 % (11-24) + 1.1 % (11-25), week about 32 % vs 53 % pace: under-spending, fill 6 lanes
 session branch: c3c37c2e (t132 19:20); 80 greens; t132: tiling-honest r1 (ti-52, ti-53), co-pull r2 (co-70, co-71).
@@ -9,7 +9,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 ## RC
 | # | Criterion | State |
 |---|---|---|
-| 1, 1b | No BLOCK/MAJOR, independent pass; owner sees v9 | open: xp, mc: xp-46, mc-60 (r3 MERGE-OK; train133); sh-42 (fix b92de049 MERGE-OK r1; train134); xp-47 merged t131; tiling: ti-52, ti-53 merged t132; construct: co-75 BLOCK, co-76 MAJOR (rcc1-1 MAJOR; CO-CLOSE r2); sh-38 merged t130 |
+| 1, 1b | No BLOCK/MAJOR, independent pass; owner sees v9 | open: xp, mc: xp-46, mc-60 (train133); sh-42 (fix b92de049 MERGE-OK r1; train134); tiling: ti-52, ti-53 t132; construct: co-75 BLOCK, co-76 MAJOR (CO-CLOSE r2 fbdcd6e2 MERGE-OK, train134); co-79 MAJOR (CO-REACH r1) |
 | 2 | Persona r4 | xp, mc meet; co r9 not met; tiling r8 not met (ti-55 T7, ti-56 L1) |
 | 3 | 3 greens, no flake | t130, t131, t132 green; FLAKE-SERIES r9 5/5 on c3c37c2e running |
 | 4, 5 | CI green on a PR; packaging | pre-commit green; CI PR at release |
@@ -25,10 +25,10 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 | tour-base-r7.md (F7; rtb6-1 MAJOR; 1 %) | sonnet high, claude/tour-base-r7 9311e155 | session_016iS3kLs22zFkCsvrRdypFa |
 | train133 (rc 1, 2; stray-super r3 73c6b19c, tiling-doors r1 b1ba6743) | PM, 84f66d43 | gate re-run 22:48 (2nd container restart) |
 | flake-series-r9.md (rc 3, F5; 5/5; 0.6 %) | haiku high, claude/flake-series-r9 c3c37c2e | session_016iS3kL6R9aghhfvTsKiyJx |
-| co-close-r2.md (rc 1; rcc1-1 MAJOR; 0.8 %) | sonnet high, claude/co-close-r2 8517022f | session_016iS3kPX44dZpETU2t5uKgY |
+| co-reach-r1.md (rc 1, 2; co-79 MAJOR; 1.2 %) | opus high, claude/co-reach-r1 fbdcd6e2 | starting |
 ## Queue (% week; 5 % reserve)
 1. (rc 1, 2) TRAIN132 green c3c37c2e (ti-52, ti-53, co-70, co-71). TRAIN133 84f66d43 (stray-super r3, tiling-doors r1) running.
-2. (rc 1, 2) construct after CO-CLOSE r1: co-79 MAJOR round (+co-77, co-78 MINOR confirmed by CO-REPRO r1). sh-42: SH42-FIX r1 b92de049 MERGE-OK (rsf1-1..3 MINOR), train134 after t133.
+2. (rc 1, 2) construct: CO-CLOSE r2 MERGE-OK (train134); CO-REACH r1 co-79 running; co-77, co-78 MINOR after. sh-42: SH42-FIX r1 b92de049 MERGE-OK (rsf1-1..3 MINOR), train134 after t133.
 3. (rc 3, F5) FLAKE-SERIES r9 5/5 on c3c37c2e running.
 4. (F7, rc 11) TOUR-BASE r6 review FIX (rtb6-1 MAJOR); r7 running; then v9 take; rv9j-1..5 MINOR after.
 5. (F4, F5) after train127: FLAKE-SERIES r8 5/5 on final head (haiku), TOUR-V9 final take + 5 reviews (2.5 %), CI-PR (rc 4, 5). (rc 1) after reviews: co-44, co-45 only when construct has no open MAJOR (rules.md 6); rtd-5, rtd-7 MINOR backlog.
