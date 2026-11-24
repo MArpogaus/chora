@@ -226,3 +226,13 @@ EXIT 0
 
 - Not in scope, still open: rcc1-2 (mc face close, MINOR), co-77, co-78, co-79, co-44, co-45.
 - Commit message hooks reject the Co-Authored-By / Claude-Session lines; none added, as the brief says.
+
+## Review r2 (PM, 2026-11-24 23:30 UTC; diff 8517022f..fbdcd6e2, 4 files +44 -7, under 200 lines; PM not the builder)
+
+1. Red first: 4f994c1e (test only, fails `left: [] right: ["s1"]`) before fix f0ab2938. Ok.
+2. rcc1-1: `close_focused` (adopt.rs:314) takes the face branch only when `!self.in_pane()`; one condition, no second rule. A pane flown into closes through the `focus()` ring as in the walk. Ok.
+3. rcc1-3: step 3 now fails (`|| fail`, was `|| true`); new step 4 asserts the close live (pane.fly, cube stays use, Super+x ends the pane's program). `sleep 5` kept with a reason (no signal tells the 3 s hint set from the resting chip): accepted, residue of rcc1-3 stays MINOR.
+4. rcc1-4: "and" restored in the merge-gate help text. Ok.
+5. Hand runs 5/5 on all columns from a fresh compositor; old binary reproduced closed=[]. Full gate 64 PASS, EXIT 0 on fbdcd6e2.
+Findings: rcc2-1 COSMETIC adopt.rs:311 doc comment line no longer wrapped to the block's width. rcc2-2 MINOR (open question, no repro): while flying back out of a pane (`in_pane()` still true until the flight ends) Super+x closes that pane; check in the co-79 round.
+Counts: BLOCK 0, MAJOR 0, MINOR 1, COSMETIC 1. Verdict: MERGE-OK (fbdcd6e2, train134).
