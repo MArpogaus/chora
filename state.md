@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-24 21:33 UTC)
+## Now (2026-11-24 21:48 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 20:13 PM 5.2 % (11-23) + 5.1 % (11-24) + 0.8 % (11-25), week about 32 % vs 53 % pace: under-spending, fill 6 lanes
 session branch: c3c37c2e (t132 19:20); 80 greens; t132: tiling-honest r1 (ti-52, ti-53), co-pull r2 (co-70, co-71).
@@ -22,7 +22,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| tour-base-r6.md (F7; rtb5-1 MAJOR; 1 %) | sonnet high, claude/tour-base-r6 61d0ef7a | session_016iS3kNhSNkSHNMgkjDGCwZ |
+| review-tour-base-r6.md (F7; rtb5-1 MAJOR; 0.5 %) | sonnet high, claude/tour-base-r6 9311e155 | starting |
 | train133 (rc 1, 2; stray-super r3 73c6b19c, tiling-doors r1 b1ba6743) | PM, 84f66d43 | gate running |
 | flake-series-r9.md (rc 3, F5; 5/5; 0.6 %) | haiku high, claude/flake-series-r9 c3c37c2e | session_016iS3kL6R9aghhfvTsKiyJx |
 | sh42-fix-r1.md (rc 1; sh-42 MAJOR; 1.5 %) | opus high, claude/sh42-fix-r1 c3c37c2e | session_016iS3kMHuyqcookRmRRXXJB |
@@ -31,7 +31,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 1. (rc 1, 2) TRAIN132 green c3c37c2e (ti-52, ti-53, co-70, co-71). TRAIN133 84f66d43 (stray-super r3, tiling-doors r1) running.
 2. (rc 1, 2) construct after CO-CLOSE r1: co-79 MAJOR round (+co-77, co-78 MINOR confirmed by CO-REPRO r1). sh-42: SH42-FIX r1 (repro r2 5/5).
 3. (rc 3, F5) FLAKE-SERIES r9 5/5 on c3c37c2e running.
-4. (F7, rc 11) TOUR-BASE r6 running (rtb5-1..3); then v9 take; rv9j-1..5 MINOR after.
+4. (F7, rc 11) TOUR-BASE r6 9311e155 green, review r6; then v9 take; rv9j-1..5 MINOR after.
 5. (F4, F5) after train127: FLAKE-SERIES r8 5/5 on final head (haiku), TOUR-V9 final take + 5 reviews (2.5 %), CI-PR (rc 4, 5). (rc 1) after reviews: co-44, co-45 only when construct has no open MAJOR (rules.md 6); rtd-5, rtd-7 MINOR backlog.
 
 ## Needs owner
