@@ -24,7 +24,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 |---|---|---|
 | co-pull-r2.md (rc 2; co-70, co-71; 1 %) | sonnet high, claude/co-pull-r2 be6e62ec | session_016iS3kQfpC9MnJi7JhzqpHe |
 | tiling-honest-r1.md (rc 1; ti-52, 53; 1 %) | sonnet high, claude/tiling-honest-r1 bb4c07d9 | session_016iS3kQhsyJ7r5aQ55kf2ie |
-| tour-base-r5.md (F7; rv9j-4, rv9j-5, rtb4-1; 1 %) | sonnet high, claude/tour-base-r5 d0801b7e | starting |
+| tour-base-r5.md (F7; rv9j-4, rv9j-5, rtb4-1; 1 %) | sonnet high, claude/tour-base-r5 d0801b7e | session_016iS3kQ1eXAcuS9WmgxHfSS |
 | stray-super-r1.md (rc 1; xp-46, mc-60; 1 %) | sonnet high, claude/stray-super-r1 d40142e4 | session_016iS3kNnjci4yeBhCJRuWif |
 ## Queue (% week; 5 % reserve)
 0. (rc 8) VERIFY-MINOR r2 12/14
