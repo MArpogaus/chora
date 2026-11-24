@@ -1,0 +1,15 @@
+# tiling-calm r1 (rc 2, 8): one overlay at a time, the helper findable, two lock MINORs
+
+Model: sonnet, effort high (overlay ownership in the tiling plugin plus a launcher row; routine with care)
+Lane: cloud, claude/tiling-calm at ad0093ba (session head ce866b0d + tiling-reach 4e257c06, reviewed MERGE-OK, train127). One round. Stop at 200 k context; cost at most 1 %.
+Why: persona r7 (reports/p2-r7-tiling.md "## r7" on claude/session-log) did not meet; ti-47, ti-48 are fixed on this base, so the MINORs below are open to work (rules.md 6).
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `git fetch origin claude/session-log`, `cargo check --workspace`; a failure: send_message the PM "tiling-calm BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Read: findings/tiling.md ti-27, ti-50, ti-51; reports/tiling-reach.md "## Review r1" rtr-1, rtr-3; feedback/2026-11-24-p2r7ti-{beginner,kemal}.md; design/looks/tiling.md; vision-card.md (KISS, POLS).
+1) ti-27 (3 rounds red): opening the power menu, the launcher or the helper closes an open key list; Escape closes the top layer and nothing stays open behind it (POLS: one tiling overlay at a time). Red first: an assertion in an existing tiling cell (gate-tiling-keys-more or tiling-windows) that opens the key list, then the power menu, Escape, and wants no tiling overlay open; red on ad0093ba.
+2) ti-50: the helper is findable from the launcher: one row with the word "Helper" and its visible name opens it (same path as Super+a); the key list row names it the same way. No new widget. Red first: assertion on the row (launcher cell), red before.
+3) ti-51 verify only: beginner I6 x116 on the key list under a popup (r7). Run the r7 check on one capture with the key list alone and with a popup over it; state "check reads hidden rows" or "rows really 1.00:1" in the report; no fix unless 1) does not already remove the case.
+4) rtr-1: waybar children do not inherit the panel.lock fd (`9>&-`); rtr-3: without flock the lock is not skipped silently (one stderr line). Cell: gate-tiling-one-bar stays green.
+Done when: 1, 2, 4 in with red commits before fixes; 3 stated with its capture; full gate (tests/merge-gate.sh, no --only, --jobs 2) on the head, foreign reds named by cell; captures of the overlay sequence and the helper row named in the report.
+Report: reports/tiling-calm.md on claude/session-log "## r1" (commits, outputs, gate cells, captures). Then send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN (at most 6 lines): head sha, done items, reds.
+Poll every command in the same turn; never end a turn to wait. Before ending: `pgrep -fa 'chora --headless'` empty.
+Rules: push claude/tiling-calm and (report only) claude/session-log; fetch and merge on reject, no force; author Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email); no attribution lines; never --no-verify; no system packages; never a bare git stash; no new `sleep` line (sleep ratchet).
