@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-24 19:30 UTC)
+## Now (2026-11-24 19:31 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 18:58 PM 4.9 % (11-22) + 5.2 % (11-23) + 5.1 % (11-24), week about 31 % vs 51 % pace: under-spending, fill 6 lanes
 session branch: c3c37c2e (t132 19:20); 80 greens; t132: tiling-honest r1 (ti-52, ti-53), co-pull r2 (co-70, co-71).
@@ -26,7 +26,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 | stray-super-r3.md (rc 1; rss-7 MAJOR; 1.5 %) | opus high, claude/stray-super-r3 1eb30643 | session_016iS3kQeFgVrTUeBWbwLj1s |
 | flake-series-r9.md (rc 3, F5; 5/5; 0.6 %) | haiku high, claude/flake-series-r9 c3c37c2e | session_016iS3kL6R9aghhfvTsKiyJx |
 | tiling-doors-r1.md (rc 2; ti-55, ti-56, ti-50; 1 %) | sonnet high, claude/tiling-doors-r1 b02dbea9 | session_016iS3kLja4YEVy42LaEmr7i |
-| sh42-repro-r1.md (rc 1; sh-42 5x; 0.4 %) | haiku high, claude/sh42-repro-r1 c3c37c2e | starting |
+| sh42-repro-r1.md (rc 1; sh-42 5x; 0.4 %) | haiku high, claude/sh42-repro-r1 c3c37c2e | session_016iS3kMR9ZMkXTKJHgENV6v |
 | co-close-r1.md (rc 1; co-75 BLOCK, co-76 MAJOR; 1.5 %) | opus high, claude/co-close-r1 280b9dcf | session_016iS3kN4bp8VEeTupxTZ58i |
 ## Queue (% week; 5 % reserve)
 1. (rc 1, 2) TRAIN132 green c3c37c2e (ti-52, ti-53, co-70, co-71). TILING-DOORS r1 running.
