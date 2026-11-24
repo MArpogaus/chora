@@ -43,6 +43,8 @@ if command -v flock >/dev/null 2>&1; then
         echo "waybar.sh: the panel of this session already runs; this start ends" >&2
         exit 0
     }
+else
+    echo "waybar.sh: flock (util-linux) is not installed; this start cannot tell whether the panel already runs" >&2
 fi
 
 prepare() {
@@ -93,7 +95,7 @@ while :; do
         '{include: [$include], output: $outputs}' >"$config"
     prepare
     trap '' USR1 USR2 RTMIN+1
-    waybar --config "$config" --style "$style/style.css" &
+    waybar --config "$config" --style "$style/style.css" 9>&- &
     pid=$!
     trap - USR1 USR2 RTMIN+1
     echo "$pid" >"$pids/waybar.pid"

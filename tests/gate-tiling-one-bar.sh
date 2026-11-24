@@ -104,7 +104,7 @@ FAKE
     done
     cp "$fakebin/waybar" "$fakebin/choractl" "$d/noflock/"
     rm -f "$out"
-    LOCK_OUT=$out XDG_RUNTIME_DIR=$d/run2 PATH=$d/noflock setsid sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >"$d/log2" 2>&1 &
+    LOCK_OUT=$out XDG_RUNTIME_DIR=$d/run2 setsid env PATH="$d/noflock" "$d/noflock/sh" "$flavor/waybar/waybar.sh" "$flavor/waybar" >"$d/log2" 2>&1 &
     run_pid $!
     until_ok "[ -s $out ]" 40 || fail "lock: with no flock the panel did not start: $(cat "$d/log2")"
     [ "$(grep -c flock "$d/log2")" = 1 ] || fail "lock: with no flock the lock is skipped silently, not with one line on stderr (rtr-3): $(cat "$d/log2")"
