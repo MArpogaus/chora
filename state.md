@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-24 10:57 UTC)
+## Now (2026-11-24 10:58 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 10:29 PM 4.9 % (11-22) + 5.2 % (11-23) + 3.3 % (11-24), week about 27 % vs 46 % pace
 session branch: 2235551f (t125 green 07:50: xp-title); 75 greens; t126 red: sh-39 flake (e2e apps-click, alone 3/3); t127 red: xp-38 flake (acts); t127b 11:05 + tour-base, xp-polish.
@@ -26,13 +26,13 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin); F5 7 rows, no serie
 | flake-series-r8.md (F5, F4; 1.2 %) | sonnet high, claude/flake-series-r7 6f7bcb26 | session_016iS3kPwWVUYse7EqYxr313 |
 | tiling-calm-r1.md (rc 2, 8; 1 %) | sonnet high, claude/tiling-calm ad0093ba | session_016iS3kLdvEtaUtMWPs87vDJ |
 | tiling-flake-r3.md (sh-39, sh-40; 1 %) | sonnet high, claude/tiling-flake-r3 4e257c06 | session_016iS3kPxH8AyTt14UBrf3hi |
-| xp-38-r2.md (rc 3; 1 %) | sonnet high, claude/xp-38-r2 2235551f | starting |
+| xp-38-r2.md (rc 3; 1 %) | sonnet high, claude/xp-38-r2 2235551f | session_016iS3kLvpV2kdtwhHXTnNRh |
 ## Queue (% week; 5 % reserve)
-0. (rc 8) VERIFY-MINOR r2: 9 of 14 closed; xp-14, xp-15, xp-17 XP-POLISH r1 64478c66 MERGE-OK (rxp1, rxp2 MINOR) -> train128; xp-34 known; xp-18 verify.
+0. (rc 8) VERIFY-MINOR r2: 9 of 14 closed; xp-14, xp-15, xp-17 XP-POLISH r1 64478c66 (rxp1, rxp2 MINOR) in t127b; xp-34 known; xp-18 verify.
 1. (F4, F5, rc 1) TRAIN127 guard-4, co-reach-r4 f1457035, tiling-reach 4e257c06; TILING-CALM r1 (ti-27, ti-50), then persona r8.
 2. (rc 1, 2; 2 %) co-64, co-65, co-67 in train127; persona r10 not met: co-68 MAJOR (pull key told, does nothing) -> CO-PULL r1, then persona r11; TILING-REACH r1, then persona r7.
 3. (rc 3, 9; F5) FLAKE-SERIES r8 (rfs7-1, rfs7-2; sh-38 leak slope); TILING-FLAKE r3 (sh-39, sh-40).
-4. (F7, rc 11) TOUR-BASE r3 cc71e5d9 MERGE-OK (rtb3-1 MINOR) -> train128 with xp-polish after 127.
+4. (F7, rc 11) TOUR-BASE r3 cc71e5d9 (rtb3-1 MINOR) in t127b.
 5. (F4, F5) after train127: FLAKE-SERIES r8 5/5 on final head (haiku), TOUR-V9 final take + 5 reviews (2.5 %), CI-PR (rc 4, 5). (rc 1) after reviews: co-44, co-45 only when construct has no open MAJOR (rules.md 6); rtd-5, rtd-7 MINOR backlog.
 
 ## Needs owner
