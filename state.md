@@ -1,16 +1,16 @@
 # State
 
-## Now (2026-11-24 12:32 UTC)
+## Now (2026-11-24 12:37 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 11:58 PM 4.9 % (11-22) + 5.2 % (11-23) + 3.6 % (11-24), week about 28 % vs 47 % pace
-session branch: d40142e4 (t127b green 12:28: guard-4, co-reach-r4, tiling-reach, tour-base, xp-polish); 76 greens; t128 12:29 + tiling-calm e9387fb2.
+session branch: d40142e4 (t127b green 12:28); 76 greens; t128 red 12:36 (sleep-ratchet); t129 12:40 + co-pull be6e62ec.
 burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin); F5 7 rows, no series; F7 open (r4 take stale, 24 acts)
 
 ## RC
 | # | Criterion | State |
 |---|---|---|
 | 1, 1b | No BLOCK/MAJOR, independent pass; owner sees v9 | open: sh-38 (co-68 MERGE-OK; ti-47, ti-48, co-67 fixed d40142e4) |
-| 2 | Persona r4 | xp, mc meet; co r9 not met: co-64, co-65 fixed r3; tiling r7 not met (T7 path, ti-27, ti-50): ti-47/48 fixed; TILING-CALM r1 t128 |
+| 2 | Persona r4 | xp, mc meet; co r9 not met: co-64, co-65 fixed r3; tiling r7 not met (T7 path, ti-27, ti-50): ti-47/48 fixed; TILING-CALM r2 (t128 red) |
 | 3 | 3 greens, no flake | r6 0/5; r7 2/3 (sh-38); FLAKE-SERIES r8 |
 | 4, 5 | CI green on a PR; packaging | pre-commit green; CI PR at release |
 | 6 | Review per area | r1 MERGE-OK (0 MAJOR; MC-FOCUS) |
@@ -26,9 +26,10 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin); F5 7 rows, no serie
 | tiling-flake-r3.md (sh-39, sh-40; 1 %) | sonnet high, claude/tiling-flake-r3 4e257c06 | session_016iS3kPxH8AyTt14UBrf3hi |
 | xp-38-r2.md (rc 3; 1 %) | sonnet high, claude/xp-38-r2 2235551f | session_016iS3kLvpV2kdtwhHXTnNRh |
 | tour-base-r4.md (F7; rtb3-1; 0.5 %) | sonnet medium, claude/tour-base-r4 d40142e4 | session_016iS3kNJtZ94HWpr1njZs7F |
+| tiling-calm-r2.md (rc 2; t128 red sleep-ratchet 782/779; 0.6 %) | sonnet medium, claude/tiling-calm-r2 e9387fb2 | starting |
 ## Queue (% week; 5 % reserve)
 0. (rc 8) VERIFY-MINOR r2: 12 of 14 closed (xp-14, xp-15, xp-17 fixed d40142e4); xp-34 known; xp-18 verify.
-1. (F4, F5, rc 1) TRAIN128 tiling-calm e9387fb2 (ti-27, ti-50) 12:29; then tiling persona r8 (rc 2).
+1. (F4, F5, rc 1) t128 red 12:36: sleep-ratchet 782/779 (tiling-calm adds 3 sleeps, base before guard-4) -> TILING-CALM r2; TRAIN129 co-pull be6e62ec 12:40; then tiling persona r8.
 2. (rc 1, 2; 2 %) CO-PULL r1 be6e62ec MERGE-OK (co-68; rcp1-1, rcp1-2 MINOR) -> train129 after t128; then persona r11 on construct (C2 reach).
 3. (rc 3, 9; F5) FLAKE-SERIES r8 (rfs7-1, rfs7-2; sh-38 leak slope); TILING-FLAKE r3 (sh-39, sh-40).
 4. (F7, rc 11) TOUR-BASE r3 merged d40142e4 (rtb3-1 MINOR open); TOUR-V9 final take after t128.

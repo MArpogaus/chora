@@ -57,7 +57,7 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-24T12:32:00Z",
+  updated: "2026-11-24T12:42:00Z",
   start: "2026-11-21T04:00:00Z",   // budget reset (owner)
   end: "2026-11-28T03:59:00Z",     // next reset; F5, F7 carried over
   budget: 28,                       // % of the new week used (reset 04:00)
@@ -67,14 +67,14 @@ const S = {
     ["F3", "Window-manager core, first slices", "done", "met by audit r2: wm parts and records D107-D116"],
     ["F4", "No file over 1,500 lines", "done", "met again by audit r6: 0 files over, debt 17 of 47; but sleep lines in tests are exactly at their limit (779), so a guard lane now freezes that count"],
     ["F5", "No flaky tests, coverage over 80 %", "risk", "coverage 91.76 % holds; the last five-gate series was 0 of 5 green (keys cell in lane containers, leftover processes, an xp placement race) and the mc-host cell went red twice in other lanes: flake series r7 fixed the keys cell and three leftover-process leaks (2 of 3 gates green), but the review sent it back: it added test waits over the frozen limit and one fix had no red test; round 8 fixes those and the leak cell's memory bound, which sits inside its own noise"],
-    ["F6", "Every change through the merge gate", "done", "76 green merges, all reviewed; train 127 green 12:28 UTC (19:28 Bangkok) with five branches; train 128 (tiling calm) running"],
+    ["F6", "Every change through the merge gate", "done", "76 green merges, all reviewed; train 127 green 12:28 UTC (19:28 Bangkok) with five branches; train 128 red: tiling calm added three test waits over the frozen count, back to its lane; train 129 (construct pull hint) running"],
     ["F7", "No visual regression vs tour v8", "behind", "tour v9 retake reviewed 03:05 UTC: the comparison is now fair (clock and launcher pinned), but 109 of 110 acts still differ from v8, mostly text under 12 px and gaps flagged by the design checks; next round names each failing element, then one fix lane per look"],
     ["F8", "Docs and decision records", "done", "met by audit r6 (01:40 UTC, 08:40 Bangkok): the kit log module is documented and decision record D120 exists; every decision named in a commit has its record"]
   ],
   now: [
     "Train 127 is green (19:28 Bangkok): the sleep-count guard, the construct fix for programs started while the cube stands back (co-67), the tiling fixes for beginners, the tour baseline and the xp polish are merged.",
-    "Train 128 runs now (about 2 h) with the tiling calm round (helper row in the launcher, no stray focus); after it a new tiling persona round checks the tiling look again.",
-    "Construct: the pull key named in the hint bar does nothing (co-68, major); a fix lane works on it, red test first. Also running: flake series r8, two tiling flakes, an xp fix.",
+    "Train 128 went red: the tiling calm round added three test waits over the frozen count; its lane removes them now. Train 129 runs with the construct fix: the pull key is named only where it acts (co-68).",
+    "Also running: flake series r8, two tiling flakes, an xp fix, a tour comparison fix.",
     "Spending is under pace (28 %; the line is at 47 %): more lanes start as trains free the machine."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
