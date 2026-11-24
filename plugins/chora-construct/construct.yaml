@@ -21,7 +21,8 @@ pane_distance: 2000
 # pane nearest the middle of the view), windows (opens and closes the
 # window list), cube, and the actions that every look has: terminal
 # (starts the terminal), launcher (starts the launcher), close (asks the
-# window of the pane nearest the middle of the view to close), keys
+# focused window that shows to close: the pane with the focus ring, in a
+# face the window of the face with the keyboard), keys
 # (shows and hides the panel of the bindings), chat (the chat with a
 # helper), lock, power (the power menu), screenshot, `volume: up`,
 # `volume: down` or `volume: mute`, and `run: COMMAND`. The old names

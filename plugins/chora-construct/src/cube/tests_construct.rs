@@ -1514,7 +1514,8 @@ fn a_pane_flown_into_in_the_walk_keeps_its_way_out_after_the_hints_went() {
     construct.cube = None;
     construct.fly_in(0).unwrap();
     assert!(construct.in_pane(), "the camera flies into the pane");
-    construct.glide = None;
+    construct.flown = crate::camera::take_flight(&mut construct.glide);
+    assert!(construct.flown.is_some(), "the flight lands in the pane");
     construct.draw_hints().unwrap();
     construct.hints.until = None;
     construct.draw_hints().unwrap();

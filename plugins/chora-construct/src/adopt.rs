@@ -5,7 +5,7 @@ use super::{
     ClientError, Command, Construct, Content, Hold, Instant, Kind, LAUNCHED, NAME, NO_ROOM, Pane,
     PaneFile, PropsUpdate, Transform, WINDOWS, Waiting, configure, update,
 };
-use chora_kit::wm::focus;
+use chora_kit::{modes::Mode, wm::focus};
 
 /// Whether a window with the token of the launcher is the launcher's own:
 /// a launcher without a window, such as fuzzel, may pass its token on to
@@ -304,10 +304,27 @@ impl Construct {
         self.launched = Some(Instant::now());
     }
 
-    /// Asks the window of the pane ahead to close; its pane goes when
-    /// it does. A plugin pane goes at once.
-    pub(crate) fn close_ahead(&mut self) -> Result<(), ClientError> {
-        match self.pane_ahead() {
+    /// Asks the window that the person sees focused to close, as a close
+    /// button does (co-75): in a face of the cube the window of the face
+    /// with the keyboard, else the pane with the focus ring (`focus`). A
+    /// window out of view never closes, so in a face no pane does, and
+    /// with no window focused nothing does. A pane goes when its window
+    /// does; a plugin pane goes at once.
+    pub(crate) fn close_focused(&mut self) -> Result<(), ClientError> {
+        let in_face = (self.cube.as_ref()).is_some_and(|c| c.view().mode() == Mode::Use);
+        if in_face {
+            let Some(surface) = (self.core_focus.clone())
+                .filter(|s| !(self.panes.iter()).any(|p| p.window() == Some(s)))
+            else {
+                return Ok(());
+            };
+            if let Some(err) = self.rt.conn.try_apply(vec![Command::Close { surface }])? {
+                crate::log::log_warn!("chora-construct: close: {err}");
+            }
+            return Ok(());
+        }
+        let ringed = |i: &usize| self.flown.is_some() || !self.covers_cube(&self.panes[*i]);
+        match self.focus().filter(ringed) {
             Some(i) => self.remove_pane(i),
             None => Ok(()),
         }
