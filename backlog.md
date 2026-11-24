@@ -416,3 +416,5 @@ DB21 | 11-22 | later | gate-tiling-motion.sh: restore the deep (focused) vs ligh
 rr9-1 | MINOR | review-record-v9 r4 (reports/record-v9.md "## Review r4") | open | tiling rows of demo/tour/intended.toml name five shas, only 573496e5 proved; name per row which sha explains which diff
 - (harness, 11-24) persona check.py `end` is single-use: a driver that pipes it through tail loses the contract line (p2-r9-co r9); make `end` re-readable or write the line to a file.
 - (harness, 11-24) rg4-1 slipped past gate-lib-selftest: no idle-regression case for scaled bounds; earliest gate gate-lib; guard-4 r2 adds it (red first). Rule: every scaled bound gets an idle 2x selftest.
+- (harness, 11-24) rxt-2: a change to tests/acts/invariants.py that skips or relaxes a check needs a selftest with a case that still fails; no gate checks it today (xp-title r1 f65e7f70).
+- (xp polish, 1.0) rxt-1: inactive title text 2.2:1, carried by its shadow; I6 measures the halo; document or rethink.
