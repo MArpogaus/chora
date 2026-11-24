@@ -116,6 +116,9 @@ pub struct Art {
     pub walls: Vec<PathBuf>,
 }
 
+/// The title of the dialog, which its task button shows.
+pub const WINDOW_TITLE: &str = "Display Properties";
+
 /// The open dialog.
 pub struct DisplayDialog {
     /// The window.
@@ -151,7 +154,7 @@ impl DisplayDialog {
             walls.push(file.clone());
         }
         let mut panel = Self {
-            dialog: Dialog::new("display", "Display Properties", SIZE, area),
+            dialog: Dialog::new("display", WINDOW_TITLE, SIZE, area),
             tab: tab.min(TABS.len() - 1),
             walls,
             applied: style.clone(),

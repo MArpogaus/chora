@@ -47,6 +47,7 @@
 # with SKIP=cargo-clippy,lychee,vale as CI does, and fails when
 # pre-commit is not installed.
 # `ci-check` also runs tools/lint-ratchet (the allow, no-reason and eprintln counts may not grow),
+# tools/sleep-ratchet (the count of waits in tests/*.sh may not grow),
 # tools/size-ratchet (a file over 1,500 production lines may not grow) and
 # tools/cut-check (blocking: a plugin depending on a plugin or an extra workspace crate, an asset or
 # link that leaves its crate, a name of another plugin beyond tools/cut-known.toml; it reports the
@@ -251,7 +252,7 @@ red-first|tests/merge-gate.sh --red-first-check --base "$base"
 identity|tests/merge-gate.sh --identity-check --base "$base"
 pre-commit|command -v pre-commit >/dev/null || { echo "FAIL: pre-commit is not installed"; exit 1; }; SKIP=cargo-clippy,lychee,vale pre-commit run --all-files
 gate-lib|{ tests/gate-lib-selftest.sh && tests/under-load-selftest.sh && tests/cells-for-selftest.sh && tests/nested-diag-selftest.sh && tests/matrix-cap-selftest.sh; } & a=\$!; [ x\${MERGE_GATE_NESTED:-} != x ] || tests/merge-gate-selftest.sh; b=\$?; wait \$a && [ \$b = 0 ]
-ci-check|tools/cut-check --base "$(git merge-base "$base" HEAD)" && tests/cut-check-selftest.sh && tests/grab-gap-check.py && tests/grab-gap-check-selftest.sh && tests/agent-sandbox.sh && tests/gate-0.7-9.sh && tests/gate-0.8-5.sh && tests/gate-0.8-8.sh && tests/gate-0.8-plugin-runtime.sh && tests/packaging-files.py && tests/flavor-notify.py && tests/screenshot-notice.sh && tests/tiling-scripts-selftest.sh && tests/runtime-dir-selftest.sh && tests/packaging-files-selftest.sh && tools/size-ratchet --base "$(git merge-base "$base" HEAD)" && tests/size-ratchet-selftest.sh && tools/lint-ratchet && tests/lint-ratchet-selftest.sh && tests/ratchet-raise-selftest.sh
+ci-check|tools/cut-check --base "$(git merge-base "$base" HEAD)" && tests/cut-check-selftest.sh && tests/grab-gap-check.py && tests/grab-gap-check-selftest.sh && tests/agent-sandbox.sh && tests/gate-0.7-9.sh && tests/gate-0.8-5.sh && tests/gate-0.8-8.sh && tests/gate-0.8-plugin-runtime.sh && tests/packaging-files.py && tests/flavor-notify.py && tests/screenshot-notice.sh && tests/tiling-scripts-selftest.sh && tests/runtime-dir-selftest.sh && tests/packaging-files-selftest.sh && tools/size-ratchet --base "$(git merge-base "$base" HEAD)" && tests/size-ratchet-selftest.sh && tools/lint-ratchet && tests/lint-ratchet-selftest.sh && tools/sleep-ratchet && tests/sleep-ratchet-selftest.sh && tests/ratchet-raise-selftest.sh
 build|cargo build --workspace --locked
 test|cargo test --workspace --locked
 clippy|cargo clippy --workspace --all-targets --locked -- -D warnings

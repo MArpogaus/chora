@@ -317,6 +317,44 @@ class CaptureDumps(unittest.TestCase):
         self.assertEqual(json.loads((self.dir / "x1.Q.json").read_text())["masks"], [])
         self.assertTrue((self.dir / "x1.Q.png").exists())
 
+    def test_a_baseline_without_boxes_is_not_an_i6_flip(self):
+        """TOUR-BASE: a snapshot without `scene.boxes` (733967aa) reads no text box, so I6 is not green there, it
+        is not measured; the row says "I6 not measured". rtb2-2: a candidate that measures it red is a regression unless a check
+        row names I6."""
+        import shutil
+
+        t = self.tour(snaps=[snap(), test_acts.snap(boxes=None)])
+        self.act(t)
+        base = self.dir
+        cand = pathlib.Path(tempfile.mkdtemp(prefix="tour-cand-"))
+        for path in base.iterdir():
+            shutil.copy(path, cand / path.name)
+        data = json.loads((cand / "x1.Q.json").read_text())
+        data["checks"]["I6"] = "red"
+        (cand / "x1.Q.json").write_text(json.dumps(data))
+        [row] = self.diff().compare(base, cand, [])
+        self.assertEqual((row["verdict"], row["flipped"]), ("regression", ["I6"]), row)
+        self.assertIn("I6", row["unmeasured"], row)
+        [row] = self.diff().compare(base, cand, [{"act": "x1", "kind": "check", "check": "I6", "cause": "xp-39"}])
+        self.assertEqual(row["verdict"], "change", row)
+
+    def test_a_baseline_without_boxes_marks_the_box_checks_from_one_constant(self):
+        """TOUR-BASE r2 (rtb-4, check 5): the checks that read `scene.boxes` are "not measured" on a snapshot without
+        them, all from one constant; the reported-run part of I6 reads no box, so I6 stays measured where a run is reported."""
+        t = self.tour(snaps=[snap(), test_acts.snap(boxes=None)])
+        self.act(t)
+        checks = json.loads((self.dir / "x1.Q.json").read_text())["checks"]
+        want = ["I12", "I13", "I2", "I5", "I6", "I9"]
+        self.assertEqual(sorted(tour.BOX_CHECKS), want)
+        self.assertEqual(sorted(n for n, c in checks.items() if c == "not measured"), want)
+        run = {"text": "hi", "rect": [0, 0, 10, 10], "node": "s1"}
+        states = {"xp": {"windows": [], "focus": {"holder": None}, "open": [], "busy": [], "texts": [run]}}
+        t = self.tour(snaps=[snap(), test_acts.snap(boxes=None, states=states, nodes=[], toplevels=set())])
+        self.act(t)
+        checks = json.loads((self.dir / "x1.Q.json").read_text())["checks"]
+        self.assertNotEqual(checks["I6"], "not measured", checks)
+        self.assertEqual(sorted(n for n, c in checks.items() if c == "not measured"), [n for n in want if n != "I6"])
+
     def test_a_new_take_keeps_no_stale_picture(self):
         """rw-1: a run folder with an old `x1.Q.png` (and an old H50 one the take did not copy) gets the new pictures."""
         t = self.tour(snaps=[snap() for _ in range(6)])

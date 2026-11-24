@@ -78,6 +78,8 @@ jobs:
       run: tests/ratchet-raise-selftest.sh
     - name: the lint debt counts do not grow
       run: tools/lint-ratchet
+    - name: the count of sleep lines in the gates does not grow
+      run: tools/sleep-ratchet && tests/sleep-ratchet-selftest.sh
     - name: the cut holds, a plugin could be packaged alone
       run: tools/cut-check && tests/cut-check-selftest.sh
 

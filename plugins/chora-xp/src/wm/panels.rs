@@ -215,8 +215,9 @@ impl Wm {
         let style = self.settings.value.wallpaper.resolved(&self.theme);
         let mut panel = DisplayDialog::new(style, screen, self.display_tab, area, art);
         let page = panel.page(&mut self.theme);
-        let commands = panel.dialog.create(&mut self.theme, DIALOGS, page);
+        let mut commands = panel.dialog.create(&mut self.theme, DIALOGS, page);
         self.push_panel(Panel::Display(panel));
+        commands.extend(self.sync_tasks());
         commands
     }
 
