@@ -12,7 +12,8 @@
 #   xp-window     xp starts and a foot that keeps what it is typed is its
 #                 window; tiling joins: Super+x, k, m and q type nothing
 #                 into the foot (xp-46), and once xp gave the foot to
-#                 tiling, Super+h and Shift+Super+1 of tiling act (rss-2:
+#                 tiling, Super+Return, Super+h and Shift+Super+1 of
+#                 tiling act (rss-2:
 #                 the swallow of xp does not take the keys of tiling)
 #   mc-first      mc --manage-windows on the first output, tiling joins on
 #                 the second, then such a foot is a window page of mc:
@@ -169,8 +170,8 @@ cell_xp_window() {
     key Super+Alt+1
     until_ok "ctl query 'app_id:stray kind:surface' | jq -e '.[0].owner == \"tiling\"' >/dev/null" 40 || fail "$name: Super+Alt+1 gave the foot not to tiling"
     until_ok stray_focused 40 || fail "$name: the given foot does not hold the keyboard"
-    ctl run foot -a second sh -c 'sleep 600' >/dev/null || fail "$name: the run of a second foot"
-    until_ok "ctl state tiling | jq -e '[.windows[] | select(.shown)] | length == 2' >/dev/null" 80 || fail "$name: the second foot is no tile: $(ctl state tiling | jq -c .windows)"
+    key Super+Return
+    until_ok "ctl state tiling | jq -e '[.windows[] | select(.shown)] | length == 2' >/dev/null" 80 || fail "$name: Super+Return of tiling opened no second tile beside xp: $(ctl state tiling | jq -c .windows)"
     before=$(tiling_rects)
     key Super+h
     until_ok '[ "$(tiling_rects)" != "$before" ]' 40 || fail "$name: Super+h of tiling does nothing beside xp: the rects stay $before"

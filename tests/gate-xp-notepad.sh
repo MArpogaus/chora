@@ -67,5 +67,5 @@ until_ok '[ "$(cat "$log" 2>/dev/null)" = "start::end" ]' 20
 typed=$(cat "$log" 2>/dev/null)
 [ "$typed" = "start::end" ] || fail "xp-46: the client typed '$typed' and not start::end"
 ok "Super+x, Super+k, Super+m and Super+q type nothing into a client of xp"
-menu_visible && fail "xp-46: an unbound Super chord opened the Start menu"
+until_ok menu_visible 4 && fail "xp-46: an unbound Super chord opened the Start menu"
 ok "an unbound Super chord opens no Start menu"
