@@ -272,6 +272,21 @@ fn tell_launch_error(err: &theme::LaunchError) {
     }
 }
 
+/// Asks tiling to close the key list before the launcher or the power menu
+/// opens, so that one overlay shows at a time; without a session or a tiling
+/// that answers it does nothing.
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a launch is no plugin: it only asks tiling to close the key list and ends"
+)]
+fn close_key_list() {
+    let Ok(mut conn) = Conn::connect("chora-tiling.launch") else {
+        return;
+    };
+    let call = json!({"client": NAME, "method": "hide_keys", "params": {}});
+    let _ = conn.call_within::<_, Value>("methods.call", call, std::time::Duration::from_secs(1));
+}
+
 /// `--launch PROGRAM [ARGS]`: starts foot, fuzzel or swaylock with the
 /// config file of the flavor, in the palette; another program as it is.
 /// `fuzzel` without arguments is the Apps list: the installed programs
@@ -291,6 +306,9 @@ fn launch(argv: &[String]) -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+    if program == "power" || (program == "fuzzel" && rest.is_empty()) {
+        close_key_list();
+    }
     if program == "fuzzel" && rest.is_empty() {
         let flavor = dirs.iter().find(|d| d.join("applications").is_dir());
         chora_kit::launcher::run_ordered(
@@ -726,6 +744,9 @@ impl Tiling {
             .ok()
             .filter(|_| data["open"] == true);
         let output = data["output"].as_str().unwrap_or_default();
+        if rect.is_some() && self.keys_open() {
+            self.hide_keys()?;
+        }
         if self.wm.set_panel(output, rect) {
             self.relayout()?;
         }
@@ -900,6 +921,11 @@ impl Tiling {
         Ok(match method {
             "show_keys" => {
                 self.toggle_keys()
+                    .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+                false
+            }
+            "hide_keys" => {
+                self.hide_keys_if_open()
                     .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
                 false
             }

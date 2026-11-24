@@ -76,6 +76,7 @@ fn the_exported_methods_are_named_once_each() {
         [
             "set_layout",
             "show_keys",
+            "hide_keys",
             "next_layout",
             "get_layout",
             "get_tags",
@@ -170,6 +171,7 @@ fn the_methods_without_parameters_take_nothing() {
     let methods = exported_methods();
     for name in [
         "show_keys",
+        "hide_keys",
         "next_layout",
         "get_layout",
         "get_tags",

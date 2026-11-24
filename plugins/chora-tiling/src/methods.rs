@@ -44,6 +44,12 @@ pub(super) fn layout_methods() -> Vec<ExportMethod> {
             &[],
         ),
         runtime::method(
+            "hide_keys",
+            "Hides the list of all keys when it shows; nothing otherwise. The launcher and the power menu call it before they open.",
+            json!({}),
+            &[],
+        ),
+        runtime::method(
             "next_layout",
             "Goes to the next layout of the current tag, as the binding does.",
             json!({}),
