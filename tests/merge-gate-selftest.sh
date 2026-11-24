@@ -51,7 +51,7 @@ check() {
 
 run_gate() {
     : >"$work/git.log"
-    env -u CHORA_GATE_LOCK_HELD CHORA_GATE_LOCK="$work/gate.lock" \
+    env -u CHORA_GATE_LOCK_HELD MERGE_GATE_NESTED=1 CHORA_GATE_LOCK="$work/gate.lock" \
         PATH="$work/bin:$PATH" FAKE_GIT_LOG="$work/git.log" MERGE_GATE_STEPS="$work/steps" \
         MERGE_GATE_RUNS="$work/runs" "$gate" "$@" >"$work/out" 2>&1
     rc=$?
@@ -676,7 +676,7 @@ check "stray: no left process is alive after the gate" "$(leaky_alive)" 0
 leaky_end
 
 printf 'hang|%s sleep 60\n' "$leaky_start" >"$work/steps"
-env -u CHORA_GATE_LOCK_HELD CHORA_GATE_LOCK="$work/gate.lock" PATH="$work/bin:$PATH" \
+env -u CHORA_GATE_LOCK_HELD MERGE_GATE_NESTED=1 CHORA_GATE_LOCK="$work/gate.lock" PATH="$work/bin:$PATH" \
     FAKE_GIT_LOG="$work/git.log" MERGE_GATE_STEPS="$work/steps" MERGE_GATE_RUNS="$work/runs" \
     "$gate" --jobs 1 >"$work/out" 2>&1 &
 stray_gate=$!
