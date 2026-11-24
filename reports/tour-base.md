@@ -386,3 +386,14 @@ Reviewer: sonnet, not the builder. Step 0 green at cc71e5d9: `git fetch --unshal
 - No take and no gate; the counts per verdict are not producible (no pair), the toml counts are from `tomllib`.
 - Causes by family are not re-proven (rr9-1, known); the 19 red of `--check` and xp-38 are as the report says.
 - Scratch scripts in the scratchpad, not committed.
+
+## r4
+
+rtb3-1 (a check the candidate stops measuring is `same`): fixed.
+
+- Red: 44b79d4e (tests/test_tour_diff.py only). `test_a_check_the_candidate_stops_measuring_is_not_same`: `AssertionError: Tuples differ: ('same', None) != ('regression', ['I6'])`; `Ran 65 tests ... FAILED (failures=1)`. Covers base green and base red, a `check = "I6"` row absorbing it (`change`), and both sides "not measured" staying `same`.
+- Fix: d0801b7e (tests/tour-diff.py, 2 lines). `cand_lost` = checks the candidate marks "not measured" and the base does not; they join `flipped` next to `cand_red`, absorbed only by a `check` row. No new verdict, no new field. `python3 -I tests/test_tour_diff.py`: `Ran 65 tests ... OK`; `pytest tests/test_tour.py -q`: `84 passed`.
+- `demo/tour/run.py --check`: did not finish headless here (killed at the 100 s timeout, no output); no counts per verdict. No capture pair exists, so the diff counts are not producible (as in r3).
+- Full gate `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2`: `all steps passed; no --push, nothing is pushed`, `EXIT 0`, no FAIL line (acts PASS 2056s, e2e PASS 275s). Last cells: tiling-disc, mc-host, tiling-bar, e2e PASS.
+- `pgrep -fa 'chora --headless'` after the gate: empty.
+- Branch claude/tour-base-r4 at d0801b7e, pushed.
