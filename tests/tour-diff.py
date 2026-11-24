@@ -166,9 +166,10 @@ def pixel_diff(a, b, masks=()):
 
 
 def named(rows, kinds):
-    """The row of the first kind in `kinds` that a row names, a row with a cause found before an `open` one."""
+    """The row of the first kind in `kinds` that a row names, an `open` row before one with a cause found:
+    the open diff is not hidden by a found one of the same kind."""
     hits = [r for r in rows if r["kind"] in kinds]
-    return next((r for r in hits if not r.get("open")), hits[0] if hits else None)
+    return next((r for r in hits if r.get("open")), hits[0] if hits else None)
 
 
 def verdict(act, scene, pixel_same, intended, checks=None):
@@ -188,7 +189,7 @@ def verdict(act, scene, pixel_same, intended, checks=None):
     unmeasured = sorted(n for n in set(base) | set(cand) if NOT_MEASURED in (base.get(n), cand.get(n)))
     cand_red = [n for n in unmeasured if cand.get(n) == "red"]
     base, cand = ({n: c for n, c in side.items() if n not in unmeasured} for side in (base, cand))
-    flipped = sorted({n for n, c in base.items() if c == "green" and cand.get(n) != "green"} | {n for n, c in cand.items() if c == "red" and base.get(n) != "red"})
+    flipped = sorted({n for n, c in base.items() if c == "green" and cand.get(n) != "green"} | {n for n, c in cand.items() if c == "red" and base.get(n) != "red"} | set(cand_red))
     absorbed = [n for n in flipped if any(r["kind"] in ("check", "*") and r.get("check", n) == n for r in rows)]
     for n in absorbed:
         row = next(r for r in rows if r["kind"] in ("check", "*") and r.get("check", n) == n)

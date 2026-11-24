@@ -45,13 +45,15 @@ kind = "rect"
 
 [[change]]
 act = "c1"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c1"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); 6a5cfc1d chora-assistant is the only voice presenter; 8ca85eab pager on a face turns the hosted cube; b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); 6a5cfc1d chora-assistant is the only voice presenter; 8ca85eab pager on a face turns the hosted cube; b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "c2"
@@ -65,8 +67,9 @@ kind = "visible"
 
 [[change]]
 act = "c2"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c2b"
@@ -80,8 +83,9 @@ kind = "visible"
 
 [[change]]
 act = "c2b"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c3"
@@ -95,8 +99,9 @@ kind = "visible"
 
 [[change]]
 act = "c3"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c3b"
@@ -110,8 +115,9 @@ kind = "visible"
 
 [[change]]
 act = "c3b"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c3c"
@@ -125,8 +131,9 @@ kind = "visible"
 
 [[change]]
 act = "c3c"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c3d"
@@ -140,8 +147,9 @@ kind = "visible"
 
 [[change]]
 act = "c3d"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c4"
@@ -160,8 +168,9 @@ kind = "visible"
 
 [[change]]
 act = "c4b"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c5"
@@ -180,8 +189,9 @@ kind = "rect"
 
 [[change]]
 act = "c5"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c5b"
@@ -200,13 +210,15 @@ kind = "rect"
 
 [[change]]
 act = "c5b"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c5b"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); 6a5cfc1d chora-assistant is the only voice presenter; 8ca85eab pager on a face turns the hosted cube; b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); 6a5cfc1d chora-assistant is the only voice presenter; 8ca85eab pager on a face turns the hosted cube; b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "c5c"
@@ -220,8 +232,9 @@ kind = "visible"
 
 [[change]]
 act = "c5c"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c5d"
@@ -235,13 +248,15 @@ kind = "visible"
 
 [[change]]
 act = "c5d"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c5e"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "h1"
@@ -595,103 +610,123 @@ kind = "added"
 
 [[change]]
 act = "t1"
-cause = "bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t1b"
-cause = "bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t1c"
-cause = "bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t2"
-cause = "bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t10b"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t1d"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t3"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t3b"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t3c"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t3d"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t3e"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t3f"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t3g"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t3h"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t4"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t5"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t6b"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t6d"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t8b"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t9b"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "x1"
@@ -903,13 +938,15 @@ kind = "check"
 
 [[change]]
 act = "c2b"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); open: more than three causes, none proven for this act alone"
 kind = "rect"
+open = true
 
 [[change]]
 act = "c2b"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "c2b"
@@ -919,8 +956,9 @@ kind = "check"
 
 [[change]]
 act = "c3"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); open: more than three causes, none proven for this act alone"
 kind = "rect"
+open = true
 
 [[change]]
 act = "c3"
@@ -930,13 +968,15 @@ kind = "check"
 
 [[change]]
 act = "c3b"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); open: more than three causes, none proven for this act alone"
 kind = "rect"
+open = true
 
 [[change]]
 act = "c3b"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "c3b"
@@ -946,13 +986,15 @@ kind = "check"
 
 [[change]]
 act = "c3c"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); open: more than three causes, none proven for this act alone"
 kind = "rect"
+open = true
 
 [[change]]
 act = "c3c"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "c3c"
@@ -962,13 +1004,15 @@ kind = "check"
 
 [[change]]
 act = "c3d"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); open: more than three causes, none proven for this act alone"
 kind = "rect"
+open = true
 
 [[change]]
 act = "c3d"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "c3d"
@@ -1004,11 +1048,13 @@ kind = "check"
 act = "c4"
 cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
 kind = "missing"
+open = true
 
 [[change]]
 act = "c4"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); open: more than three causes, none proven for this act alone"
 kind = "rect"
+open = true
 
 [[change]]
 act = "c4"
@@ -1029,13 +1075,15 @@ kind = "check"
 
 [[change]]
 act = "c4b"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); open: more than three causes, none proven for this act alone"
 kind = "rect"
+open = true
 
 [[change]]
 act = "c4b"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "c4b"
@@ -1045,8 +1093,9 @@ kind = "check"
 
 [[change]]
 act = "c5c"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); open: more than three causes, none proven for this act alone"
 kind = "rect"
+open = true
 
 [[change]]
 act = "c5c"
@@ -1056,13 +1105,15 @@ kind = "check"
 
 [[change]]
 act = "c5d"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); open: more than three causes, none proven for this act alone"
 kind = "rect"
+open = true
 
 [[change]]
 act = "c5d"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "c5d"
@@ -1080,11 +1131,13 @@ open = true
 act = "c5e"
 cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c5e"
 cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
 kind = "missing"
+open = true
 
 [[change]]
 act = "c5e"
@@ -1196,8 +1249,9 @@ kind = "added"
 
 [[change]]
 act = "t10c"
-cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 675ebd55 chora-notify shows the notices (sh-31)"
+cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 675ebd55 chora-notify shows the notices (sh-31); open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t6"
@@ -1228,8 +1282,9 @@ kind = "added"
 
 [[change]]
 act = "t7"
-cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 675ebd55 chora-notify shows the notices (sh-31)"
+cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 675ebd55 chora-notify shows the notices (sh-31); open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t8"
@@ -1253,18 +1308,21 @@ kind = "rect"
 
 [[change]]
 act = "x1"
-cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "x10"
-cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "x10b"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found; open: cause not found"
 kind = "added"
+open = true
 
 [[change]]
 act = "x10b"
@@ -1274,13 +1332,15 @@ open = true
 
 [[change]]
 act = "x10c"
-cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "x11b"
-cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "x12"
@@ -1289,8 +1349,9 @@ kind = "rect"
 
 [[change]]
 act = "x12b"
-cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "x12c"
@@ -1326,18 +1387,21 @@ open = true
 
 [[change]]
 act = "x2c"
-cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "x5"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
 kind = "rect"
+open = true
 
 [[change]]
 act = "x5b"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
 kind = "rect"
+open = true
 
 [[change]]
 act = "x5b"
@@ -1347,8 +1411,9 @@ open = true
 
 [[change]]
 act = "x5c"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
 kind = "rect"
+open = true
 
 [[change]]
 act = "x5c"
@@ -1358,8 +1423,9 @@ open = true
 
 [[change]]
 act = "x5d"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
 kind = "rect"
+open = true
 
 [[change]]
 act = "x5d"
@@ -1369,13 +1435,15 @@ open = true
 
 [[change]]
 act = "x5e"
-cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found, the blobs of this act carry no node"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found, the blobs of this act carry no node; open: cause not found"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "x5f"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
 kind = "rect"
+open = true
 
 [[change]]
 act = "x5f"
@@ -1385,13 +1453,15 @@ open = true
 
 [[change]]
 act = "x5g"
-cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found, the blobs of this act carry no node"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found, the blobs of this act carry no node; open: cause not found"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "x6"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
 kind = "rect"
+open = true
 
 [[change]]
 act = "x6"
@@ -1401,8 +1471,9 @@ open = true
 
 [[change]]
 act = "x6b"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
 kind = "rect"
+open = true
 
 [[change]]
 act = "x6b"
@@ -1412,8 +1483,9 @@ open = true
 
 [[change]]
 act = "x6c"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
 kind = "rect"
+open = true
 
 [[change]]
 act = "x6c"
@@ -1423,8 +1495,9 @@ open = true
 
 [[change]]
 act = "x6d"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
 kind = "rect"
+open = true
 
 [[change]]
 act = "x6d"
@@ -1434,23 +1507,27 @@ open = true
 
 [[change]]
 act = "x7"
-cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found, the blobs of this act carry no node"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found, the blobs of this act carry no node; open: cause not found"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "x7b"
-cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "x8"
-cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found, the blobs of this act carry no node"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found, the blobs of this act carry no node; open: cause not found"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "x9b"
-cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found, the blobs of this act carry no node"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found, the blobs of this act carry no node; open: cause not found"
 kind = "pixel"
+open = true
 
 # tour-base r2: the mc acts from the five takes of the bisect (reports/tour-base.md ## r2): one row per act and kind of the head against 733967aa; an open row names the commits in which the cause lies.
 [[change]]
