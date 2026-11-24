@@ -98,3 +98,12 @@ One full run of `tests/merge-gate.sh --jobs 2` (no --only), detached, polled in 
 ### Notes (not touched)
 - co-60 seen again: in the pane flown into from the cube stood back the hint bar keeps the cube's hints (Turn left, Step in, Turn right), co62-after.png. MINOR, waits.
 - MINOR co-44, co-47, co-53, co-55, co-56, co-59 not touched.
+
+## PM review r2 (2026-11-24 02:58 UTC)
+Base 8c411416..b2fa7792 (+120/-16 code and gate, 6 files, construct only). Builder: co-reach-r2 worker; reviewer: PM (under 200 lines).
+- Red first: aabac7ed adds 84 lines of tests_construct.rs only; b2fa7792 the fix. Holds (rules.md 8).
+- co-61: overlay.rs Set::Rest now shares the Flown items (Step back + All keys); hints.rs doc matches. gate-construct-cube floats() now asserts the hint rests and the face is steady (two equal captures) instead of the hint gone: changed with the design, not loosened (the cmp flat vs landed stays). Fixed.
+- co-62: input.rs clicked_pane_stood_back: in Navigate mode a release within CLICK (8 px) of the press takes the move, releases its effect and flies in; a farther release still drops. CLICK made pub(crate), same value. Fixed.
+- No new sleep line; full gate on merge with cae62f50 EXIT 0, 65 PASS (worker).
+- NIT rcr-1: the gate edit sits in the fix commit; acceptable because the old assertion encoded the co-61 fault.
+Verdict (computed): 0 BLOCK, 0 MAJOR -> MERGE-OK b2fa7792. Joins train124.
