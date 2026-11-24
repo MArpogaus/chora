@@ -38,7 +38,9 @@
 #
 # The companions that the units of the flavor start (flavors/FLAVOR/) start
 # too, with choractl run, when their programs exist on the machine; the
-# list of each flavor is the `case` on FLAVOR in this script.
+# list of each flavor is the `case` on FLAVOR in this script. The panel and
+# the wallpaper of tiling are not in it: chora-tiling starts them itself,
+# as in a session of a user, so that a session has one bar (ti-47).
 #
 # When the session is up, it writes KEY=VALUE lines to
 # $PERSONA_DIR/session.env and prints "PERSONA_ENV=<that file>" as its
@@ -239,11 +241,7 @@ companions=()
 for f in "${flavors[@]}"; do
     case $f in
     tiling)
-        companions+=(
-            "tiling sh $repo/flavors/tiling/wallpaper.sh"
-            "tiling sh $repo/flavors/tiling/waybar/waybar.sh $repo/flavors/tiling/waybar"
-            "tiling chora-assistant"
-        )
+        companions+=("tiling chora-assistant")
         ;;
     xp)
         companions+=(

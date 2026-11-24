@@ -20,6 +20,10 @@
 # chora-tiling that arrives before waybar has its handlers is lost, where
 # the default action would end waybar without a word. Waybar sets its own
 # handlers later.
+# One panel per session: the script holds the lock panel.lock in that folder
+# for as long as it and its waybar run, and a second start (the panel unit
+# beside the panel that chora-tiling started, or the other way round) says so
+# on stderr and ends with 0, so that a session never draws two bars.
 # Usage: sh waybar.sh DIR   DIR: the waybar folder of the flavor
 command -v jq >/dev/null 2>&1 || {
     echo "waybar.sh: jq is not installed; the panel of the tiling flavor needs it" >&2
@@ -33,6 +37,13 @@ style=$runtime/chora-tiling-waybar
 pids=$runtime/chora-tiling
 # shellcheck disable=SC2174
 mkdir -p -m 700 "$pids"
+if command -v flock >/dev/null 2>&1; then
+    exec 9>"$pids/panel.lock"
+    flock -n 9 || {
+        echo "waybar.sh: the panel of this session already runs; this start ends" >&2
+        exit 0
+    }
+fi
 
 prepare() {
     # shellcheck disable=SC2174
