@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-24 16:59 UTC)
+## Now (2026-11-24 17:00 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 15:41 PM 4.9 % (11-22) + 5.2 % (11-23) + 4.8 % (11-24), week about 30 % vs 50 % pace
 session branch: 6d336bdf (t129 14:20); 77 greens; t130 14:25: xp-38 r2, flake-series r8, tiling-flake r3, tour-base r4.
@@ -25,7 +25,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 | co-pull-r2.md (rc 2; co-70, co-71; 1 %) | sonnet high, claude/co-pull-r2 be6e62ec | session_016iS3kQfpC9MnJi7JhzqpHe |
 | tour-base-r5.md (F7; rv9j-4, rv9j-5, rtb4-1; 1 %) | sonnet high, claude/tour-base-r5 d0801b7e | session_016iS3kQ1eXAcuS9WmgxHfSS |
 | stray-super-r2.md (rc 1; rss-1, rss-2 MAJOR; 1.5 %) | opus high, claude/stray-super-r2 e1183766 | session_016iS3kM7GXtGirZm9qkxpMf |
-| tiling-doors-r1.md (rc 2; ti-55, ti-56, ti-50; 1 %) | sonnet high, claude/tiling-doors-r1 b02dbea9 | starting |
+| tiling-doors-r1.md (rc 2; ti-55, ti-56, ti-50; 1 %) | sonnet high, claude/tiling-doors-r1 b02dbea9 | session_016iS3kLja4YEVy42LaEmr7i |
 ## Queue (% week; 5 % reserve)
 0. (rc 8) VERIFY-MINOR r2 12/14
 1. (F4, F5, rc 1, 3) TRAIN131 = t130 (mc-scale 5101 ms flake, sh-37; 6 reruns green) + tiling-calm r2 + helper-greet r1, running. TRAIN132: tiling-honest r1 b02dbea9 (MERGE-OK 16:59). (rc 2) TILING-DOORS r1 running.
