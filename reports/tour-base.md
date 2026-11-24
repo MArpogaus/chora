@@ -185,3 +185,96 @@ Reviewer: sonnet, not the builder. Step 0 green at 9616d7d6 (the branch tip has 
 - Causes by family are read from `git show --stat` and element names, not from controlled takes (as briefed): a sha that touches the family is plausible, not proven (rr9-1).
 - `--check` and the takes were not re-run; the 23 red acts and their ids are the report's, matched against the ledger text.
 - The scratch cases for check 2 were run on a copy in the scratchpad, not committed.
+
+## r2 (F7, rc 11, 1b: no unexplained act passes as `change`; rtb-1..8; 2026-11-24)
+
+Branch `claude/tour-base` from 645afaf5 (r1 9616d7d6 plus the session head 05a63377); head **1e62811f** (pushed). Step 0 green: `git fetch --unshallow`, `cargo check --workspace`, `python3 -m pytest tests/test_tour.py -q` (83 passed), `python3 -I tests/test_tour_diff.py` (50 tests OK). Harness and tests only; no product code. The repo hooks refuse attribution lines and subjects over 68 characters, so the commits carry none (the brief says the same).
+
+### Commits (red, then fix, then rows)
+| sha | what |
+|---|---|
+| 457b7ee4 | red: tests only (a)..(d) |
+| 192aebbe | fix: `open` verdict, `check` field, `cand_red`, `BOX_CHECKS` (tests/tour-diff.py, demo/tour/tour.py) |
+| 1bf04706 | red: `IntendedCauses` in tests/test_tour_diff.py (rtb-2, 5, 6, 7 as data tests) |
+| 8649f08d | rows: mc rows from the bisect, co-63, named checks, xp-43, width (demo/tour/intended.toml) |
+| 1e62811f | rows: t6, t6c key list renumbered (a611c08a, fa076e7b); m9b, m10 chat nodes (old rows restored) |
+
+Red at 457b7ee4 (`python3 -I tests/test_tour_diff.py`, `python3 -m pytest tests/test_tour.py -q`):
+```
+(a) FAIL: test_an_open_row_gives_the_verdict_open_not_change        AssertionError: 'change' != 'open'
+(a) FAIL: test_the_f7_count_fails_on_an_open_act                    AssertionError: '1 open' not found in 'm1       Q     change      mc-59\ntour-diff: 0 same, 1 change, 0 regression, 0 none\n'
+(b) ERROR: test_a_check_row_with_a_name_does_not_absorb_another_check   KeyError: 'flipped'   (the row absorbed the I6 flip: no regression)
+(c) FAIL: test_base_not_measured_and_cand_red_is_printed_as_such    AssertionError: 'I6 not measured (cand red)' not found in 'x1       Q     same        I6 not measured\ntour-diff: 1 same, 0 change, 0 regression, 0 none\n'
+(d) E  AttributeError: module 'tour' has no attribute 'BOX_CHECKS'
+    FAILED tests/test_tour.py::CaptureDumps::test_a_baseline_without_boxes_marks_the_box_checks_from_one_constant
+Ran 57 tests ... FAILED (failures=3, errors=1);  1 failed, 83 passed
+```
+Red at 1bf04706 (the data tests): `test_a_check_row_names_its_check`, `test_a_row_names_at_most_three_causes_or_is_open` (49 rows), `test_no_row_cites_co_61_the_ledger_id_of_another_finding`, `test_xp_43_is_cited_only_on_the_acts_that_finding_names`: `Ran 62 tests ... FAILED (failures=4)`.
+
+After 192aebbe: `python3 -m pytest tests/test_tour.py -q`: 84 passed; `python3 -I tests/test_tour_diff.py`: 62 tests OK (after 1e62811f the same).
+
+What the fix is (KISS: one constant, one new verdict, one new field):
+- `tour.BOX_CHECKS = (I2, I5, I6, I9, I12, I13)`: on a snapshot without `scene.boxes` the dump marks them `not measured`, except I6 where a look or block reports a run (`invariants.reported_texts`): that part of I6 reads no box (rtb-4, check 5).
+- tour-diff: a row with `open = true` gives the verdict `open` (a row with a found cause is taken first; `open` never hides an unnamed kind or a flip), exit 1 on `regression` or `open`; the summary line has the four verdicts (`same, change, open, regression, none`).
+- a row of kind `check` with `check = "I2"` absorbs only that flip; without the field it absorbs every flip (old rows).
+- a check that the base marks `not measured` and the candidate reads red is printed `I6 not measured (cand red)` (field `cand_red`; the verdict stays what the rest says; `--check` still counts it, 13 I6 and 10 I2 captures in the full diff below).
+
+### rtb-1: the bisect of mc-59 (mc chapter only)
+Method: the mc chapter (`TOUR_BASELINE=1 TOUR_OUT=... TOUR_REPO=<worktree> python3 demo/tour/run.py mc`) on a worktree at each sha, `cargo build -p chora -p choractl -p chora-mc -p chora-notify -p chora-xp -p chora-assistant`. Five bisect builds; the baseline (733967aa) and the head (05a63377 + harness) are two more builds, not bisect steps. Five criteria read from the captures of each build: m1 `mc-r0-right-notify` present, m1 `mc-r0-right-chat-door` y, m1 `mc-s-ingredients-panels-lead-rule` x, m1 `mc-r0-right-keys-2-key-hit` height, the region slot visible (`mc-regions-N`) at m1 m2 m3 m3b m4 m4b m9.
+
+| build | sha | notify block | chat door y | lead rule x | key hit h | slot m1 m2 m3 m3b m4 m4b m9 |
+|---|---|---|---|---|---|---|
+| base | 733967aa | yes | 194 | 42 | 28 | 0 0 0 0 1 0 0 |
+| 1 | 675ebd55^ (6ddd808f) | yes | 194 | 42 | 28 | 0 0 0 0 1 0 0 |
+| 2 | **675ebd55** chora-notify shows the notices, mc stacks none | no | 110 | 42 | 28 | 0 1 1 1 0 1 0 |
+| 3 | 6fa86c16^ (d3cc19de) | no | 110 | 42 | 28 | 0 1 1 0 0 1 1 |
+| 4 | **6fa86c16** key hit, key text, page 2 copy, empty font, heads, rule | no | 110 | 94 | 56 | 0 1 1 0 0 1 1 |
+| 5 | fa7faabd Home alone goes to the first page (mc-38) | no | 110 | 42 | 28 | 0 1 1 0 0 1 1 |
+| head | 05a63377 | no | 110 | 94 | 56 | 0 1 1 0 0 1 1 |
+
+**The first sha that moves the m1 rect and the visible region slot is 675ebd55** (build 1 equals the baseline in all five columns; build 2 moves the chat door, drops `mc-rN-right-notify`, adds the `notify-card` nodes of chora-notify and flips the slot at m2). The lead rule and the key hit (22 acts, rect) are **6fa86c16**. Not found by sha: the slot parity at m3b and m9 and the pixel, visible, rect diffs of the pages, which lie in (675ebd55..fa7faabd] (284 commits) and (fa7faabd..6fa86c16^] (543), and 3 rects after 6fa86c16. Diff of consecutive builds, acts and kinds (tour-diff, same masks):
+
+| interval | acts | kinds |
+|---|---|---|
+| (733967aa..675ebd55^] | 4 (m1b, m8, m8b, m9b) | pixel 3, rect 4, visible 1 (not a named cause; rows: open) |
+| 675ebd55 | 22 | missing 22, rect 22, visible 12, pixel 8, added 8 |
+| (675ebd55..fa7faabd] | 15 | pixel 15, rect 15, visible 12, added 6, missing 6 |
+| (fa7faabd..6fa86c16^] | 5 | pixel 5, rect 4 |
+| 6fa86c16 | 22 | rect 22 |
+| (6fa86c16..head] | 3 (m7b, m9b, m10) | rect 3 |
+
+Rows (22 mc acts): a (act, kind) cites 675ebd55 or 6fa86c16 where its interval shows the kind, fa7faabd only for the kinds the controlled take of r1 showed (pixel on m5, m5b, m6, m6b, m7c, m8b; visible on m7c, m8b), and every other interval is one `mc-59 open` unit naming the commits it lies in, with `open = true`. The r1 statement "fa7faabd explains the page divergence and the rest is mc-59" stands for the pages; the m1 rect, which r1 credited to fa7faabd, is 675ebd55 and 6fa86c16. mc: 4 acts `change` (m1, m1c, m4, m4b), 18 `open`. The handover acts h1..h1d (the mc part) were not bisected (the brief says the mc chapter only): `open`.
+mc-59 text for the PM: the cause is **found for the column rects, the notify block and the first slot flips (675ebd55) and for the lead rule and key hit (6fa86c16)**; open for the slot parity at m3b and m9 and the remaining pixel and rect diffs: the two intervals above.
+
+### rtb-2..8
+- rtb-2: `co-61 (proposed)` is `co-63 (open)` in the 20 rows (test `test_no_row_cites_co_61...`).
+- rtb-5: the 14 `check` rows carry `check = "I2"`. With I2 now `not measured` on the baseline (BOX_CHECKS) the 14 I2 flips of r1 are no flips any more, so the rows are not used on this pair; they stay for a baseline that measures I2.
+- rtb-6: at most three causes (units split at "; ") per row; 18 rows that were wider are `open` with the unit "open: more than three causes, none proven for this act alone" (x2, x2b, x5b..x6d, x10b, t6, t6c, c2, c4, c5e among them); the 30 rows of record-v9 r2 with more than three causes are listed in the test (`WIDE_BEFORE_R1`), not touched. The `09ff8ff9 ... bd5af4b3` pair is one unit (xp-28), the `co-44 (...; ...)` semicolon is a comma, so the count by "; " is the count of causes.
+- rtb-7: xp-43 only on x10b, x5e, x5g, x7, x8, x9b (named by the finding); the pager unit says "by the position of the blobs, no controlled take" in every row that cites it.
+- rtb-8 (the PM edits the ledger): run order to scene id of construct (rows-construct.json of the take; the 14 acts of co-44, I2, are 4..12 and 14..18): 1 c1, 2 c5, 3 c5b, 4 c2, 5 c5c, 6 c5d, 7 c3, 8 c3b, 9 c3c, 10 c3d, 11 c4, 12 c4b, 13 c5e, 14 c2b, 15 c3e, 16 c3f, 17 c3g, 18 c3h. So co-44 is c2, c5c, c5d, c3, c3b, c3c, c3d, c4, c4b, c2b, c3e, c3f, c3g, c3h (act 13 c5e has I6 only). The same mix-up holds for xp: xp-44 "act x17" is the 17th act of the xp run; its scene id is **x10** (x10b holds the same I6 in `hidden`). And xp-45's I6 'chart' (xp-title-s6) 4.31:1 is red in 11 construct acts (run order 1, 2, 3, 4, 5, 6, 10, 11, 12, 13, 14 = c1, c5, c5b, c2, c5c, c5d, c3d, c4, c4b, c5e, c2b), not the four r1 names. sh-31: t28 is green in this take (see below).
+
+### `run.py --check` and the verdict counts (head 1e62811f, binaries at 05a63377's tree)
+```
+chapter xp: 31 acts, 29 green, 0 inv, 1 known, 1 red, 0 todo, 0 unchecked
+chapter tiling: 28 acts, 28 green, 0 inv, 0 known, 0 red, 0 todo, 0 unchecked
+chapter mc: 22 acts, 22 green, 0 inv, 0 known, 0 red, 0 todo, 0 unchecked
+chapter construct: 18 acts, 0 green, 0 inv, 0 known, 18 red, 0 todo, 0 unchecked
+chapter handover: 11 acts, 11 green, 0 inv, 0 known, 0 red, 0 todo, 0 unchecked
+tour: check: 19 red, 0 broken
+```
+r1 had 23 red: the four tiling acts (t17, t19 ti-30; t21, t28 sh-31) are green on this head (658119d7 key list header 7:1, fa076e7b keycaps 14 px, 60a38634 card text 14 px); the PM may close ti-30 and sh-31 (a take of the same head shows tiling 0 red). 0 unexplained: xp x10 (xp-44); construct 18: I2 14 acts (co-44), I6 chart 11 acts (xp-45), I6 help heads 11 px at c4 (co-45).
+Full take of the head (`TOUR_OUT=... run.py`: 19 red, 0 broken) against the full baseline take of 733967aa (`TOUR_BASELINE=1`: xp 31 red, tiling 28, mc 22, construct stops at `construct.cube.list`, handover BROKE, as designed):
+```
+python3 tests/tour-diff.py <base>/captures <head>/captures --intended demo/tour/intended.toml
+tour-diff: 1 same, 60 change, 38 open, 0 regression, 11 none        (110 captures)
+```
+Per family (acts): xp change 20, open 11; tiling change 25, same 1, open 2; mc change 4, open 18; construct change 11, open 3, none 4; handover open 4, none 7. The 38 open captures: mc 18 (mc-59), xp 11 (more than three causes: x10b x2 x2b x5b x5c x5d x5f x6 x6b x6c x6d), construct 3 (c2, c4, c5e: co-63 open), tiling 2 (t6, t6c), handover 4 (h1..h1d: the mc part is not bisected). **F7 is not met by this count: 38 captures are open, none is hidden**; `tests/tour-diff.py` exits 1 on them. The first full diff of 1e62811f^ showed 4 regressions the rows now name (t6, t6c: the key list renumbered by a611c08a, fa076e7b, which came with the session head; m9b, m10: `added` chat-close nodes; I had dropped those two old rows with the mc block). 16 captures print `not measured (cand red)` (c1..c5e, x10, x10b): the red I6 and I2 of the take that the baseline cannot read.
+Not a finding in `--check` but seen: the mc-only take of the head (`run.py mc`, twice) has act 7 (Escape closes the chat, capture m9b) red: `the chat is shown: ['hud-chat']`; `--check` and the full take of the same head have it green. A timing flake of the 0.2 s settle after 8ba700f5 or 8d0645cc (busy while the regions cross-fade), not bisected: **mc-60 (proposed, MINOR verify, harness or product)**.
+
+### Gate
+GATE_PLACEHOLDER
+
+### Limits
+- The bisect names a sha only where both sides of it were built (675ebd55, 6fa86c16); the other intervals are commit ranges, so their rows are open, not named. fa7faabd was built once (as an interval boundary), its credit is the controlled take of r1.
+- The five takes ran with other builds and the gate not running; the mc-only head take had one flaky act (above). The row text for 675ebd55 and 6fa86c16 is by interval, a row names a sha for the kind in the act, not for every element.
+- The handover chapter and the other families (xp, tiling, construct) have no controlled take; their rows are as in r1 except for the width rule and the open rows above.
