@@ -144,7 +144,7 @@ class Verdict(unittest.TestCase):
     def test_a_pixel_diff_needs_a_pixel_row(self):
         v = diff.verdict("x7", [], False, self.intended)
         self.assertEqual(v["verdict"], "regression")
-        v = diff.verdict("x7", [], False, [{"act": "x7", "kind": "pixel", "cause": "N-6 fixed"}])
+        v = diff.verdict("x7", [], False, [{"act": "x7", "kind": "pixel", "cause": "N-6 fixed", "boxes": [[0, 0, 100, 100]]}], blobs=[(10, 10, 20, 20)])
         self.assertEqual(v["verdict"], "change")
 
     def test_a_check_green_on_replay_and_red_on_v9_is_a_regression(self):
@@ -429,10 +429,78 @@ class RowsPerNode(unittest.TestCase):
         v = diff.verdict("x5", self.SCENE, True, [row])
         self.assertEqual((v["verdict"], v["cause"]), ("change", "29281054 labels"), v)
 
-    def test_a_pixel_row_has_no_node(self):
-        row = {"act": "x5", "kind": "pixel", "cause": "d78fc4bb pager", "nodes": ["xp-pager-1"]}
-        v = diff.verdict("x5", [], False, [row])
+    def test_a_pixel_row_has_boxes_not_nodes(self):
+        row = {"act": "x5", "kind": "pixel", "cause": "d78fc4bb pager", "boxes": [[100, 680, 200, 40]]}
+        v = diff.verdict("x5", [], False, [row], blobs=[(120, 690, 30, 20)])
         self.assertEqual((v["verdict"], v["cause"]), ("change", "d78fc4bb pager"), v)
+
+
+class RowsCannotAbsorbWhatTheyDoNotName(unittest.TestCase):
+    """rtb5-1 (MAJOR): an `added` or `visible` row without `nodes` and a `pixel` row without `boxes` absorbed any later
+    diff of their kind, so an act that is `change` stayed `change` when something unrelated moved. Such a row matches
+    nothing: the act stays `open`."""
+
+    UNRELATED = {"kind": "added", "id": "unrelated-popup"}
+    METAS = {"kind": "meta", "id": "xp-item-3"}
+
+    def rows(self, **extra):
+        return [
+            {"act": "x1", "kind": "meta", "cause": "29281054 labels", "nodes": ["xp-item-3"]},
+            {"act": "x1", "kind": "added", "cause": "371f0fa1 xp desktop", **extra.get("added", {})},
+            {"act": "x1", "kind": "pixel", "cause": "d78fc4bb pager", **extra.get("pixel", {})},
+        ]
+
+    def test_an_unrelated_added_node_and_a_pixel_diff_are_not_a_change(self):
+        """The finding's run: rows without nodes or boxes gave `change`."""
+        v = diff.verdict("x1", [self.UNRELATED, self.METAS], False, self.rows(), blobs=[(500, 300, 40, 40)])
+        self.assertNotEqual(v["verdict"], "change", v)
+        self.assertEqual(v["verdict"], "open", v)
+
+    def test_an_added_row_without_nodes_absorbs_nothing(self):
+        v = diff.verdict("x1", [self.UNRELATED], True, self.rows())
+        self.assertEqual(v["verdict"], "open", v)
+
+    def test_a_visible_row_without_nodes_absorbs_nothing(self):
+        rows = [{"act": "x12c", "kind": "visible", "cause": "20e4ad6e menus shut"}]
+        v = diff.verdict("x12c", [{"kind": "visible", "id": "xp-menu"}], True, rows)
+        self.assertEqual(v["verdict"], "open", v)
+
+    def test_a_pixel_row_without_boxes_absorbs_nothing(self):
+        v = diff.verdict("x1", [], False, [self.rows()[2]], blobs=[(500, 300, 40, 40)])
+        self.assertEqual(v["verdict"], "open", v)
+
+    def test_a_row_with_nodes_is_closed_for_those_nodes_only(self):
+        rows = self.rows(added={"nodes": ["xp-desktop"]}, pixel={"boxes": [[0, 680, 400, 40]]})
+        v = diff.verdict("x1", [{"kind": "added", "id": "xp-desktop"}, self.METAS], False, rows, blobs=[(10, 690, 30, 20)])
+        self.assertEqual((v["verdict"], v["cause"]), ("change", "29281054 labels; 371f0fa1 xp desktop; d78fc4bb pager"), v)
+        v = diff.verdict("x1", [self.UNRELATED, self.METAS], False, rows, blobs=[(10, 690, 30, 20)])
+        self.assertEqual((v["verdict"], v["unnamed"]), ("regression", ["added"]), v)
+
+    def test_a_blob_outside_the_boxes_is_unnamed(self):
+        rows = self.rows(added={"nodes": ["xp-desktop"]}, pixel={"boxes": [[0, 680, 400, 40]]})
+        scene = [{"kind": "added", "id": "xp-desktop"}, self.METAS]
+        v = diff.verdict("x1", scene, False, rows, blobs=[(10, 690, 30, 20), (500, 300, 40, 40)])
+        self.assertEqual((v["verdict"], v["unnamed"]), ("regression", ["pixel"]), v)
+
+    def test_a_pixel_diff_with_no_blob_to_place_is_not_proven_by_boxes(self):
+        rows = self.rows(pixel={"boxes": [[0, 680, 400, 40]]})
+        for blobs in ([], None):
+            v = diff.verdict("x1", [], False, rows, blobs=blobs)
+            self.assertNotEqual(v["verdict"], "change", (blobs, v))
+
+    def test_compare_dirs_passes_the_blobs_of_the_diff(self):
+        """compare() hands the blobs to verdict: a blob outside the boxes is a regression on real files."""
+        with tempfile.TemporaryDirectory() as tmp:
+            base, cand = pathlib.Path(tmp, "b"), pathlib.Path(tmp, "c")
+            for d in (base, cand):
+                d.mkdir()
+            write_capture(base, "x1.Q", size=(100, 100))
+            write_capture(cand, "x1.Q", lambda x, y: (250, 0, 0) if 60 <= x < 90 and 60 <= y < 90 else None, size=(100, 100))
+            row = {"act": "x1", "kind": "pixel", "cause": "d78fc4bb pager"}
+            inside = diff.compare(base, cand, [{**row, "boxes": [[50, 50, 50, 50]]}])
+            outside = diff.compare(base, cand, [{**row, "boxes": [[0, 0, 40, 40]]}])
+            listless = diff.compare(base, cand, [row])
+        self.assertEqual([r["verdict"] for r in inside + outside + listless], ["change", "regression", "open"])
 
 
 class IntendedRows(unittest.TestCase):
@@ -478,6 +546,19 @@ class IntendedCauses(unittest.TestCase):
                 self.assertIsInstance(r["nodes"], list, r)
                 self.assertTrue(r["nodes"] and all(isinstance(n, str) and n for n in r["nodes"]), r)
                 self.assertIn(r["kind"], ("meta", "rect", "missing", "added", "visible", "owner"), r)
+
+    def test_a_row_with_boxes_is_a_pixel_row_of_x_y_w_h(self):
+        """rtb5-1: `boxes` is a list of [x, y, w, h] in the coordinates of tour-diff (pixels of the capture)."""
+        for r in self.rows():
+            if "boxes" in r:
+                self.assertEqual(r["kind"], "pixel", r)
+                self.assertTrue(r["boxes"] and all(isinstance(b, list) and len(b) == 4 and all(isinstance(v, int) for v in b) and b[2] > 0 and b[3] > 0 for b in r["boxes"]), r)
+
+    def test_a_closed_added_visible_or_pixel_row_names_its_nodes_or_boxes(self):
+        """rtb5-1: without them the row absorbs any later diff of its kind (tour-diff keeps its act `open`); a row that
+        cannot say which nodes or where is `open = true`, with the cause it has."""
+        loose = [(r["act"], r["kind"]) for r in self.rows() if r["kind"] in ("added", "visible", "pixel") and not r.get("open") and not r.get("nodes") and not r.get("boxes")]
+        self.assertEqual(loose, [])
 
     SESSION_CAPTIONS = ("fc9675ac", "11e34cf8", "94579f91")
 
