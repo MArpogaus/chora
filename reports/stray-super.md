@@ -365,3 +365,42 @@ and taken (Super+h, Super+1..8 act in the cells); only the log is louder. A cons
 makes an earlier look ungrab and grab its ~200 chords in one batch each time. Each window manager hears the
 `NAME.swallow` of the other three. Outside the listed areas: one test line in `plugins/chora-mc/src/main.rs`
 (`mc_names_its_theme_to_the_hud_host` reads `mc.theme` among the emits, as mc now also says `mc.swallow`).
+
+## Review r3
+
+Reviewer lane review-stray-super-r3 (opus, high, cloud), read-only on `claude/stray-super-r3` 73c6b19c, base 1eb30643.
+Step 0: `git fetch --unshallow` ok, `cargo check --workspace` ok. `cargo test -p chora-kit -p chora-xp -p chora-mc -p chora-tiling
+-p chora-construct` on head: EXIT 0. No gate run (the lane's run 2 at 73c6b19c, EXIT 0, 65 PASS).
+Verdict: **MERGE-OK** (0 BLOCK, 0 MAJOR, 3 MINOR, 0 NIT).
+
+Checks:
+1. Red first holds. ff9218a9 before bb9d4f69 and e92b0b4d; rerun here at ff9218a9: `a_joiner_that_swallows_nothing_leaves_the_swallow_with_the_look`
+   and `a_swallow_says_when_it_starts_and_when_it_stops` FAILED (swallow.rs:378, :431), 9 others ok. 9cdef94c before 0bf236a6.
+   e6aa004f (rss-10) and 73c6b19c touch tests only (73c6b19c: one `grab` in the kit test, the xp test matches no literal).
+2. The rule (`swallow.rs:256-293`, `runtime.rs:477`, `:552`) holds: `client.connected` comes at hello (`crates/chora/src/ipc/hello.rs:130`)
+   and `events.emit` needs hello (`ipc/emit.rs:88`), on the same send path, so a say never comes before the connect. Two joiners, one
+   swallowing: the look yields to the one in `joined`; the swallowing one leaving while the other stays: `joined` empty, the look swallows
+   again; a crash without `off`: `client.disconnected` -> `leaves`; a look reloading connects anew, counts as the last (D119). A middle look
+   that yields keeps `said` true, which is right (it swallows again when the last one goes). All four looks subscribe through
+   `Runtime::subscribe` (xp `hosted.rs:86` too) and dispatch through the kit. Gaps: rss-11, rss-12.
+3. rss-8 fixed (`startup.rs:118-119`, announce before `grab`), rss-9 fixed (construct `EVENTS` has `input.ungrabbed`), rss-10 gone.
+4. xp-46, mc-60, rss-1, rss-2: the lane's gate run 2 (`matrix` with gate-join-keys tiling-first, xp-first, xp-window, mc-first,
+   tiling-overlay; xp-notepad) is green; not rerun.
+5. The mc test line (`main.rs:1891`) is not weakened: it still proves no `mc.theme` before the host and the right theme after it and after
+   the change to Dark (the latest `mc.theme`). The ~75 refusal lines per join: rss-13.
+6. No change in crates/chora; no new `sleep` (`tools/sleep-ratchet`: sleep 779, sleep-all 930); D118 r3 text matches the code.
+
+Findings:
+- rss-11, MINOR (PLAUSIBLE, not reproduced), plugins/chora-construct/src/camera.rs:563, the construct with a cube grabs its bound Super keys
+  (`grab_keys` while `cube.is_some()`) but swallows nothing, so it never says `on`: beside an earlier tiling those keys that tiling swallows
+  are refused and wait, and they come free only when the cube's xp says `on`, when xp's waiting swallow races the construct's waiting
+  binding for each (r2 gave them to the construct at its connect); fix: the construct says `on` whenever it grabs bound keys
+  (`keys_with_pane() || cube`), with a kit or construct unit test.
+- rss-12, MINOR (PLAUSIBLE), crates/chora-kit/src/swallow.rs:146, `say_swallow` sets `said` before the emit and drops a refusal, and the core
+  refuses more than 32 emits per second per client (`crates/chora/src/ipc/emit.rs:16`; xp emits `xp.floating` per changed float, the
+  construct says on each pane toggle): a lost `on` leaves the joiner's bound keys dead (rss-1 back), a lost `off` leaves nobody swallowing
+  (rss-7 back), until the next change; fix: set `said` only on success and say again at the next grab set (or on a short retry).
+- rss-13, MINOR, crates/chora-kit/src/runtime.rs:416, a joiner logs one `X is grabbed already` line per bound key that the earlier swallow
+  held (75 per join in tiling), though each is taken a moment later on `input.ungrabbed`: for a ricer reading the journal 75 refusals read as
+  broken keys (POLS); fix: collect the refusals of one grab set and log one line at `end_grabs` (count, asked again when free), or log only
+  a binding still waiting once the earlier look let go.
