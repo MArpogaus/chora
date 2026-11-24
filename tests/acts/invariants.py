@@ -552,20 +552,27 @@ def guide_breaches(snap):
     nodes = snap.by_id()
     looks = set(looks_with_state(snap))
     contrast = tool("png-contrast")
+    boxes = boxes_on(snap)
+    sizes_out = sizes_of(snap)
+    dialogs = {o.get("id") for s in looks_with_state(snap).values() for o in s.get("open") or []}
     for output, items in sorted(screen_texts(snap).items()):
+        shown = shown_look(snap, output, boxes[output])
         scale, rows = (snap.shots or {}).get(output) or (None, None)
         if rows is None and items and snap.shots is not None:
             out.append(f"no capture of {output}: the contrast of its text cannot be measured")
-        for _i, label, words, rect in items:
+        for index, label, words, rect in items:
             if not words.strip():
                 continue
+            hidden = index is not None and covered(
+                boxes[output], index, len(boxes[output]) - 1, rect, sizes_out[output], shown, dialogs
+            )
             px = sizes.get((label, words))
             least = least_px((nodes.get(label) or {}).get("owner"), looks)
             if px is None:
                 out.append(f"on {output} {words!r} ({label}) has no font size, its size cannot be checked")
             elif px < least and not STATE_WORD.search(label):
                 out.append(f"on {output} {words!r} ({label}) is {px:g} px, the guide wants {least} px")
-            if rows is None:
+            if rows is None or hidden:
                 continue
             x, y = max(int(rect[0] * scale), 0), max(int(rect[1] * scale), 0)
             w = min(int((rect[0] + rect[2]) * scale), len(rows[0]) // 4) - x
