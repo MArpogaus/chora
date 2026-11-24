@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-24 09:32 UTC)
+## Now (2026-11-24 09:39 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 08:18 PM 4.9 % (11-22) + 5.2 % (11-23) + 2.9 % (11-24), week about 26 % vs 45 % pace
 session branch: 2235551f (t125 green 07:50: xp-title); 75 greens; t126 red: sh-39 flake (e2e apps-click, alone 3/3); train127 09:03 guard-4+co-reach-r4+tiling-reach.
@@ -23,7 +23,6 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin: W9 779 = RC; GUARD-4
 | Lane | Model, branch | State |
 |---|---|---|
 | p2-r10-co.md (rc 2; co-64/65/67; 0.8 %) | sonnet medium, claude/p2-r10-co f1457035 | session_016iS3kQimoWgLMfuE8TZQyN |
-| review-tour-base-r3.md (F7; 0.5 %) | sonnet high, claude/tour-base cc71e5d9 | session_016iS3kMcuVS583VHZPFG6Z9 |
 | flake-series-r8.md (F5, F4; 1.2 %) | sonnet high, claude/flake-series-r7 6f7bcb26 | session_016iS3kPwWVUYse7EqYxr313 |
 | tiling-calm-r1.md (rc 2, 8; 1 %) | sonnet high, claude/tiling-calm ad0093ba | session_016iS3kLdvEtaUtMWPs87vDJ |
 | xp-polish-r1.md (rc 8; 1 %) | sonnet high, claude/xp-polish 2235551f | session_016iS3kNmUxToFmubQNgEQYh |
@@ -32,7 +31,7 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin: W9 779 = RC; GUARD-4
 1. (F4, F5, rc 1) TRAIN127 guard-4, co-reach-r4 f1457035, tiling-reach 4e257c06; TILING-CALM r1 (ti-27, ti-50), then persona r8.
 2. (rc 1, 2; 2 %) co-64, co-65 fixed (CO-REACH r3 MERGE-OK, train127 r3b); co-67 fixed r4 MERGE-OK (train127); next persona r10; TILING-REACH r1, then persona r7.
 3. (rc 3, 9; F5) FLAKE-SERIES r8 (rfs7-1, rfs7-2; sh-38 leak slope).
-4. (F7, rc 11) TOUR-BASE r3 done cc71e5d9 (gate 56/1 foreign xp-38); REVIEW r3; MERGE-OK -> train.
+4. (F7, rc 11) TOUR-BASE r3 cc71e5d9 MERGE-OK (review r3: rtb3-1 MINOR) -> train128 after 127.
 5. (F4, F5) after train127: FLAKE-SERIES r8 5/5 on final head (haiku 1 %), TOUR-V9 final take + 5 reviews (2.5 %), CI-PR (rc 4, 5). (rc 1) after reviews: co-44, co-45 only when construct has no open MAJOR (rules.md 6); rtd-5, rtd-7 MINOR backlog.
 
 ## Needs owner
