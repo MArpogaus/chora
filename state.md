@@ -22,13 +22,13 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin: W9 779 = RC; GUARD-4
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| p2-r10-co.md (rc 2; co-64/65/67; 0.8 %) | sonnet medium, claude/p2-r10-co f1457035 | starting |
+| p2-r10-co.md (rc 2; co-64/65/67; 0.8 %) | sonnet medium, claude/p2-r10-co f1457035 | session_016iS3kQimoWgLMfuE8TZQyN |
 | tour-base-r3.md (F7, rc 11; 0.8 %) | sonnet high, claude/tour-base 883214b5 | session_016iS3kLPAifTAZd7mvFfrRp |
 | flake-series-r8.md (F5, F4; 1.2 %) | sonnet high, claude/flake-series-r7 6f7bcb26 | session_016iS3kPwWVUYse7EqYxr313 |
 | tiling-calm-r1.md (rc 2, 8; 1 %) | sonnet high, claude/tiling-calm ad0093ba | session_016iS3kLdvEtaUtMWPs87vDJ |
 | xp-polish-r1.md (rc 8; 1 %) | sonnet high, claude/xp-polish 2235551f | session_016iS3kNmUxToFmubQNgEQYh |
 ## Queue (% week; 5 % reserve)
-0. (rc 8) VERIFY-MINOR r2 done: 9 of 14 closed or fixed; open xp-14, xp-15 label, xp-17, xp-34 -> XP-POLISH r1; xp-34 known; xp-18 verify.
+0. (rc 8) VERIFY-MINOR r2: 9 of 14 closed; xp-14, xp-15, xp-17 -> XP-POLISH r1; xp-34 known; xp-18 verify.
 1. (F4, F5) TRAIN126 guard-4; then train127 co-reach-r4 f1457035 (MERGE-OK, incl. r3b) + tiling-reach 4e257c06; TILING-CALM r1 (ti-27, ti-50), then persona r8.
 2. (rc 1, 2; 2 %) co-64, co-65 fixed (CO-REACH r3 MERGE-OK, train127 r3b); co-67 fixed r4 MERGE-OK (train127); next persona r10; TILING-REACH r1, then persona r7.
 3. (rc 3, 9; F5) FLAKE-SERIES r8 (rfs7-1, rfs7-2; sh-38 leak slope).
