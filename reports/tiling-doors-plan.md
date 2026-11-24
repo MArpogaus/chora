@@ -82,3 +82,6 @@ Rules: push claude/tiling-doors-r1 and claude/session-log only (fetch and merge 
 
 1. In a session with tiling only (the default), should the `Looks` word hide, or show and open to `No other look is running`? The plan shows it because it is honest and teaches the word. Hiding it needs a polled module (about 10 more lines).
 2. ti-55 is proven only by a persona: should persona round r9 keep the ricer's T7 wording unchanged ("the second look (the one with a start button)") so that it measures this door?
+
+## PM note r1
+Plan accepted as written (KISS: one bar word, one rate-limited chip, one reorder; theme rows renamed so "look" means one thing). Open question decided: Looks stays visible in a tiling-only session and says "No other look is running" (honest state, POLS: the door is where the user learnt it). TILING-DOORS r1 (sonnet high) starts from the TILING-HONEST r1 head once that is MERGE-OK (one lane per look), with the brief body of this report.
