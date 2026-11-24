@@ -22,7 +22,7 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin); F5 7 rows, no serie
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| review-flake-series-r8.md (F5; 0.5 %) | opus medium, d2c2174c | starting |
+| review-flake-series-r8.md (F5; 0.5 %) | opus medium, d2c2174c | session_016iS3kQhGkPs6wBQKttHSum |
 | tiling-flake-r3.md (sh-39, sh-40; 1 %) | sonnet high, claude/tiling-flake-r3 4e257c06 | session_016iS3kPxH8AyTt14UBrf3hi |
 | xp-38-r2.md (rc 3) | sonnet high, claude/xp-38-r2 2235551f | session_016iS3kLvpV2kdtwhHXTnNRh |
 | tour-base-r4.md (F7; rtb3-1; 0.5 %) | sonnet medium, claude/tour-base-r4 d40142e4 | session_016iS3kNJtZ94HWpr1njZs7F |
