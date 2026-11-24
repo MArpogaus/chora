@@ -73,8 +73,8 @@ ok "the launcher moves a window to the xp, media center and construct desktop in
 [ "$(sed -n 2p "$work/fake/rows.2")" = "$(head -n 1 "$rows")" ] || fail "the list does not show again under the row"
 ok "text that finds nothing shows the list again under the row Nothing found"
 
-grep -qxF "Chat with a helper · atlas" "$rows" ||
-    fail "no launcher row \"Chat with a helper · atlas\" for the helper that the door names: $(tr '\n' '|' <"$rows")"
+grep -qxF "Chat with a helper (atlas)" "$rows" ||
+    fail "no launcher row \"Chat with a helper (atlas)\" for the helper that the door names: $(tr '\n' '|' <"$rows")"
 [ "$(grep -ci 'helper' "$rows")" = 1 ] || fail "more than one launcher row for the helper: $(tr '\n' '|' <"$rows")"
 echo "No helper" >"$work/fake/door"
 PATH=$work/fake:$real_path timeout 20 "$bin/chora-tiling" --launch fuzzel >/dev/null 2>&1

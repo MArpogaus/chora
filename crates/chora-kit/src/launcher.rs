@@ -88,15 +88,38 @@ pub fn helper_of_door(door: &str) -> Option<String> {
         .map(str::to_owned)
 }
 
+/// The name of the helper that its door says, from `chora-chat --door`;
+/// none without a helper, without the program, or when it does not answer
+/// within two seconds.
+#[must_use]
+pub fn helper_name() -> Option<String> {
+    let (send, receive) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let out = Command::new(HELPER_PROGRAM)
+            .arg("--door")
+            .stderr(Stdio::null())
+            .output()
+            .ok()
+            .filter(|out| out.status.success());
+        let _ = send.send(out.map(|out| String::from_utf8_lossy(&out.stdout).into_owned()));
+    });
+    let door = receive
+        .recv_timeout(std::time::Duration::from_secs(2))
+        .ok()??;
+    helper_of_door(&door)
+}
+
 /// The row of the chat with a helper names the helper: `Chat with a
-/// helper · atlas`, so that its name finds it as the word helper does.
+/// helper (atlas)`, so that its name finds it as the word helper does. The
+/// name stands in plain ASCII: fuzzel in the C locale matches no row that has
+/// a multibyte character such as the middle dot of a door word.
 #[must_use]
 pub fn helper_named(mut apps: Vec<App>, name: &str) -> Vec<App> {
     for app in apps
         .iter_mut()
         .filter(|a| a.words.last().is_some_and(|w| w == HELPER_PROGRAM))
     {
-        app.name = format!("{} · {name}", app.name);
+        app.name = format!("{} ({name})", app.name);
     }
     apps
 }
@@ -390,7 +413,7 @@ mod tests {
             .into_iter()
             .map(|a| a.name)
             .collect();
-        assert_eq!(names, ["Chat with a helper · atlas", "Zed"]);
+        assert_eq!(names, ["Chat with a helper (atlas)", "Zed"]);
     }
 
     #[test]
