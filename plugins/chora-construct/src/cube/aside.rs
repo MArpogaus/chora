@@ -174,6 +174,60 @@ impl Construct {
         self.asides.extend(asides);
     }
 
+    /// Shows the pane that just opened, the last one. While the cube
+    /// stands back, a pane that lands where the cube covers it, or
+    /// inside it, goes beside the cube first, as `make_way` places a pane
+    /// that was there at the step back, so that it shows where the person
+    /// sees it. It has no home to go back to: it stays there after a step
+    /// in, and the way to it stays open (co-67).
+    pub(crate) fn show_new_pane(&mut self) -> Result<(), ClientError> {
+        let (lens, pose) = (self.lens, self.pose);
+        let Some(i) = self.panes.len().checked_sub(1) else {
+            return Ok(());
+        };
+        let name = self.panes[i].name.clone();
+        let stood = (self.cube.as_mut())
+            .filter(|h| !h.view().forwards())
+            .map(|h| h.stood(&lens, &pose));
+        if let Some((centre, Some(cube))) = stood {
+            self.open_beside_cube(i, &name, centre, cube)?;
+        }
+        self.frame()
+    }
+
+    /// Places the pane `i`, `name`, beside the cube at `centre` that
+    /// covers `cube` on the screen, when it covers or hides the pane.
+    fn open_beside_cube(
+        &mut self,
+        i: usize,
+        name: &str,
+        centre: [f64; 2],
+        cube: [f64; 4],
+    ) -> Result<(), ClientError> {
+        let pose = self.pose;
+        let Some(host) = self.cube.as_ref() else {
+            return Ok(());
+        };
+        let pane = &self.panes[i];
+        if !crate::frame::overlaps(cube, self.screen_box_of(pane)) {
+            return Ok(());
+        }
+        let mut taken = [0.0; 2];
+        for other in self.panes.iter().filter(|p| p.name != name) {
+            let across = host.across(centre, other.at);
+            if across.abs() >= host.clearance() {
+                taken[usize::from(across > 0.0)] += other.size[0] + GAP * host.cube.size[0];
+            }
+        }
+        let across = host.across(centre, pane.at);
+        let sides = if across < 0.0 { [0, 1] } else { [1, 0] };
+        let (_, to) = self.place_beside(host, centre, (sides, taken), pane.size);
+        let yaw = space::facing([pose.x, pose.z], to);
+        self.panes[i].at = to;
+        self.panes[i].yaw = yaw;
+        self.rt.conn.apply(self.placed(&self.panes[i]))
+    }
+
     /// The pane that shows beside the cube that stands back: in front of
     /// the camera, on the screen and clear of the cube (co-64).
     pub(crate) fn beside_cube(&self) -> Option<usize> {

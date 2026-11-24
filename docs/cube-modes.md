@@ -237,7 +237,10 @@ view when the cube stands back, and a drag drops it on a face again. A
 pane in front of the cube, placed or not, such as a terminal that stood
 where the cube opened, moves beside the cube while the cube stands back,
 so that the cube shows whole and no window is lost behind it, and goes
-home when the cube steps in or closes. A pane that nobody placed and that
+home when the cube steps in or closes. A window that opens while the cube stands back, started from
+Programs or by its key, opens beside the cube in the same way, clear of
+it and where the person sees it; it has no home inside the cube, so it
+stays there after `Alt+Escape` and after a step in, and `Tab` lists it. A pane that nobody placed and that
 still covers the cube that stands back gives way to it. A saved construct file keeps `placed: true` of a pane, so it stays in view after a restart.
 
 While the cube stands back or turns, the windows on its faces float in
