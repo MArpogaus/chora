@@ -1,0 +1,76 @@
+# tiling-honest
+
+## r1
+
+Lane tiling-honest r1 (sonnet, high, rc 1), claude/tiling-honest-r1 from bb4c07d9. **Head b02dbea9**, pushed.
+Closes ti-52 (rpt1-1) and ti-53 (rpt1-2). Out of scope and untouched: rpt1-3..rpt1-10 (ti-54).
+
+### Commits
+- f068941a red (tests only, cites ti-52 and ti-53):
+  - `tests/doors/tiling.sh` cell helper-door: after the click opens the chat it waits for the field to hold the
+    keyboard, types `hallo` and Return, and wants the text in the log of the helper `coder` and no key in the probe window.
+  - `tests/gate-tiling-reload-notice.sh` (new, step tiling-system): a valid reload (gap_inner 30), then a broken line
+    `  gap_inner 20` (no colon) and a wrong action `MOD+Shift+y: frobnicate`, each with MOD+Ctrl+r; it wants a notice of
+    chora-notify that names `chora-tiling.yaml` and the reason, a card on the screen, and gap_inner still 30.
+  - Red on bb4c07d9:
+    - `tiling: the click gave the chat field no keyboard: chat open yes, window enter, focused ["s1"]` and `cell tiling helper-door missing`
+    - `ok: a valid file reloads: gap_inner 30`, then `FAIL: line: no notice names the file: []` (notify `shown: []`)
+- 46760cf7 fix ti-52 and ti-53:
+  - ti-52: the bar word called `choractl run -- chora-chat`, a new connection that holds no act, so its token was
+    unstamped (ipc.rs:996-1011) and the chat field never took the keyboard. Now `on-click` is
+    `choractl call tiling show_helper`: tiling starts the chat with its own token, the same call as MOD+a
+    (`Host::run`). One core change was needed for that token to carry an act: `input.rs press_layer`. A real press on a
+    layer surface (the bar) is noted as an act of the manager whose claim holds the point, else of the first manager (the bar
+    lies outside the tiling claim, measured: with the claim only the cell stayed red). `ipc.rs` is unchanged. The method
+    `show_helper` is privileged (a confined caller cannot call it) and is in docs/configuration.md.
+  - ti-53: `plugins/chora-tiling/src/reload.rs`. On a failed MOD+Ctrl+r tiling shows one notice of chora-notify
+    (the existing notify path, no new message type): "Settings not applied", the file by name, the parser's line and
+    cause cut short (the "expected one of" list goes), "The old settings stay."; 12 s; the notice of an earlier failure is
+    dismissed first (a `replaces` of a dismissed id closed the new notice in the same batch, found in the gate). German
+    text under a German session. The settings were never changed by a failed reload (`undo`); the gate checks it.
+- b02dbea9: cut-check forbids chora-tiling naming chora-chat: `show_helper` starts `chora_kit::launcher::HELPER_PROGRAM`
+  (the program of the Apps row, now `pub`).
+- Limits: a wrong value (a wrong action name) has no line number in the parser's text (settings.rs comment), so that
+  notice names the file and the cause only; a line comes where the YAML parser has one. The card is chora-notify's
+  neutral light card (rpt1-4, ti-54, not touched).
+
+### Repros by hand on b02dbea9 (fresh `tests/persona/session.sh tiling 1280x720`, `--test-injected-press-is-real`)
+- rpt1-1: `key Super+Return`, `click 932 24` (the bar word, capture at scale 1), `type "echo LEAKED-FIX"`: the chat opens
+  beside the tile, the text stands in the chat field with its caret, foot shows only its prompt (`clear` before). Capture
+  `media/2026-11-24/tiling-honest/rpt1-1-helper-click-keys.png`. (A first try with the capture at scale 0.625 missed the
+  word and the text went to foot: a harness slip, not the product.)
+- rpt1-2: `chora-tiling --print-config`, `  gap_inner 20` under `radius:`, Super+Ctrl+r, with `choractl run -- chora-notify`:
+  `notify state.get` `shown`: `[{"summary":"Settings not applied","body":"chora-tiling.yaml: simple key expected ':' at line 24, column 3\nThe old settings stay.", ...}]`,
+  the card stands at the bottom right over the tile. Capture `media/2026-11-24/tiling-honest/rpt1-2-reload-notice.png`.
+
+### Gate
+- Full run on b02dbea9 (`tests/merge-gate.sh --jobs 2`, no --only): all 65 steps PASS, `EXIT 0`, no foreign red
+  (run directory /tmp/merge-gate.WNpIWk). An earlier full run on 46760cf7 stopped at ci-check:
+  `FAIL: cut-check: names: chora-tiling names chora-chat on 1 lines, first plugins/chora-tiling/src/main.rs:890`
+  (mine; fixed in b02dbea9).
+- Last lines of /tmp/gate.log:
+```
+e2e        PASS   264s
+tiling-bar PASS   156s
+mc-host    PASS    17s
+tiling-disc PASS   69s
+tiling-theme PASS    18s
+leak       PASS   309s
+demo       PASS   200s
+xp-run     PASS    11s
+tiling-windows PASS   153s
+watchdog-starved PASS   50s
+mc-scale   PASS    11s
+handover   PASS    23s
+tiling-system PASS    13s
+tiling-keys-more PASS    40s
+agent      PASS    36s
+voice-events PASS     1s
+voice-acp  PASS    11s
+mc-column  PASS    46s
+launcher-click PASS    17s
+all steps passed; no --push, nothing is pushed
+EXIT 0
+```
+- Kept: tour tiling `28 acts, 28 green, 0 red`; tour handover `11 acts, 11 green, 0 red`; `cargo test -p chora-tiling` 197
+  passed; `tools/sleep-ratchet` ok (sleep 778, sleep-all 929: below the list, no new sleep line); no `chora --headless` left.
