@@ -1,0 +1,40 @@
+run 1 step in:
+  front 0 mode use, core focus {"holder": "construct"} open []
+  xp focus {"holder": null}
+run 1 after Foot from Programs:
+  front 0 mode use, core focus {"holder": null} open []
+  xp focus {"holder": "xp", "surface": "s1"}
+  surface s1 owner xp visible True rect None
+run 1 done
+run 2 step in:
+  front 0 mode use, core focus {"holder": "construct"} open []
+  xp focus {"holder": null}
+run 2 after Foot from Programs:
+  front 0 mode use, core focus {"holder": null} open []
+  xp focus {"holder": "xp", "surface": "s1"}
+  surface s1 owner xp visible True rect None
+run 2 done
+run 3 step in:
+  front 0 mode use, core focus {"holder": "construct"} open []
+  xp focus {"holder": null}
+run 3 after Foot from Programs:
+  front 0 mode use, core focus {"holder": null} open []
+  xp focus {"holder": "xp", "surface": "s1"}
+  surface s1 owner xp visible True rect None
+run 3 done
+run 4 step in:
+  front 0 mode use, core focus {"holder": "construct"} open []
+  xp focus {"holder": null}
+run 4 after Foot from Programs:
+  front 0 mode use, core focus {"holder": null} open []
+  xp focus {"holder": "xp", "surface": "s1"}
+  surface s1 owner xp visible True rect None
+run 4 done
+run 5 step in:
+  front 0 mode use, core focus {"holder": "construct"} open []
+  xp focus {"holder": null}
+run 5 after Foot from Programs:
+  front 0 mode use, core focus {"holder": null} open []
+  xp focus {"holder": "xp", "surface": "s1"}
+  surface s1 owner xp visible True rect None
+run 5 done

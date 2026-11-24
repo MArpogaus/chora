@@ -1,0 +1,6 @@
+run 1: sheet open before: [{'id': 'construct-help', 'kind': 'sheet', 'modal': True}], close at [1037 757], after esc: [], focus {"holder": "construct"}; closed: yes
+run 2: sheet open before: [{'id': 'construct-help', 'kind': 'sheet', 'modal': True}], close at [1037 757], after esc: [], focus {"holder": "construct"}; closed: yes
+run 3: sheet open before: [{'id': 'construct-help', 'kind': 'sheet', 'modal': True}], close at [1037 757], after esc: [], focus {"holder": "construct"}; closed: yes
+run 4: sheet open before: [{'id': 'construct-help', 'kind': 'sheet', 'modal': True}], close at [1037 757], after esc: [], focus {"holder": "construct"}; closed: yes
+run 5: sheet open before: [{'id': 'construct-help', 'kind': 'sheet', 'modal': True}], close at [1037 757], after esc: [], focus {"holder": "construct"}; closed: yes
+co71 esc hr12: 5/5 closed

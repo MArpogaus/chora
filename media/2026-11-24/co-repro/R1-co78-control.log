@@ -1,0 +1,35 @@
+run 1 sheet open:
+  front 0 mode use, core focus {"holder": "construct"} open [{'id': 'construct-help', 'kind': 'sheet', 'modal': True}]
+  xp focus {"holder": null}
+run 1 after Escape:
+  front 0 mode use, core focus {"holder": "construct"} open []
+  xp focus {"holder": null}
+run 1 done
+run 2 sheet open:
+  front 0 mode use, core focus {"holder": "construct"} open [{'id': 'construct-help', 'kind': 'sheet', 'modal': True}]
+  xp focus {"holder": null}
+run 2 after Escape:
+  front 0 mode use, core focus {"holder": "construct"} open []
+  xp focus {"holder": null}
+run 2 done
+run 3 sheet open:
+  front 0 mode use, core focus {"holder": "construct"} open [{'id': 'construct-help', 'kind': 'sheet', 'modal': True}]
+  xp focus {"holder": null}
+run 3 after Escape:
+  front 0 mode use, core focus {"holder": "construct"} open []
+  xp focus {"holder": null}
+run 3 done
+run 4 sheet open:
+  front 0 mode use, core focus {"holder": "construct"} open [{'id': 'construct-help', 'kind': 'sheet', 'modal': True}]
+  xp focus {"holder": null}
+run 4 after Escape:
+  front 0 mode use, core focus {"holder": "construct"} open []
+  xp focus {"holder": null}
+run 4 done
+run 5 sheet open:
+  front 0 mode use, core focus {"holder": "construct"} open [{'id': 'construct-help', 'kind': 'sheet', 'modal': True}]
+  xp focus {"holder": null}
+run 5 after Escape:
+  front 0 mode use, core focus {"holder": "construct"} open []
+  xp focus {"holder": null}
+run 5 done

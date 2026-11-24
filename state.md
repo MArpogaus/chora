@@ -1,17 +1,17 @@
 # State
 
-## Now (2026-11-24 17:00 UTC)
+## Now (2026-11-24 20:13 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 15:41 PM 4.9 % (11-22) + 5.2 % (11-23) + 4.8 % (11-24), week about 30 % vs 50 % pace
-session branch: 6d336bdf (t129 14:20); 77 greens; t130 14:25: xp-38 r2, flake-series r8, tiling-flake r3, tour-base r4.
+budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 20:13 PM 5.2 % (11-23) + 5.1 % (11-24) + 0.8 % (11-25), week about 32 % vs 53 % pace: under-spending, fill 6 lanes
+session branch: c3c37c2e (t132 19:20); 80 greens; t132: tiling-honest r1 (ti-52, ti-53), co-pull r2 (co-70, co-71).
 burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open, 3 regr)
 
 ## RC
 | # | Criterion | State |
 |---|---|---|
-| 1, 1b | No BLOCK/MAJOR, independent pass; owner sees v9 | open: rc1-pass r1 xp, mc not confirmed (xp-46, mc-60 MAJOR; xp-47 MERGE-OK); tiling not confirmed (ti-52, ti-53 MAJOR); sh-38 |
-| 2 | Persona r4 | xp, mc meet; co r9 not met; tiling r8 not met (ti-55 T7, ti-56 L1; ti-27, ti-47 fixed) |
-| 3 | 3 greens, no flake | r6 0/5; r7 2/3 (sh-38); FLAKE-SERIES r8 |
+| 1, 1b | No BLOCK/MAJOR, independent pass; owner sees v9 | open: xp, mc: xp-46, mc-60 (review r2 FIX rss-7; STRAY-SUPER r3); sh-42 MAJOR 5/5 (SH42-FIX r1); xp-47 merged t131; tiling: ti-52, ti-53 merged t132; construct: co-75 BLOCK, co-76 MAJOR (rc1-pass r1; CO-CLOSE r1); sh-38 merged t130 |
+| 2 | Persona r4 | xp, mc meet; co r9 not met; tiling r8 not met (ti-55 T7, ti-56 L1) |
+| 3 | 3 greens, no flake | t130, t131, t132 green; FLAKE-SERIES r9 5/5 on c3c37c2e running |
 | 4, 5 | CI green on a PR; packaging | pre-commit green; CI PR at release |
 | 6 | Review per area | r1 MERGE-OK (0 MAJOR; MC-FOCUS) |
 | 7 | deny, machete; updates | url 2.5.9 GUARD-3 MERGE-OK 49f65382; train118 |
@@ -22,16 +22,17 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| co-pull-r2.md (rc 2; co-70, co-71; 1 %) | sonnet high, claude/co-pull-r2 be6e62ec | session_016iS3kQfpC9MnJi7JhzqpHe |
-| tour-base-r5.md (F7; rv9j-4, rv9j-5, rtb4-1; 1 %) | sonnet high, claude/tour-base-r5 d0801b7e | session_016iS3kQ1eXAcuS9WmgxHfSS |
-| stray-super-r2.md (rc 1; rss-1, rss-2 MAJOR; 1.5 %) | opus high, claude/stray-super-r2 e1183766 | session_016iS3kM7GXtGirZm9qkxpMf |
+| tour-base-r6.md (F7; rtb5-1 MAJOR; 1 %) | sonnet high, claude/tour-base-r6 61d0ef7a | session_016iS3kNhSNkSHNMgkjDGCwZ |
+| stray-super-r3.md (rc 1; rss-7 MAJOR; 1.5 %) | opus high, claude/stray-super-r3 1eb30643 | session_016iS3kQeFgVrTUeBWbwLj1s |
+| flake-series-r9.md (rc 3, F5; 5/5; 0.6 %) | haiku high, claude/flake-series-r9 c3c37c2e | session_016iS3kL6R9aghhfvTsKiyJx |
 | tiling-doors-r1.md (rc 2; ti-55, ti-56, ti-50; 1 %) | sonnet high, claude/tiling-doors-r1 b02dbea9 | session_016iS3kLja4YEVy42LaEmr7i |
+| sh42-fix-r1.md (rc 1; sh-42 MAJOR; 1.5 %) | opus high, claude/sh42-fix-r1 c3c37c2e | session_016iS3kMHuyqcookRmRRXXJB |
+| co-close-r1.md (rc 1; co-75 BLOCK, co-76 MAJOR; 1.5 %) | opus high, claude/co-close-r1 280b9dcf | session_016iS3kN4bp8VEeTupxTZ58i |
 ## Queue (% week; 5 % reserve)
-0. (rc 8) VERIFY-MINOR r2 12/14
-1. (F4, F5, rc 1, 3) TRAIN131 = t130 (mc-scale 5101 ms flake, sh-37; 6 reruns green) + tiling-calm r2 + helper-greet r1, running. TRAIN132: tiling-honest r1 b02dbea9 (MERGE-OK 16:59). (rc 2) TILING-DOORS r1 running.
-2. (rc 2) CO-PULL r1 merged t129; r11-co not met (C2: co-70 MAJOR, co-71); CO-PULL r2, then r12-co.
-3. (rc 3, 9; F5) FLAKE-SERIES r8 (rfs7-1, rfs7-2; sh-38 leak slope); TILING-FLAKE r3 MERGE-OK (sh-39, sh-40).
-4. (F7, rc 11) JUDGE r1: no new BLOCK/MAJOR; rv9j-1..5 MINOR; open stays until rows prove: TOUR-BASE r5; then the v9 take again.
+1. (rc 1, 2) TRAIN132 green c3c37c2e (ti-52, ti-53, co-70, co-71). TILING-DOORS r1 running.
+2. (rc 1, 2) construct after CO-CLOSE r1: co-79 MAJOR round (+co-77, co-78 MINOR confirmed by CO-REPRO r1). sh-42: SH42-FIX r1 (repro r2 5/5).
+3. (rc 3, F5) FLAKE-SERIES r9 5/5 on c3c37c2e running.
+4. (F7, rc 11) TOUR-BASE r6 running (rtb5-1..3); then v9 take; rv9j-1..5 MINOR after.
 5. (F4, F5) after train127: FLAKE-SERIES r8 5/5 on final head (haiku), TOUR-V9 final take + 5 reviews (2.5 %), CI-PR (rc 4, 5). (rc 1) after reviews: co-44, co-45 only when construct has no open MAJOR (rules.md 6); rtd-5, rtd-7 MINOR backlog.
 
 ## Needs owner
