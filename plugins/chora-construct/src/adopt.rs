@@ -146,7 +146,7 @@ impl Construct {
             return Ok(());
         }
         self.panes.push(pane);
-        self.frame()
+        self.show_new_pane()
     }
 
     /// Whether the window has no buffer yet: the core knows no size of it.
