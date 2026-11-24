@@ -132,3 +132,24 @@ fn a_pane_flown_into_in_the_walk_keeps_its_way_out_after_the_hints_went() {
         "a hint leads out of the pane after the 3 s"
     );
 }
+
+/// rcc1-1 (review r1 of co-close, MAJOR): flown into a pane from a face,
+/// with the cube still in use mode, `Super+x` closes that pane's window:
+/// it fills the screen with the keyboard, so it is the one the person
+/// sees focused.
+#[test]
+fn super_x_flown_into_a_pane_from_a_face_closes_that_pane() {
+    let (mut construct, core, lines) = in_a_face_beside_a_pane("close-flown", false);
+    construct.fly_in(0).unwrap();
+    construct.flown = crate::camera::take_flight(&mut construct.glide);
+    assert!(construct.in_pane(), "the camera is in the pane");
+    core.model().lock().unwrap().scene.set_focused(Some("s1"));
+    chora_kit::runtime::Plugin::event(&mut construct, focus_changed(Some("s1"))).unwrap();
+    lines.lock().unwrap().clear();
+    chora_kit::actions::perform::Host::close(&mut construct).unwrap();
+    assert_eq!(
+        closed(&lines),
+        vec!["s1".to_owned()],
+        "Super+x closes the pane flown into"
+    );
+}
