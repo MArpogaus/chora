@@ -63,7 +63,8 @@ bar_changes() { ctl call tiling view_tag '{"tag": 2}' >/dev/null || fail "view_t
 bar_changes
 started=$(ctl run "$bin/chora-tiling" --launch fuzzel) || fail "the run of the launcher"
 run_pid "$(sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p' <<<"$started")"
-until_ok 'ctl capture "$work/launcher.png" >/dev/null && ! cmp -s "$work/empty.png" "$work/launcher.png"' 80 || fail "the launcher did not show"
+row_pixel() { pixel "$1" "$row_x" "$zebra_row_y"; }
+until_ok 'ctl capture "$work/launcher.png" >/dev/null && [ "$(row_pixel "$work/launcher.png")" != "$(row_pixel "$work/empty.png")" ]' 80 || fail "the launcher did not show"
 enter_y=$((zebra_row_y - 13))
 approach_y=$((zebra_row_y - 3))
 echo "[{\"pointer_move\": {\"position\": [$row_x, $enter_y]}}, {\"pointer_move\": {\"position\": [$row_x, $approach_y]}}, {\"pointer_move\": {\"position\": [$row_x, $zebra_row_y]}}, {\"click\": {\"button\": 272}}]" |
