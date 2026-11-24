@@ -150,7 +150,134 @@ impl<A: Clone> Runtime<A> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::testing::FakeCore;
+    use crate::{
+        runtime::{Plugin, dispatch},
+        testing::{FakeCore, in_child, stderr_of},
+    };
+    use chora_scene::Event;
+    use serde_json::{Value, json};
+
+    /// A look on the kit runtime that only grabs: the runtime handles the
+    /// events of the swallow.
+    struct Look {
+        rt: Runtime<&'static str>,
+    }
+
+    impl Plugin for Look {
+        type Action = &'static str;
+
+        fn runtime(&mut self) -> &mut Runtime<&'static str> {
+            &mut self.rt
+        }
+
+        fn event(&mut self, _: Event) -> Result<(), ClientError> {
+            Ok(())
+        }
+
+        fn method(&mut self, method: &str, _: Value) -> Result<Value, RpcError> {
+            Err(RpcError::new(RpcError::METHOD_NOT_FOUND, method))
+        }
+    }
+
+    fn joined(name: &str) -> Event {
+        Event::ClientConnected { name: name.into() }
+    }
+
+    fn gone(name: &str) -> Event {
+        Event::ClientDisconnected { name: name.into() }
+    }
+
+    /// The swallow is the last claim (D118): a window manager that joins
+    /// gets every chord that it binds, also one that the look swallowed
+    /// before it came (rss-1, rss-2). The look swallows again when it is
+    /// the last window manager; a client that is no window manager takes
+    /// nothing.
+    #[test]
+    fn a_swallow_yields_to_a_window_manager_that_joins_and_comes_back_when_it_goes() {
+        let core = FakeCore::start();
+        let mut look = Look {
+            rt: core.runtime("xp"),
+        };
+        look.rt.grab("Super+d".parse().unwrap(), "desktop").unwrap();
+        look.rt.grab_swallowed("Super", &"swallow").unwrap();
+        dispatch(&mut look, joined("voice")).unwrap();
+        assert_eq!(
+            look.rt.action("Super+q"),
+            Some(&"swallow"),
+            "voice manages no windows"
+        );
+        dispatch(&mut look, joined("tiling")).unwrap();
+        assert_eq!(
+            look.rt.action("Super+q"),
+            None,
+            "rss-2: the swallow of xp holds Super+q against tiling, which joined"
+        );
+        assert_eq!(
+            look.rt.action("Super+d"),
+            Some(&"desktop"),
+            "a bound chord stays"
+        );
+        let ungrabs = core.model().lock().unwrap().ungrabs.clone();
+        assert!(ungrabs.contains(&json!("Super+q")), "{ungrabs:?}");
+        assert!(!ungrabs.contains(&json!("Super+d")), "{ungrabs:?}");
+        look.rt.start_grabs();
+        look.rt.grab("Super+d".parse().unwrap(), "desktop").unwrap();
+        look.rt.grab_swallowed("Super", &"swallow").unwrap();
+        look.rt.end_grabs().unwrap();
+        assert_eq!(
+            look.rt.action("Super+q"),
+            None,
+            "a new set swallows nothing while tiling is there"
+        );
+        dispatch(&mut look, gone("tiling")).unwrap();
+        assert_eq!(
+            look.rt.action("Super+q"),
+            Some(&"swallow"),
+            "tiling went, xp swallows again"
+        );
+        assert_eq!(look.rt.action("Super+d"), Some(&"desktop"));
+    }
+
+    /// The window manager that joins asks again for a chord that it was
+    /// refused, once the core tells that it is free (D117): the swallow of
+    /// the other look let it go after the refusal (rss-1).
+    #[test]
+    fn a_refused_grab_is_asked_again_when_the_core_lets_it_go() {
+        let core = FakeCore::start();
+        core.hold("Super+1");
+        let mut look = Look {
+            rt: core.runtime("tiling"),
+        };
+        assert!(!look.rt.grab("Super+1".parse().unwrap(), "tag 1").unwrap());
+        core.model().lock().unwrap().held.clear();
+        dispatch(
+            &mut look,
+            Event::InputUngrabbed {
+                binding: "Super+1".into(),
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            look.rt.action("Super+1"),
+            Some(&"tag 1"),
+            "rss-1: Super+1 of tiling stays dead after the swallow of mc let it go"
+        );
+    }
+
+    /// A chord that another client holds is no error of the swallow: it
+    /// logs nothing (rss-4).
+    #[test]
+    fn a_refused_swallow_logs_nothing() {
+        if in_child() {
+            let core = FakeCore::start();
+            core.hold("Super+q");
+            let mut rt = core.runtime::<&str>("mc");
+            rt.grab_swallowed("Super", &"swallow").unwrap();
+            return;
+        }
+        let log = stderr_of("swallow::tests::a_refused_swallow_logs_nothing");
+        assert!(!log.contains("Super+q"), "rss-4: {log}");
+    }
 
     #[test]
     fn super_chords_with_shift_and_ctrl_are_swallowed() {
