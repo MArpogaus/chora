@@ -68,3 +68,5 @@ co-65 | MAJOR (POLS; rc bar "honest states"; contract C3 not reached r9) | p2-r9
 co-66 | MINOR (verify: harness or product) | p2-r9-co r9 Max T5 | open | the probe window (`round.sh probe max`) was not found on any of the four faces; contract T5 pass (probe got no Super key)
 co-67 | MAJOR candidate (rc bar "no lost window") | co-reach r3 lane, 10/10 | MAJOR, reviewed r4 MERGE-OK f1457035 (red 624c85cc); fixed at train127 | a program started while the cube stands back lands inside the cube and is lost after Alt+Escape; make_way runs only at the step back; next CO-REACH r4
 rco4-1 | MINOR | co-reach r4 review | open: backlog | aside.rs side-load loop repeats make_way taken sum; one helper at next construct round
+co-68 | MAJOR | p2-r10-co:34 | open | The hint bar names "Super Alt 4 Pull out" while a pane stands beside the cube or fills the screen, but the key does nothing visible (Max, demo: C2 not reached; POLS: a told way must work or not be told)
+co-69 | MINOR | p2-r10-co:21 | open | I5: labels of two panes beside the cube overlap ([179,521,58,20], Max T5)
