@@ -1202,7 +1202,13 @@ mod tests {
         let mut bindings = crate::config::defaults().common.bindings;
         bindings.insert("Ctrl+Alt+Left".into(), KeyAction::System(System::Close));
         grab_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
-        let _ = calls;
+        let grabs = (calls.lock().unwrap().iter())
+            .filter(|c| *c == "input.grab Ctrl+Super+Left")
+            .count();
+        assert_eq!(
+            grabs, 1,
+            "only the swallow grabs Ctrl+Super+Left, no stand-in"
+        );
         assert_eq!(
             rt.action("Ctrl+Super+Left"),
             Some(&KeyAction::Look(Look::Swallow)),
