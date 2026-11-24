@@ -1,10 +1,11 @@
 #!/bin/bash
 # A click on a row of the Apps list of the tiling flavor (ti-1) starts the
 # program of that row, not the first one. The real fuzzel gets the
-# programs alpha, Edit settings (the entry of the flavor), Screenshot and
-# Zebra sorted by name; the pointer moves to the Zebra row, whose y is
+# programs Aa alpha and Ab Zebra before every row of the flavor, so that the
+# list of nine rows that fuzzel shows has Zebra second whatever the flavor
+# adds; the pointer moves to the Zebra row, whose y is
 # computed from its index in that list (the middle of the first row and the
-# line-height=28 of fuzzel.ini are constants), and clicks, and the window of zebra must appear while the
+# row pitch of 37 px that fuzzel.ini gives are constants), and clicks, and the window of zebra must appear while the
 # window of alpha, the first row, must not. fuzzel 1.11.1 takes the first
 # motion of the pointer as its start (wayland.c wl_pointer_motion) and
 # selects the row under the pointer from the second motion on, and a
@@ -36,16 +37,16 @@ mkdir -p "$HOME" "$XDG_DATA_HOME/applications"
 entry() {
     printf '[Desktop Entry]\nType=Application\nName=%s\nExec=%s\n' "$2" "$3" >"$XDG_DATA_HOME/applications/$1.desktop"
 }
-entry zebra Zebra "foot -a zebra sh -c 'sleep 600'"
-entry alpha alpha "foot -a alpha sh -c 'sleep 600'"
+entry zebra "Ab Zebra" "foot -a zebra sh -c 'sleep 600'"
+entry alpha "Aa alpha" "foot -a alpha sh -c 'sleep 600'"
 export PATH=$bin:$PATH
 session_start 1280x800 -- "$bin/chora-tiling"
 grant screen.capture input.inject
 
 row_x=600
-first_row_y=477
-row_h=28
-zebra_index=3
+first_row_y=294
+row_h=37
+zebra_index=1
 zebra_row_y=$((first_row_y + zebra_index * row_h))
 ctl capture "$work/empty.png" >/dev/null || fail "capture of the empty desktop"
 started=$(ctl run "$bin/chora-tiling" --launch fuzzel) || fail "the run of the launcher"
