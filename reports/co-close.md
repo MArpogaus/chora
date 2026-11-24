@@ -128,3 +128,101 @@ Checks:
 | rcc1-4 | NIT | tests/merge-gate.sh:24 | the help text lost the "and" between `3d (...)` and `i3 (...)` | restore the comma and "and" before the last item |
 
 Verdict: **FIX** (open: 0 BLOCK, 1 MAJOR rcc1-1; 1 MINOR, 2 NIT). Known, not findings: co-77, co-78, co-79, co-44, co-45.
+
+## r2 (rc 1: rcc1-1 MAJOR from review r1; co-75 BLOCK, co-76 MAJOR stay fixed)
+
+Lane co-close-r2, sonnet high, cloud. Branch `claude/co-close-r2`, base 8517022f (co-close r1 head), head fbdcd6e2.
+Step 0 green: `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`.
+
+### Commits
+
+| sha | what |
+|---|---|
+| 4f994c1e | red rcc1-1: `close_tests.rs` `super_x_flown_into_a_pane_from_a_face_closes_that_pane` (face beside a pane, `fly_in(0)`, `take_flight`, focus s1, `Host::close`) |
+| f0ab2938 | fix rcc1-1: `adopt.rs` `close_focused` takes the face branch only when `!self.in_pane()` |
+| fbdcd6e2 | test only: rcc1-3 step 3 of `gate-construct-close.sh` fails unless no face window keeps the keys; new step 4 (rcc1-1 on the compositor); rcc1-4 the "and" of the `merge-gate.sh` help text |
+
+Red line at 4f994c1e (the r1 tests stay green, 3 of 4 ok):
+
+```
+assertion `left == right` failed: Super+x closes the pane flown into
+  left: []
+ right: ["s1"]
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 279 filtered out
+```
+
+Green at f0ab2938: `cargo test -p chora-construct` 283 ok.
+
+### Fix
+
+One condition, no second rule: `let in_face = !self.in_pane() && cube in Mode::Use`. A pane flown into (or on the way in)
+always closes, by the same path as in the walk (`focus()` ring, `remove_pane`); a face of the cube still closes only the
+window with the keyboard, never a pane out of view. docs/configuration.md `Super+x` paragraph is still true ("the pane
+flown into" first, then "in a face of the cube the window of the face"); only the doc comment of `close_focused` changed.
+
+### Hand runs, 5x each, each from a fresh compositor (`tests/persona/session.sh construct 1280x800`)
+
+The binaries of 272940fc..8517022f first: reproduced rcc1-1 live (`pane.fly` into the pane while the cube is in use mode,
+Super+x: surfaces stayed `s1`, foot 1 -> 1). Then f0ab2938 binaries, per run: rpc1-1 as r1 (Super+t, `echo paneB`, Super+c,
+Return, Start > Terminal on the face, `echo faceA`, Super+x, Super+x again), then Super+t in the face, Super+x, then
+`pane.fly` into the pane from the face and Super+x.
+
+| run | face window closed, pane kept, foot 2 -> 1 | 2nd Super+x, nothing | Super+t in a face, Super+x closes it only | pane flown into from a face: Super+x closes it (foot 1 -> 0) |
+|---|---|---|---|---|
+| 1 | yes | yes | yes (s3 gone, s1 kept) | yes |
+| 2 | yes | yes | yes | yes |
+| 3 | yes | yes | yes | yes |
+| 4 | yes | yes | yes | yes |
+| 5 | yes | yes | yes | yes |
+
+Rates: 5/5 on every column. Note: in a real compositor Super+t and the Programs launcher in a face give a window of the
+face manager (xp), not a pane (`free` is false there), so a pane flown into while the cube stays in use mode is reached by
+`pane.fly` (the method that the windows list and `choractl` use), not by Super+t; the Super+t column is the face-window
+close again, kept as a check that nothing else closes.
+
+### Test only (rcc1-3, rcc1-4)
+
+- `gate-construct-close.sh` step 3: `until_ok '! core_focus | grep -qx "$face" && ! xp_focus | grep -q "^xp s"'` now
+  fails (was `|| true`), so "no window focused" is asserted. New step 4: `pane.fly` into the pane that waits, the core
+  focus is the pane, the cube is still `use`, Super+x ends the pane's program. The gate stays in the construct-extra cell.
+- `sleep 5` stays: nothing on the screen tells the 3 s hint set from the resting chip (`construct-hint-step-back` and
+  `construct-hint-keys` are in both), and `state.get busy` does not cover the hints; a poll on the ids would be a
+  guess. The two other sleeps (1 s, 2 s) wait for a close that must not come. Not done, said so: the rest of rcc1-3.
+- `tests/merge-gate.sh` help text: "3d (...), i3 (...), focus and close (...)".
+
+### Gate
+
+Full gate on fbdcd6e2 (`tests/merge-gate.sh --jobs 2`): 64 steps PASS, `EXIT 0`, construct-extra PASS 179 s, no foreign
+red. A first run on the same tree (a second commit attempt of mine ran during it, the hook rewrote files) stopped in
+pre-commit ("guard test ... files were modified by this hook"), not a code red; the rerun on the clean tree is green.
+Last 20 lines:
+
+```
+launcher-click PASS    19s
+voice-acp  PASS    11s
+voice-events PASS     2s
+agent      PASS    39s
+tiling-keys-more PASS    42s
+tiling-windows PASS   166s
+tiling-system PASS    11s
+handover   PASS    26s
+mc-scale   PASS    15s
+watchdog-starved PASS    59s
+acts       PASS  2152s
+xp-run     PASS    13s
+leak       PASS   316s
+demo       PASS   247s
+tiling-theme PASS    18s
+mc-host    PASS    20s
+tiling-bar PASS   144s
+e2e        PASS   267s
+all steps passed; no --push, nothing is pushed
+EXIT 0
+```
+
+`tools/sleep-ratchet` is not in this tree (not run). `pgrep -fa 'chora --headless'`: empty.
+
+### Notes
+
+- Not in scope, still open: rcc1-2 (mc face close, MINOR), co-77, co-78, co-79, co-44, co-45.
+- Commit message hooks reject the Co-Authored-By / Claude-Session lines; none added, as the brief says.
