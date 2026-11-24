@@ -193,3 +193,9 @@ One full run: f1457035 merged with fresh origin/claude/autonomous-dev-session-3w
 - A program started more than 60 s after Programs (no fly-in) was not re-checked here; with this fix it goes through the same `adopt`, so it opens beside the cube too, but no run shows it.
 - The rc.md row 9 text "no known window loss" can be read as met for the started-while-stood-back case once this merges.
 - MINOR co-44, co-47, co-53, co-55, co-56, co-59, co-63, co-66, rco3-1..3 not touched.
+
+## Review r4 (PM, 88 lines; PM not the builder)
+Base 909bc57b..f1457035, 4 files +88 -2. Red first: 624c85cc (test) before f1457035 (fix): yes. Scope: construct adopt/aside, its test, docs/cube-modes.md only: yes.
+Checks: adopt.rs:149 now calls show_new_pane; a pane that overlaps the stood-back cube goes beside it via place_beside (same path as make_way); no home, so step in leaves it (unit test asserts). Lane gate 65 PASS on f1457035+ce866b0d; gate-construct-i3 10/10 per report.
+- rco4-1 MINOR aside.rs:216-221: the side-load loop repeats make_way's taken sum (aside.rs:160-168); fold into one helper at the next construct round.
+Verdict (computed): 0 BLOCK, 0 MAJOR -> MERGE-OK; co-67 fixed on merge (train127, includes r3b 909bc57b).
