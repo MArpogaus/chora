@@ -11,6 +11,9 @@
 # finds the core dead ends the run (a finding, crash). Each 5th round
 # restarts chora-mc. Not in this run: W10 (chora-xp needs its own theme
 # session) and W16 (voice needs its own fakes), see RESULTS.md.
+# Per round (sh-36): the settled RSS (after end_probes, only with 0 windows open)
+# and the round's peak RSS (VmHWM, reset at the round start through clear_refs),
+# of chora, chora-tiling and chora-mc, in kB, into the run file.
 # Run: setsid nohup bash tests/battle/soak-core.sh >/dev/null 2>&1 </dev/null &
 # Clean up with tests/battle/kill-session.sh soak (never by process name).
 WF=soak; . "$(dirname "$0")/lib.sh"
@@ -52,8 +55,39 @@ sampler() {
 sampler &
 SAMPLER=$!
 
+hwm_pid() {
+  if [ "$1" = chora ]; then echo "$core"; else pgrep -s "$core" -x "$1" | tail -1; fi
+}
+hwm_reset() {
+  local name p
+  for name in chora chora-tiling chora-mc; do
+    p=$(hwm_pid "$name")
+    if [ -n "$p" ] && ! echo 5 > "/proc/$p/clear_refs" 2>/dev/null; then
+      echo "soak: round $1: clear_refs refused for $name (peak not reset)" >> "$RUN"
+    fi
+  done
+}
+round_rss() {
+  local n=$1 w=$2 name p s k rs='' hs=''
+  for name in chora chora-tiling chora-mc; do
+    p=$(hwm_pid "$name"); s=na; k=na
+    if [ -n "$p" ] && [ -d "/proc/$p" ]; then
+      s=$(awk '/^VmRSS:/ {print $2}' "/proc/$p/status" 2>/dev/null)
+      k=$(awk '/^VmHWM:/ {print $2}' "/proc/$p/status" 2>/dev/null)
+    fi
+    rs="$rs $name=${s:-na}"; hs="$hs $name=${k:-na}"
+  done
+  if [ "$w" = 0 ]; then
+    echo "soak: round $n: settled RSS kB:$rs" >> "$RUN"
+  else
+    echo "soak: round $n: settled RSS kB: n/a ($w windows open)" >> "$RUN"
+  fi
+  echo "soak: round $n: peak RSS kB (VmHWM since round start):$hs" >> "$RUN"
+}
+
 round() {
-  local n=$1 i pids=() extra=() l
+  local n=$1 i pids=() extra=() l w
+  hwm_reset "$n"
   for i in $(seq 12); do pids+=("$(open $((i*20)) 90 $((255-i*20)))"); done
   wait_count "app_id:chora-probe kind:surface" 12 || finding "soak: $(count_windows) of 12 windows (round $n)" wrong "12 runs"
   for i in 0 2 4 6 8 10; do kill "${pids[$i]}" 2>/dev/null; done
@@ -92,7 +126,9 @@ EOF
   [ "$(count_windows)" = 0 ] || step "round $n: $(count_windows) windows left after close"
   end_probes
   for _ in $(seq 25); do [ "$(count_windows)" = 0 ] && break; sleep 0.2; done
-  echo "soak: round $n: windows open $(count_windows) after end_probes" >> "$RUN"
+  w=$(count_windows)
+  echo "soak: round $n: windows open $w after end_probes" >> "$RUN"
+  round_rss "$n" "$w"
   if [ $((n % 5)) = 0 ]; then
     if ! { restart_plugin mc && ready mc scene.list '{}'; }; then finding "soak: mc did not come back (round $n)" crash "restart_plugin mc"; fi
   fi

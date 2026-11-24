@@ -447,7 +447,14 @@ mod tests {
     /// xp on the four faces of a construct, with the window `s0` on face 0
     /// and `s2` on face 2, `s0` focused, as the core says.
     fn hosted(tag: &str) -> Wm {
-        let (mut wm, _methods) = super::super::tests::wm_on_fake_core(tag);
+        hosted_logging(tag, |method, _| Some(method.to_owned())).0
+    }
+
+    fn hosted_logging(
+        tag: &str,
+        line: impl Fn(&str, &serde_json::Value) -> Option<String> + Send + Sync + 'static,
+    ) -> (Wm, chora_kit::testing::Log) {
+        let (mut wm, log) = super::super::tests::wm_on_fake_core_logging(tag, line);
         let faces: Vec<String> = (1..=4).map(|i| format!("V-{i}")).collect();
         for (i, face) in (0..).zip(&faces) {
             let _ = wm.output_changed(&face_output(face, i));
@@ -467,7 +474,7 @@ mod tests {
         });
         wm.focused = Some("s0".into());
         wm.core_focus = Some("s0".into());
-        wm
+        (wm, log)
     }
 
     fn turned(front: usize) -> cube::Turned {
@@ -551,6 +558,42 @@ mod tests {
             "xp takes the keys of another client: {commands:?}"
         );
         assert_eq!(wm.focused, None, "{commands:?}");
+    }
+
+    /// rcf-11: the cube is turned to face 1. The tooltip of the taskbar is
+    /// placed in the area of the bar on face 1, not of the bar on face 0
+    /// out of sight. Without a host, the first bar as before.
+    #[test]
+    fn the_taskbar_tooltip_follows_the_front_face() {
+        let (mut wm, log) = hosted_logging("host-tip", |method, params| {
+            let text = params.to_string();
+            (method == "scene.apply" && text.contains("\"create\":{\"id\":\"xp-tooltip\""))
+                .then_some(text)
+        });
+        wm.front = 1;
+        let bar = wm.front_bar().unwrap().area();
+        let target = [bar[0] + 10, bar[1] + bar[3] - 30, 30, 30];
+        wm.tip.rest(
+            "xp-start",
+            "Start".into(),
+            target,
+            std::time::Instant::now(),
+        );
+        wm.menu_rest(std::time::Instant::now() + std::time::Duration::from_secs(10))
+            .unwrap();
+        let sent = log.lock().unwrap().join("\n");
+        let sent: serde_json::Value = serde_json::from_str(&sent).expect("a tooltip");
+        let create = sent["commands"]
+            .as_array()
+            .and_then(|c| c.iter().find(|c| c["create"]["id"] == "xp-tooltip"))
+            .expect("a tooltip");
+        let m = &create["create"]["props"]["transform"]["matrix"];
+        let (x, y) = (m[12].as_f64().unwrap(), m[13].as_f64().unwrap());
+        assert!(
+            (f64::from(bar[0])..f64::from(bar[0] + bar[2])).contains(&x)
+                && (f64::from(bar[1])..f64::from(bar[1] + bar[3])).contains(&y),
+            "the tooltip at {x},{y} lies outside the bar of face 1 {bar:?}"
+        );
     }
 
     /// rcf-7: face 2 is at the front of a hosted cube. Ctrl+Escape and

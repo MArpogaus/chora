@@ -22,7 +22,9 @@
 #   PERSONA_DIR  the session directory (default: a new /tmp/persona.XXXXXX,
 #                which the script removes at the end; a directory that
 #                you give stays)
-#   PERSONA_KEEP a directory that gets a copy of shots/, actions.jsonl,
+#   PERSONA_KEEP a directory that gets a copy of shots/, actions.jsonl (the
+#                end of the session copies first, then stops the processes,
+#                then copies again; the stop of a slow one loses nothing),
 #                breaches.jsonl, evidence/ and the stand-in calls.log
 #                when the session ends (default: nothing is kept)
 #   PERSONA_CHECK  1: act.py runs tests/persona/check.py after each action
@@ -59,7 +61,7 @@ if [[ ${1:-} == --stop ]]; then
     spid=$(sed -n 's/^PERSONA_SESSION_PID=//p' "$2")
     [[ -n $spid ]] || exit 1
     kill -TERM "$spid" 2>/dev/null || true
-    for _ in $(seq 100); do
+    for _ in $(seq 400); do
         kill -0 "$spid" 2>/dev/null || exit 0
         sleep 0.1
     done
@@ -203,6 +205,9 @@ echo '[]' >"$dir/voice/entries.json"
 export PATH="$fakes:$bin:$PATH"
 export XDG_DATA_HOME=$dir/data
 export CHORA_SHARED_DIR=$shared
+if has_flavor tiling; then
+    export CHORA_FLAVOR_DIR=$repo/flavors/tiling
+fi
 export CHORA_XP_THEME=$repo/flavors/xp/theme
 export XDG_PICTURES_DIR=$dir/pictures
 export CHORA_TEST_ACCEPT_INJECTED_KEYS=${CHORA_TEST_ACCEPT_INJECTED_KEYS:-1}
@@ -265,9 +270,21 @@ companion_units=()
 bus_pid=
 voice_pid=
 companion_pids=()
+# shellcheck disable=SC2329 # called by the EXIT trap
+keep_captures() {
+    [[ -n ${PERSONA_KEEP:-} ]] || return 0
+    mkdir -p "$PERSONA_KEEP/shots"
+    cp -a "$dir/shots/." "$PERSONA_KEEP/shots/" 2>/dev/null || true
+    cp "$dir/actions.jsonl" "$dir/breaches.jsonl" "$fakes/calls.log" "$PERSONA_KEEP/" 2>/dev/null || true
+    if [[ -d $dir/evidence ]]; then
+        mkdir -p "$PERSONA_KEEP/evidence"
+        cp -a "$dir/evidence/." "$PERSONA_KEEP/evidence/" 2>/dev/null || true
+    fi
+}
 # shellcheck disable=SC2329 # runs as the EXIT trap
 cleanup() {
     trap - EXIT INT TERM HUP
+    keep_captures
     if [[ -n $session ]]; then
         # headless-session.sh stops the core and its process group on TERM.
         kill -TERM "$session" 2>/dev/null || true
@@ -289,12 +306,7 @@ cleanup() {
     for pid in "${companion_pids[@]}"; do
         kill -TERM -- "-$pid" 2>/dev/null || true
     done
-    if [[ -n ${PERSONA_KEEP:-} ]]; then
-        mkdir -p "$PERSONA_KEEP"
-        cp -r "$dir/shots" "$PERSONA_KEEP/"
-        cp "$dir/actions.jsonl" "$dir/breaches.jsonl" "$fakes/calls.log" "$PERSONA_KEEP/" 2>/dev/null || true
-        cp -r "$dir/evidence" "$PERSONA_KEEP/" 2>/dev/null || true
-    fi
+    keep_captures
     if [[ -n $created_dir ]]; then
         rm -rf "$created_dir"
     fi

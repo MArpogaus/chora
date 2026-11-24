@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Edit settings
+Name[de]=Einstellungen bearbeiten
+Comment=Open chora-tiling.yaml in the editor; Super+Ctrl+r reads it again
+Comment[de]=chora-tiling.yaml im Editor öffnen; Super+Ctrl+r liest sie neu
+Exec=chora-tiling --launch settings
+Icon=preferences-system
+Terminal=false
+Categories=Settings;
+Keywords=settings;config;configuration;preferences;gap;yaml;edit;
