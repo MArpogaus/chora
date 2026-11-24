@@ -165,25 +165,30 @@ def pixel_diff(a, b, masks=()):
     return {"same": fraction <= FRACTION and not big, "fraction": fraction, "blobs": big}
 
 
-def named(rows, kinds):
-    """The row of the first kind in `kinds` that a row names, an `open` row before one with a cause found:
-    the open diff is not hidden by a found one of the same kind."""
+def named(rows, kinds, node=None):
+    """The row of the first kind in `kinds` that a row names for `node`, an `open` row before one with a
+    cause found: the open diff is not hidden by a found one of the same kind. A row with a `nodes` list
+    names those nodes only and is the row of such a node before one without a list (rv9j-5)."""
     hits = [r for r in rows if r["kind"] in kinds]
+    if node is None:
+        hits = [r for r in hits if "nodes" not in r] or hits
+    else:
+        hits = [r for r in hits if node in r.get("nodes", ())] or [r for r in hits if "nodes" not in r]
     return next((r for r in hits if r.get("open")), hits[0] if hits else None)
 
 
 def verdict(act, scene, pixel_same, intended, checks=None):
     """same, change, open or regression for one capture; `checks` is (baseline, candidate) name -> colour.
     A row with `open = true` names a diff whose cause is not found: the verdict is `open`, not `change`."""
-    kinds = [d["kind"] for d in scene] + ([] if pixel_same else ["pixel"])
+    diffs = [(d["kind"], d.get("id")) for d in scene] + ([] if pixel_same else [("pixel", None)])
     rows = [r for r in intended if r["act"] == act]
     causes, unnamed, opened = [], [], False
-    for kind in dict.fromkeys(kinds):
-        row = named(rows, (kind, "*"))
+    for kind, node in dict.fromkeys(diffs):
+        row = named(rows, (kind, "*"), node)
         if row:
             causes.append(row["cause"])
             opened = opened or bool(row.get("open"))
-        else:
+        elif kind not in unnamed:
             unnamed.append(kind)
     base, cand = checks or ({}, {})
     unmeasured = sorted(n for n in set(base) | set(cand) if NOT_MEASURED in (base.get(n), cand.get(n)))
