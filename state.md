@@ -32,7 +32,7 @@ burn-down: audit r5 13:12: F1-F4, F6 met; F8 reopened (kit log: no CONTRIBUTING,
 2. (rc 2) P2-R8-CO: co-51, co-52, co-54 verified; then TILING persona r6 (L1, L2, T6, T7) after train122.
 3. (rc 3, 9; F5) FLAKE-SERIES r7 running (sh-34, stall, xp-42); soak-r4 MERGE-OK f0c45fcf (sh-36 closed) joins train123.
 4. (F7, rc 11; 1.5 %) TOUR-BASE: I6 baseline, 0 unexplained acts.
-5. (rc 1; 1 %) after reviews: co-44, co-45 only when construct has no open MAJOR (rules.md 6); rtd-5, rtd-7 MINOR backlog.
+5. (F8, F1-F4; 1 %) AUDIT r6 after train122 (F8 gap fixed in t118: CONTRIBUTING log, D120). (rc 1) after reviews: co-44, co-45 only when construct has no open MAJOR (rules.md 6); rtd-5, rtd-7 MINOR backlog.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).

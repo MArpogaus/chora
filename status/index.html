@@ -57,10 +57,10 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-23T23:58:00Z",
+  updated: "2026-11-24T00:06:00Z",
   start: "2026-11-21T04:00:00Z",   // budget reset (owner)
   end: "2026-11-28T03:59:00Z",     // next reset; F5, F7 carried over
-  budget: 23,                       // % of the new week used (reset 04:00)
+  budget: 24,                       // % of the new week used (reset 04:00)
   goals: [
     ["F1", "Plan in merge-sized slices", "done", "reviewed plan"],
     ["F2", "Shared code in one kit, no copies", "done", "met by audit r2 (19:13): 0 copies; kit-report keeps it after debt-down"],
@@ -69,11 +69,11 @@ const S = {
     ["F5", "No flaky tests, coverage over 80 %", "risk", "coverage 91.76 % holds; the last five-gate series was 0 of 5 green (keys cell in lane containers, leftover processes, an xp placement race) and the mc-host cell went red twice in other lanes: two fix lanes run now (flake series r7, mc-host), each with a red test first; then a new five-gate series"],
     ["F6", "Every change through the merge gate", "done", "71 green merges, all reviewed; train 121 (9 branches: construct reach, xp readability, docs RC 2, dependency guard, leak measure, soak, mc-host) green 23:50 UTC (06:50 Bangkok)"],
     ["F7", "No visual regression vs tour v8", "behind", "tour v9 retake reviewed 03:05 UTC: the comparison is now fair (clock and launcher pinned), but 109 of 110 acts still differ from v8, mostly text under 12 px and gaps flagged by the design checks; next round names each failing element, then one fix lane per look"],
-    ["F8", "Docs and decision records", "risk", "reopened by audit r5 (13:12): the kit lacks CONTRIBUTING and its decision records; docs RC round 2 is approved and waits for its merge"]
+    ["F8", "Docs and decision records", "risk", "the gap of audit r5 is fixed on the session branch (CONTRIBUTING line for the kit log module, decision record D120); met only after the next independent audit (round 6, after train 122)"]
   ],
   now: [
     "Train 121 is green: construct reach (cube opens stood back, no window lost), xp readability, docs RC round 2, dependency guard, mc-host fix and the leak measure are merged.",
-    "Running: train 122 (helper notice text, tiling launcher click, xp taskbar tooltip on the front face), a 3 h soak, flake series r7; starting now: construct persona round 8 (checks the cube fixes) and the tour baseline (every differing act named).",
+    "Running: train 122 (helper notice text, tiling launcher click, xp taskbar tooltip on the front face), flake series r7, construct persona round 8 (checks the cube fixes), tour baseline (every differing act named). The 3 h soak passed: 1008 rounds, no lost window, memory flat (sh-36 closed).",
     "Spending is under pace (about 23 %; the line is at 40 %): lanes are being filled."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
