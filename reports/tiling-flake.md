@@ -61,3 +61,28 @@ Own diff 8f2ed754..15a5d2fc without merges: 6 commits, tests only (gate-tiling-f
 - Red first: 13f61462 and a68aeb1a only sharpen the failure text (the reds were load-bound flakes, shown under TILING_LOAD=4 in "## r2"); ded5d30d is a real red. Not a finding (flake fixes; the H-RF note of friction 11-22 21:30 applies to product fixes).
 - Note (no finding): the ring-based border check no longer pins where the rings lie; placement stays with gate-tiling-layout and I2.
 **Verdict: MERGE-OK** (0 BLOCK, 0 MAJOR). Joins train 115 after t114.
+
+## r3
+
+Branch claude/tiling-flake-r3, head f68f596a (pushed; merge of origin/claude/autonomous-dev-session-3w-i33pg7 at 2235551f over 4e257c06). Both cells are test-side; no product fault, plugins/chora-tiling untouched.
+
+### sh-39 gate-tiling-apps-click ("a click on the Zebra row did not start zebra")
+- Reproduced: 1 red of 30 runs with the cell beside a running tiling-motion cell (CHORA_GATE_LOCK_HELD, as in --jobs 2); 0/10 alone, 0/10 at TILING_LOAD=4, 0/10 at TILING_LOAD=12. Red line: `FAIL: a click on the Zebra row did not start zebra`.
+- Cause: tests/gate-tiling-apps-click.sh:52 (old), `until_ok 'ctl capture ... && ! cmp -s empty.png launcher.png'`: the launcher counted as shown when ANY pixel differed from the empty capture. The bar clock (text at x 581..697, y 18..30 in the capture, minute tick, seen in a diff of two captures) or any bar change is such a pixel; fuzzel's surface is not yet in the scene then (a query at that moment lists none). The inject goes out before fuzzel is up and the click lands on the bare desktop. Not a product delay.
+- Red 4e3291b4: the cell starts a fuzzel stand-in that waits 3 s (PATH wrapper) and switches tag after the empty capture (stands for the clock tick). On 4e257c06 logic: 3/3 red, same line.
+- Green 3da841b9: the launcher is up when the pixel of the Zebra row (600,331) differs from the empty capture's. No sleep, no longer timeout, no retry. With the lag and the bar change: 3/3 green, then 20/20 at TILING_LOAD=4 and 60/60 at TILING_LOAD=4 with a tiling-motion loop beside it.
+
+### sh-40 gate-tiling-motion ("the slide is not between the places")
+- Reproduced: 1 red of 4 with TILING_LOAD=2 motion beside an apps-click loop at TILING_LOAD=4; 0/10 alone, 0/10 at TILING_LOAD=4, 0/20 as two motion cells at TILING_LOAD=2 side by side. Red text: `({'tw-s1': 14.0, 'tw-s2': 648.0}, {'tw-s1': 648.0, 'tw-s2': 14.0}, {'tw-s1': 14.0, 'tw-s2': 648.0})`: the first sample equals the end.
+- Cause: tests/gate-tiling-motion.sh:57-67 (old): one `groups` query after `ctl call tiling set_layout`, asked to lie strictly between the places; the slide is 200 ms and under load the ctl spawn plus the query come after it (the same one-shot sample as FLK-TILING-MOTION in r2, in the layout part of the cell).
+- Red f65d21b9: the query after the call is 0.3 s late (stand-in for the loaded host), failure text names first sample, settled, end: red every time with the sh-40 line.
+- Green e7c46b84: set_layout is called at frame 1 of a `choractl record --frames 24` (stepped clock), the end is waited for until two reads of the groups agree, and the check reads the frames: a frame among 2..12 must show a window in the gap (640,400) that is neither the settled picture's nor the final capture's (4 of 11 frames at rest). A jump-cut shows none and fails. Under TILING_LOAD=4: 20/20 green (95-105 s per run when loaded).
+
+### Counts
+| cell | alone | under load | after fix, under load |
+|---|---|---|---|
+| apps-click | 0/10 red | TILING_LOAD=4 0/10, 12 0/10, beside motion 1/30 | 20/20, 60/60 green |
+| tiling-motion | 0/10 red | TILING_LOAD=4 0/10, 2x beside each other 0/20, beside apps-click 1/4 | 20/20 green |
+
+### Gate
+`tests/merge-gate.sh --jobs 2` (full, detached) on f68f596a: EXIT 0, "all steps passed", 65 PASS lines (tiling-windows 182 s, e2e 270 s), no red. `pgrep -fa 'chora --headless'` empty.
