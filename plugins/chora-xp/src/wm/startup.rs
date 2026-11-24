@@ -115,8 +115,8 @@ impl Wm {
         let old_root = wm.take_kept()?;
         wm.mixer.refresh();
         wm.create_scene(old_root)?;
-        wm.grab()?;
         wm.rt.announce(&EVENTS, methods)?;
+        wm.grab()?;
         wm.refresh_looks();
         wm.adopt_all()?;
         wm.catch_up_outputs()?;
