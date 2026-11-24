@@ -1,7 +1,8 @@
 #!/bin/bash
 # The question card of xp (xp-27): in the open chat it is set in the look,
 # stands under the transcript and not over it, has Yes and No buttons for
-# the mouse, and the words "Typing does not answer" show at most once.
+# the mouse, and the words "Typing does not answer" show once, in the card
+# and not in a hint between the card and the field (xp-14).
 # BIN: directory with the binaries, SHOTS: directory for the captures.
 set -u
 . "$(dirname "$0")/gate-lib.sh"
@@ -38,15 +39,13 @@ question_cell() {
     sleep 1.5
     ctl call assistant chat.show '{"name": "atlas"}' >/dev/null || fail "chat.show failed"
     echo 'voice.confirm {"id": "51", "prompt": "Atlas wants to write the file notes.txt.", "detail": "~/projects/notes/notes.txt (412 bytes)", "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true}' >&5
-    local nodes=$shots/nodes-$scale.json polls=0 cards hints
+    local nodes=$shots/nodes-$scale.json polls=0 cards
     while [ "$polls" -lt 100 ]; do
         sleep 0.1
         polls=$((polls + 1))
         ctl query owner:assistant >"$nodes"
         cards=$(jq '[.[] | select(.id == "hud-card")] | length' "$nodes")
-        hints=$(jq '[.[] | select(.id == "hud-chat-hint")] | length' "$nodes")
         [ "$cards" = 0 ] && continue
-        [ "$hints" != 0 ] || fail "${scale}x: the card showed without the hint (poll $polls): $(jq -c "[.[].id]" "$nodes")"
         break
     done
     [ "$cards" != 0 ] || fail "${scale}x: no card within 10 s"
@@ -55,23 +54,21 @@ question_cell() {
     ctl capture "$shots/xp-question-${scale}x.png" >/dev/null || fail "the capture failed"
     ctl query owner:assistant >"$nodes"
     exec 5>&-
-    local chat card yes no hint
+    local chat card yes no
     chat=$(rect_of "$nodes" hud-chat)
     card=$(rect_of "$nodes" hud-card)
     yes=$(rect_of "$nodes" hud-card-yes)
     no=$(rect_of "$nodes" hud-card-no)
-    hint=$(rect_of "$nodes" hud-chat-hint)
     inside "$chat" "$card" || fail "${scale}x: the card ($card) is not inside the balloon ($chat)"
     inside "$card" "$yes" || fail "${scale}x: the Yes button ($yes) is not in the card ($card)"
     inside "$card" "$no" || fail "${scale}x: the No button ($no) is not in the card ($card)"
     [ "${yes##* }" = 28 ] || fail "${scale}x: the Yes button is not 28 px high: $yes"
-    local card_png chat_png cx cy cw ch bx by hy yy
+    local card_png chat_png cx cy cw ch bx by yy
     read -r card_png chat_png <<<"$(jq -r '[(.[] | select(.id == "hud-card").image), (.[] | select(.id == "hud-chat").image)] | join(" ")' "$nodes")"
     read -r cx cy cw ch <<<"$card"
     read -r bx by _ _ <<<"$chat"
-    read -r _ hy _ _ <<<"$hint"
     read -r _ yy _ _ <<<"$yes"
-    [ $((cy + ch)) -le "$hy" ] || fail "${scale}x: the card ($card) reaches the typing hint ($hint)"
+    jq -e '[.[] | select(.id == "hud-card")][0].meta.text | contains("Typing does not answer.")' "$nodes" >/dev/null || fail "${scale}x: the card does not hold the typing line"
     python3 -I - "$card_png" "$chat_png" "$scale" "$((cx - bx))" "$((cy - by))" "$cw" "$ch" "$((yy - cy))" <<'PY' || fail "${scale}x: the card is not under the transcript or not set at 14 px"
 import sys
 from PIL import Image
@@ -91,8 +88,8 @@ lines = [b for b in bands if b > 3 * scale]
 assert len(lines) >= 5, f"the card has {len(lines)} lines of text: {bands}"
 assert min(lines) >= 9 * scale, f"a line of the card is under 14 px: {bands}"
 PY
-    [ "$(jq '[.[] | select(.id == "hud-chat-hint")] | length' "$nodes")" = 1 ] || fail "${scale}x: the hint is not shown once"
-    ok "${scale}x: the question card is in the balloon with Yes and No buttons, the typing hint once: $hint"
+    [ "$(jq '[.[] | select(.id == "hud-chat-hint")] | length' "$nodes")" = 0 ] || fail "${scale}x: a hint of the typing line stands outside the card"
+    ok "${scale}x: the question card is in the balloon with Yes and No buttons and holds the typing line, no hint outside it"
     gate_cleanup 0
     pids=()
 }
