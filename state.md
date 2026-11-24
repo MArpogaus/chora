@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-24 12:37 UTC)
+## Now (2026-11-24 12:38 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 11:58 PM 4.9 % (11-22) + 5.2 % (11-23) + 3.6 % (11-24), week about 28 % vs 47 % pace
 session branch: d40142e4 (t127b green 12:28); 76 greens; t128 red 12:36 (sleep-ratchet); t129 12:40 + co-pull be6e62ec.
@@ -26,7 +26,7 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin); F5 7 rows, no serie
 | tiling-flake-r3.md (sh-39, sh-40; 1 %) | sonnet high, claude/tiling-flake-r3 4e257c06 | session_016iS3kPxH8AyTt14UBrf3hi |
 | xp-38-r2.md (rc 3; 1 %) | sonnet high, claude/xp-38-r2 2235551f | session_016iS3kLvpV2kdtwhHXTnNRh |
 | tour-base-r4.md (F7; rtb3-1; 0.5 %) | sonnet medium, claude/tour-base-r4 d40142e4 | session_016iS3kNJtZ94HWpr1njZs7F |
-| tiling-calm-r2.md (rc 2; t128 red sleep-ratchet 782/779; 0.6 %) | sonnet medium, claude/tiling-calm-r2 e9387fb2 | starting |
+| tiling-calm-r2.md (rc 2; t128 red sleep-ratchet 782/779; 0.6 %) | sonnet medium, claude/tiling-calm-r2 e9387fb2 | session_016iS3kNyLMFdcTUGYBG8Fui |
 ## Queue (% week; 5 % reserve)
 0. (rc 8) VERIFY-MINOR r2: 12 of 14 closed (xp-14, xp-15, xp-17 fixed d40142e4); xp-34 known; xp-18 verify.
 1. (F4, F5, rc 1) t128 red 12:36: sleep-ratchet 782/779 (tiling-calm adds 3 sleeps, base before guard-4) -> TILING-CALM r2; TRAIN129 co-pull be6e62ec 12:40; then tiling persona r8.
