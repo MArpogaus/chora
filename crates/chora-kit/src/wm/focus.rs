@@ -162,10 +162,13 @@ impl Focus {
         self.sent = false;
     }
 
-    /// Whether a transaction sends the focus `focus`.
+    /// Whether a transaction sends the focus `focus`. An empty focus only
+    /// drops a window that the look sent: a look that joins beside the
+    /// focused window of another look leaves it the keys (D119, sh-42).
     #[must_use]
     pub fn sends(&self, focus: Option<&str>) -> bool {
-        !self.lost && (!self.sent || self.surface.as_deref() != focus)
+        let drops_nothing = focus.is_none() && self.surface.is_none();
+        !self.lost && !drops_nothing && (!self.sent || self.surface.as_deref() != focus)
     }
 
     /// A transaction sent the focus `focus`.
