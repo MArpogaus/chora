@@ -737,3 +737,14 @@ fn report_line() {
         "chora-construct: no such window\n"
     );
 }
+
+/// The construct swallows through the kit, so as a joiner it asks again
+/// for a binding that the swallow of an earlier look held at its grab,
+/// once the core says that it is free (D117, rss-9).
+#[test]
+fn the_construct_hears_input_ungrabbed() {
+    assert!(
+        EVENTS.contains(&"input.ungrabbed"),
+        "rss-9: the construct does not subscribe to input.ungrabbed"
+    );
+}
