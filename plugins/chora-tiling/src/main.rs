@@ -887,7 +887,7 @@ impl Tiling {
             return Ok(json!({"outputs": self.wm.tags()}));
         }
         if method == "show_helper" {
-            Host::run(self, "chora-chat")
+            Host::run(self, chora_kit::launcher::HELPER_PROGRAM)
                 .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
             return Ok(Value::Null);
         }

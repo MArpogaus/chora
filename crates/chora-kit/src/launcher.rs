@@ -60,8 +60,9 @@ pub fn apps(
     apps
 }
 
-/// The program of the row that opens the chat with a helper.
-const HELPER_PROGRAM: &str = "chora-chat";
+/// The program of the row that opens the chat with a helper, and of the
+/// helper word of the bar.
+pub const HELPER_PROGRAM: &str = "chora-chat";
 
 /// The programs with the row of the chat with a helper after the others,
 /// each group sorted as before. The program is the last of the words.
