@@ -87,3 +87,23 @@ Foreign red seen once, not in the gate: the doors check `helper-beside-tiles` fa
 ### Open for the PM
 - The 3 s chip sits in the middle of the screen over the tiles; rth-4 (failed reload without chora-notify) can use `show_words` now.
 - Persona round r9 should keep the ricer's T7 words unchanged (plan open question 2); the Looks word now sits at x 116 of the bar.
+
+## Review r1
+
+Reviewer: cloud, read-only on code, claude/tiling-doors-r1 head b1ba6743, base b02dbea9 (24 files, +513 -81). Step 0 green (`git fetch --unshallow`, `cargo check --workspace`). `cargo test -p chora-tiling -p chora-kit`: all ok (chora-tiling 328 passed). No merge gate run (the lane's gate is green: EXIT 0, no SKIP). `tools/sleep-ratchet` ok at 779 (base counted 778).
+
+Checks:
+1. Red first: ba7755f6 (tests only) comes before eda266a5, 2b6c775a, f69e7771. c7d88215 is a refactor (one `cannot_start`, eprintln 47 -> 46, which is true) but also renames a notice title without a test (rtd1-2). b447a2cf adds the Looks padding; its red was the existing gate-tiling-spacing (6 px gap). b1ba6743 changes only a test. No fix ships without a red test: no MAJOR here.
+2. ti-55: `looks::running` takes xp, mc and construct from `clients.list` in a fixed order. The rows come from `give::move_words`, or there is the one row `No other look is running`. `chosen` matches whole rows only, so that row and any typed text choose nothing. A chosen row runs give.sh through `launch_line("give", [look])`, which is the path the Apps rows use. The key list closes first. The words in en and de match the plan, and the theme rows match it in both languages. The bar module has no tooltip and is styled like the other doors. Captures 2 and 4 show the prompt and the rows. The doors cells check one row with tiling only, and that the owner becomes xp with xp running.
+3. ti-56: `act` routes `Own::Swallow` to `hint_unbound`. The hint shows for 3 s, then not again for 10 s, and never while the key list shows. The grab still swallows the key, which the doors check proves (the window hears no key). The help key is the first `System::Keys` binding, resolved through MOD, and the layout chip keeps 700 ms through `show_words`. POLS: a rebound help key is named, because the code reads the user's bindings. But no test proves it, and with no key bound to keys the hint names Super+F1, which is then a swallowed key itself (rtd1-3).
+4. ti-50: `tiling_order` only runs when `run_ordered(.., ordered=true)`, which only tiling uses. mc (main.rs:460) and xp (launch.rs:43) call `run` with `false`, and the construct uses no ordering. Their order does not change. The Screenshot rows stay programs. `cargo test -p chora-kit` is ok.
+5. Beyond the brief: `avoids_jargon` exempts `NoOtherLook` only. The moved x positions still assert what they asserted: the palette pill is still inside tag 1 (173); the gap probes 545/557 sit in the new gap; the separator and island-end scans start further right; the launcher-click y follows the row count. None of these checks is weaker. One new fixed sleep was added (rtd1-1). The lint ratchet 47 -> 46 is true.
+
+Findings:
+- rtd1-1 | MINOR | tests/gate-tiling-apps.sh:137 | a new fixed `sleep 0.5` between `key Down` and `key Return` uses up the sleep ratchet's slack (778 -> 779) | drop it (fuzzel reads keys in order) and run `tools/sleep-ratchet --update` to 778.
+- rtd1-2 | MINOR | plugins/chora-tiling/src/theme.rs:731-735 | the refactor commit c7d88215 changes the notice title "Look switch not installed" with no test; the German "Theme-Umschalter" does not match the rows "Dunkles Design" and look.sh "Design nicht geändert" | write "Design-Umschalter nicht installiert" and add a unit test that pins the en and de titles.
+- rtd1-3 | MINOR | plugins/chora-tiling/src/overlay.rs:197-200 | when no key is bound to keys, the hint falls back to "Super+F1", itself a swallowed chord; no test proves the hint names a rebound help key | without a keys binding say only the first sentence, and add a unit test with `MOD+slash: keys` only that expects Super+/ in the hint.
+- rtd1-4 | MINOR | plugins/chora-tiling/src/main.rs:367-370 | if `clients.list` fails, `--launch looks` writes only to stderr, so a click on Looks shows nothing | show a notice as `tell_launch_error` does (or open the menu with the one row), not silence.
+- rtd1-5 | COSMETIC | docs/configuration.md:1757 | "The looks set `look.theme`" still calls the theme rows looks, the ambiguity ti-55 removes | "The theme rows set `look.theme`".
+
+Verdict: **MERGE-OK** (0 BLOCK, 0 MAJOR, 4 MINOR, 1 COSMETIC).
