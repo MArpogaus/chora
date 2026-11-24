@@ -150,3 +150,15 @@ Gate 1 (e97848a4 merged with origin/claude/autonomous-dev-session-3w-i33pg7 at c
 - **New, MAJOR candidate (co-54 family, rc 9 "no known window loss")**: a program started while the cube stands back gets a pane ahead at [0, 2000], inside the stood-back cube; after Alt+Escape the window is gone from view in 10/10 after runs (co65-after-stepped-out.png: the cube alone; Tab lists it `ahead`; the keyboard stays with s1). Cause: `make_way` (cube/aside.rs:144) runs only as the cube starts to step back (modes.rs:331); a pane adopted later (adopt.rs `adopt`, `place`) is never moved beside. Started more than 60 s after Programs (no fly-in, adopt.rs `LAUNCHED`) it never shows at all (seen once by hand).
 - Harness: fuzzel's use cache (~/.cache/fuzzel) reorders the launcher rows between sessions of a round, so a persona or a script that clicks a row by place picks another program every other run (r9 Max may have met it).
 - MINOR co-44, co-47, co-53, co-55, co-56, co-59, co-63, co-66 not touched. co-60 (cube hints in a pane flown into from the cube) is gone with the co-65 line (overlay.rs:528, the same cause); the PM may close it.
+
+## PM review r3 (06:40 UTC, ce866b0d..e97848a4, 186 lines, PM not the builder)
+
+- co-64: red 363b94c9 (hint test) before e97848a4; hint bar shows `Click Fly in` and `Super Alt 4 Pull out` while a pane is beside the cube; the click and hint act; pull key uses the noted focus of the front face (input.rs). OK.
+- co-65: overlay.rs `stood_back && !flown`: a pane flown into shows `Alt Esc Step back`, no cube hints; test covers timed and untimed. OK; closes co-60 too.
+- Docs: docs/cube-modes.md rows and prose match the hints. OK.
+- rco3-1 | MINOR | input.rs noted_focus | the pull from the noted focus has no unit test (only the e2e 10/10 runs); add one with the next round.
+- rco3-2 | MINOR | overlay.rs pane_hints | `Super Alt 4 Pull out` shows when no face window has focus; the click then does nothing, with no message (honest states). Next round: hide it or say why.
+- rco3-3 | MINOR | hints.rs | six hints stood back; check width at 1280 px in the tour take.
+- Red-first gate refused e97848a4 (message cites co-61); the lane pushes the same tree as 909bc57b to claude/co-reach-r3b (no force). Its full gate: 64 PASS, 1 foreign FAIL gate-tiling-apps-click "Zebra row did not start zebra" (not construct; the train shows whether it repeats).
+- New: co-67 MAJOR candidate (lane, 10/10): a program started while the cube stands back lands inside the cube and is lost after Alt+Escape. Pre-existing (make_way runs only at step back); next round, not this verdict.
+- Verdict (computed): 0 MAJOR in the diff -> MERGE-OK for claude/co-reach-r3b once the tree equals e97848a4.
