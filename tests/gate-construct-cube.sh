@@ -269,6 +269,19 @@ if until_ok help_shown 12; then
 else
     fail "co-26: Super+F1 on the front face shows no key list of the construct"
 fi
+key Super+F1
+until_ok help_shown 12 || fail "co-71: Super+F1 on the front face shows no key list to close"
+inject '[{"pointer_move": {"node": "construct-help-body-foot-0-hit", "point": [8, 8]}}, {"click": {}}]'
+until_ok '! help_shown' 20 || fail "co-71: a click on the Close of the key list opened from a face keeps it"
+key Super+F1
+until_ok help_shown 12 || fail "co-71: Super+F1 shows no key list to close from outside"
+inject '[{"pointer_move": {"position": [20, 400]}}, {"click": {}}]'
+until_ok '! help_shown' 20 || fail "co-71: a click outside the key list opened from a face keeps it"
+key Super+F1
+until_ok help_shown 12 || fail "co-71: Super+F1 shows no key list to close by Escape"
+plain Escape
+until_ok '! help_shown' 20 || fail "co-71: Escape keeps the key list opened from a face"
+ok "co-71: the key list opened from a face closes by its Close, by a click outside and by Escape"
 before=$(keys_got 30)
 plain a
 until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "after the key list the probe window has no keyboard"

@@ -1001,6 +1001,27 @@ fn a_press_on_the_close_of_the_key_sheet_closes_it() {
     assert!(!construct.help, "the Close button closes the sheet");
 }
 
+/// co-71: a press outside the key sheet, on its scrim, closes it, as Escape
+/// and the Close do, and one on the sheet itself does not.
+#[test]
+fn a_press_outside_the_key_sheet_closes_it() {
+    let (mut construct, _core, _lines) = on_core("help-outside", cube_core(json!([])));
+    construct.toggle_help().unwrap();
+    assert!(construct.help);
+    let press = |node: &str| Event::PointerPressed {
+        node: node.into(),
+        button: 272,
+        position: [0.0; 2],
+        local: [0.0; 2],
+        modifiers: Vec::new(),
+        injected: false,
+    };
+    chora_kit::runtime::Plugin::event(&mut construct, press("construct-help-body-panel")).unwrap();
+    assert!(construct.help, "a press on the sheet keeps it open");
+    chora_kit::runtime::Plugin::event(&mut construct, press("construct-help-scrim")).unwrap();
+    assert!(!construct.help, "a press outside the sheet closes it");
+}
+
 /// co-pane r1: a window of a pane that the cube hides does not get the
 /// keyboard back when the key sheet closes: the focus stays a shown window.
 #[test]
@@ -1277,6 +1298,47 @@ fn the_pull_key_is_named_only_where_it_acts() {
     );
     assert!(
         has(&model, "construct-hint-pull-out"),
+        "the keyboard is in a window of a face: the key pulls it out, so it is named"
+    );
+    construct.core_focus = None;
+    construct
+        .cube
+        .as_mut()
+        .unwrap()
+        .note_focus(Some("s7".into()));
+    construct.draw_hints().unwrap();
+    assert!(
+        has(&core.model(), "construct-hint-pull-out"),
+        "the window of a face noted at the step back is pulled out: named"
+    );
+}
+
+/// co-70: stood back from a face window with the keyboard and no pane
+/// beside the cube (row, Return, Super+t, Alt+Escape), the key pulls the
+/// window out, so the hint bar names `Super Alt 4 Pull out`; with no
+/// window to pull it stays silent (co-68 holds). The same predicate
+/// decides both: the hint is told where the key acts.
+#[test]
+fn the_pull_key_is_named_in_a_face_window_stood_back_with_no_pane_beside() {
+    let (mut construct, core, _lines) = with_hint_bar("pull-no-pane");
+    construct.panes.clear();
+    construct.draw_hints().unwrap();
+    assert!(
+        has(&core.model(), "construct-hint-keys"),
+        "the cube's hints show"
+    );
+    assert!(
+        !has(&core.model(), "construct-hint-click-pane"),
+        "no pane beside the cube: no click on it is named"
+    );
+    assert!(
+        !has(&core.model(), "construct-hint-pull-out"),
+        "no window to pull: the key is not named"
+    );
+    construct.core_focus = Some("s7".into());
+    construct.draw_hints().unwrap();
+    assert!(
+        has(&core.model(), "construct-hint-pull-out"),
         "the keyboard is in a window of a face: the key pulls it out, so it is named"
     );
     construct.core_focus = None;

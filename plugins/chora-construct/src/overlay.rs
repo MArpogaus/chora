@@ -615,14 +615,11 @@ impl Construct {
         }
     }
 
-    /// The hints of a pane beside the cube stood back: the click flies
-    /// into it, and the pull key pulls a window out of a face (co-64).
+    /// The hints of the cube stood back besides its own: the click that
+    /// flies into a pane beside the cube (co-64), and the pull key, named
+    /// wherever it acts, with or without a pane beside (co-70).
     fn pane_hints(&self, language: chora_kit::words::Language) -> Vec<crate::hints::Item> {
         use crate::hints::{HINT, Item, click_caps, pull_key, pull_word};
-        if !self.pane_beside() {
-            return Vec::new();
-        }
-        let pulls = self.pull_acts();
         let item = |keys: Vec<String>, word: String, hit: &str| Item {
             keys,
             word,
@@ -630,9 +627,12 @@ impl Construct {
             hit: format!("{HINT}{hit}"),
             chip: false,
         };
-        let fly_in = chora_kit::words::Word::FlyIn.text(language).to_owned();
-        let mut hints = vec![item(click_caps(language), fly_in, "click-pane")];
-        if pulls {
+        let mut hints = Vec::new();
+        if self.pane_beside() {
+            let fly_in = chora_kit::words::Word::FlyIn.text(language).to_owned();
+            hints.push(item(click_caps(language), fly_in, "click-pane"));
+        }
+        if self.pull_acts() {
             hints.push(item(
                 crate::glass::chord(pull_key()),
                 pull_word(language).into(),

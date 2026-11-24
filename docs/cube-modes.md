@@ -71,7 +71,9 @@ the person gave; `Alt+Escape` always works. In navigate mode the
 construct has the keyboard, and `Escape` closes the cube, so that the
 person is never stuck in it; `Return` steps in. `F1` reaches the program
 of a pane, but stood back no program is there, so it shows the keys.
-An open key list takes `Escape` first and closes itself.
+An open key list takes `Escape` first and closes itself; a click on its
+`Close` or outside it closes it too, and a click never reaches the space
+or a pane behind it while it is open (co-71).
 
 In use mode the program of the face keeps `Super`: the press of `Super`
 reaches it, and so do its own `Super` chords, such as `Super+E` and
@@ -118,11 +120,13 @@ walk hints name it,
 hints at the bottom centre are the chips of the cube: `Ctrl Alt ← Turn
 left`, `Return Step in` and `Turn right Ctrl Alt →`; while a pane shows
 beside the cube, also `Click Fly in`, the click on the pane, and, only
-where it acts, `Super Alt 4 Pull out`, the key that pulls the window of
+where it acts, with a pane beside the cube or without one,
+`Super Alt 4 Pull out`, the key that pulls the window of
 a face that has the keyboard (or had it at the step back) out into a
 pane. The key gives a window to the construct, and the window of a pane
 is its own already, so with the keyboard in a pane, or in no window,
-the hint is not told (co-68); and the face label
+the hint is not told (co-68); the same rule decides the hint and the key
+(co-70); and the face label
 under the cube names the window manager and the face, with a dot per
 face. A refusal, for example while another client `xp` runs, shows in
 the HUD.
