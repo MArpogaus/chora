@@ -1280,3 +1280,32 @@ fn a_pane_flown_into_from_the_cube_names_its_way_out() {
         );
     }
 }
+
+/// A program that starts while the cube stands back opens where the
+/// person sees it: beside the cube, clear of it, not inside it, and it
+/// stays there when the cube steps in (co-67).
+#[test]
+fn a_window_that_opens_while_the_cube_stands_back_shows_beside_it() {
+    let mut construct = with_panes("aside-fresh", &[]);
+    stepped_back(&mut construct);
+    construct
+        .adopt("s9", "foot", None, crate::Hold::Taken, true)
+        .unwrap();
+    let (pane, cube) = boxes(&mut construct, "foot");
+    let screen = [0.0, 0.0, construct.lens.w, construct.lens.h];
+    assert!(
+        crate::frame::overlaps(screen, pane),
+        "the new pane shows on the screen: {pane:?}"
+    );
+    assert!(
+        !crate::frame::overlaps(cube, pane),
+        "the new pane is clear of the cube: {pane:?} {cube:?}"
+    );
+    assert_eq!(construct.beside_cube(), Some(0), "it is the pane beside");
+    let put = at_of(&construct, "foot");
+    let host = construct.cube.as_mut().unwrap();
+    host.stand = 0.0;
+    host.step = None;
+    construct.step_asides();
+    assert_eq!(at_of(&construct, "foot"), put, "and the step in leaves it");
+}
