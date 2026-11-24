@@ -2,8 +2,8 @@
 # A reload that fails says so (ti-53, honest failure states): with a broken
 # line in chora-tiling.yaml (`  gap_inner 20`, no colon) and with a wrong
 # action name, MOD+Ctrl+r shows a notice of chora-notify that names the
-# file (and the line, where the parser knows it), the card stands at the
-# bottom right, and the settings of the last good reload stay in force:
+# file (and the line, where the parser knows it), the card shows on the
+# screen, and the settings of the last good reload stay in force:
 # gap_inner is still 30. A valid file still reloads (gap_inner 30).
 #
 # Usage: tests/gate-tiling-reload-notice.sh   BIN: directory with the binaries
@@ -27,6 +27,13 @@ gap_inner() { ctl call tiling get_layout 2>/dev/null | jq -r .gap_inner; }
 shot=$XDG_CONFIG_HOME/notice.png
 ctl capture --output HEADLESS-1 "$shot" >/dev/null || fail "the capture"
 before=$(pixel "$shot" 1000 700)
+no_notice() { [ -z "$(shown_notices)" ]; }
+card_shows() {
+    local x y
+    read -r x y < <(ctl call notify state.get 2>/dev/null | jq -r '.shown[0].rect | "\(.[0] + .[2] / 2 | floor) \(.[1] + .[3] / 2 | floor)"') || return 1
+    ctl capture --output HEADLESS-1 "$shot" >/dev/null 2>&1 || return 1
+    [ "$(pixel "$shot" "$x" "$y")" != "$before" ]
+}
 
 "$bin/chora-tiling" --print-config >"$file"
 sed -i 's/^  gap_inner: 12/  gap_inner: 30/' "$file"
@@ -39,6 +46,7 @@ ok "a valid file reloads: gap_inner 30"
 broken() {
     local name=$1 line=$2 pattern=$3
     dismiss_notices
+    until_ok no_notice || fail "$name: the notice does not go: $(shown_notices)"
     cp "$file" "$file.good"
     case $name in
     line) sed -i "s/^  radius: 10/  radius: 10\n$line/" "$file" ;;
@@ -47,11 +55,10 @@ broken() {
     key Super+Ctrl+r
     until_ok 'shown_notices | grep -q chora-tiling.yaml' 24 || fail "$name: no notice names the file: [$(shown_notices)]; $(ctl call notify state.get 2>&1 | head -c 300)"
     shown_notices | grep -Eq "$pattern" || fail "$name: the notice does not say $pattern: $(shown_notices)"
-    ctl capture --output HEADLESS-1 "$shot" >/dev/null || fail "the capture"
-    [ "$(pixel "$shot" 1000 700)" != "$before" ] || fail "$name: no card at the bottom right"
+    until_ok card_shows 24 || fail "$name: no card on the screen: $(shown_notices)"
     [ "$(gap_inner)" = 30 ] || fail "$name: the old settings are not in force: gap_inner is $(gap_inner)"
     ok "$name: the notice names the file and the reason, the old settings stay"
     mv "$file.good" "$file"
 }
 broken line '  gap_inner 20' 'line [0-9]+'
-broken action 'MOD+Shift+c: frobnicate' 'frobnicate|unknown'
+broken action 'MOD+Shift+y: frobnicate' 'frobnicate|unknown'

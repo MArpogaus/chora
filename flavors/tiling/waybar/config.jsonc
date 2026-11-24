@@ -115,7 +115,7 @@
     "return-type": "json",
     "interval": 2,
     "tooltip": false,
-    "on-click": "choractl run -- chora-chat"
+    "on-click": "choractl call tiling show_helper"
   },
   "custom/keys": {
     "exec": "echo '{\"text\": \"Keys\"}'",

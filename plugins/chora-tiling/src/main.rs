@@ -18,6 +18,7 @@ mod layout;
 mod lifecycle;
 mod methods;
 mod overlay;
+mod reload;
 mod state;
 mod theme;
 mod windows;
@@ -209,6 +210,8 @@ struct Tiling {
     voiced: chora_kit::helper::Helper,
     /// When the layout chip leaves.
     chip_until: Option<std::time::Instant>,
+    /// The notice of the last failed reload, which the next one dismisses.
+    reload_notice: Option<u32>,
     /// The colours of the look, and the scheme they come from.
     colors: theme::Colors,
     scheme: theme::Scheme,
@@ -407,6 +410,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         open: chora_kit::wm::open::Open::default(),
         voiced: chora_kit::helper::Helper::default(),
         chip_until: None,
+        reload_notice: None,
         colors: theme::Colors::of(theme::Scheme::Ink),
         scheme: theme::Scheme::Ink,
         theme_check: None,
@@ -882,6 +886,11 @@ impl Tiling {
         if method == "get_tags" {
             return Ok(json!({"outputs": self.wm.tags()}));
         }
+        if method == "show_helper" {
+            Host::run(self, "chora-chat")
+                .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+            return Ok(Value::Null);
+        }
         if method != "get_layout" {
             let before = self.wm.focused().map(String::from);
             let focuses = self.tune(method, params)?;
@@ -1127,6 +1136,7 @@ impl Tiling {
             Some(Effect::Reload) => {
                 if let Err(err) = runtime::reload_settings(self) {
                     eprintln!("chora-tiling: {}", err.message);
+                    self.tell_reload_failed(&err.message);
                 }
                 Ok(())
             }
@@ -1228,6 +1238,7 @@ mod tests {
             open: chora_kit::wm::open::Open::default(),
             voiced: chora_kit::helper::Helper::default(),
             chip_until: None,
+            reload_notice: None,
             colors: theme::Colors::of(theme::Scheme::Ink),
             scheme: theme::Scheme::Ink,
             theme_check: None,
