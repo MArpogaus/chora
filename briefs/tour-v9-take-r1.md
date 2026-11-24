@@ -3,7 +3,7 @@
 Model: sonnet, effort medium (a recording run with existing tools; no code change; routine)
 Lane: cloud, claude/tour-v9-take at d40142e4 (session head, t127b green; tour-base r3 and record-v9 r4 in). Cost at most 1 %; stop at 200 k context. No product code, no tool change, no intended.toml row: this round records and reports only.
 Why: RC 1b "owner sees v9" and F7: the last full take (record-v9 r4) is on a346972e, seven merges old; the owner has not seen v9.
-Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo build --workspace`; `command -v foot ffmpeg waybar swaybg dbus-daemon` and `python3 -c 'import PIL'`. A failure or a missing tool: send_message the PM "tour-v9-take BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`; `command -v foot ffmpeg waybar swaybg dbus-daemon` and `python3 -c 'import PIL'`. A failure or a missing tool: send_message the PM "tour-v9-take BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
 1) `python3 demo/tour/run.py --check` (all chapters): paste the summary; a red act: name it with its row, do not fix.
 2) Full take (demo/tour/README.md "## Run"), all five chapters; joined MP4 at most 19 MB (the 20 MB pre-commit limit; re-encode with ffmpeg crf if larger; name the crf).
 3) The v8 comparison with tests/tour-diff.py as record-v9 r4 ran it: counts per chapter and verdict (same, change, regression), r4 vs this take; every regression act with its check line.
