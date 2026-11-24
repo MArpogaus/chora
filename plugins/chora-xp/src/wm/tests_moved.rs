@@ -330,7 +330,7 @@ mod keys {
     fn a_swallowed_chord_on_a_face_opens_no_start_menu() {
         let (mut wm, _methods) = wm_on_fake_core("keys-tap-swallowed");
         let bindings = crate::config::defaults().common.bindings;
-        super::super::change_keys(&mut wm.rt, &bindings, CubeKeys::Hosted, Chords::Free).unwrap();
+        super::super::change_keys(&mut wm.rt, &bindings, CubeKeys::Hosted).unwrap();
         assert_eq!(
             wm.rt.action("Super+q"),
             Some(&KeyAction::Look(Look::Swallow)),
@@ -343,18 +343,18 @@ mod keys {
         assert!(!wm.menu.is_open(), "no tap after a swallowed chord");
     }
 
-    /// xp-46 (rpx1-1): beside a window xp swallows the Super chords it
-    /// binds nothing for, as on a face; the chord is a combination, so
+    /// xp-46 (rpx1-1): on a screen of its own xp swallows the Super chords
+    /// it binds nothing for, as on a face; the chord is a combination, so
     /// the release of Super after it opens no Start menu, and Super alone
     /// still does.
     #[test]
-    fn a_swallowed_chord_beside_a_window_of_xp_opens_no_start_menu() {
+    fn a_swallowed_chord_on_a_screen_of_xp_opens_no_start_menu() {
         let (mut wm, _methods) = wm_on_fake_core("keys-tap-own-swallowed");
-        assert!(wm.rt.action("Super+q").is_none(), "no window yet");
-        wm.first_window();
+        let bindings = crate::config::defaults().common.bindings;
+        super::super::change_keys(&mut wm.rt, &bindings, CubeKeys::Own).unwrap();
         assert!(
             wm.rt.action("Super+q").is_some(),
-            "xp-46: the unbound chord is free beside a window of xp"
+            "xp-46: the unbound chord is free on a screen of xp"
         );
         wm.key("Super+Super_L");
         wm.key("Super+q");

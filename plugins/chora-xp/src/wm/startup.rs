@@ -3,12 +3,11 @@
 use chora_kit::wm::Created;
 
 use super::{
-    BARS, Bar, Chords, ClientError, Command, Config, DESKTOP, DESKTOPS, DIALOGS, DesktopIcons,
-    EVENTS, Effects, ExportMethod, HashMap, Icons, Instant, KeyAction, Launches, MENUS, METHODS,
-    Menu, Mixer, NAME, NodeKind, OutputInfo, PropsUpdate, ROOT, RpcError, Runtime, Sound, Theme,
-    Tooltip, WALLPAPERS, WINDOWS, Wm, apps, decoration, desk_id, desktop_icons, float, give,
-    grab_keys, hosted::CubeKeys, max_scale, move_method, settings, wallpaper, window,
-    without_reserve,
+    BARS, Bar, ClientError, Command, Config, DESKTOP, DESKTOPS, DIALOGS, DesktopIcons, EVENTS,
+    Effects, ExportMethod, HashMap, Icons, Instant, KeyAction, Launches, MENUS, METHODS, Menu,
+    Mixer, NAME, NodeKind, OutputInfo, PropsUpdate, ROOT, RpcError, Runtime, Sound, Theme, Tooltip,
+    WALLPAPERS, WINDOWS, Wm, apps, decoration, desk_id, desktop_icons, float, give, grab_keys,
+    hosted::CubeKeys, max_scale, move_method, settings, wallpaper, window, without_reserve,
 };
 use chora_scene::Order;
 
@@ -76,7 +75,6 @@ impl Wm {
             hover: None,
             pointer_output: None,
             cube_keys: CubeKeys::Own,
-            chords: Chords::Free,
             host: None,
             left: None,
             floats: float::Floats::default(),
@@ -335,12 +333,7 @@ impl Wm {
     pub(super) fn grab(&mut self) -> Result<(), ClientError> {
         let cube = self.wanted_keys();
         self.cube_keys = cube;
-        grab_keys(
-            &mut self.rt,
-            &self.settings.value.common.bindings,
-            cube,
-            self.chords,
-        )?;
+        grab_keys(&mut self.rt, &self.settings.value.common.bindings, cube)?;
         self.rt
             .accept_injected(self.settings.value.common.test_accept_injected_keys);
         self.rt.give_keys(Some(|to| {
