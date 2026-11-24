@@ -1,0 +1,14 @@
+# xp-title r1 (F7, rc 11; xp I6: xp-44, xp-45 MINOR; xp has no open BLOCK or MAJOR)
+
+Model: sonnet, effort medium (title colour pairs in one theme; red-first design is plain)
+Lane: cloud, claude/xp-title at 05a63377 (session head, t123). Cost at most 0.6 %; stop at 150 k context. One area: plugins/chora-xp title bar drawing and its theme colours; tests for it.
+Why: findings/xp.md xp-44 (x17: inactive title 'Notepad' 1.00:1, text in its bar's colour) and xp-45 (construct c1..c13: inactive title 'chart' 4.31:1, dark text (30,53,104) on (123,155,223)); both came with f1693fb3 (xp-41 shadow). Not in scope: xp-40, xp-41 (Luna's own pairs; PM decision 11-24: the xp look keeps Luna's authentic pairs, the I6 rows stay known with their finding); xp-43.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`, `python3 demo/tour/run.py --check xp` once (paste the x17 I6 line). A failure: send_message the PM "xp-title BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1) Cause with file:line: why does an inactive title get its bar's colour (x17) and the dark text on the xp faces (c1)? `git show f1693fb3`.
+2) Red first (one commit): a unit test or gate step that reads the inactive title text and bar colours and fails on 05a63377 for both pairs (I6 4.5:1 for title text, or Luna's inactive text colour (216,228,248) with its shadow where Luna has it, whichever the design file docs/xp-look.md or design/ names); paste the failing line.
+3) Fix: the inactive title uses one colour pair everywhere (normal window, xp face of the cube); no per-act special case, no known row, no raised bar. Paste the passing line.
+4) `python3 demo/tour/run.py --check` after: x17 and c1, c2, c3, c13 have no xp-44/xp-45 I6 line; paste the summary line (was "23 red, 0 broken").
+Gate: full `tests/merge-gate.sh --jobs 2` (no --only), detached: `setsid nohup bash -c '(tests/merge-gate.sh --jobs 2 > /tmp/gate.log 2>&1; echo EXIT $? >> /tmp/gate.log)' >/dev/null 2>&1 </dev/null &`, poll /tmp/gate.log in the same turn; never end a turn to wait. One gate only; a red cell you did not cause: name it with its log line. Before ending: `pgrep -fa 'chora --headless'` empty.
+Done when: cause line, red then green shas with pasted lines, the --check summary, the gate green or its foreign reds named.
+Report: reports/xp-title.md "## r1" on claude/session-log; send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 5 lines with the head sha.
+Rules: push claude/xp-title and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).
