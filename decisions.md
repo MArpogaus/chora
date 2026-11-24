@@ -1,1 +1,2 @@
 - 11-21 01:26Z PM: xp tray white on Luna blue (3.27:1) is authentic per the vision card; the guide check exempts that node, not per act (guide-checks r4).
+- 11-24 03:30Z PM: xp-40, xp-41 inactive-title pairs are Luna's own; the xp look keeps them and their I6 rows stay known with the finding (xp-title-r1); xp-44, xp-45 are our regressions and get fixed.
