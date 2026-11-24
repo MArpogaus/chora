@@ -1292,6 +1292,47 @@ fn the_pull_key_is_named_only_where_it_acts() {
     );
 }
 
+/// co-70: stood back from a face window with the keyboard and no pane
+/// beside the cube (row, Return, Super+t, Alt+Escape), the key pulls the
+/// window out, so the hint bar names `Super Alt 4 Pull out`; with no
+/// window to pull it stays silent (co-68 holds). The same predicate
+/// decides both: the hint is told where the key acts.
+#[test]
+fn the_pull_key_is_named_in_a_face_window_stood_back_with_no_pane_beside() {
+    let (mut construct, core, _lines) = with_hint_bar("pull-no-pane");
+    construct.panes.clear();
+    construct.draw_hints().unwrap();
+    assert!(
+        has(&core.model(), "construct-hint-keys"),
+        "the cube's hints show"
+    );
+    assert!(
+        !has(&core.model(), "construct-hint-click-pane"),
+        "no pane beside the cube: no click on it is named"
+    );
+    assert!(
+        !has(&core.model(), "construct-hint-pull-out"),
+        "no window to pull: the key is not named"
+    );
+    construct.core_focus = Some("s7".into());
+    construct.draw_hints().unwrap();
+    assert!(
+        has(&core.model(), "construct-hint-pull-out"),
+        "the keyboard is in a window of a face: the key pulls it out, so it is named"
+    );
+    construct.core_focus = None;
+    construct
+        .cube
+        .as_mut()
+        .unwrap()
+        .note_focus(Some("s7".into()));
+    construct.draw_hints().unwrap();
+    assert!(
+        has(&core.model(), "construct-hint-pull-out"),
+        "the window of a face noted at the step back is pulled out: named"
+    );
+}
+
 /// Flown into a pane from the cube stood back, as a program started from
 /// Programs or the click on a pane does, the hint bar names the way out,
 /// `Step back` with its key, and no hint of the cube, whose keys do not
