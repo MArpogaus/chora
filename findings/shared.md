@@ -47,3 +47,6 @@ sh-42 | MAJOR (rc 1; handover, D119) | stray-super r2 lane, reports/stray-super.
 rtb5-1 | MAJOR (F7) | review tour-base r5 (reports/tour-base.md "## Review r5") | open; TOUR-BASE r6 | added (35), pixel (32) and x12c visible rows have no nodes or boxes, so they absorb any later unrelated diff; 13 acts moved to change rest on them
 rtb5-2 | MINOR (F7) | review tour-base r5 | open; TOUR-BASE r6 | pixel rows cite judge x7.jpg for 30 acts the judge did not see
 rtb5-3 | MINOR (F7) | review tour-base r5 | open; TOUR-BASE r6 | handover.py:106 companion start unchecked; the test reads command lines only
+rss-11 | MINOR | review stray-super r3 (reports/stray-super.md "## Review r3") | open | construct with a cube binds Super keys but never says swallow on; beside an earlier tiling its keys race xp's swallow (plausible, not reproduced)
+rss-12 | MINOR | review stray-super r3 | open | say_swallow sets said before the emit; a say the core drops (32 emits/s) is never sent again
+rss-13 | MINOR | review stray-super r3 | open | about 75 "grabbed already" log lines per join in tiling; one line would do
