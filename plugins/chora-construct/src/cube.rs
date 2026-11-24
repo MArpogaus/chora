@@ -53,8 +53,8 @@ const EDGE_GLOW: &str = "construct-cube-edge-glow";
 pub(crate) const LIT_GLOW: f64 = 0.35;
 pub(crate) const EDGE_OUT: f64 = 120.0;
 /// How far the pointer moves at most between the press and the release
-/// of a click on a face.
-const CLICK: f64 = 8.0;
+/// of a click on a face or on a pane beside the cube.
+pub(crate) const CLICK: f64 = 8.0;
 /// How long a quarter turn takes, by default.
 pub(crate) const TURN: Duration = Duration::from_millis(360);
 /// How long the cube takes to settle on a face after a drag.
