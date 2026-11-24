@@ -74,3 +74,9 @@ Head bb4c07d9 on claude/tiling-calm-r2 (merge of d40142e4 = 9649ef3f, fix bb4c07
 - The merge commit carries a `ratchet-raise:` line only because tools/sleep-ratchet.list arrives as a new file with the merge (779/930, no raise).
 - Full gate (--jobs 2): every cell PASS except tiling-bar: "FAIL: persona session.sh tiling: 2 waybar processes on one config" (a load race in the persona part, untouched by r2). gate-tiling-one-bar.sh alone then ran green. Not caused by r2.
 - `pgrep -fa 'chora --headless'` empty.
+
+## PM review r2 (bb4c07d9 over 9649ef3f; diff 4+/14-, 2 test files)
+
+- Done when: sleep-ratchet ok (778/779, 929/930) after the merge; the two cells 5/5; full gate named its one foreign red. Checked by reading the diff: open_list and list_gone keep their asserts and their 5 s window (gate-lib until_ok, 10 rounds = 5 s, eval of '! list_open' is fine); the lock fake waybar stays a process that holds fd 9 (tail -f), so the lock assert still means what it meant.
+- The red tiling-bar part ("persona session.sh tiling: 2 waybar processes on one config") is the ti-47 symptom under load; r2 touched no waybar start path (the fake is named waybar but runs tail and has no --config). Filed sh-41 (verify) for the next flake round.
+- Verdict (computed): no open MAJOR from this diff -> MERGE-OK bb4c07d9; next train.

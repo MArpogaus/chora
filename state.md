@@ -24,13 +24,13 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin); F5 7 rows, no serie
 |---|---|---|
 | co-pull-r2.md (rc 2; co-70, co-71; 1 %) | sonnet high, claude/co-pull-r2 be6e62ec | session_016iS3kQfpC9MnJi7JhzqpHe |
 | rc1-pass-tiling-r1.md (rc 1; 1.5 %) | opus high, claude/rc1-pass-tiling d40142e4 | session_016iS3kM4PtnnwHL12RWmh3X |
-| tiling-calm-r2.md (rc 2; t128 red 782/779; 0.6 %) | sonnet medium, claude/tiling-calm-r2 e9387fb2 | session_016iS3kNyLMFdcTUGYBG8Fui |
+| p2-r8-tiling.md (rc 2; 0.8 %) | sonnet medium, claude/p2-r8-tiling bb4c07d9 | starting |
 | tour-v9-take-r1.md (F7, rc 1b; 1 %) | sonnet medium, claude/tour-v9-take d40142e4 | session_016iS3kQ7AREXGscKyEdNsv9 |
 | stray-super-r1.md (rc 1; xp-46, mc-60; 1 %) | sonnet high, claude/stray-super-r1 d40142e4 | session_016iS3kNnjci4yeBhCJRuWif |
 | helper-greet-r1.md (rc 1; xp-47; 0.8 %) | sonnet high, claude/helper-greet-r1 d40142e4 | session_016iS3kMT9MeqAv9J4kbg26x |
 ## Queue (% week; 5 % reserve)
 0. (rc 8) VERIFY-MINOR r2 12/14; xp-18.
-1. (F4, F5, rc 1, 3) TRAIN130 cfee54b4..09a1419e running; next: tiling-calm r2, then tiling persona r8.
+1. (F4, F5, rc 1, 3) TRAIN130 cfee54b4..09a1419e running; next train: tiling-calm r2 bb4c07d9 MERGE-OK; P2-R8-TILING on it.
 2. (rc 2) CO-PULL r1 merged t129; r11-co not met (C2: co-70 MAJOR, co-71); CO-PULL r2, then r12-co.
 3. (rc 3, 9; F5) FLAKE-SERIES r8 (rfs7-1, rfs7-2; sh-38 leak slope); TILING-FLAKE r3 MERGE-OK (sh-39, sh-40).
 4. (F7, rc 11) TOUR-BASE r4 d0801b7e MERGE-OK (rtb4-1 MINOR next); TOUR-V9 take lane.
