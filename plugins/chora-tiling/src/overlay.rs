@@ -298,6 +298,14 @@ impl Tiling {
         self.open.contains(keys::KEYS)
     }
 
+    /// Hides the key list when it shows, and does nothing when it does not.
+    pub(super) fn hide_keys_if_open(&mut self) -> Result<(), ClientError> {
+        if self.keys_open() {
+            self.hide_keys()?;
+        }
+        Ok(())
+    }
+
     /// Hides the key list and gives the keyboard back.
     pub(super) fn hide_keys(&mut self) -> Result<(), ClientError> {
         self.open.shut(keys::KEYS);

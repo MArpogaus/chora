@@ -11,7 +11,10 @@ use std::{
     process::{Command, Stdio},
 };
 
-use crate::desktop_entry::{self, Entry};
+use crate::{
+    desktop_entry::{self, Entry},
+    words::{Language, Word},
+};
 
 /// How often the list shows again after text that found nothing.
 const ROUNDS: usize = 8;
@@ -65,6 +68,59 @@ const HELPER_PROGRAM: &str = "chora-chat";
 #[must_use]
 pub fn helper_last(mut apps: Vec<App>) -> Vec<App> {
     apps.sort_by_cached_key(|a| a.words.last().is_some_and(|w| w == HELPER_PROGRAM));
+    apps
+}
+
+/// The name of the helper in the words of a door (`atlas · idle`, from
+/// `chora-chat --door`); none for the door without a helper (`No helper`)
+/// and for an empty one.
+#[must_use]
+pub fn helper_of_door(door: &str) -> Option<String> {
+    let door = door.trim();
+    let none = [Language::En, Language::De].map(|l| Word::NoHelperDoor.text(l));
+    if door.is_empty() || none.contains(&door) {
+        return None;
+    }
+    door.split(" · ")
+        .next()
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .map(str::to_owned)
+}
+
+/// The name of the helper that its door says, from `chora-chat --door`;
+/// none without a helper, without the program, or when it does not answer
+/// within two seconds.
+#[must_use]
+pub fn helper_name() -> Option<String> {
+    let (send, receive) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let out = Command::new(HELPER_PROGRAM)
+            .arg("--door")
+            .stderr(Stdio::null())
+            .output()
+            .ok()
+            .filter(|out| out.status.success());
+        let _ = send.send(out.map(|out| String::from_utf8_lossy(&out.stdout).into_owned()));
+    });
+    let door = receive
+        .recv_timeout(std::time::Duration::from_secs(2))
+        .ok()??;
+    helper_of_door(&door)
+}
+
+/// The row of the chat with a helper names the helper: `Chat with a
+/// helper (atlas)`, so that its name finds it as the word helper does. The
+/// name stands in plain ASCII: fuzzel in the C locale matches no row that has
+/// a multibyte character such as the middle dot of a door word.
+#[must_use]
+pub fn helper_named(mut apps: Vec<App>, name: &str) -> Vec<App> {
+    for app in apps
+        .iter_mut()
+        .filter(|a| a.words.last().is_some_and(|w| w == HELPER_PROGRAM))
+    {
+        app.name = format!("{} ({name})", app.name);
+    }
     apps
 }
 
@@ -279,17 +335,26 @@ fn entry_dirs(first: Option<PathBuf>, shared: &[PathBuf], xdg: Vec<PathBuf>) -> 
 /// directory in front of the folder that every look shares and the XDG
 /// ones, for the entries of a flavor.
 pub fn run(fuzzel: &[String], terminal: &str, first: Option<PathBuf>) {
-    run_ordered(fuzzel, terminal, first, false);
+    run_ordered(fuzzel, terminal, first, false, None);
 }
 
 /// Like [`run`], and with `helper_last` the row of the chat with a helper
-/// stands after the programs.
-pub fn run_ordered(fuzzel: &[String], terminal: &str, first: Option<PathBuf>, helper_last: bool) {
+/// stands after the programs; with a `helper` name it names that helper.
+pub fn run_ordered(
+    fuzzel: &[String],
+    terminal: &str,
+    first: Option<PathBuf>,
+    helper_last: bool,
+    helper: Option<&str>,
+) {
     let dirs = entry_dirs(first, &crate::shared::dirs(), crate::xdg::data_dirs());
     let entries = desktop_entry::applications_in(&dirs);
     let mut apps = apps(entries, terminal, desktop_entry::on_path);
     if helper_last {
         apps = self::helper_last(apps);
+    }
+    if let Some(name) = helper {
+        apps = helper_named(apps, name);
     }
     if let Some(command) = choose_reporting(fuzzel, &apps, &mut tell) {
         crate::launch::run(&command, None);
@@ -327,6 +392,28 @@ mod tests {
             names.contains(&"Chat with a helper".to_owned()),
             "{names:?}"
         );
+    }
+
+    #[test]
+    fn the_helper_row_names_the_helper_that_the_door_names() {
+        assert_eq!(helper_of_door("atlas · idle").as_deref(), Some("atlas"));
+        assert_eq!(helper_of_door("coder").as_deref(), Some("coder"));
+        assert_eq!(helper_of_door("No helper"), None);
+        assert_eq!(helper_of_door("Kein Helfer"), None);
+        assert_eq!(helper_of_door("  "), None);
+        let list = apps(
+            [
+                entry("Chat with a helper", "chora-chat"),
+                entry("Zed", "foot"),
+            ],
+            "foot",
+            |_| true,
+        );
+        let names: Vec<String> = helper_named(list, "atlas")
+            .into_iter()
+            .map(|a| a.name)
+            .collect();
+        assert_eq!(names, ["Chat with a helper (atlas)", "Zed"]);
     }
 
     #[test]

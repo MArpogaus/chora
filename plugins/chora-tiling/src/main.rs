@@ -250,10 +250,6 @@ fn main() -> ExitCode {
 /// Shows why a program does not start as a critical notice of
 /// the notification server; when the core or the server is gone, the line on stderr
 /// is the only message.
-#[allow(
-    clippy::disallowed_methods,
-    reason = "a launch is no plugin: it only shows one notice and ends"
-)]
 fn tell_launch_error(err: &theme::LaunchError) {
     let (title, text) = err.notice();
     let notice = notice::Notice {
@@ -264,12 +260,33 @@ fn tell_launch_error(err: &theme::LaunchError) {
         expire_ms: 0,
         urgency: notice::Urgency::Critical,
     };
-    match Conn::connect("chora-tiling.launch") {
+    match launch_conn() {
         Ok(mut conn) => {
             notice::show_or_log(&mut conn, None, &notice);
         }
         Err(err) => eprintln!("chora-tiling: notice {title:?}: {err}"),
     }
+}
+
+/// The connection of a launch: it only shows one notice or asks tiling to
+/// close the key list, and ends, so it is no plugin.
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a launch is no plugin: it only shows one notice or asks one thing and ends"
+)]
+fn launch_conn() -> Result<Conn, chora_scene::ipc::ClientError> {
+    Conn::connect("chora-tiling.launch")
+}
+
+/// Asks tiling to close the key list before the launcher or the power menu
+/// opens, so that one overlay shows at a time; without a session or a tiling
+/// that answers it does nothing.
+fn close_key_list() {
+    let Ok(mut conn) = launch_conn() else {
+        return;
+    };
+    let call = json!({"client": NAME, "method": "hide_keys", "params": {}});
+    let _ = conn.call_within::<_, Value>("methods.call", call, std::time::Duration::from_secs(1));
 }
 
 /// `--launch PROGRAM [ARGS]`: starts foot, fuzzel or swaylock with the
@@ -291,13 +308,18 @@ fn launch(argv: &[String]) -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+    if program == "power" || (program == "fuzzel" && rest.is_empty()) {
+        close_key_list();
+    }
     if program == "fuzzel" && rest.is_empty() {
         let flavor = dirs.iter().find(|d| d.join("applications").is_dir());
+        let helper = chora_kit::launcher::helper_name();
         chora_kit::launcher::run_ordered(
             &line,
             "chora-tiling --launch foot",
             flavor.cloned(),
             true,
+            helper.as_deref(),
         );
         return ExitCode::SUCCESS;
     }
@@ -726,6 +748,9 @@ impl Tiling {
             .ok()
             .filter(|_| data["open"] == true);
         let output = data["output"].as_str().unwrap_or_default();
+        if rect.is_some() && self.keys_open() {
+            self.hide_keys()?;
+        }
         if self.wm.set_panel(output, rect) {
             self.relayout()?;
         }
@@ -900,6 +925,11 @@ impl Tiling {
         Ok(match method {
             "show_keys" => {
                 self.toggle_keys()
+                    .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+                false
+            }
+            "hide_keys" => {
+                self.hide_keys_if_open()
                     .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
                 false
             }
