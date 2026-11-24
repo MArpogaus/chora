@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-24 14:02 UTC)
+## Now (2026-11-24 14:03 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 14:02 PM 4.9 % (11-22) + 5.2 % (11-23) + 4.3 % (11-24), week about 29 % vs 49 % pace
 session branch: d40142e4 (t127b 12:28); 76 greens, series 2/3; t128 red (sleep-ratchet); t129 12:40 co-pull.
@@ -29,7 +29,7 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin); F5 7 rows, no serie
 | stray-super-r1.md (rc 1; xp-46, mc-60; 1 %) | sonnet high, claude/stray-super-r1 d40142e4 | starting |
 | helper-greet-r1.md (rc 1; xp-47; 0.8 %) | sonnet high, claude/helper-greet-r1 d40142e4 | starting |
 ## Queue (% week; 5 % reserve)
-0. (rc 8) VERIFY-MINOR r2: 12 of 14 closed; xp-34 known; xp-18 verify.
+0. (rc 8) VERIFY-MINOR r2: 12/14; xp-18 verify.
 1. (F4, F5, rc 1, 3) TRAIN129 co-pull 12:40; next train: XP-38 r2 31b5a11d, FLAKE-SERIES r8 d2c2174c, TILING-FLAKE r3 f68f596a (all MERGE-OK), tiling-calm r2; then tiling persona r8.
 2. (rc 1, 2) CO-PULL be6e62ec MERGE-OK (co-68) in train129; then persona r11 on construct (C2 reach).
 3. (rc 3, 9; F5) FLAKE-SERIES r8 (rfs7-1, rfs7-2; sh-38 leak slope); TILING-FLAKE r3 MERGE-OK (sh-39, sh-40).
