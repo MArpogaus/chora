@@ -7,9 +7,10 @@
 //! another modifier swallows nothing.
 
 use chora_scene::{
-    Binding,
+    Binding, Event,
     ipc::{ClientError, RpcError},
 };
+use serde_json::{Value, json};
 
 use crate::runtime::Runtime;
 
@@ -113,7 +114,8 @@ pub fn chords(modifier: &str) -> Vec<String> {
 }
 
 impl<A: Clone> Runtime<A> {
-    /// The chords of [`chords`] that the plugin holds no binding for.
+    /// The chords of [`chords`] that the plugin holds no binding for and
+    /// waits for none: a bound chord that the core refused stays bound.
     fn free_chords(&self, modifier: &str) -> Result<Vec<Binding>, ClientError> {
         let mut free = Vec::new();
         for chord in chords(modifier) {
@@ -123,7 +125,9 @@ impl<A: Clone> Runtime<A> {
                     format!("{chord}: {e}"),
                 ))
             })?;
-            if self.action(&binding.to_string()).is_none() {
+            let text = binding.to_string();
+            let bound = |(waits, _, swallows): &(String, A, bool)| *waits == text && !swallows;
+            if self.action(&text).is_none() && !self.waiting.iter().any(bound) {
                 free.push(binding);
             }
         }
@@ -135,15 +139,90 @@ impl<A: Clone> Runtime<A> {
     /// comes after the grabs of a set and before [`Self::end_grabs`]: the
     /// first grab of a chord wins, so a chord that the plugin bound stays
     /// with its action, and one that another client holds stays with it.
+    /// A refusal logs nothing.
+    ///
+    /// The swallow is the last claim (D118): while a window manager that
+    /// joined after the plugin is there, the plugin swallows nothing, so
+    /// that the joiner gets every chord that it binds and swallows the
+    /// rest itself; see [`Self::swallow_event`].
     ///
     /// # Errors
     ///
     /// The socket fails, or the core knows no such key.
     pub fn grab_swallowed(&mut self, modifier: &str, swallow: &A) -> Result<(), ClientError> {
+        self.swallow = Some((modifier.to_owned(), swallow.clone()));
+        if !self.joined.is_empty() {
+            return Ok(());
+        }
         for binding in self.free_chords(modifier)? {
-            self.grab(binding, swallow.clone())?;
+            self.grab_as(binding, swallow.clone(), true)?;
         }
         Ok(())
+    }
+
+    /// The events of the swallow, which [`crate::runtime::dispatch`]
+    /// hands here: a window manager of [`crate::give::KEYS`] that joins
+    /// takes the swallow, which the plugin lets go at once, and when the
+    /// last one that joined went the plugin swallows again. A binding that
+    /// the core refused is asked again when the core tells that it is free
+    /// (`input.ungrabbed`, D117): so the joiner gets the chords that the
+    /// swallow let go after its own grab of them.
+    ///
+    /// # Errors
+    ///
+    /// The socket fails.
+    pub fn swallow_event(&mut self, event: &Event) -> Result<(), ClientError> {
+        let manager = |name: &str| crate::give::KEYS.iter().any(|(_, to)| *to == name);
+        match event {
+            Event::ClientConnected { name } if manager(name) && *name != self.name => {
+                self.joined.insert(name.clone());
+                self.let_swallow_go()
+            }
+            Event::ClientDisconnected { name } if self.joined.remove(name) => {
+                match self.swallow.clone() {
+                    Some((modifier, swallow)) if self.joined.is_empty() => {
+                        self.grab_swallowed(&modifier, &swallow)
+                    }
+                    _ => Ok(()),
+                }
+            }
+            Event::InputUngrabbed { binding } => self.ask_again(binding),
+            _ => Ok(()),
+        }
+    }
+
+    /// Lets every swallowed chord go, in one batch so that the joiner meets
+    /// few of them, and forgets the refused ones.
+    fn let_swallow_go(&mut self) -> Result<(), ClientError> {
+        self.waiting.retain(|(.., swallows)| !swallows);
+        let swallowed = std::mem::take(&mut self.swallowed);
+        self.grabs.retain(|(normal, _)| !swallowed.contains(normal));
+        let ungrabs: Vec<(&str, Value)> = (swallowed.iter())
+            .filter_map(|normal| normal.parse::<Binding>().ok())
+            .map(|binding| ("input.ungrab", json!({"binding": binding.to_string()})))
+            .collect();
+        if !ungrabs.is_empty() {
+            self.conn.call_all(&ungrabs)?;
+        }
+        Ok(())
+    }
+
+    /// Grabs a binding that the core refused, now that another client let
+    /// it go; a swallow only while no window manager joined, and not over
+    /// a binding that the plugin holds by now.
+    fn ask_again(&mut self, binding: &str) -> Result<(), ClientError> {
+        let Ok(binding) = binding.parse::<Binding>() else {
+            return Ok(());
+        };
+        let text = binding.to_string();
+        let Some(i) = self.waiting.iter().position(|(waits, ..)| *waits == text) else {
+            return Ok(());
+        };
+        let (_, action, swallows) = self.waiting.swap_remove(i);
+        if swallows && (!self.joined.is_empty() || self.action(&text).is_some()) {
+            return Ok(());
+        }
+        self.grab_as(binding, action, swallows).map(drop)
     }
 }
 
@@ -154,8 +233,6 @@ mod tests {
         runtime::{Plugin, dispatch},
         testing::{FakeCore, in_child, stderr_of},
     };
-    use chora_scene::Event;
-    use serde_json::{Value, json};
 
     /// A look on the kit runtime that only grabs: the runtime handles the
     /// events of the swallow.
@@ -240,7 +317,8 @@ mod tests {
 
     /// The window manager that joins asks again for a chord that it was
     /// refused, once the core tells that it is free (D117): the swallow of
-    /// the other look let it go after the refusal (rss-1).
+    /// the other look let it go after the refusal (rss-1). Its own swallow
+    /// leaves the refused binding to its action.
     #[test]
     fn a_refused_grab_is_asked_again_when_the_core_lets_it_go() {
         let core = FakeCore::start();
@@ -249,6 +327,7 @@ mod tests {
             rt: core.runtime("tiling"),
         };
         assert!(!look.rt.grab("Super+1".parse().unwrap(), "tag 1").unwrap());
+        look.rt.grab_swallowed("Super", &"swallow").unwrap();
         core.model().lock().unwrap().held.clear();
         dispatch(
             &mut look,

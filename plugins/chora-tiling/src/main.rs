@@ -447,7 +447,7 @@ fn serve(tiling: &mut Tiling) -> Result<(), ClientError> {
 }
 
 /// The events that tiling handles.
-const EVENTS: [&str; 21] = [
+const EVENTS: [&str; 22] = [
     "voice.state",
     "voice.say",
     "voice.remove",
@@ -468,6 +468,7 @@ const EVENTS: [&str; 21] = [
     "focus.changed",
     "focus.node",
     "input.button",
+    "input.ungrabbed",
     "node.key",
 ];
 
