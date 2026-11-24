@@ -486,6 +486,7 @@ mod tests {
         rt.grab_swallowed("Super", &"swallow").unwrap();
         rt.end_grabs().unwrap();
         rt.start_grabs();
+        rt.grab("Super+d".parse().unwrap(), "drag").unwrap();
         rt.end_grabs().unwrap();
         let emits = core.model().lock().unwrap().emits.clone();
         let said: Vec<_> = (emits.iter())

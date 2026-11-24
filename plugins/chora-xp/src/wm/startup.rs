@@ -435,11 +435,12 @@ mod tests {
     fn xp_subscribes_before_it_grabs() {
         let core = core_with_look(false);
         let calls = core.record(|method, _| {
-            matches!(method, "events.subscribe" | "input.grab").then(|| method.to_owned())
+            let subscribe = method.starts_with("events.") && method.ends_with("subscribe");
+            (subscribe || method == "input.grab").then(|| method.to_owned())
         });
         let _wm = wm_on_kit_core(&core, "subscribes-first");
         let calls = calls.lock().unwrap().clone();
-        let subscribe = calls.iter().position(|m| m == "events.subscribe");
+        let subscribe = calls.iter().position(|m| m.starts_with("events."));
         let grab = calls.iter().position(|m| m == "input.grab");
         assert!(grab.is_some(), "xp grabs: {calls:?}");
         assert!(
