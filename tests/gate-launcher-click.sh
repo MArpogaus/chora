@@ -13,7 +13,9 @@
 # act.py look, click Apps or Programs, click the Mid row. The test rows are
 # named Aa, Ab and Ac so that they stand before every row the flavor ships
 # (Chat with a helper, Edit settings, the looks, Screenshot): the Mid row is
-# the second whatever the flavor adds. Mid, the second row
+# the second whatever the flavor adds, but the list is centred, so its y
+# follows the number of rows up to the 9 that fuzzel.ini shows (lines=9), and
+# the click takes the y of a list that is full. Mid, the second row
 # of the list in both looks, must start, and
 # Alpha, the highlighted first row, must not.
 #
@@ -122,7 +124,7 @@ row() {
     stop_session
 }
 
-row tiling 35 15 400 219
+row tiling 35 15 400 207
 row construct 96 32 400 184
 if [ -n "$unit_failed" ]; then
     cat "$unit_log" >&2

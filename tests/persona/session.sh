@@ -38,7 +38,11 @@
 #
 # The companions that the units of the flavor start (flavors/FLAVOR/) start
 # too, with choractl run, when their programs exist on the machine; the
-# list of each flavor is the `case` on FLAVOR in this script.
+# list of each flavor is the `case` on FLAVOR in this script. chora-tiling
+# starts with --no-companions: this script starts the panel and the
+# wallpaper of tiling with the environment of the session, so that a
+# session has one bar (ti-47); the plugin would start a second one, with
+# its own environment.
 #
 # When the session is up, it writes KEY=VALUE lines to
 # $PERSONA_DIR/session.env and prints "PERSONA_ENV=<that file>" as its
@@ -224,7 +228,7 @@ export GALLIUM_DRIVER=llvmpipe LIBGL_ALWAYS_SOFTWARE=1
 
 startup_of() {
     case $1 in
-    tiling) startup=("$bin/chora-tiling") ;;
+    tiling) startup=("$bin/chora-tiling" --no-companions) ;;
     xp)
         sed -e 's/^  sounds: true/  sounds: false/' -e 's/^editor:.*/editor: mousepad/' "$repo/plugins/chora-xp/xp.yaml" >"$dir/xp.yaml"
         startup=(env "DBUS_SESSION_BUS_ADDRESS=unix:path=$dir/bus" "$bin/chora-xp" --theme "$repo/flavors/xp/theme" --config "$dir/xp.yaml")

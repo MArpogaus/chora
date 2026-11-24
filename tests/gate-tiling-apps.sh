@@ -54,7 +54,12 @@ if [ -z "$a" ] || [ -z "$s" ] || [ -z "$z" ]; then fail "alpha, Screenshot or Ze
 if [ "$a" -ge "$s" ] || [ "$s" -ge "$z" ]; then fail "the rows are not sorted by name: $(tr '\n' '|' <"$rows")"; fi
 [ "$(head -n 1 "$rows")" != Screenshot ] || fail "Screenshot is the first row"
 grep -qxF Ghost "$rows" && fail "Ghost, whose program is not installed, is a row"
+for row in "Move window to the xp desktop" "Move window to the media center desktop" "Move window to the construct desktop"; do
+    grep -qxF "$row" "$rows" || fail "no launcher row \"$row\": $(tr '\n' '|' <"$rows")"
+done
+grep -qxF "Move window to the tiling desktop" "$rows" && fail "tiling is offered to move a window to itself"
 ok "the rows are sorted by name, Screenshot is not the first, and a program that is not installed is no row"
+ok "the launcher moves a window to the xp, media center and construct desktop in the words of the key list"
 [ "$(head -n 1 "$work/fake/rows.2" 2>/dev/null)" = "Nothing found for \"zzqq\"" ] ||
     fail "text that finds nothing gives no row that says so: $(head -n 1 "$work/fake/rows.2" 2>/dev/null)"
 [ "$(sed -n 2p "$work/fake/rows.2")" = "$(head -n 1 "$rows")" ] || fail "the list does not show again under the row"

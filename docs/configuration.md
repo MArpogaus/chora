@@ -288,7 +288,7 @@ its rows and 24 px more, centred on the current output, with the heading "Keys",
 basics of the pointer (the Apps button starts a program, a click on a tag shows it,
 `Super+drag` moves a window, the power icon locks or ends the session) and the rows of every
 binding of the file in the groups Windows (the first row is Move focus:
-`Super+J`, `Super+K` and `Alt+Tab`), Other looks (the give keys), Layouts, Tags,
+`Super+J`, `Super+K` and `Alt+Tab`), Other desktops (titled "Other desktops: xp, media center, construct"; the give keys in one row, `Super+Alt+2-4` Move window to another desktop), Layouts, Tags,
 Programs and System: the keys on a keycap in JetBrains Mono, then the words of the
 action in Inter ("Move focus"; the actions that every look has are named as in the other looks, `run` shows its command unless a label names it). Each group is
 whole in one of two columns, and the columns are as even as they can be.
@@ -1606,6 +1606,7 @@ The package installs the tiling flavor (D51):
 ├── fuzzel.ini                        # the launcher: opaque, the palette
 ├── swaylock.conf                     # the lock screen in the palette
 ├── look.sh                           # Light look, Dark look and System look: look.theme at once
+├── give.sh                           # Move window to the xp desktop (and mc, construct): choractl give
 ├── settings.sh                       # Edit settings: chora-tiling.yaml in $EDITOR (else vi) in foot
 ├── wallpaper.sh                      # swaybg again after a new theme, where no unit runs it
 ├── applications/                     # the entries of the three looks
@@ -1741,7 +1742,7 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   session without the variable finds it. The launcher lists the entries of
   `applications/` of the flavor and of the shared folder too: **Chat with a
   helper**, **Screenshot**, **Screenshot of an
-  area**, **Light look**, **Dark look** and **System look** are the way for the mouse. `chora-tiling --launch fuzzel` without arguments gives fuzzel the list itself, as rows of `fuzzel --dmenu`: the installed programs, sorted by name, so Enter alone starts the first program by name and takes no screenshot. An entry whose program is not installed is no row. Text that matches no row finds programs by their keywords, their generic name or their command. Text whose first word is an installed program runs as a command. After any other text the list shows again under the row `Nothing found for "TEXT"`. The looks set `look.theme` to `paper`, `ink` or `system` with `settings.set` and apply it at once; `system`, the default, follows the colour scheme of the system. The terminal is JetBrains Mono at 10.5 pt with 16 px of
+  area**, **Light look**, **Dark look**, **System look** and **Move window to the xp desktop** (also the media center and the construct desktop; `give.sh` hands the focused window over like `Super+Alt+2` to `4`, with a notice when it cannot) are the way for the mouse. `chora-tiling --launch fuzzel` without arguments gives fuzzel the list itself, as rows of `fuzzel --dmenu`: the installed programs, sorted by name, so Enter alone starts the first program by name and takes no screenshot. An entry whose program is not installed is no row. Text that matches no row finds programs by their keywords, their generic name or their command. Text whose first word is an installed program runs as a command. After any other text the list shows again under the row `Nothing found for "TEXT"`. The looks set `look.theme` to `paper`, `ink` or `system` with `settings.set` and apply it at once; `system`, the default, follows the colour scheme of the system. The terminal is JetBrains Mono at 10.5 pt with 16 px of
   padding, so no text touches the rounded corner. `MOD+a` starts `chora-chat`, which opens the chat
   with a helper.
 - **The power menu and screenshots**: `MOD+Shift+e` and the power icon of

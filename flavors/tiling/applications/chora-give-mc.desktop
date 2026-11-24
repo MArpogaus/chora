@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Move window to the media center desktop
+Name[de]=Fenster auf den Mediencenter-Desktop verschieben
+Comment=Hand the focused window to the mc desktop
+Comment[de]=Das Fenster mit dem Fokus an den mc-Desktop geben
+Exec=chora-tiling --launch give mc
+Icon=preferences-desktop
+Terminal=false
+Categories=Settings;
+Keywords=window;move;give;send;desktop;look;mc;

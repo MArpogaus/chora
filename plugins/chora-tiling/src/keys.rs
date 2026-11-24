@@ -8,6 +8,7 @@ use chora_kit::{actions::System, keysheet, volume::Change, words::Language};
 use chora_scene::{Backdrop, Border, Command, NodeKind, PropsUpdate, Transform};
 
 use crate::{
+    NAME,
     config::{Action, Config, Own},
     layout::Layout,
     theme::{Colors, channels},
@@ -219,7 +220,10 @@ fn own_words(action: &Action) -> Option<Words> {
 /// The title of a group of the key list.
 fn title(group: usize, de: bool) -> &'static str {
     let names = [
-        ["Other looks", "Andere Fenstermanager"],
+        [
+            "Other desktops: xp, media center, construct",
+            "Andere Desktops: xp, Mediencenter, Construct",
+        ],
         ["Windows", "Fenster"],
         ["Layouts", "Anordnung"],
         ["Tags", "Tags"],
@@ -387,7 +391,7 @@ pub fn rows(config: &Config, lang: Language) -> Vec<(&'static str, Vec<(String, 
         let row = (rank, join(|e| &e.1), join(|e| &e.2));
         groups[SYSTEM].push(row);
     }
-    let (keys, words) = keysheet::give_row(lang);
+    let (keys, words) = keysheet::move_row(NAME, lang);
     groups[LOOKS].push((ORDER.len(), keys, words));
     groups
         .into_iter()
@@ -1119,7 +1123,7 @@ mod tests {
         assert_eq!(
             names,
             [
-                "Other looks",
+                "Other desktops: xp, media center, construct",
                 "Windows",
                 "Layouts",
                 "Tags",
@@ -1128,7 +1132,7 @@ mod tests {
             ]
         );
         let first = |g: usize| groups[g].1[0].1.clone();
-        assert_eq!(first(0), "Give window to a look");
+        assert_eq!(first(0), "Move window to another desktop");
         assert_eq!(first(1), "Move focus");
         assert_eq!(first(2), "Next layout");
         assert_eq!(first(3), "Show tag 1-9");
@@ -1167,16 +1171,37 @@ mod tests {
     #[test]
     fn the_give_keys_have_a_group_of_their_own_above_the_windows() {
         let groups = groups();
-        assert_eq!(groups[0].0, "Other looks");
+        assert_eq!(groups[0].0, "Other desktops: xp, media center, construct");
         assert_eq!(
             groups[0].1,
             [(
-                "Super+Alt+1-4".to_owned(),
-                "Give window to a look".to_owned()
+                "Super+Alt+2-4".to_owned(),
+                "Move window to another desktop".to_owned()
             )]
         );
         let de = rows(&parse::<Config>(DEFAULT).unwrap(), Language::De);
-        assert_eq!(de[0].0, "Andere Fenstermanager");
+        assert_eq!(de[0].0, "Andere Desktops: xp, Mediencenter, Construct");
+        assert_eq!(
+            de[0].1[0],
+            (
+                "Super+Alt+2-4".to_owned(),
+                "Fenster zu einem anderen Desktop".to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn the_title_of_the_give_keys_names_each_other_desktop() {
+        for (language, de) in [(Language::En, false), (Language::De, true)] {
+            let title = title(LOOKS, de);
+            for (_, look) in chora_kit::give::KEYS
+                .iter()
+                .filter(|(_, look)| *look != NAME)
+            {
+                let name = chora_kit::give::desktop_name(look, language);
+                assert!(title.contains(&name), "{name} in {title}");
+            }
+        }
     }
 
     #[test]
@@ -1191,7 +1216,11 @@ mod tests {
                 })
                 .unwrap_or_else(|| panic!("no heading {words}"))
         };
-        assert!(top("Other looks") < 100.0, "{}", top("Other looks"));
+        assert!(
+            top("Other desktops: xp, media center, construct") < 100.0,
+            "{}",
+            top("Other desktops: xp, media center, construct")
+        );
         assert!(top("Windows") < 160.0, "{}", top("Windows"));
     }
 
