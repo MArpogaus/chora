@@ -3,7 +3,8 @@
 //! five, each the keycaps of its key and a word, apart by thin
 //! separators. They show only where they apply and fade: walking for 6 s after entering and while
 //! the pointer rests at the bottom, flown into a pane `Alt Esc Step back`
-//! for 3 s, and stood back from the cube while it stands. A hint takes a
+//! for 3 s, in a face of the cube always, and stood back from the cube
+//! while it stands. A hint takes a
 //! click and does its act (P3); the pointer over it shows the hover fill.
 #![allow(clippy::many_single_char_names, reason = "x, y, w of shapes")]
 
@@ -43,7 +44,8 @@ pub const LIFT: f64 = 24.0;
 pub enum Set {
     Walk,
     Flown,
-    /// The small chip `Keys` that a face keeps after its hints went (co-42).
+    /// The chip that a face keeps after its hints went: `Step back` and
+    /// `All keys` (co-42, co-61).
     Rest,
     Cube,
     Pull,
