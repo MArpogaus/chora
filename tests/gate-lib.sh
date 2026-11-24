@@ -5,6 +5,10 @@
 # "FAIL: <why>" with exit 1. Sources cleanly from any directory.
 # TILING_LOAD=N: session_start also starts N busy shell loops per CPU for the
 # run (a loaded host), the stress of the timed checks of the tiling gates.
+# load_scaled_limit FLOOR BASELINE_MS FACTOR prints the bound in ms of a timed call on a
+# host of unknown load (sh-37): FACTOR times the BASELINE_MS that the same cell measured for
+# similar work, at least FLOOR. A slow host slows the baseline too and raises the bound; an
+# idle one keeps FLOOR.
 # session_pids PGREP_ARGS... prints the pids that pgrep finds whose
 # environment has the XDG_RUNTIME_DIR of the gate, so that a gate beside
 # it never counts, and exits 1 when it finds none.
@@ -42,6 +46,11 @@ skip() {
     exit 0
 }
 ok() { echo "ok: $*"; }
+
+load_scaled_limit() {
+    local scaled=$(($2 * $3))
+    echo $((scaled > $1 ? scaled : $1))
+}
 fail() {
     echo "FAIL: $*" >&2
     exit 1
