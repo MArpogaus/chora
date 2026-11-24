@@ -60,3 +60,4 @@ rtc1-1 | MINOR | review tiling-calm r1 (reports/tiling-calm.md "## Review r1") |
 rtc1-2 | MINOR | review tiling-calm r1 | open | a non-ASCII helper name makes the helper row unfindable in fuzzel C locale (launcher.rs:117-124)
 rtc1-3 | MINOR | review tiling-calm r1 | open | gate-tiling-power asserts no focus after the layer closes (tests/gate-tiling-power.sh:105-130)
 rtc1-4 | MINOR | review tiling-calm r1 | open | no cell picks the helper row and sees chora-chat start (tests/gate-tiling-apps.sh:76-83)
+rv9j-3 | MINOR (F7) | tour-v9-judge r1 (reports/tour-v9-judge.md, 6ae0d041) | open; after ti-52, ti-53, ti-55, ti-56 (rules.md 6) | chora-notify card white with black text on the dark tiling desktop; the flavor starts plain chora-notify (tiling-v2 item 10) | t7.jpg
