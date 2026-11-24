@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-24 02:54 UTC)
+## Now (2026-11-24 03:02 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 02:54 PM 4.9 % (11-22) + 5.2 % (11-23) + 1.4 % (11-24), week about 24 % vs 41 % pace
-session branch: cae62f50 (t122 green 00:58: notify-text, tiling-disc, xp-front-bar-r2); 72 greens; train123 running (soak-r4).
+budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 03:02 PM 4.9 % (11-22) + 5.2 % (11-23) + 1.4 % (11-24), week about 24 % vs 41 % pace
+session branch: 05a63377 (t123 green 03:07: soak-r4); 73 greens; train124 running (co-reach-r2 efb0f263).
 burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin: W9 779 = RC; GUARD-4); F5 7 rows, no series; F7 open (r4 take stale, 24 acts)
 
 ## RC
@@ -22,16 +22,16 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin: W9 779 = RC; GUARD-4
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| train123: soak-r4 f0c45fcf | PM | on cae62f50; gate 01:00 |
+| train124: co-reach-r2 efb0f263 | PM | on 05a63377; gate 03:08 |
 | tiling-reach-r1.md (rc 1, 2; 1 %) | sonnet high, claude/tiling-reach cae62f50 | session_016iS3kMq4yU2VPBXarSuEkP 01:52 |
 | guard-4-r1.md (F4 W9, F5 sh-37; 0.5 %) | sonnet medium, claude/guard-4 cae62f50 | session_016iS3kLiaHH34dzQpNbYZDk 01:40 |
 | p2-r9-co.md (rc 2; 0.8 %) | sonnet medium, claude/p2-r9-co b2fa7792 | session_016iS3kNCYK2QVhDsrbAMsHo 02:53 |
 | tour-base-r1.md (F7, rc 11; 1.5 %) | sonnet high, claude/tour-base 8c411416 | session_016iS3kLwgpLsqzbCZvy458S 23:54 |
 | flake-series-r7.md (rc 3; 1 %) | sonnet high, claude/flake-series-r7 1ec04694 | session_016iS3kLkxQHS3DxoJnqt8Xk 19:00 |
 ## Queue (% week; 5 % reserve)
-1. (rc 9) TRAIN123 running: soak-r4 f0c45fcf; then lanes merge cae62f50+; TRAIN124 co-reach-r2 efb0f263 (b2fa7792 + cae62f50).
+1. (rc 1, 2) TRAIN124 running: co-reach-r2 efb0f263; lanes merge 05a63377.
 2. (rc 1, 2; 2 %) co-reach r2 MERGE-OK b2fa7792 -> train124; construct persona r9 running; TILING-REACH r1 (ti-47 double bar, ti-48 handover words), then tiling persona r7.
-3. (rc 3, 9; F5) FLAKE-SERIES r7 running (sh-34, stall, xp-42); soak-r4 MERGE-OK f0c45fcf (sh-36 closed) joins train123.
+3. (rc 3, 9; F5) FLAKE-SERIES r7 running (sh-34, stall, xp-42); soak-r4 merged t123 (sh-36 closed).
 4. (F7, rc 11; 1.5 %) TOUR-BASE: I6 baseline, 0 unexplained acts.
 5. (F4, F5; 0.5 %) GUARD-4 running (sleep ratchet, sh-37); then FLAKE-SERIES r8 5/5 on final head (haiku 1 %), TOUR-V9 final take + 5 reviews (2.5 %), CI-PR (rc 4, 5). (rc 1) after reviews: co-44, co-45 only when construct has no open MAJOR (rules.md 6); rtd-5, rtd-7 MINOR backlog.
 
