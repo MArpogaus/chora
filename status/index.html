@@ -57,10 +57,10 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-24T13:05:00Z",
+  updated: "2026-11-24T14:05:00Z",
   start: "2026-11-21T04:00:00Z",   // budget reset (owner)
   end: "2026-11-28T03:59:00Z",     // next reset; F5, F7 carried over
-  budget: 28,                       // % of the new week used (reset 04:00)
+  budget: 29,                       // % of the new week used (reset 04:00)
   goals: [
     ["F1", "Plan in merge-sized slices", "done", "reviewed plan"],
     ["F2", "Shared code in one kit, no copies", "done", "met by audit r2 (19:13): 0 copies; kit-report keeps it after debt-down"],
@@ -74,8 +74,9 @@ const S = {
   now: [
     "Train 127 is green (19:28 Bangkok): the sleep-count guard, the construct fix for programs started while the cube stands back (co-67), the tiling fixes for beginners, the tour baseline and the xp polish are merged.",
     "Train 128 went red: the tiling calm round added three test waits over the frozen count; its lane removes them now. Train 129 runs with the construct fix: the pull key is named only where it acts (co-68).",
-    "Also running: flake series r8, two tiling flakes, an xp fix, a tour comparison fix.",
-    "Spending is under pace (28 %; the line is at 47 %): a sixth lane records the final tour v9 for you; reviews of the looks move to the strongest model."
+    "An independent check of xp and mc (strongest model) found three serious faults: unused Super key combinations type letters into the open window (xp and mc), and the xp helper says no helper is set up even when one answers. Two fix lanes started 14:03 UTC (21:03 Bangkok).",
+    "The two tiling flakes, the xp test race and flake series r8 are reviewed and wait for the next train after 129.",
+    "Spending is under pace (29 %; the line is at 49 %): all six lanes are full."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
 };
