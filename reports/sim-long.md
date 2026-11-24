@@ -151,3 +151,26 @@ Note: the first commit of this lane (`0e41f658`) is flagged Unverified by a stop
 ## PM review soak r3
 
 Diff 1ec04694..39283655: 30 lines (soak-core.sh end_probes plus a per-round window count; RESULTS.md). Test-only, no product fix, so no red commit due. Check: the added lines run after the kill loop and log `windows open N after end_probes` per round; the run file shows 0 in 911 rounds (report). sl-9 / sh-33 closed on round-end RSS and fds flat. sl-10 = sh-36 MINOR: the rise rests on sampled peaks while round-end RSS falls; not a leak by the round-end measure. Verdict MERGE-OK 39283655, train120.
+
+## soak r4
+
+Head `claude/soak-r4` `f0c45fcf` (script `47da935a`: settled and peak core RSS per round; results `f0c45fcf`). One core kept alive for 3 h (`SOAK_MIN=180`), 1008 rounds, 20:31:16 to 23:31:18 UTC. Merge gate `--only pre-commit,ci-check` on `f0c45fcf`: PASS.
+
+Measure: each round logs the settled RSS (after `end_probes`, 0 windows open) and the round's peak (VmHWM, reset at the round start through `clear_refs`) for chora, chora-tiling and chora-mc, at fixed round phases. The sampled 600 s series is kept but is phase-dependent.
+
+| process | settled first h | settled last h | settled fit /h | peak first h | peak last h | peak fit /h |
+|---|---|---|---|---|---|---|
+| chora | 249.4 MB | 258.0 MB | +1.7 % | 479.6 MB | 474.9 MB | -0.7 % |
+| chora-tiling | 14.4 MB | 14.4 MB | 0.0 % | 14.5 MB | 14.5 MB | 0.0 % |
+| chora-mc | 18.4 MB | 18.4 MB | 0.0 % | 18.4 MB | 18.4 MB | 0.0 % |
+
+- Core fds: 30 to 56, fit +2.9 per hour (flat). Window count after `end_probes`: 0 in all 1008 rounds.
+- Deaths: none. Watchdog disconnects: 0. Panics in the core log: 0. Findings in the run file: none.
+- Box0 creates and removes: ok in all 1008 rounds; `settings.set` refused in all 1008.
+- Raw data, not in git: `soak.run`, `samples.csv` (session scratchpad, `sim-long-r4/`); core log `tests/battle/chora-soak.log` (git-ignored).
+
+**sh-36** (sampled core RSS rise, peaks or growth): **closed**, under the bar on both measures. Settled +1.7 %/h and peak -0.7 %/h against the 5 %/h bar, window count flat. The sampled series still fits +18 MB/h, but its samples land at random round phases, so that fit follows the phase of the sample instants; it is not the measure of growth.
+
+Caveats: the per-hour fits assume uniform round time (1008 rounds at 336 per hour). The core settled block means stay 246 to 263 MB; single-round excursions of 40 to 130 MB above the mean do not climb block by block.
+
+Note: a stop hook flags commit `47da935` (and `0e41f658` in r3) as Unverified because the author is Marcel Arpogaus. Kept as the brief requires.
