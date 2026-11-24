@@ -1,0 +1,2 @@
+task L1 FAIL: expected 1 window closed, got []
+breaches 0

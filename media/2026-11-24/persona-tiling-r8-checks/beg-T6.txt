@@ -1,0 +1,2 @@
+task T6 FAIL: neither a new notice, the words No helper nor a launcher row Nothing found
+breaches 0
