@@ -76,7 +76,7 @@ honest state words.
 9. **Caption buttons are 21 by 21 with 2 px between**, 4 px from the right
    edge of the frame and 2 px below its top, so that a finger or a pointer
    hits them (principle P7). The title is Trebuchet Bold 13 px in white with a
-   1 px shadow `#0A1E50` one pixel to the bottom right; an inactive window
+   1 px shadow `#041038` one pixel to the bottom right; an inactive window
    has the title `#D8E4F8`.
 
 ## Taskbar and tray

@@ -39,7 +39,7 @@ pub const ICON: Rect = [EDGE, 4, 16, 16];
 
 /// The shadow of the title text, active or not, one pixel to the bottom
 /// right: the inactive title, light on light blue, is 2.2:1 without it.
-pub const TITLE_SHADOW: [u8; 4] = [10, 30, 80, 255];
+pub const TITLE_SHADOW: [u8; 4] = [0x04, 0x10, 0x38, 255];
 
 /// A button of the title bar.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -513,7 +513,7 @@ mod tests {
 
     #[test]
     fn the_title_is_14_pixel_bold_with_the_dark_blue_shadow() {
-        assert_eq!(TITLE_SHADOW, [0x0A, 0x1E, 0x50, 255]);
+        assert_eq!(TITLE_SHADOW, [0x04, 0x10, 0x38, 255]);
         assert_eq!(chora_draw::text::BODY_SIZE, 14);
     }
 
