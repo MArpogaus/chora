@@ -615,6 +615,27 @@ class IntendedCauses(unittest.TestCase):
         loose = [(r["act"], r["kind"]) for r in self.rows() if r["kind"] in ("added", "visible", "pixel") and not r.get("open") and not r.get("nodes") and not r.get("boxes")]
         self.assertEqual(loose, [])
 
+    def cites_a_capture(self, row):
+        return "captures/" in row["cause"] or "judge r1" in row["cause"]
+
+    def test_a_row_of_xp_desktop_or_a_visible_row_cites_a_capture(self):
+        """rtb6-5: the `added xp-desktop` rows (35), `visible xp-menu` of x12c and `visible mc-regions-*` of m4, m4b gave a
+        sha only; each cites its act's still of the take (`r7 take, captures/<act>.<capture>.png`) or the judge's."""
+        bare = [(r["act"], r["kind"]) for r in self.rows() if not r.get("open") and ("xp-desktop" in r.get("nodes", ()) or r["kind"] == "visible") and not self.cites_a_capture(r)]
+        self.assertEqual(bare, [])
+
+    def test_a_closed_missing_or_rect_row_cites_a_capture(self):
+        """rtb6-1: a row that lists the nodes it explains cites the capture that shows them (the act and the still)."""
+        bare = [(r["act"], r["kind"]) for r in self.rows() if r["kind"] in ("missing", "rect") and not r.get("open") and not self.cites_a_capture(r)]
+        self.assertEqual(bare, [])
+
+    def test_the_hairline_rows_of_m1_name_the_open_design_question(self):
+        """rtb6-4: the KEYS hairline moves with 675ebd55 (judge r1 m1c), which the judge called intended by the commit,
+        not by the design (rv9j-2: mc-v2 section 3 asks for "Nothing new." in the column)."""
+        rows = [r for r in self.rows() if r["act"] in ("m1", "m1c") and r["kind"] == "pixel"]
+        self.assertTrue(rows)
+        self.assertEqual([(r["act"]) for r in rows if "rv9j-2" not in r["cause"]], [])
+
     SESSION_CAPTIONS = ("fc9675ac", "11e34cf8", "94579f91")
 
     def test_no_row_of_the_xp_or_handover_acts_cites_the_session_captions(self):
