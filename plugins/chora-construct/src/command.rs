@@ -527,10 +527,11 @@ pub fn help(
     let h = top + body_h + UNIT + 1.0 + FOOTER;
     let x = ((out[0] - w) / 2.0).round();
     let y = HELP_TOP.min((out[1] - h) / 2.0).max(UNIT).round();
-    let mut commands = vec![
-        group(id, parent, [0.0, 0.0], InputMode::Pass),
-        scrim(look, (&format!("{id}-scrim"), id), out),
-    ];
+    let mut scrim = scrim(look, (&format!("{id}-scrim"), id), out);
+    if let Command::Create { props, .. } = &mut scrim {
+        props.input = Some(InputMode::Accept);
+    }
+    let mut commands = vec![group(id, parent, [0.0, 0.0], InputMode::Accept), scrim];
     let body = format!("{id}-body");
     commands.extend(surface(
         look,
@@ -542,9 +543,20 @@ pub fn help(
             radius: PANEL_RADIUS,
             strong: true,
             name: "help",
-            input: InputMode::Pass,
+            input: InputMode::Accept,
         },
     ));
+    let mut panel = rect(
+        &format!("{body}-panel"),
+        &body,
+        [0.0, 0.0, w, h],
+        0.0,
+        [0.0; 4],
+    );
+    if let Command::Create { props, .. } = &mut panel {
+        props.input = Some(InputMode::Block);
+    }
+    commands.push(panel);
     commands.extend(search(
         look,
         &body,

@@ -718,7 +718,7 @@ impl Construct {
     /// The keys of the open help; whether it took the event. It takes
     /// every key: typed letters search, Backspace takes one back, the
     /// arrows move, Esc clears the search and then closes the help, and
-    /// its own key closes it.
+    /// its own key closes it, as a press on its Close or outside it.
     pub(crate) fn help_input(&mut self, event: &Event) -> Result<bool, ClientError> {
         if !self.help {
             return Ok(false);
@@ -730,7 +730,7 @@ impl Construct {
             ..
         } = event
             && node.starts_with(crate::hud::HELP)
-            && node.ends_with("-hit")
+            && (node.ends_with("-hit") || node.ends_with("-scrim"))
             && (!injected || self.rt.accepts_injected())
         {
             return self.toggle_help().map(|()| true);
