@@ -525,7 +525,7 @@ impl Construct {
         if busy || !self.active {
             return None;
         }
-        if stood_back {
+        if stood_back && !flown {
             return Some(Set::Cube);
         }
         if self.pull_hint && in_face {
@@ -607,11 +607,37 @@ impl Construct {
             ],
             Set::Cube => {
                 let mut hints = self.cube_hints(language);
+                hints.extend(self.pane_hints(language));
                 hints.push(item(self.hint_keys_chord(), Word::AllKeys, "keys"));
                 hints
             }
             Set::Pull => vec![item(Vec::new(), Word::PullHint, "pull")],
         }
+    }
+
+    /// The hints of a pane beside the cube stood back: the click flies
+    /// into it, and the pull key pulls a window out of a face (co-64).
+    fn pane_hints(&self, language: chora_kit::words::Language) -> Vec<crate::hints::Item> {
+        use crate::hints::{HINT, Item, click_caps, pull_key, pull_word};
+        if !self.pane_beside() {
+            return Vec::new();
+        }
+        let item = |keys: Vec<String>, word: String, hit: &str| Item {
+            keys,
+            word,
+            keys_last: false,
+            hit: format!("{HINT}{hit}"),
+            chip: false,
+        };
+        let fly_in = chora_kit::words::Word::FlyIn.text(language).to_owned();
+        vec![
+            item(click_caps(language), fly_in, "click-pane"),
+            item(
+                crate::glass::chord(pull_key()),
+                pull_word(language).into(),
+                "pull-out",
+            ),
+        ]
     }
 
     /// The hints of the cube stood back: the turn keys, and Return, which
@@ -661,7 +687,7 @@ impl Construct {
             Some(crate::hints::Set::Walk) => {
                 self.panes.len().min(2) * 2 + usize::from(self.pane_ahead().is_some())
             }
-            _ => self.cube_stamp(),
+            _ => self.cube_stamp() * 2 + usize::from(self.pane_beside()),
         };
         let wanted = set.map(|s| (s, self.hovered_hint(), stamp));
         if wanted == self.hints.shown && !std::mem::take(&mut self.hints.stale) {
@@ -1036,6 +1062,8 @@ impl Construct {
             }
             "step-back" => self.fly_out()?,
             "cube" => self.cube_key(),
+            "click-pane" => self.fly_in_beside()?,
+            "pull-out" => self.give_key("construct")?,
             _ => {}
         }
         Ok(true)

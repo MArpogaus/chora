@@ -169,7 +169,9 @@ impl Construct {
             return Ok(());
         }
         let focused = self.rt.conn.focused_surface().map_err(ClientError::Rpc)?;
+        let before = (self.cube.as_ref()).and_then(crate::cube::Host::noted_focus);
         let ahead = (self.pane_ahead()).and_then(|i| self.panes[i].window().map(String::from));
+        let ahead = before.or(ahead);
         let node = match (focused, ahead) {
             (Some(node), _) => Some(node),
             (None, Some(surface)) => self.rt.conn.query(&format!("id:{surface}"))?.pop(),

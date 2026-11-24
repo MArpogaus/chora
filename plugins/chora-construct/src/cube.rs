@@ -1072,6 +1072,13 @@ impl Host {
         (front == self.front).then_some(window)
     }
 
+    /// The window of the face at the front that had the keyboard before
+    /// the step back, while it stands back: the pull key gives it (co-64).
+    pub(crate) fn noted_focus(&self) -> Option<String> {
+        let (window, front) = self.focus.as_ref()?;
+        (*front == self.front && !self.view.forwards()).then(|| window.clone())
+    }
+
     /// The face at the front and the number of faces.
     pub(crate) fn front_face(&self) -> (usize, usize) {
         (self.front, self.outputs.len())

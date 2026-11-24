@@ -174,6 +174,34 @@ impl Construct {
         self.asides.extend(asides);
     }
 
+    /// The pane that shows beside the cube that stands back: in front of
+    /// the camera, on the screen and clear of the cube (co-64).
+    pub(crate) fn beside_cube(&self) -> Option<usize> {
+        let host = self.cube.as_ref().filter(|h| !h.view().forwards())?;
+        let cube = host.screen_box(&self.lens, &self.pose)?;
+        let screen = [0.0, 0.0, self.lens.w, self.lens.h];
+        self.panes.iter().position(|p| {
+            let at = self.screen_box_of(p);
+            space::depth(&self.pose, p.at) > 0.0
+                && crate::frame::overlaps(screen, at)
+                && !crate::frame::overlaps(cube, at)
+        })
+    }
+
+    /// Whether a pane shows beside the cube that stands back.
+    pub(crate) fn pane_beside(&self) -> bool {
+        self.beside_cube().is_some()
+    }
+
+    /// A click on the hint `Click Fly in` flies into the pane beside the
+    /// cube, as a click on the pane does.
+    pub(crate) fn fly_in_beside(&mut self) -> Result<(), ClientError> {
+        match self.beside_cube() {
+            Some(i) => self.fly_in(i),
+            None => Ok(()),
+        }
+    }
+
     /// Moves the panes that gave way with the stand of the cube now; at
     /// the end of a step in, or without a cube, they are home and no
     /// longer aside.

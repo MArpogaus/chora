@@ -1,6 +1,7 @@
 //! The context hints of the construct HUD (spec, sections 5 and 6): one
 //! glass capsule at the bottom centre with the hints that apply, at most
-//! five, each the keycaps of its key and a word, apart by thin
+//! five (six stood back with a pane beside the cube, co-64), each the
+//! keycaps of its key and a word, apart by thin
 //! separators. They show only where they apply and fade: walking for 6 s after entering and while
 //! the pointer rests at the bottom, flown into a pane `Alt Esc Step back`
 //! for 3 s, in a face of the cube always, and stood back from the cube
@@ -184,6 +185,34 @@ pub fn over_content<'a>(look: &Look<'a>) -> Look<'a> {
 #[must_use]
 pub fn terminal_word(_language: chora_kit::words::Language) -> &'static str {
     "Terminal"
+}
+
+/// The caps of the hint of a click on a pane beside the cube (co-64).
+#[must_use]
+pub fn click_caps(language: chora_kit::words::Language) -> Vec<String> {
+    let click = match language {
+        chora_kit::words::Language::De => "Klick",
+        chora_kit::words::Language::En => "Click",
+    };
+    vec![click.to_owned()]
+}
+
+/// The key that gives the focused window to the construct, which pulls a
+/// window out of a face into a pane (D55, co-64).
+#[must_use]
+pub fn pull_key() -> &'static str {
+    (chora_kit::give::KEYS.iter())
+        .find(|(_, to)| *to == "construct")
+        .map_or("", |(key, _)| key)
+}
+
+/// The word of the hint of the pull key.
+#[must_use]
+pub const fn pull_word(language: chora_kit::words::Language) -> &'static str {
+    match language {
+        chora_kit::words::Language::De => "Herausziehen",
+        chora_kit::words::Language::En => "Pull out",
+    }
 }
 
 /// The word of the middle hint of the cube: `Step in`, or `Try again`
