@@ -1126,6 +1126,12 @@ nodes = ["xp-menu"]
 
 [[change]]
 act = "m1"
+boxes = [[880, 370, 352, 44]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: the hairline of the KEYS heading moves with the column content (y 378 in v9, 406 in v8 in m1; the blob lands in m1 or m1c by take; judge r1 m1c, m1-col.jpg)"
+kind = "pixel"
+
+[[change]]
+act = "m1"
 cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
 kind = "missing"
 
@@ -1144,6 +1150,12 @@ act = "m1b"
 cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them); mc-59 open: the cause lies in the commits (733967aa..675ebd55^), no sha found"
 kind = "rect"
 open = true
+
+[[change]]
+act = "m1c"
+boxes = [[880, 370, 352, 44]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: the hairline of the KEYS heading moves with the column content (y 378 in v9, 406 in v8 in m1; the blob lands in m1 or m1c by take; judge r1 m1c, m1-col.jpg)"
+kind = "pixel"
 
 [[change]]
 act = "m1c"
