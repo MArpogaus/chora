@@ -1118,8 +1118,7 @@ mod tests {
 
     /// On a face of a cube, xp is the window manager: a Super chord that
     /// it binds no action for is its own, so no window gets it. A chord
-    /// it binds keeps its action, and on a screen of its own xp swallows
-    /// nothing.
+    /// it binds keeps its action; the same holds on a screen of its own.
     #[test]
     fn on_a_face_xp_swallows_the_super_chords_it_binds_nothing_for() {
         for cube in [CubeKeys::Flat, CubeKeys::Hosted] {
@@ -1148,13 +1147,16 @@ mod tests {
                 "{cube:?}"
             );
         }
-        let (mut rt, _calls) = on_fake_core("own-no-swallow");
+        let (mut rt, _calls) = on_fake_core("own-swallow");
         let bindings = crate::config::defaults().common.bindings;
         grab_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
-        assert!(
-            rt.action("Super+q").is_none(),
-            "a screen of xp swallows none"
-        );
+        for chord in ["Super+x", "Super+k", "Super+m", "Super+q"] {
+            assert!(
+                rt.action(chord).is_some(),
+                "xp-46: {chord} is free on a screen of xp, so it types into a window"
+            );
+        }
+        assert!(rt.action("Alt+q").is_none(), "another modifier is left");
     }
 
     /// A press of the binding `Super+BTN_RIGHT` that the user moved to

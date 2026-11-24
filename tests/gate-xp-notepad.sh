@@ -2,7 +2,10 @@
 # Notepad of the xp start menu (xp-4): the start menu has the entry
 # Notepad, the first program below the pinned rows, and a click on it
 # starts the plain text editor of the setting `editor`. Here that
-# editor is a foot with the app id notepad.
+# editor is a foot with the app id notepad. Last (xp-46, rpx1-1): a foot
+# that keeps what it is typed holds the keyboard; Super+x, Super+k, Super+m
+# and Super+q, which xp binds to nothing, type nothing into it and the
+# release of Super opens no Start menu.
 #
 # Usage: tests/gate-xp-notepad.sh   BIN: directory with the binaries
 #   SHOTS  a directory that keeps the capture xp-notepad-menu.png
@@ -45,3 +48,27 @@ read -r x y w h < <(jq -r '.rects | to_entries[0].value | map(floor) | join(" ")
 click $((x + w / 2)) $((y + h / 2))
 ctl wait --timeout 15 'app_id:notepad kind:surface' >/dev/null || fail "a click on Notepad did not start the editor of the settings"
 ok "a click on Notepad starts the editor of the settings"
+
+log=$work/typed
+ctl run foot -a strayxp sh -c "stty raw -echo; cat >$log" >/dev/null || fail "the run of the typing foot"
+ctl wait --timeout 15 'app_id:strayxp kind:surface owner:xp' >/dev/null || fail "the typing foot is not a window of xp"
+for _ in $(seq 40); do
+    ctl query 'app_id:strayxp kind:surface' | jq -e '.[0].focused == true' >/dev/null && break
+    sleep 0.25
+done
+sleep 2
+menu_visible && click 50 785
+sleep 0.5
+typed_text() { echo "[{\"text\": {\"text\": \"$1\"}}]" | ctl inject - >/dev/null || fail "typing $1"; }
+chord() { echo "[{\"shortcut\": {\"keys\": \"$1\"}}]" | ctl inject - >/dev/null || fail "the key $1"; }
+typed_text start:
+for key in Super+x Super+k Super+m Super+q; do
+    chord "$key"
+done
+typed_text :end
+sleep 1
+typed=$(cat "$log" 2>/dev/null)
+[ "$typed" = "start::end" ] || fail "xp-46: the client typed '$typed' and not start::end"
+ok "Super+x, Super+k, Super+m and Super+q type nothing into a client of xp"
+menu_visible && fail "xp-46: an unbound Super chord opened the Start menu"
+ok "an unbound Super chord opens no Start menu"
