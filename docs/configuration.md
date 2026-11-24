@@ -288,7 +288,7 @@ its rows and 24 px more, centred on the current output, with the heading "Keys",
 basics of the pointer (the Apps button starts a program, a click on a tag shows it,
 `Super+drag` moves a window, the power icon locks or ends the session) and the rows of every
 binding of the file in the groups Windows (the first row is Move focus:
-`Super+J`, `Super+K` and `Alt+Tab`), Other desktops (the give keys, one row per other look: `Super+Alt+2` Move window to the xp desktop, `Super+Alt+3` to the media center desktop, `Super+Alt+4` to the construct desktop), Layouts, Tags,
+`Super+J`, `Super+K` and `Alt+Tab`), Other desktops (titled "Other desktops: xp, media center, construct"; the give keys in one row, `Super+Alt+2-4` Move window to another desktop), Layouts, Tags,
 Programs and System: the keys on a keycap in JetBrains Mono, then the words of the
 action in Inter ("Move focus"; the actions that every look has are named as in the other looks, `run` shows its command unless a label names it). Each group is
 whole in one of two columns, and the columns are as even as they can be.

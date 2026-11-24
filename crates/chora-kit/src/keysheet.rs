@@ -193,16 +193,26 @@ pub fn give_row(language: Language) -> (String, String) {
     (keys, words)
 }
 
-/// The rows of the keys that give a window to a look, one per look but
-/// `own` (a window is with its own look already): the key, as people read
-/// it, and the words of [`crate::give::move_words`]. No file binds them.
+/// The row of the keys that give a window to a look, but `own` (a window
+/// is with its own look already): the span of the keys and "Move window to
+/// another desktop". A look that draws it names the other desktops in the
+/// title above it, since a key list of 52 lines is the most that 800 px
+/// hold and a row for each would not fit. No file binds the keys.
 #[must_use]
-pub fn move_rows(own: &str, language: Language) -> Vec<(String, String)> {
-    crate::give::KEYS
+pub fn move_row(own: &str, language: Language) -> (String, String) {
+    let others: Vec<&(&str, &str)> = crate::give::KEYS
         .iter()
         .filter(|(_, to)| *to != own)
-        .map(|(key, to)| (chord(key), crate::give::move_words(to, language)))
-        .collect()
+        .collect();
+    let (Some((first, _)), Some((last, _))) = (others.first(), others.last()) else {
+        return (String::new(), String::new());
+    };
+    let digit = last.rsplit('+').next().unwrap_or_default();
+    let words = match language {
+        Language::En => "Move window to another desktop",
+        Language::De => "Fenster zu einem anderen Desktop",
+    };
+    (format!("{}-{digit}", chord(first)), words.to_owned())
 }
 
 impl<L> Row<L> {
