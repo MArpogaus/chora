@@ -22,7 +22,9 @@ Verdict: same, change (every diff is named in intended.toml: act, kind, cause), 
 unnamed diff, a check green on BASE that is not green on CAND, a check red on CAND that is not red on
 BASE, a capture missing in either folder), none (a declared `baseline: none`, with no red check), open
 (every diff has a row, and a row carries `open = true`: the cause is not found; the F7 count fails on it,
-exit 1). A red check that is meant has a row of kind "check" and `check = "I2"` (the name of the check it
+exit 1). A row may list the nodes it names (`nodes = ["hud-chat"]`, the ids of the scene diff, a window as `app_id:title`): it
+absorbs those nodes only and wins over a row of the kind without a list; a node that no row names is unnamed, one that
+only an `open` row without a list names stays `open` (rv9j-5). A red check that is meant has a row of kind "check" and `check = "I2"` (the name of the check it
 absorbs; without it the row absorbs every flip of the act). A check that either side marks "not measured"
 is left out of the flips and listed in the row as `unmeasured` (`cand_red` where the candidate reads it red). Exit 1 on a regression, an open act or no capture.
 """
