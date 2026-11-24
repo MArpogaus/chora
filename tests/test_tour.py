@@ -319,7 +319,7 @@ class CaptureDumps(unittest.TestCase):
 
     def test_a_baseline_without_boxes_is_not_an_i6_flip(self):
         """TOUR-BASE: a snapshot without `scene.boxes` (733967aa) reads no text box, so I6 is not green there, it
-        is not measured; a candidate that measures it red is no flip, and the row says "I6 not measured"."""
+        is not measured; a candidate that measures it red is no flip, and the row says "I6 not measured" (r2: and the other box checks)."""
         import shutil
 
         t = self.tour(snaps=[snap(), test_acts.snap(boxes=None)])
@@ -333,7 +333,7 @@ class CaptureDumps(unittest.TestCase):
         (cand / "x1.Q.json").write_text(json.dumps(data))
         [row] = self.diff().compare(base, cand, [])
         self.assertEqual(row["verdict"], "same", row)
-        self.assertEqual(row["unmeasured"], ["I6"], row)
+        self.assertIn("I6", row["unmeasured"], row)
 
     def test_a_baseline_without_boxes_marks_the_box_checks_from_one_constant(self):
         """TOUR-BASE r2 (rtb-4, check 5): the checks that read `scene.boxes` are "not measured" on a snapshot without

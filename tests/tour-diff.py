@@ -20,9 +20,11 @@ Two diffs per capture:
 
 Verdict: same, change (every diff is named in intended.toml: act, kind, cause), regression (an
 unnamed diff, a check green on BASE that is not green on CAND, a check red on CAND that is not red on
-BASE, a capture missing in either folder), none (a declared `baseline: none`, with no red check).
-A red check that is meant has a row of kind "check". A check that either side marks "not measured"
-is left out of the flips and listed in the row as `unmeasured`. Exit 1 on a regression or on no capture.
+BASE, a capture missing in either folder), none (a declared `baseline: none`, with no red check), open
+(every diff has a row, and a row carries `open = true`: the cause is not found; the F7 count fails on it,
+exit 1). A red check that is meant has a row of kind "check" and `check = "I2"` (the name of the check it
+absorbs; without it the row absorbs every flip of the act). A check that either side marks "not measured"
+is left out of the flips and listed in the row as `unmeasured` (`cand_red` where the candidate reads it red). Exit 1 on a regression, an open act or no capture.
 """
 
 import collections
@@ -163,31 +165,41 @@ def pixel_diff(a, b, masks=()):
     return {"same": fraction <= FRACTION and not big, "fraction": fraction, "blobs": big}
 
 
+def named(rows, kinds):
+    """The row of the first kind in `kinds` that a row names, a row with a cause found before an `open` one."""
+    hits = [r for r in rows if r["kind"] in kinds]
+    return next((r for r in hits if not r.get("open")), hits[0] if hits else None)
+
+
 def verdict(act, scene, pixel_same, intended, checks=None):
-    """same, change or regression for one capture; `checks` is (baseline, candidate) name -> colour."""
+    """same, change, open or regression for one capture; `checks` is (baseline, candidate) name -> colour.
+    A row with `open = true` names a diff whose cause is not found: the verdict is `open`, not `change`."""
     kinds = [d["kind"] for d in scene] + ([] if pixel_same else ["pixel"])
     rows = [r for r in intended if r["act"] == act]
-    causes, unnamed = [], []
+    causes, unnamed, opened = [], [], False
     for kind in dict.fromkeys(kinds):
-        row = next((r for r in rows if r["kind"] in (kind, "*")), None)
+        row = named(rows, (kind, "*"))
         if row:
             causes.append(row["cause"])
+            opened = opened or bool(row.get("open"))
         else:
             unnamed.append(kind)
     base, cand = checks or ({}, {})
     unmeasured = sorted(n for n in set(base) | set(cand) if NOT_MEASURED in (base.get(n), cand.get(n)))
+    cand_red = [n for n in unmeasured if cand.get(n) == "red"]
     base, cand = ({n: c for n, c in side.items() if n not in unmeasured} for side in (base, cand))
     flipped = sorted({n for n, c in base.items() if c == "green" and cand.get(n) != "green"} | {n for n, c in cand.items() if c == "red" and base.get(n) != "red"})
-    if flipped:
-        row = next((r for r in rows if r["kind"] in ("check", "*")), None)
-        if row:
-            causes.append(row["cause"])
-            flipped = []
-    extra = {"unmeasured": unmeasured} if unmeasured else {}
+    absorbed = [n for n in flipped if any(r["kind"] in ("check", "*") and r.get("check", n) == n for r in rows)]
+    for n in absorbed:
+        row = next(r for r in rows if r["kind"] in ("check", "*") and r.get("check", n) == n)
+        causes.append(row["cause"])
+        opened = opened or bool(row.get("open"))
+    flipped = [n for n in flipped if n not in absorbed]
+    extra = ({"unmeasured": unmeasured} if unmeasured else {}) | ({"cand_red": cand_red} if cand_red else {})
     if unnamed or flipped:
         return {"verdict": "regression", "unnamed": unnamed, "flipped": flipped, **extra}
     if causes:
-        return {"verdict": "change", "cause": "; ".join(dict.fromkeys(causes)), **extra}
+        return {"verdict": "open" if opened else "change", "cause": "; ".join(dict.fromkeys(causes)), **extra}
     return {"verdict": "same", **extra}
 
 
@@ -271,14 +283,15 @@ def main():
         for r in rows:
             extra = r.get("cause") or ", ".join(r.get("unnamed", []) + r.get("flipped", [])) or r.get("detail", "")
             if r.get("unmeasured"):
-                extra = "; ".join(filter(None, [extra, ", ".join(f"{n} not measured" for n in r["unmeasured"])]))
+                red = r.get("cand_red", [])
+                extra = "; ".join(filter(None, [extra, ", ".join(f"{n} not measured" + (" (cand red)" if n in red else "") for n in r["unmeasured"])]))
             print(f"{r['act']:<8} {r['capture']:<5} {r['verdict']:<11} {extra}")
         count = collections.Counter(r["verdict"] for r in rows)
-        print("tour-diff:", ", ".join(f"{count[v]} {v}" for v in ("same", "change", "regression", "none")))
+        print("tour-diff:", ", ".join(f"{count[v]} {v}" for v in ("same", "change", "open", "regression", "none")))
     if not rows:
         print("tour-diff: no capture in BASE or CAND", file=sys.stderr)
         return 1
-    return 1 if any(r["verdict"] == "regression" for r in rows) else 0
+    return 1 if any(r["verdict"] in ("regression", "open") for r in rows) else 0
 
 
 if __name__ == "__main__":
