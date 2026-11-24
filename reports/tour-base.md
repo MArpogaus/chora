@@ -325,3 +325,64 @@ Reviewer: sonnet, not the builder. Step 0 green at 1e62811f (the branch tip is 8
 - No take, no gate; the committed pair of check 4 does not exist, so counts are from the report.
 - Causes by family are read from `git show --stat` and element names (rr9-1, known); 15 of 97 rows sampled, the rest by the pattern of the row text.
 - The scratch scripts were in the scratchpad, not committed.
+
+## r3 (F7, rc 11, 1b: no unproven row passes as `change`; rtb2-1..4; 2026-11-24)
+
+Branch `claude/tour-base` from 883214b5, head **cc71e5d9** (pushed). Step 0 green (`cargo check --workspace`, `pytest tests/test_tour.py` 84 passed, `tests/test_tour_diff.py` 62 OK). Red sha **286524e9** (tests only: tests/test_tour_diff.py, tests/test_tour.py), fix sha **cc71e5d9** (tests/tour-diff.py, demo/tour/intended.toml).
+
+### Red (286524e9, before the fix; `python3 -I tests/test_tour_diff.py`: `Ran 64 tests ... FAILED (failures=4)`, and `pytest tests/test_tour.py`: 1 failed, 83 passed)
+- (a) rtb2-1: `FAIL test_a_row_whose_cause_is_unproven_is_open`: `Lists differ: [('c4', 'missing'), ('c5e', 'visible'), ... ] != []`, the 9 rows (c4 missing, c5e visible and missing, x10b added, x5e x5g x7 x8 x9b pixel). Two-way: the marks are "cause not found", "(open)", "(proposed)" and the findings whose ledger state is open with the cause not found (`UNPROVEN_FINDINGS` = mc-59, co-63, xp-43); `test_an_open_row_says_what_is_open` is kept for the other way.
+- (b) rtb2-2: `FAIL test_base_not_measured_and_cand_red_is_a_regression_unless_a_check_row_names_it`: `AssertionError: 0 != 1 : x1 Q same I6 not measured (cand red)`; and `FAIL tests/test_tour.py::CaptureDumps::test_a_baseline_without_boxes_is_not_an_i6_flip` (the r2 test pinned `same`; now `regression`, `change` with a `check = "I6"` row).
+- (c) rtb2-3: `FAIL test_a_row_names_at_most_three_causes_or_is_open`: `Lists differ: [('c1', 'added', 6), ('c1', 'pixel', 9), ...] != []` (76 rows; `WIDE_BEFORE_R1` is gone; a cause is an 8-hex sha with a digit or a finding id `xx-N`).
+- (d) rtb2-4: `FAIL test_a_kind_with_a_found_row_and_an_open_row_gives_open_in_either_order`: `AssertionError: 'change' != 'open'`.
+
+### Fix (cc71e5d9): `python3 -I tests/test_tour_diff.py` OK (64), `pytest tests/test_tour.py` 84 passed
+- tests/tour-diff.py: `named` prefers an `open` row of the kind (rtb2-4); `cand_red` joins `flipped`, so only a `check` row that names the check absorbs it, else `regression` (rtb2-2). No new verdict, no new field.
+- intended.toml: `open = true` on the 9 rows of rtb2-1 (x10b, x5e, x5g, x7, x8, x9b get the text "open: cause not found") and on the 68 rows that name more than three causes (text "open: more than three causes, none proven for this act alone"); a row cannot be split (one row per act and kind), so open is the honest state. 369 rows, 156 open (r2: 79); 84 of the 103 acts have an open row. No new `check` row was needed in the toml (the 14 I2 rows already name I2); a red I6 on a head against 733967aa needs its own `check = "I6"` row when the pair is taken (it is `regression` until then, as asked).
+
+### `python3 demo/tour/run.py --check` (head cc71e5d9, build of this head)
+```
+chapter xp: 31 acts, 29 green, 0 inv, 1 known, 1 red, 0 todo, 0 unchecked
+chapter tiling: 28 acts, 28 green, 0 inv, 0 known, 0 red, 0 todo, 0 unchecked
+chapter mc: 22 acts, 22 green, 0 inv, 0 known, 0 red, 0 todo, 0 unchecked
+chapter construct: 18 acts, 0 green, 0 inv, 0 known, 18 red, 0 todo, 0 unchecked
+chapter handover: 11 acts, 11 green, 0 inv, 0 known, 0 red, 0 todo, 0 unchecked
+```
+19 red as r2 (x17 xp-44 and the 18 construct acts: I2 9 apart, co-44, and I6 xp-45; xp-44 and xp-45 are fixed in f65e7f70 and f1397d98, not in this head). Exit 1.
+
+### tour-diff counts per verdict: not produced
+tour-diff needs the capture pair (a full take of 733967aa with `TOUR_BASELINE=1` and of the head); no capture folder is committed and this lane took neither (cost cap). The counts that the toml fixes: before r3 the r2 report had 1 same, 60 change, 38 open, 0 regression, 11 none; of the 60 `change`, the captures whose named rows now carry `open` move to `open` (every act with an open row: 84 of 103 acts). Open is the honest F7 rest; the next take decides the exact count.
+
+### Gate (`CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2`, full, 2445 s on acts): one red cell, not caused by this change (the diff against 883214b5 is tests/tour-diff.py, tests/test_tour*.py, demo/tour/intended.toml only)
+```
+acts: 236 pass, 2 known red, 1 blocking
+FAIL: xp I6: in act 'a click on Notepad starts it under the volume popup': on HEADLESS-1 'Starting Notepad' (notify-card-body) has the contrast 1.04:1 ((119, 179, 75) on (115, 176, 72)), the guide wants 4.5:1 (evidence /tmp/acts-run-4149nvkw/xp-I6)
+FAIL: acts: a cell blocks (see the FAIL lines)
+EXIT 1
+```
+This is xp-38 (findings/xp.md:39, "fixed claude/xp-38 c7f2e64f"; c7f2e64f is an ancestor of the head): the same act, the same card at 1.04:1, a capture in the fade-in of the card. It recurs after the fix, once in one run; not reproduced alone (no time). Every other cell PASS (gate-lib, ci-check, build, matrix, tiling-audit, tiling-look, doors, cube, pull, ...). `pgrep -fa 'chora --headless'`: empty.
+
+## Review r3 (seeded review of claude/tour-base 883214b5..cc71e5d9; rc 11, 1b; 2026-11-24)
+
+Reviewer: sonnet, not the builder. Step 0 green at cc71e5d9: `git fetch --unshallow`, `cargo check --workspace`, `python3 -m pytest tests/test_tour.py -q` (84 passed), `python3 -I tests/test_tour_diff.py` (64 tests OK). No take, no gate (as briefed).
+
+**Verdict: MERGE-OK.** 4 findings: 0 BLOCK, 0 MAJOR, 1 MINOR, 3 NIT.
+
+### Checks
+1. **Red first: OK.** 286524e9 (parent 883214b5, files tests/test_tour.py and tests/test_tour_diff.py only; message cites rtb2-1..4) in a worktree: `python3 -I tests/test_tour_diff.py`: `Ran 64 tests ... FAILED (failures=4)`: `test_a_row_names_at_most_three_causes_or_is_open` (c), `test_a_row_whose_cause_is_unproven_is_open` (a), `test_a_kind_with_a_found_row_and_an_open_row_gives_open_in_either_order` (d), `test_base_not_measured_and_cand_red_is_a_regression_unless_a_check_row_names_it` (b); `pytest tests/test_tour.py -q`: `1 failed, 83 passed` (`test_a_baseline_without_boxes_is_not_an_i6_flip`). cc71e5d9 (tests/tour-diff.py, demo/tour/intended.toml only): `OK` (64) and `84 passed`. Author and committer of both commits: the given identity.
+2. **rtb2-1: OK.** `tomllib` over demo/tour/intended.toml at head: 369 rows, 156 `open = true`, 103 acts, 84 with an open row (the report's 156/369 and 84/103 agree; 156 - 79 of r2 = 77 = 9 + 68). No row with "cause not found", "(open)" or "(proposed)" lacks `open = true`; every open row says "open" in its cause. Of the ledger ids (findings/*.md on claude/session-log) still open, mc-59, co-63 and xp-43 (cause not found) sit only on open rows. Four more open ids sit on non-open rows that also name a sha: co-44 (15 rows, cause 1e7cc905 in the ledger), xp-28 (17, 09ff8ff9 bd5af4b3), mc-56 (2, 42585079), ti-30 (2, b8872054): the ledger state is a defect still open, the diff cause is found; read each, they fit (rtb3-2).
+3. **rtb2-2..4: OK.** (b) `verdict` in a Python session over tests/tour-diff.py at head: base "not measured" and cand red: no row, an I2 row only: `regression`, `flipped ['I6']`; a `check = "I6"` row: `change`; an open I6 row: `open`. (c) `TOKEN` counts 8-hex shas with a digit and `xx-N` ids as a set; no grandfather set; a wider scan (7 to 40 hex, 2 to 5 letter ids) over the 213 non-open rows finds none over three (the only extra token is `icon-2` of `xp-icon-2`, not a cause). (d) found and open row, either order: `open`, test green.
+4. **KISS: OK.** No new verdict (same, change, open, regression, none), no new field in intended.toml (`open`, `check` as before). tour-diff diff: `named` picks the open row, `cand_red` joins `flipped`. Counts per verdict: not checkable. No capture pair is committed on the branch or on claude/session-log (`git ls-tree` for `.Q.json`: 0), the lane made no take; the Done-when of the brief is met without one.
+5. **A path to a later unrelated diff passing: one new (rtb3-1), one known.** Base green and cand "not measured" reads `same` (only printed). Known and by design: a `check = "I2"` row (14, all co-44 or xp rows) absorbs any I2 flip on that act, and a `pixel` row any pixel diff of the act; the family is by the ledger (rr9-1), not by the element.
+6. **The acts FAIL is foreign: OK.** `git diff --name-only 883214b5..cc71e5d9`: demo/tour/intended.toml, tests/test_tour.py, tests/test_tour_diff.py, tests/tour-diff.py. `grep -rln "demo/tour\|tour-diff\|intended" tests/acts tests/test_acts*.py tests/test_act_pointer.py`: nothing; tests/gate-acts.sh:22-23 runs only the two selftests (green). The failing act is tests/acts/looks/xp.py:437 (`STARTING = "Starting Notepad"`), run against the product, which the diff does not touch; xp-38 (findings/xp.md:39) names the same text and 1.04:1.
+
+### Findings
+- **rtb3-1** | MINOR | tests/tour-diff.py:189-192 (`unmeasured`, `cand_red`) | a check that the base reads green or red and the candidate marks "not measured" (a build that stops reporting `scene.boxes`: I2, I5, I6, I9, I12, I13 all at once) gives `same`, only the note "not measured"; checked: `verdict("a", [], True, [], ({"I6": "green"}, {"I6": "not measured"}))` returns `same`; the candidate loses the check and passes | Fix: where the candidate is "not measured" and the base is not, add the name to `flipped` (absorbed only by a `check` row), as rtb2-2 does for the other side.
+- **rtb3-2** | NIT | tests/test_tour_diff.py:417-418 (`UNPROVEN_FINDINGS`) | the three ids are typed in, not read from the ledger (not on this branch), so an id that turns open with no cause found later is missed; 36 rows cite an open id with a sha (co-44, xp-28, mc-56, ti-30) and stay `change` | Fix: say in the docstring that an id counts only when the ledger says "cause not found", and add the id there when a finding gets that state.
+- **rtb3-3** | NIT | demo/tour/intended.toml (t10b, t1d, t3 ... 68 rows) | the added tail "open: more than three causes, none proven for this act alone" sits behind causes that do carry a proof (t10b: "the candidate take with gap_inner 10 matches the replay to the pixel outside the bar"), so the row contradicts itself | Fix: the tail "open: more than three causes, not split per cause" says what is true.
+- **rtb3-4** | NIT | tests/tour-diff.py:197-200 (`absorbed`) | the check row is the first one found (`next`), while `named` now prefers an open row; with one found and one open `check` row for the same check the open one is hidden; none exists today (14 check rows, all I2, no duplicate) | Fix: pick the open row first there too (the same `next(... if r.get("open") ...)`).
+
+### Limits
+- No take and no gate; the counts per verdict are not producible (no pair), the toml counts are from `tomllib`.
+- Causes by family are not re-proven (rr9-1, known); the 19 red of `--check` and xp-38 are as the report says.
+- Scratch scripts in the scratchpad, not committed.

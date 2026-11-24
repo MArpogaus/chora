@@ -1,0 +1,11 @@
+explorer C1: reached yes (7 act, 4 looks): row, Return, Alt+Escape; shot 004 cube again.
+max C2: not reached (9 act,5 looks): T click row, Super+c, 2x Ctrl+Alt+Left; never pressed Super+Alt+4 (hint "Pull out" seen); shots 005.
+explorer T1: reached yes (5 act, 3 looks): Programs, Foot, terminal prompt; shot 007.
+max C3: persona: placement reached after Alt+Escape (Foot pane right of XP face), 14 act? looks 5; Super+Alt+4 pressed in pane "no visible change" (give key in pane); shots 006-010.
+status: r10 running; explorer C1,T1 done; max C2,C3 done; next explorer T2, max T5 (probe), T3, then demo
+explorer T2: reached yes (3 act, 1 look... 15 total actions explorer): Super+F1 from hint bar, panel read; shot 009.
+max T5: not reached (11 act? 4 looks): found "Chora probe" face label, clicked it, flew into blank grey surface, out of looks; no Super chords pressed (cap); shots 011-014.
+max T3: reached yes (6 act,3 looks; max total 31 act): LISTENING pill, atlas panel, hello -> Hello; shot 017.
+demo C1: reached yes (7 act,4 looks): row, Return, Alt+Escape; shot 004.
+demo C2: not reached (15 act? 7 looks): Programs>Foot, drag turned cube/moved pane, Super+Alt+4 pull out: no visible change; shot 011
+demo T4: not reached (3x click Lock, no lock window seen; clock only; 7 act? shot 015; calls swaylock?)
