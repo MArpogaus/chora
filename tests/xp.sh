@@ -406,15 +406,21 @@ grim "$out/help.png"
 keys 1 || fail "the keys failed: $out/probe.log"
 wait_for has_node_count 0 id:xp-dlg-help
 wait_for has_node_count 0 id:xp-task-helppanel-winit
-node_centre() { query "id:$1" | jq -r '.[0].rects | to_entries[0].value | [.[0] + .[2] / 2, .[1] + .[3] / 2] | map(floor) | join(",")'; }
-inject() { echo "$1" | "$bin/choractl" inject >/dev/null || fail "inject $1"; }
-inject '[{"pointer_move": {"position": [1240, 120]}}, {"click": {"button": 273}}]'
-wait_for has_node id:xp-ctx-0-6
-inject "[{\"pointer_move\": {\"position\": [$(node_centre xp-ctx-0-6)]}}, {\"click\": {}}]"
+node_centre() { query "id:$1" | jq -r '.[0].rects | to_entries[0].value | "\((.[0] + .[2] / 2) | floor) \((.[1] + .[3] / 2) | floor)"'; }
+click 50 785 || fail "the click failed"
+wait_for menu_visible true
+read -r cx cy cw ch < <(query kind:image | jq -r '[.[] | select(.meta.text == "Control Panel" and (.id | startswith("xp-item-")))] | .[0].rects | to_entries[0].value | map(floor) | join(" ")')
+timeout 20 "$bin/chora-probe" point $((cx + 60)) $((cy + ch / 2)) 2500 >>"$out/probe.log" 2>&1 &
+job=$!
+wait_for has_node id:xp-menu-row-0-2
+wait "$job" || fail "the pointer failed: $out/probe.log"
+read -r rx ry <<<"$(node_centre xp-menu-row-0-2)"
+click "$rx" "$ry" || fail "the click on Display failed"
 wait_for has_node id:xp-dlg-display
 wait_for has_node id:xp-task-displaypanel-winit
 grim "$out/display-task.png"
-inject "[{\"pointer_move\": {\"position\": [$(node_centre xp-dlg-display-content-c-cancel)]}}, {\"click\": {}}]"
+read -r rx ry <<<"$(node_centre xp-dlg-display-content-c-cancel)"
+click "$rx" "$ry" || fail "the click on Cancel failed"
 wait_for has_node_count 0 id:xp-dlg-display
 wait_for has_node_count 0 id:xp-task-displaypanel-winit
 
@@ -651,6 +657,25 @@ grim "$out/starting.png"
 touch "$release"
 wait_for closed
 "$bin/choractl" call xp settings.set "{\"file_manager\": \"$file_manager\"}" >/dev/null
+
+step "17c. a Start menu name that the row cuts shows in full in a tooltip"
+long_name="ImageMagick (color depth=q16) and other settings of the display"
+"$bin/choractl" call xp settings.set "{\"programs\": [{\"title\": \"$long_name\", \"command\": \"true\", \"icon\": \"\"}]}" >/dev/null
+click 50 785 || fail "the click failed"
+wait_for menu_visible true
+item_is() { query kind:image | jq -e --arg t "$1" '[.[] | select(.meta.text == $t)] | length > 0' >/dev/null; }
+wait_for item_is "$long_name"
+read -r ix iy iw ih <<<"$(item_text "$long_name")"
+timeout 20 "$bin/chora-probe" point $((ix + iw / 2)) $((iy + ih / 2)) 1500 >>"$out/probe.log" 2>&1 &
+job=$!
+wait_for has_node id:xp-tooltip
+tip_says() { test "$(query id:xp-tooltip | jq -r '.[0].meta.text')" = "$1"; }
+tip_says "$long_name" || fail "the tooltip does not say the full name: $(query id:xp-tooltip | jq -r '.[0].meta.text')"
+grim "$out/menu-row-tip.png"
+wait "$job" || fail "the pointer failed: $out/probe.log"
+click 50 785 || fail "the click failed"
+wait_for menu_visible false
+wait_for has_node_count 0 id:xp-tooltip
 
 # A token given before or with the first commit reaches plugins
 # through surface.created.
