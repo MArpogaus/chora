@@ -365,8 +365,16 @@ impl Menu {
     /// and the row in the scene, for a tooltip.
     pub fn cut_title(&self, theme: &Theme, node: &str) -> Option<(String, Rect)> {
         let entry = self.entries.get(item_index(node)?)?;
-        let _ = (theme, &entry.title);
-        None
+        let font = if entry.bold { Font::UiBold } else { Font::Ui };
+        let (_, width) = text_box(entry);
+        if theme.text_width(&entry.title, font) <= f64::from(width) {
+            return None;
+        }
+        let [x, y, w, h] = entry.rect;
+        Some((
+            entry.title.clone(),
+            [self.origin[0] + x, self.origin[1] + y, w, h],
+        ))
     }
 
     /// What a node of the menu is.
@@ -1189,24 +1197,18 @@ fn header_art(theme: &Theme, face: Option<&Path>, height: i32) -> Picture {
 
 /// The picture of an entry, normal or highlighted.
 fn picture(theme: &Theme, entry: &Entry, down: bool) -> Picture {
-    let [_, _, w, h] = entry.rect;
+    let [_, _, _, h] = entry.rect;
     let mut picture = background(entry, down);
     if entry.kind == Kind::AllPrograms {
         return all_programs(theme, picture, entry, down);
     }
-    let icon_size = match entry.kind {
-        Kind::Program => 32,
-        Kind::Place | Kind::AllPrograms | Kind::Footer => 24,
-    };
-    let pad = if entry.kind == Kind::Program { 3 } else { 5 };
+    let (pad, icon_size) = icon_box(entry.kind);
     if let Some(icon) = &entry.icon {
         picture = picture.file(icon, [pad, (h - icon_size) / 2, icon_size, icon_size]);
     }
-    let x = pad + icon_size + if entry.kind == Kind::Footer { 6 } else { 3 };
-    let mut width = w - x - 4;
+    let (x, width) = text_box(entry);
     if entry.cascade {
         picture = cascade::arrow(theme, picture, down);
-        width -= 12;
     }
     let color = text_color(entry.kind, down);
     let font = if entry.bold { Font::UiBold } else { Font::Ui };
@@ -1221,6 +1223,22 @@ fn picture(theme: &Theme, entry: &Entry, down: bool) -> Picture {
             )),
         None => picture.text(Text::new(&entry.title, font, color, [x, 0, width, h])),
     }
+}
+
+/// The left pad and the side of the icon of an entry.
+fn icon_box(kind: Kind) -> (i32, i32) {
+    match kind {
+        Kind::Program => (3, 32),
+        Kind::Place | Kind::AllPrograms | Kind::Footer => (5, 24),
+    }
+}
+
+/// Where the text of an entry starts and how wide the row leaves it.
+fn text_box(entry: &Entry) -> (i32, i32) {
+    let (pad, icon_size) = icon_box(entry.kind);
+    let x = pad + icon_size + if entry.kind == Kind::Footer { 6 } else { 3 };
+    let arrow = if entry.cascade { 12 } else { 0 };
+    (x, entry.rect[2] - x - 4 - arrow)
 }
 
 /// An empty entry, or its highlight.
