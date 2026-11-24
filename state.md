@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-24 07:17 UTC)
+## Now (2026-11-24 07:18 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 06:06 PM 4.9 % (11-22) + 5.2 % (11-23) + 2.1 % (11-24), week about 25 % vs 43 % pace
 session branch: ce866b0d (t124 green 04:34: co-reach-r2); 74 greens; train125 running 06:05 (xp-title f65e7f70).
@@ -24,7 +24,7 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin: W9 779 = RC; GUARD-4
 |---|---|---|
 | tiling-reach-r1.md (rc 1, 2; 1 %) | sonnet high, claude/tiling-reach | session_016iS3kMq4yU2VPBXarSuEkP 01:52 |
 | co-reach-r4.md (rc 1, 2; co-67; 1 %) | sonnet high, claude/co-reach-r4 909bc57b | session_016iS3kQqSPtSAjLg9NseHmk 06:31 |
-| tour-base-r3.md (F7, rc 11; 0.8 %) | sonnet high, claude/tour-base 883214b5 | starting |
+| tour-base-r3.md (F7, rc 11; 0.8 %) | sonnet high, claude/tour-base 883214b5 | session_016iS3kLPAifTAZd7mvFfrRp 07:18 |
 | flake-series-r8.md (F5, F4; 1.2 %) | sonnet high, claude/flake-series-r7 6f7bcb26 | session_016iS3kPwWVUYse7EqYxr313 05:12 |
 ## Queue (% week; 5 % reserve)
 1. (F7) TRAIN125 xp-title r1 MERGE-OK (rxt-1, rxt-2 MINOR); next train: guard-4 (harness) after review.
