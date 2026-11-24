@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-24 06:08 UTC)
+## Now (2026-11-24 06:15 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 06:06 PM 4.9 % (11-22) + 5.2 % (11-23) + 2.1 % (11-24), week about 25 % vs 43 % pace
 session branch: ce866b0d (t124 green 04:34: co-reach-r2); 74 greens; train125 running 06:05 (xp-title f65e7f70).
@@ -22,10 +22,10 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin: W9 779 = RC; GUARD-4
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| tiling-reach-r1.md (rc 1, 2; 1 %) | sonnet high, claude/tiling-reach cae62f50 | session_016iS3kMq4yU2VPBXarSuEkP 01:52 |
+| tiling-reach-r1.md (rc 1, 2; 1 %) | sonnet high, claude/tiling-reach | session_016iS3kMq4yU2VPBXarSuEkP 01:52 |
 | guard-4-r2.md (F4, F5; 0.5 %) | sonnet medium, claude/guard-4 | session_016iS3kN4R9eVrWXJzhzQVLm 04:45 |
 | co-reach-r3.md (rc 1, 2; 2 %) | opus high, claude/co-reach-r3 b2fa7792 | session_016iS3kNvatmG2tDzUZuAFQy 03:32 |
-| notify-body-r1.md (F7, sh-31; 0.5 %) | sonnet medium, claude/notify-body ce866b0d | session_016iS3kLDJQDi23rF5JppHqP 06:08 |
+| notify-body-r1.md (F7, sh-31 maybe stale; 0.5 %) | sonnet medium, claude/notify-body ce866b0d | session_016iS3kLDJQDi23rF5JppHqP 06:08 |
 | tour-base-r2.md (F7, rc 11; 1.2 %) | sonnet high, claude/tour-base 645afaf5 | session_016iS3kQ1y8Tx71ijH6jpEzF 03:35 |
 | flake-series-r8.md (F5, F4; 1.2 %) | sonnet high, claude/flake-series-r7 6f7bcb26 | session_016iS3kPwWVUYse7EqYxr313 05:12 |
 ## Queue (% week; 5 % reserve)
