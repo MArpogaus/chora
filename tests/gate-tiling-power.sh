@@ -8,6 +8,10 @@
 # `true`. Needs fuzzel, grim, waybar and jq; notify-send is a stand-in
 # for the screenshot script, chora-notify shows the notice of a missing script.
 #
+# One tiling overlay at a time (ti-27, POLS): the power menu and the Apps
+# list close an open key list, so that Escape closes the one layer and
+# nothing stays open behind it.
+#
 # Usage: tests/gate-tiling-power.sh   BIN: directory with the binaries
 set -u
 . "$(dirname "$0")/gate-lib.sh"
@@ -85,27 +89,45 @@ done
 ok "the power icon opens the menu 3 of 3 times"
 
 list_open() { ctl query 'kind:text' 2>/dev/null | grep -q "Move focus"; }
-keys Super+slash
-for _ in $(seq 20); do
-    list_open && break
-    sleep 0.25
-done
-list_open || fail "Super+slash opened no key list"
+open_list() {
+    keys Super+slash
+    for _ in $(seq 20); do
+        list_open && return 0
+        sleep 0.25
+    done
+    fail "Super+slash opened no key list"
+}
+list_gone() {
+    for _ in $(seq 20); do
+        list_open || return 0
+        sleep 0.25
+    done
+    return 1
+}
+open_list
 click 1238 24
 wait_menu || fail "the power menu did not open over the key list"
+list_gone || fail "the key list stays open under the power menu (ti-27)"
 keys Escape
 for _ in $(seq 20); do
     menu_open || break
     sleep 0.25
 done
 menu_open && fail "the first Escape did not close the power menu"
+list_open && fail "Escape closed the power menu and the key list shows again (ti-27)"
+ok "the power menu closes the key list; Escape leaves no overlay open (ti-27)"
+open_list
+keys Super+space
+wait_menu || fail "the Apps list did not open over the key list"
+list_gone || fail "the key list stays open under the Apps list (ti-27)"
 keys Escape
 for _ in $(seq 20); do
-    list_open || break
+    menu_open || break
     sleep 0.25
 done
-list_open && fail "the key list stays open after the power menu is cancelled and a second Escape"
-ok "Escape closes the power menu, the next Escape the key list under it (ti-27)"
+menu_open && fail "Escape did not close the Apps list"
+list_open && fail "Escape closed the Apps list and the key list shows again (ti-27)"
+ok "the Apps list closes the key list; Escape leaves no overlay open (ti-27)"
 
 keys Super+Print
 for _ in $(seq 20); do
