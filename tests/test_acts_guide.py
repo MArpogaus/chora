@@ -156,6 +156,40 @@ class KnownRed(unittest.TestCase):
         _, _, shots = s.settled_scene([], sleep=lambda _t: None)
         self.assertEqual(shots["O"][1], [b"card"])
 
+    def test_a_card_that_lands_while_the_snapshot_reads_the_clients_is_read_again(self):
+        """xp-38 r2: the nodes and the pixels of a snapshot are of the settled read, its boxes are
+        read last; a notify card that lands between them has a box on the wallpaper capture and no
+        node (11 px, 1.04:1). The scene is read again until its boxes are those of the capture."""
+        s = object.__new__(harness.Session)
+        card = [False]
+
+        def call(method, _params=None):
+            if method == "scene.boxes":
+                boxes = [{"node": "notify-card-body", "rect": [0, 0, 5, 5]}] if card[0] else []
+                return {"O": {"boxes": boxes}}
+            if method == "scene.query":
+                return [{"id": "notify-card-body", "text": "x"}] if card[0] else []
+            return {}
+
+        def clients():
+            card[0] = True
+            return {}
+
+        s.core = type("C", (), {"call": staticmethod(call)})()
+        s.label, s.looks, s.wallpaper = "xp", ["xp"], set()
+        s.outputs = lambda: []
+        s.shots = lambda outputs: {"O": (1, [b"card" if card[0] else b"wallpaper"])}
+        s.clients = clients
+        s.blocks = lambda clients: {}
+        s.cube = lambda: {}
+        s.new_log_text = lambda: {}
+        s.exits = lambda: {}
+        s.states = lambda: {}
+        shot = s.snapshot(states={})
+        self.assertEqual([n["id"] for n in shot.nodes], ["notify-card-body"])
+        self.assertEqual(shot.shots["O"][1], [b"card"])
+        self.assertEqual(shot.boxes["O"]["boxes"][0]["node"], "notify-card-body")
+
     def test_a_scene_that_settles_logs_nothing(self):
         import contextlib
         import io
