@@ -55,3 +55,55 @@ Two full runs of `tests/merge-gate.sh --jobs 2` (no --only), detached, polled in
 - New: co-59 MINOR (reopen race, masked by until_ok in the gate), co-60 MINOR candidate (hint bar).
 - Gate: 60 PASS, mc-host red foreign, tiling-bar, e2e, fuzzel not run: the full gate runs in train119.
 - Verdict (computed): 0 open MAJOR -> MERGE-OK fe369799, train119 (the train is the full gate; red there = INCOMPLETE, back to the lane).
+
+## r2
+Lane: cloud, claude/co-reach-r2 from 8c411416. Step 0 green: unshallow, `cargo check --workspace`, `cargo build --workspace`. Shas: **red aabac7ed** (test: a face names its way out; a click on a pane flies in), **fix b2fa7792** (fix: a face names its way out; a click on a pane flies in), head b2fa7792. Diff 7 files +128/-18 (tests +84). No core change, no xp change (hosted.rs not touched: no step showed it).
+
+### Step 1: reproduction (scripted, no persona)
+Script media/2026-11-24/co-reach-r2/reach.sh (rewritten; the r1 and r8 /tmp scripts are gone): one fresh construct session per run via `round.sh start` (1280x800, PERSONA_CHECK=1, act.py, logical coordinates: row "A cube of desktops" (640,468), row Terminal (640,364)), each run in a subshell; binaries of 8c411416 (/tmp/persona-round/bin).
+- co-61 (row, 6 s, Return, 5 s, dump): **5/5 red**. Every run: `cube.list` mode `use`, construct `{"holder": "construct"}`, xp `{"holder": null}`; the visible text of the hint bar (`construct-hints-*` text nodes with a rect) is `Super | F1 | All keys`, nothing else on screen names a way out (capture co61-before.png: a plain xp face, one chip "Super F1 All keys"). Non-I6 rows: co-44 I2 x2 per run only.
+- co-62 (row Terminal, 5 s, Super+c, 6 s, click the centre of the visible construct surface s1, 3 s, dump): **5/5 red**. Before the click every run: mode `navigate`, construct `{"holder": "construct"}`, s1 shown beside the cube at screen box [17, 283, 383x233] (centre 208,400). After the click: mode `navigate`, construct `{"holder": "construct"}` (no surface), xp `{"holder": null}`, camera [x 0, z 0] (not moved), `construct.list` current null. By hand on the same binaries: Tab, Return then gives construct `{"holder": "construct", "surface": "s1"}` and the camera at [-1191, 2391]. Non-I6 rows: co-44 I2 x6 per run only.
+
+### Step 2: severity
+- co-61 **MAJOR** (confirmed): vision-card.md:11 "Desktops on cube faces; step out and in": after 3 s in a face nothing names the step out; docs/cube-modes.md:15 "A first-time person has no key to remember" and :71 "so that the person is never stuck in it". The demo watcher of r8 C1 stayed in the face (Escape, Super+C, pager arrow).
+- co-62 **MAJOR** (confirmed): vision-card.md:20 "no lost window in any handover" with docs/cube-modes.md:42 "Each act has every path (principle 2)": the window shown beside the cube has no mouse path; Max of r8 C2 saw the terminal and could not get to it. Not downgraded: the keyboard path (Tab, Return) is hidden from a person who uses the mouse.
+
+### Step 3: causes (8c411416)
+- co-61: plugins/chora-construct/src/overlay.rs:613 `Set::Rest => vec![item(self.hint_keys_chord(), Word::AllKeys, "keys")]`: the set that a face keeps after the timed hints (hints.rs:143 `(true, true) => Some(Set::Rest)`, after `FLOWN` 3 s, hints.rs:32) names only All keys; `Alt Esc Step back` shows only in the first 3 s or while the pointer rests in the bottom 64 px (hints.rs:35 `BOTTOM`), and in use mode no corner chip STEP BACK shows (by design, gate-construct-cube.sh "v2 has none").
+- co-62: plugins/chora-construct/src/modes.rs:586 `press_on_a_pane` takes the press on a pane stood back and calls `press(*position, true)` (modes.rs:681), which starts a move (input.rs:387 `self.moving = Some(Moving ..)`); the release (input.rs:462 `release`) drops the pane where it is (input.rs:477 `drop_pane`). The fly-in on a click (input.rs:480) needs `self.drag`, which a press never sets while a cube is open (input.rs:398 `else if self.cube.is_none()`). So a click moves the pane by zero and nothing else happens.
+
+### Step 4: red and green
+Red aabac7ed (on 8c411416), `cargo test -p chora-construct --bin chora-construct`:
+- `cube::tests_construct::a_face_stepped_into_names_its_way_out_after_the_hints_went` panicked at tests_construct.rs:1144 "the hint bar names the way out of the face" (the chip `construct-hint-keys` shows, `construct-hint-step-back` does not, use mode after the 3 s).
+- `cube::tests_construct::a_click_on_a_pane_beside_the_cube_flies_into_it` panicked at tests_construct.rs:1197 "the camera flies into the pane" (a pane beside the stood-back cube, press and release on its centre).
+Fix b2fa7792 (overlay.rs +1 -2, input.rs +22 -2, cube.rs +2 -2 `CLICK` pub(crate), hints.rs +4 -2 doc comments, gate-construct-cube.sh +7 -8, docs +8 -2):
+- co-61: the resting set of a face shows the same two hints as the first 3 s, `Alt Esc Step back` (the existing key `fly_out`, the existing hint and its click) beside `Super F1 All keys`. The set change swaps the nodes in one transaction with no fade, so the screen does not change at 3 s (scene of both states identical, checked by a dump diff).
+- co-62: `release` first asks `clicked_pane_stood_back`: in navigate mode a press that a pane took and that ends within `CLICK` (8 px, the click of a face) ends the move and calls `fly_in` of that pane, the same call that Tab, Return makes (list.rs `show`). A drag still moves the pane and drops it on a face.
+- tests/gate-construct-cube.sh `floats()`: it waited for the hint Step back to go after a step in (the old rule); it now waits for the face to name its way out and for two equal captures, then compares as before. Ran once by hand on b2fa7792: EXIT 0, 58 ok, "stood back, the windows float off the face ... and land pixel for pixel".
+- docs/cube-modes.md: the flows table gets "fly into a pane beside the cube: a click on the pane | Tab, then Return | window.show"; "The visible way in" says the hint bar names `Alt Esc Step back` beside `Super F1 All keys` also after 3 s; "What the construct does today" says a click (under 8 px) on a pane stood back flies into it.
+No new mode, no sleep, no known row, no raised bar.
+Green: chora-construct 272/272 (270 + the two).
+
+### Step 5: counts (b2fa7792, binaries /tmp/persona-after/bin, same script)
+- co-61 steps: **10/10** green (old binaries 5/5 red). Every run: mode `use`, construct `{"holder": "construct"}`, xp `{"holder": null}`, hint bar `Super | F1 | All keys | Alt | Esc | Step back` 5 s after Return (co61-after.png: "Alt Esc Step back | Super F1 All keys" over the face).
+- co-62 steps: **10/10** green (old binaries 5/5 red). Every run: before the click mode `navigate`, pane at [208 400]; after it mode `navigate`, construct `{"holder": "construct", "surface": "s1"}`, xp `{"holder": null}`, camera [-1191, 2391] (the pose of Tab, Return); `echo reach` typed after it shows in foot (co62-after.png).
+- co-52 holds in all 10 co-61 and 10 co-62 runs (the row and Super+c stand back: mode navigate before Return or the click); co-54 holds in all 10 co-62 runs (s1 shown beside the cube, box centre 208,400).
+- Non-I6 rows of all after runs: only co-44 I2 "construct-mode-step-in and construct-mode-turn-left (-right) are 9 apart" (x2 per co-61 run, x8 per co-62 run; before the fix x2 and x6, the extra two come with the look inside the pane, where the cube hints stay: co-60, left).
+- `tests/gate-construct-i3.sh`: **10/10** rc 0, "ok: one focus holder after a click in the xp face with a window in a pane (construct: -, xp: xp)" (co-43, co-46 hold).
+- co-48, co-49, co-50: no persona contracts here; their cells (acts) run in the gate below.
+
+### Gate
+One full run of `tests/merge-gate.sh --jobs 2` (no --only), detached, polled in the turn, on b2fa7792 merged with fresh origin/claude/autonomous-dev-session-3w-i33pg7 at cae62f50 (local merge b05b9ee4, detached; the incoming commits touch xp, tiling, notify, acts and persona, no construct file): **EXIT 0, 65 cells PASS, 0 FAIL**, "all steps passed; no --push, nothing is pushed". Construct cells: layout 1367 s, cube 125 s, pull 300 s, placed 10 s, construct-hud 571 s, construct-extra 160 s (k1, i3 and the rest), out, wm-pane, pane-keys, walk, keys, pixels; acts 1829 s; also tiling-bar, mc-host, e2e PASS (not run or red in r1). `pgrep -fa 'chora --headless'` empty after.
+
+### Notes (not touched)
+- co-60 seen again: in the pane flown into from the cube stood back the hint bar keeps the cube's hints (Turn left, Step in, Turn right), co62-after.png. MINOR, waits.
+- MINOR co-44, co-47, co-53, co-55, co-56, co-59 not touched.
+
+## PM review r2 (2026-11-24 02:58 UTC)
+Base 8c411416..b2fa7792 (+120/-16 code and gate, 6 files, construct only). Builder: co-reach-r2 worker; reviewer: PM (under 200 lines).
+- Red first: aabac7ed adds 84 lines of tests_construct.rs only; b2fa7792 the fix. Holds (rules.md 8).
+- co-61: overlay.rs Set::Rest now shares the Flown items (Step back + All keys); hints.rs doc matches. gate-construct-cube floats() now asserts the hint rests and the face is steady (two equal captures) instead of the hint gone: changed with the design, not loosened (the cmp flat vs landed stays). Fixed.
+- co-62: input.rs clicked_pane_stood_back: in Navigate mode a release within CLICK (8 px) of the press takes the move, releases its effect and flies in; a farther release still drops. CLICK made pub(crate), same value. Fixed.
+- No new sleep line; full gate on merge with cae62f50 EXIT 0, 65 PASS (worker).
+- NIT rcr-1: the gate edit sits in the fix commit; acceptable because the old assertion encoded the co-61 fault.
+Verdict (computed): 0 BLOCK, 0 MAJOR -> MERGE-OK b2fa7792. Joins train124.
