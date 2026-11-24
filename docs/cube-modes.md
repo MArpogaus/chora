@@ -46,6 +46,7 @@ in a construct without a cube and in xp (principle 1).
 |-----|-------|----------|---------------|
 | step back, from use mode | a click on `STEP BACK` | `fly_out`: `Alt+Escape`; `Escape` alone when the grant `input.grab-any` lets the construct take it | "step back"; `view.step_back` |
 | step in, from navigate mode | a click on a face, or on `STEP IN` for the front face | `fly_in`: `Return` | "step in"; `view.step_in` |
+| fly into a pane beside the cube, in navigate mode | a click on the pane | `Tab`, then `Return` on its row | `window.show` |
 | turn the cube by one face | a click on `TURN LEFT` or `TURN RIGHT`; in navigate mode also a drag on the cube | `Ctrl+Alt+Left` and `Ctrl+Alt+Right`, in both modes | "turn left", "turn right"; `cube.turn` |
 | walk and look, in navigate mode | a drag on the empty space, the wheel | the walk keys of the construct | the methods of the walk |
 | show the keys, in navigate mode | none | `F1`, and `Super+F1` | none |
@@ -88,7 +89,10 @@ window, so a click on the close button of a maximized window never
 steps back. In use mode they stay left of the desktop icons of the face
 in their row, so that they cover no label. In use mode one chip shows,
 `STEP BACK  Alt+Esc`, with its key. It is calm: it must not compete
-with the work on the face. The
+with the work on the face. The hint bar at the bottom centre names the
+way out as well: stepped into a face it shows `Alt Esc Step back` beside
+`Super F1 All keys`, also after the first 3 s, so the person who stepped
+in always sees how to step out. The
 turn chips carry an arrow, `← TURN LEFT` and `TURN RIGHT →`. In
 navigate mode three chips show, and each face of the cube is a control
 of its own: the pointer over a face lights its edge, and a click steps
@@ -211,7 +215,9 @@ In navigate mode a drag on a face or on a window that floats in front of
 it turns the cube. A press on a plane that moves less than 8 px is a
 click on its face. A pane of a pulled window moves by a plain drag
 and, dropped over a face, gives its window back to that face: while the
-cube stands back, the windows of the panes take no pointer input.
+cube stands back, the windows of the panes take no pointer input. A
+click on a pane stood back, a press that moves less than 8 px, flies
+into it, as `Tab` and `Return` do, and its window takes the keyboard.
 
 A window that a title drag pulls out of a face becomes a pane under
 the pointer, a little in front of the face, so that the face never

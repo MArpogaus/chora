@@ -1117,3 +1117,87 @@ fn a_window_ahead_shows_beside_the_cube_the_person_opens() {
         "{pane:?} beside {cube:?}"
     );
 }
+
+/// Stepped into a face, after the hints of the step went, the hint bar
+/// still names the way out: `Step back` with its key, beside `All keys`;
+/// a person who stepped in sees how to step out again (co-61).
+#[test]
+fn a_face_stepped_into_names_its_way_out_after_the_hints_went() {
+    let (mut construct, core, _lines) = on_core("rest-way-out", cube_core(json!([])));
+    core.model().lock().unwrap().scene.add_overlay("test");
+    construct.output = Some(chora_kit::testing::output("test"));
+    construct.metrics.keep_estimates();
+    let group = Command::Create {
+        id: NAME.into(),
+        kind: NodeKind::Group,
+        parent: ROOT.into(),
+        props: PropsUpdate::default(),
+    };
+    construct.rt.conn.apply(vec![group]).unwrap();
+    construct.cube = Some(host_of(2));
+    construct.hints.started = true;
+    construct.hints.engaged = true;
+    construct.hints.until = None;
+    construct.draw_hints().unwrap();
+    let model = core.model();
+    assert!(has(&model, "construct-hint-keys"), "the resting chip shows");
+    assert!(
+        has(&model, "construct-hint-step-back"),
+        "the hint bar names the way out of the face"
+    );
+}
+
+/// A click on a pane beside the cube that stands back flies into it, as
+/// Tab and Return do, and its window takes the keys; the person who sees
+/// the terminal beside the cube gets to it (co-62).
+#[test]
+fn a_click_on_a_pane_beside_the_cube_flies_into_it() {
+    let (mut construct, core, _lines) = on_core("click-aside", cube_core(json!([])));
+    construct.cube = Some(host_of(2));
+    construct.panes.push(crate::Pane {
+        name: "foot".into(),
+        source: "s1".into(),
+        content: crate::Content::Window { command: None },
+        at: [-200.0, 700.0],
+        yaw: 0.0,
+        size: PANE,
+        taken: false,
+        attached: true,
+        placed: false,
+    });
+    stepped_back(&mut construct);
+    let (pane, cube) = boxes(&mut construct, "foot");
+    assert!(
+        !crate::frame::overlaps(cube, pane),
+        "{pane:?} beside {cube:?}"
+    );
+    let at = [
+        f64::midpoint(pane[0], pane[2]),
+        f64::midpoint(pane[1], pane[3]),
+    ];
+    let press = Event::PointerPressed {
+        node: crate::LOOK.into(),
+        button: 272,
+        position: at,
+        local: at,
+        modifiers: Vec::new(),
+        injected: false,
+    };
+    let release = Event::PointerReleased {
+        node: crate::LOOK.into(),
+        button: 272,
+        position: at,
+        local: at,
+        modifiers: Vec::new(),
+        injected: false,
+        time: 0,
+    };
+    chora_kit::runtime::Plugin::event(&mut construct, press).unwrap();
+    chora_kit::runtime::Plugin::event(&mut construct, release).unwrap();
+    assert!(construct.in_pane(), "the camera flies into the pane");
+    assert_eq!(
+        core.model().lock().unwrap().focuses.last().cloned(),
+        Some(Some("s1".into())),
+        "the window of the pane takes the keys"
+    );
+}
