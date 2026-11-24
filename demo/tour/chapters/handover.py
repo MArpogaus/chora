@@ -66,6 +66,13 @@ def lock_called(calls):
 
     return check
 
+def tiling_companions(output):
+    """The wallpaper and the bar of the tiling look, as the tiling chapter starts them. The chapter passes
+    `--no-companions` to chora-tiling (tiling_argv), so the screen of the act "tiling desktop empty" needs them
+    from here (rv9j-4). The wallpaper covers the tiling output only: the other looks draw their own desktops."""
+    return [["swaybg", "-o", output, "--color", "#2e3440"], ["dbus-run-session", "--", "sh", f"{REPO}/flavors/tiling/waybar/waybar.sh", f"{REPO}/flavors/tiling/waybar"]]
+
+
 def start_multi():
     L = Launcher("multi")
     os.makedirs(f"{L.dir}/stub", exist_ok=True)
@@ -94,6 +101,9 @@ def start_multi():
     L.spawn([f"{BIN}/chora-xp", "--theme", f"{REPO}/flavors/xp/theme", "--config", f"{L.dir}/xp.yaml", "--output", out_of["xp"]], env, "xp.log")
     S.ctl("wait", "owner:xp", "--timeout", "30")
     L.spawn(tiling_argv(f"{BIN}/chora-tiling", "--output", out_of["tiling"]), env, "tiling.log")
+    S.ctl("wait", "owner:tiling", "--timeout", "30")
+    for argv in tiling_companions(out_of["tiling"]):
+        subprocess.run([f"{BIN}/choractl", "run", "setsid", *argv], env=dict(env, CHORA_FLAVOR_DIR=f"{REPO}/flavors/tiling"), check=False, capture_output=True)
     L.spawn([f"{BIN}/chora-mc", "--manage-windows", "--output", out_of["mc"]], env, "mc.log")
     L.spawn([f"{BIN}/chora-construct"], env, "construct.log")
     for o in ("tiling", "mc", "construct"):
