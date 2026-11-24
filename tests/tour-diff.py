@@ -188,7 +188,7 @@ def verdict(act, scene, pixel_same, intended, checks=None):
     base, cand = checks or ({}, {})
     unmeasured = sorted(n for n in set(base) | set(cand) if NOT_MEASURED in (base.get(n), cand.get(n)))
     cand_red = [n for n in unmeasured if cand.get(n) == "red"]
-    cand_lost = [n for n in unmeasured if cand.get(n) == NOT_MEASURED and base.get(n) != NOT_MEASURED]
+    cand_lost = [n for n in unmeasured if cand.get(n) == NOT_MEASURED and base.get(n) not in (NOT_MEASURED, None)]
     base, cand = ({n: c for n, c in side.items() if n not in unmeasured} for side in (base, cand))
     flipped = sorted({n for n, c in base.items() if c == "green" and cand.get(n) != "green"} | {n for n, c in cand.items() if c == "red" and base.get(n) != "red"} | set(cand_red) | set(cand_lost))
     absorbed = [n for n in flipped if any(r["kind"] in ("check", "*") and r.get("check", n) == n for r in rows)]
