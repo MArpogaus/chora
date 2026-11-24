@@ -60,3 +60,5 @@ co-57 | NIT (harness; was MAJOR candidate) | p2-r7-co r7 demo T4 | closed co-rea
 co-58 | NIT (harness) | p2-r7-co r7 Max T5 | open | The probe window has no title (app id chora-probe); a persona cannot name it
 co-59 | MINOR | co-reach r1 notes; gate-construct-cube until_ok masks it | open (rules.md 6) | cube.open within ~0.4 s after cube.close of a connected xp is refused "a client xp runs already" (core lists the connection after close_cube ends xp)
 co-60 | MINOR candidate | co-reach r1 notes, seen once by hand | open: verify | A pane flown into from the cube stood back keeps the cube hints in the hint bar (Return Step in, turn keys); docs/cube-modes.md says no chip in a pane
+co-61 | MAJOR (POLS; vision card construct "step out and in") | p2-r8-co r8 demo C1 | open: co-reach r2 | In a face stepped into, nothing on screen names the way out (Escape, Super+C, pager arrow tried); the demo watcher stays in the face
+co-62 | MAJOR (POLS; rc bar "no lost window") | p2-r8-co r8 Max C2 | open: co-reach r2 | A pane shown beside the stood-back cube ignores a click; only Tab, Return (hidden) reaches it; Max sees the terminal and cannot get to it
