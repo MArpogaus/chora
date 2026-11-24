@@ -57,7 +57,7 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-24T04:35:00Z",
+  updated: "2026-11-24T04:46:00Z",
   start: "2026-11-21T04:00:00Z",   // budget reset (owner)
   end: "2026-11-28T03:59:00Z",     // next reset; F5, F7 carried over
   budget: 24,                       // % of the new week used (reset 04:00)
@@ -72,7 +72,7 @@ const S = {
     ["F8", "Docs and decision records", "done", "met by audit r6 (01:40 UTC, 08:40 Bangkok): the kit log module is documented and decision record D120 exists; every decision named in a commit has its record"]
   ],
   now: [
-    "Train 124 is green (04:34 UTC, 11:34 Bangkok): the construct round-2 fixes are merged. The guard lane is done (sleep-line limit now enforced, slow-test bound fixed); an independent review checks it before its own train.",
+    "Train 124 is green (04:34 UTC, 11:34 Bangkok): the construct round-2 fixes are merged. The independent review of the guard lane found one major gap (a 2x slowdown on an idle machine still passes the slow-test bound); round 2 fixes it, red test first, since 04:45 UTC (11:45 Bangkok).",
     "Construct persona round 9 not met: the face now names its way out, but after Super+C nothing says a pane can be clicked or pulled, and a program started in a face hides the top bar with no way out. A fix lane (opus, co-reach r3) started 03:32 UTC (10:32 Bangkok), red test first.",
     "Tour baseline: the independent review found 71 mc differences still unexplained (no partial credit), so round 2 runs now: it searches the cause in the history or marks each one honestly as open. One fix lane runs for the xp title colours (two of our own contrast regressions).",
     "Also running: tiling reach fixes, flake series r7. Spending is under pace (24 %; the line is at 41 %): six lanes plus the review."
