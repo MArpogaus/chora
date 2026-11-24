@@ -76,6 +76,7 @@ fn the_exported_methods_are_named_once_each() {
         [
             "set_layout",
             "show_keys",
+            "show_helper",
             "hide_keys",
             "next_layout",
             "get_layout",

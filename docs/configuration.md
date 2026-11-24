@@ -362,6 +362,7 @@ later `settings.set` or `settings.reload` leaves it as it is.
 | `set_layout`, `get_layout` | see [API](api.md#plugin-methods) | the layout of the current tag |
 | `next_layout` | none | `next_layout` of the bindings: the next layout of the current tag, and shows the layout chip |
 | `show_keys` | none | `MOD+F1` and `MOD+slash`: shows the key list, or hides it |
+| `show_helper` | none | `MOD+a`: opens the chat with the helper and gives its field the keyboard; the helper word of the bar calls it, and the click that did so counts as the act of the person |
 | `hide_keys` | none | hides the key list when it shows, else nothing; the Apps list (`chora-tiling --launch fuzzel`) and the power menu call it before they open, so one overlay shows at a time |
 | `get_tags` | none, see [API](api.md#plugin-methods) | the tags of each output, for a panel |
 | `window.give` | `surface`, and `to`: a client name | `MOD+BTN_LEFT` with a drop on another window manager: hands the window to `to` (D55), and answers with its id |

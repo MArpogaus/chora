@@ -740,6 +740,7 @@ pub fn press_button(
         click_focus(state);
         note_input(state, pointer.current_focus(), serial, true);
         press_node(state, code, injected);
+        press_layer(state);
         start_plane_grab(state, &pointer, code, serial);
     } else {
         note_input(state, pointer.current_focus(), serial, false);
@@ -1013,6 +1014,28 @@ fn hover(state: &mut State, spot: &Spot, moved: bool) {
             injected,
         });
     }
+}
+
+/// A press on a layer surface that is a bar or a panel of a flavor is a
+/// command to the window manager whose claim holds the point, or, where
+/// the bar lies outside every claim, to the first one: that manager gets
+/// the act, so that the keyboard goes to the panel which the
+/// click opens, as it does for a key that the manager grabbed (ti-52).
+/// Only a real press counts (see [`State::note_act`]).
+fn press_layer(state: &mut State) {
+    let Some(spot) = state.spot(state.pointer_layout) else {
+        return;
+    };
+    let on_layer = render::surface_under(state, &spot)
+        .is_some_and(|under| state.is_layer_surface(&under.surface));
+    if !on_layer {
+        return;
+    }
+    let point = [spot.scene.x, spot.scene.y];
+    let manager = chora_scene::claimant_at(state.scene.nodes(), point, |n| state.ipc.live(n))
+        .map(String::from)
+        .or_else(|| state.first_manager());
+    state.note_act(state.owner_conns(manager.as_deref()));
 }
 
 /// Tells plugins about a press over a node. Over a rect or an image, the
