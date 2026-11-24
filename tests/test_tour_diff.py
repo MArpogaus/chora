@@ -471,6 +471,28 @@ class IntendedCauses(unittest.TestCase):
         named = {"x10b", "x5e", "x5g", "x7", "x8", "x9b"}
         self.assertEqual(sorted({r["act"] for r in self.rows() if "xp-43" in r["cause"]} - named), [])
 
+    def test_a_row_with_nodes_names_node_ids_of_a_scene_kind(self):
+        """rv9j-5: `nodes` is a list of ids (a window `app_id:title`); a pixel or check row has no node."""
+        for r in self.rows():
+            if "nodes" in r:
+                self.assertIsInstance(r["nodes"], list, r)
+                self.assertTrue(r["nodes"] and all(isinstance(n, str) and n for n in r["nodes"]), r)
+                self.assertIn(r["kind"], ("meta", "rect", "missing", "added", "visible", "owner"), r)
+
+    SESSION_CAPTIONS = ("fc9675ac", "11e34cf8", "94579f91")
+
+    def test_no_row_of_the_xp_or_handover_acts_cites_the_session_captions(self):
+        """rv9j-5: those commits change the captions of the session buttons, which no act of the xp chapter or of the
+        handover shows; the blobs there are the pager (d78fc4bb) and the bin (62708d35)."""
+        acts = {r["act"] for r in self.rows() if re.fullmatch(r"x\d+[a-z]?|h1[a-d]?", r["act"])}
+        cited = [(r["act"], r["kind"]) for r in self.rows() if r["act"] in acts and any(c in r["cause"] for c in self.SESSION_CAPTIONS)]
+        self.assertEqual(cited, [])
+
+    def test_the_greeting_in_the_chat_is_no_label_change(self):
+        """rv9j-5: the text of `hud-chat` is the greeting (4fec75c3), not the desktop labels (29281054)."""
+        wrong = [(r["act"], r["kind"]) for r in self.rows() if any(n.startswith("hud-chat") for n in r.get("nodes", [])) and "29281054" in r["cause"]]
+        self.assertEqual(wrong, [])
+
     UNPROVEN = ("cause not found", "(open)", "(proposed)")
     UNPROVEN_FINDINGS = ("mc-59", "co-63", "xp-43")
     """The findings whose ledger state is open with the cause not found (findings/mc.md:50, construct.md:65, xp.md:44)."""
