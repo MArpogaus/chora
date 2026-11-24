@@ -62,3 +62,15 @@ Review of claude/tiling-calm r1 (head e9387fb2, base ad0093ba; 12 files, +283 -2
 - rtc1-7, NIT, plugins/chora-tiling/src/main.rs:751: the key list opening over an open helper panel leaves the panel (the lane says so, not asked). Fix: none; keep as a known edge.
 
 Known, not findings: ti-47, ti-48, sh-39, sh-40, co-*, xp-*.
+
+## r2
+
+Head bb4c07d9 on claude/tiling-calm-r2 (merge of d40142e4 = 9649ef3f, fix bb4c07d9).
+
+- Red: after the merge `tools/sleep-ratchet` said "sleep is 782, the list holds 779" and "sleep-all is 933, the list holds 930".
+- Fix (test only; message cites sh-guard sleep ratchet, ti-27, rtr-1; no ratchet-raise on it): open_list and list_gone use `until_ok` (10 rounds = 5 s, as the old 20 x 0.25 s); the fake waybar is `exec tail -f /dev/null`; the tool list is `... kill sed tail sleep` (waybar.sh itself calls sleep; the word ends the line, so nothing counts).
+- Asserts, before and after, unchanged: the loop ending in `fail "Super+slash opened no key list"` becomes `until_ok list_open 10 || fail "Super+slash opened no key list"`; list_gone still fails when the list stays and the caller keeps `fail "the key list stays open under the power menu (ti-27)"`; the lock cell asserts are untouched.
+- Green: `tools/sleep-ratchet` ok (sleep 778, sleep-all 929). gate-tiling-power 5/5, gate-tiling-one-bar 5/5.
+- The merge commit carries a `ratchet-raise:` line only because tools/sleep-ratchet.list arrives as a new file with the merge (779/930, no raise).
+- Full gate (--jobs 2): every cell PASS except tiling-bar: "FAIL: persona session.sh tiling: 2 waybar processes on one config" (a load race in the persona part, untouched by r2). gate-tiling-one-bar.sh alone then ran green. Not caused by r2.
+- `pgrep -fa 'chora --headless'` empty.
