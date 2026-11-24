@@ -596,6 +596,12 @@ impl Wm {
         if !on {
             return self.tip.cancel(Some(node));
         }
+        if Menu::owns(node) {
+            if let Some((full, row)) = self.menu.cut_title(&self.theme, node) {
+                self.tip.rest(node, full, row, Instant::now());
+            }
+            return Vec::new();
+        }
         let Some(output) = self.output_of(node) else {
             return Vec::new();
         };

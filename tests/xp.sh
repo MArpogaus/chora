@@ -398,7 +398,7 @@ keys 29+56+105 || fail "the keys failed: $out/probe.log"
 wait_for desk_visible 0 true
 wait_for has_node_count 0 id:xp-face-1
 
-step "12b. Super+F1 opens Help and Support with a task button, and Escape closes both"
+step "12b. Super+F1 opens Help with a task button, Escape closes both, Display Properties has one too"
 keys 125+59 || fail "the keys failed: $out/probe.log"
 wait_for has_node id:xp-dlg-help
 wait_for has_node id:xp-task-helppanel-winit
@@ -406,6 +406,17 @@ grim "$out/help.png"
 keys 1 || fail "the keys failed: $out/probe.log"
 wait_for has_node_count 0 id:xp-dlg-help
 wait_for has_node_count 0 id:xp-task-helppanel-winit
+node_centre() { query "id:$1" | jq -r '.[0].rects | to_entries[0].value | [.[0] + .[2] / 2, .[1] + .[3] / 2] | map(floor) | join(",")'; }
+inject() { echo "$1" | "$bin/choractl" inject >/dev/null || fail "inject $1"; }
+inject '[{"pointer_move": {"position": [1240, 120]}}, {"click": {"button": 273}}]'
+wait_for has_node id:xp-ctx-0-6
+inject "[{\"pointer_move\": {\"position\": [$(node_centre xp-ctx-0-6)]}}, {\"click\": {}}]"
+wait_for has_node id:xp-dlg-display
+wait_for has_node id:xp-task-displaypanel-winit
+grim "$out/display-task.png"
+inject "[{\"pointer_move\": {\"position\": [$(node_centre xp-dlg-display-content-c-cancel)]}}, {\"click\": {}}]"
+wait_for has_node_count 0 id:xp-dlg-display
+wait_for has_node_count 0 id:xp-task-displaypanel-winit
 
 step "12c. Super alone opens and closes the start menu; Super+d shows the desktop and brings it back"
 keys 125 || fail "the keys failed: $out/probe.log"

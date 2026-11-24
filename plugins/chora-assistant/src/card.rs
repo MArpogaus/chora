@@ -1232,6 +1232,26 @@ mod tests {
         let _ = std::fs::remove_dir_all(cache);
     }
 
+    /// xp-14: the line that typing does not answer stands in the card, the
+    /// last line of it, as in the card of a page; a line between the card and
+    /// the field read as outside the card (the capture of tests/xp.sh 16b).
+    #[test]
+    fn the_xp_card_holds_the_line_that_typing_does_not_answer() {
+        let cache = cache("xp-typing-line");
+        let theme = theme(&cache, "Tahoma").unwrap();
+        let mut card = shown(&notes(), Instant::now());
+        card.ink = Ink::XP;
+        card.face = Some(Face::of(&xp_look()).unwrap());
+        card.max_width = Some(312);
+        let laid = layout(&theme, &card, Language::En, [1280, 800]);
+        assert!(
+            laid.text.contains("Typing does not answer."),
+            "the card lacks the line: {}",
+            laid.text
+        );
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
     #[test]
     fn the_xp_card_keeps_its_keys_under_the_buttons_and_leaves_typing_to_the_field() {
         let cache = cache("xp-keys");

@@ -361,6 +361,14 @@ impl Menu {
         node.starts_with("xp-menu") || node.starts_with("xp-item-")
     }
 
+    /// The full title of an entry whose title the row cuts with an ellipsis,
+    /// and the row in the scene, for a tooltip.
+    pub fn cut_title(&self, theme: &Theme, node: &str) -> Option<(String, Rect)> {
+        let entry = self.entries.get(item_index(node)?)?;
+        let _ = (theme, &entry.title);
+        None
+    }
+
     /// What a node of the menu is.
     fn part(&self, node: &str) -> Option<Press> {
         if let Some(i) = item_index(node).filter(|i| *i < self.entries.len()) {
@@ -1601,6 +1609,37 @@ mod tests {
             .filter(|(x, y)| image.pixel(*x, *y).is_some_and(|p| p.alpha() > 0))
             .count();
         assert_eq!(right, 0, "ink in the last 4 columns of the row");
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    /// xp-15: a name that the row cuts with an ellipsis has its full name
+    /// in a tooltip over the row; a name that fits has none.
+    #[test]
+    fn a_cut_title_has_its_full_name_for_a_tooltip() {
+        let (theme, cache) = crate::dialog::tests::theme("startmenu-cut");
+        let mut icons = Icons::new(crate::icons::THEMES);
+        let mut config = with_programs(3);
+        config.programs[0].title = "ImageMagick (color depth=q16) and other settings".into();
+        let menu = Menu::new(&config, Vec::new(), &theme, &mut icons);
+        let node = |prefix: &str| {
+            let i = menu
+                .entries
+                .iter()
+                .position(|e| e.title.starts_with(prefix))
+                .unwrap_or_else(|| panic!("no entry {prefix}"));
+            format!("xp-item-{i}")
+        };
+        let (full, row) = menu
+            .cut_title(&theme, &node("ImageMagick"))
+            .expect("the long name has a tooltip");
+        assert_eq!(full, "ImageMagick (color depth=q16) and other settings");
+        assert!(row[2] > 0 && row[3] > 0, "{row:?}");
+        let short = menu
+            .entries
+            .iter()
+            .position(|e| !e.title.starts_with("ImageMagick"));
+        let short = format!("xp-item-{}", short.expect("a short entry"));
+        assert_eq!(menu.cut_title(&theme, &short), None, "a name that fits");
         let _ = std::fs::remove_dir_all(cache);
     }
 

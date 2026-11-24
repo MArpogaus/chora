@@ -1308,6 +1308,35 @@ mod tests {
         let _ = std::fs::remove_dir_all(cache);
     }
 
+    /// xp-14: the capture of the question in xp showed "Typing does not
+    /// answer." below the card and above the field. The test above reads the
+    /// margin; this one reads what the balloon of xp draws: no hint of those
+    /// words stands outside the card (the card holds them, see card.rs).
+    #[test]
+    fn no_hint_of_the_typing_line_stands_under_the_card_of_the_xp_balloon() {
+        let (theme, _, cache) = crate::tests::loaded("xp-typing");
+        let frame = xp_frame(36);
+        let mut session = Session::new();
+        session.mode = Mode::Chat("atlas".into());
+        session.status.state = "question".into();
+        session.question_asked();
+        let size = [336, 170];
+        let origin = card_origin(
+            &frame,
+            size,
+            session.hint_room(&theme, &frame, Language::En),
+        );
+        session.card_shown(origin[1], size[1]);
+        assert_eq!(session.card, Some(crate::chat::Where::Chat));
+        let parts = session.parts(&theme, &frame, Language::En);
+        let drawn = parts.hint.join(" ");
+        assert!(
+            !drawn.contains("Typing does not answer"),
+            "the line stands below the card: {drawn:?}"
+        );
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
     fn row(text: &str, starts: bool) -> Row {
         Row {
             text: text.into(),
