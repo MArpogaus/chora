@@ -48,7 +48,7 @@ until_ok bar_shows 80 ||
 
 bar_y=24
 apps_x=55
-looks_x=112
+looks_x=110
 helper_x=929
 clock_x=640
 volume_x=1018
@@ -275,16 +275,16 @@ check_stray_hint() {
         why "Super+q gave no hint on the chip" || return 1
     [ "$(grep -c '^key ' "$work/window")" = "$keys_before" ] || why "the window heard a key of Super+q" || return 1
 }
-probe_owner() { ctl query kind:surface | jq -r '[.[] | select(.app_id == "chora-probe")][0].owner // "none"'; }
+window_owners() { ctl query kind:surface | jq -r '[.[].owner // "none"] | unique | join(",")'; }
 check_looks_none() {
     unmark
     ink_at "$looks_x" || why "no word in the bar at $looks_x (the word Looks)" || return 1
     click "$looks_x" "$bar_y"
     marked '^row No other look is running$' || why "Looks has no row \"No other look is running\": $(rows_of | tr '\n' '|')" || return 1
     [ "$(rows_of | wc -l)" = 1 ] || why "Looks has more than the one row: $(rows_of | tr '\n' '|')" || return 1
-    [ "$(probe_owner)" = tiling ] || why "the window left tiling: $(probe_owner)" || return 1
+    [ "$(window_owners)" = tiling ] || why "a window left tiling: $(window_owners)" || return 1
 }
-owner_is_xp() { [ "$(probe_owner)" = xp ]; }
+owner_is_xp() { [[ ,$(window_owners), == *,xp,* ]]; }
 check_looks_door() {
     "$bin/chora-xp" --theme "$repo/flavors/xp/theme" >"$fakes/xp.log" 2>&1 &
     pids+=($!)
@@ -295,7 +295,7 @@ check_looks_door() {
     echo "Move window to the xp desktop" >"$fakes/choice"
     unmark
     click "$looks_x" "$bar_y"
-    until_ok owner_is_xp 40 || why "the row did not give the window to xp: owner $(probe_owner)" || return 1
+    until_ok owner_is_xp 40 || why "the row did not give the window to xp: owners $(window_owners), marks $(grep -v wpctl "$marks" | tr "\n" "|")" || return 1
     rm -f "$fakes/choice"
 }
 check stray-hint check_stray_hint

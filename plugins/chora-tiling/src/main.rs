@@ -16,6 +16,7 @@ mod dress;
 mod keys;
 mod layout;
 mod lifecycle;
+mod looks;
 mod methods;
 mod overlay;
 mod reload;
@@ -311,8 +312,11 @@ fn launch(argv: &[String]) -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    if program == "power" || (program == "fuzzel" && rest.is_empty()) {
+    if program == "power" || program == "looks" || (program == "fuzzel" && rest.is_empty()) {
         close_key_list();
+    }
+    if program == "looks" {
+        return launch_looks(&dirs);
     }
     if program == "fuzzel" && rest.is_empty() {
         let flavor = dirs.iter().find(|d| d.join("applications").is_dir());
@@ -343,6 +347,68 @@ fn launch(argv: &[String]) -> ExitCode {
     let err = command.exec();
     eprintln!("chora-tiling: cannot start {program}: {err}");
     ExitCode::FAILURE
+}
+
+/// `--launch looks`: the menu of the Looks word of the bar. It lists the
+/// other looks that run (the clients of the core) as the rows that move the
+/// focused window there, under the prompt "Move this window to ", or says
+/// that no other look runs; the row that the person chooses runs `give.sh`.
+fn launch_looks(dirs: &[std::path::PathBuf]) -> ExitCode {
+    use std::io::Write as _;
+    use std::os::unix::process::CommandExt as _;
+    let language = chora_kit::words::Language::of_session();
+    let clients =
+        launch_conn().and_then(|mut conn| conn.call::<_, Value>("clients.list", Value::Null));
+    let clients = match clients {
+        Ok(clients) => clients,
+        Err(err) => {
+            eprintln!("chora-tiling: the looks that run: {err}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let running = looks::running(&clients);
+    let scheme = theme::written_scheme(dirs);
+    let fuzzel = match theme::launch_line("fuzzel", &[], dirs, scheme) {
+        Ok(line) => line,
+        Err(err) => {
+            tell_launch_error(&err);
+            return ExitCode::FAILURE;
+        }
+    };
+    let spawned = std::process::Command::new(&fuzzel[0])
+        .args(&fuzzel[1..])
+        .args(["--dmenu", "--prompt", looks::prompt(language)])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn();
+    let mut child = match spawned {
+        Ok(child) => child,
+        Err(err) => {
+            eprintln!("chora-tiling: cannot start fuzzel: {err}");
+            return ExitCode::FAILURE;
+        }
+    };
+    if let Some(mut stdin) = child.stdin.take() {
+        let _ = stdin.write_all(looks::rows(&running, language).join("\n").as_bytes());
+    }
+    let Ok(out) = child.wait_with_output() else {
+        return ExitCode::FAILURE;
+    };
+    let line = String::from_utf8_lossy(&out.stdout);
+    let Some(look) = looks::chosen(&running, language, &line) else {
+        return ExitCode::SUCCESS;
+    };
+    match theme::launch_line("give", &[look.to_owned()], dirs, scheme) {
+        Ok(give) => {
+            let err = std::process::Command::new(&give[0]).args(&give[1..]).exec();
+            eprintln!("chora-tiling: cannot start give.sh: {err}");
+            ExitCode::FAILURE
+        }
+        Err(err) => {
+            tell_launch_error(&err);
+            ExitCode::FAILURE
+        }
+    }
 }
 
 /// `--apply-theme`: the files of the palette of the configuration.

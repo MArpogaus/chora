@@ -454,11 +454,11 @@ mod tests {
                 entry("terminal", "foot"),
                 Entry {
                     keywords: vec!["Theme".into(), "colour".into()],
-                    ..entry("Dark look", "look dark")
+                    ..entry("Dark theme", "look dark")
                 },
                 Entry {
                     keywords: vec!["theme".into()],
-                    ..entry("Light look", "look light")
+                    ..entry("Light theme", "look light")
                 },
                 Entry {
                     generic: "Text Editor".into(),
@@ -491,8 +491,8 @@ mod tests {
         assert_eq!(
             names,
             [
-                "Dark look",
-                "Light look",
+                "Dark theme",
+                "Light theme",
                 "Monitor",
                 "Notes",
                 "Screenshot",
@@ -525,7 +525,7 @@ mod tests {
             panic!("two programs")
         };
         let names: Vec<&str> = found.iter().map(|a| a.name.as_str()).collect();
-        assert_eq!(names, ["Dark look", "Light look"]);
+        assert_eq!(names, ["Dark theme", "Light theme"]);
     }
 
     #[test]

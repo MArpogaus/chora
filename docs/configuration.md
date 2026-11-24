@@ -1607,7 +1607,7 @@ The package installs the tiling flavor (D51):
 ├── foot.ini                          # the terminal: JetBrains Mono, padding, the palette
 ├── fuzzel.ini                        # the launcher: opaque, the palette
 ├── swaylock.conf                     # the lock screen in the palette
-├── look.sh                           # Light look, Dark look and System look: look.theme at once
+├── look.sh                           # Light theme, Dark theme and System theme: look.theme at once
 ├── give.sh                           # Move window to the xp desktop (and mc, construct): choractl give
 ├── settings.sh                       # Edit settings: chora-tiling.yaml in $EDITOR (else vi) in foot
 ├── wallpaper.sh                      # swaybg again after a new theme, where no unit runs it
@@ -1665,11 +1665,17 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   of 80 px, so the left island keeps its width through the layouts.
   The icons of **Apps**, **Keys** and the power sign are pictures in `waybar/icons/`, drawn as backgrounds, in the
   colours of the theme; **Apps** and **Keys** are drawn alike, in the colour
-  of the text. The doors (**Apps**, the helper word, **Keys** and the power
+  of the text. The doors (**Apps**, **Looks**, the helper word, **Keys** and the power
   icon) have no tooltip: a click shows what they open, and a tooltip under a
   pointer at rest would stand over a tile when the launcher or a new window
   takes the focus; the key list names their keys. The month of the clock
   marks today in bold and underlined.
+  **Looks**, after **Apps**, opens a menu with the prompt `Move this window to `
+  and one row for each other look that runs (a client of the core: xp, mc or
+  construct), in the words of the key list: `Move window to the xp desktop`.
+  A row hands the focused window over with `give.sh`, as `Super+Alt+2` to `4`
+  do. While no other look runs the menu has the one row `No other look is
+  running`, and Enter or Escape closes it (`chora-tiling --launch looks`).
   Digits are tabular, so a number sits in the middle of its pill.
   `waybar.sh` copies the style, the colours and the icons into the runtime
   directory, from `chora-tiling/theme/` when `chora-tiling` wrote it; a
@@ -1744,7 +1750,7 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   session without the variable finds it. The launcher lists the entries of
   `applications/` of the flavor and of the shared folder too: **Chat with a
   helper**, **Screenshot**, **Screenshot of an
-  area**, **Light look**, **Dark look**, **System look** and **Move window to the xp desktop** (also the media center and the construct desktop; `give.sh` hands the focused window over like `Super+Alt+2` to `4`, with a notice when it cannot) are the way for the mouse. `chora-tiling --launch fuzzel` without arguments gives fuzzel the list itself, as rows of `fuzzel --dmenu`: the installed programs, sorted by name, so Enter alone starts the first program by name and takes no screenshot. An entry whose program is not installed is no row. Text that matches no row finds programs by their keywords, their generic name or their command. Text whose first word is an installed program runs as a command. After any other text the list shows again under the row `Nothing found for "TEXT"`. The looks set `look.theme` to `paper`, `ink` or `system` with `settings.set` and apply it at once; `system`, the default, follows the colour scheme of the system. The terminal is JetBrains Mono at 10.5 pt with 16 px of
+  area**, **Light theme**, **Dark theme**, **System theme** and **Move window to the xp desktop** (also the media center and the construct desktop; `give.sh` hands the focused window over like `Super+Alt+2` to `4`, with a notice when it cannot) are the way for the mouse. `chora-tiling --launch fuzzel` without arguments gives fuzzel the list itself, as rows of `fuzzel --dmenu`: the installed programs, sorted by name, so Enter alone starts the first program by name and takes no screenshot. An entry whose program is not installed is no row. Text that matches no row finds programs by their keywords, their generic name or their command. Text whose first word is an installed program runs as a command. After any other text the list shows again under the row `Nothing found for "TEXT"`. The looks set `look.theme` to `paper`, `ink` or `system` with `settings.set` and apply it at once; `system`, the default, follows the colour scheme of the system. The terminal is JetBrains Mono at 10.5 pt with 16 px of
   padding, so no text touches the rounded corner. `MOD+a` starts `chora-chat`, which opens the chat
   with a helper.
 - **The power menu and screenshots**: `MOD+Shift+e` and the power icon of
