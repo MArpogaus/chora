@@ -120,10 +120,13 @@ gate_probes() {
     return 0
 }
 gate_cleanup() {
-    local status=${1:-$?} probes
+    local status=${1:-$?} probes pid
     mapfile -t probes < <(gate_probes | sort -u)
     kill "${pids[@]}" "${run_pids[@]}" "${probes[@]}" 2>/dev/null
     kill -CONT "${pids[@]}" "${run_pids[@]}" "${probes[@]}" 2>/dev/null
+    for pid in "${run_pids[@]}"; do
+        kill -- "-$pid" 2>/dev/null
+    done
     wait 2>/dev/null
     [ "$status" != 0 ] || rm -rf "${tmp_dirs[@]}"
 }

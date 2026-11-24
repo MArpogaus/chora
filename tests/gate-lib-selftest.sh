@@ -19,6 +19,10 @@
 # is the floor times how much slower a probe is now than at its best in the same
 # cell, at least the floor, so a slow host raises it and an idle one keeps it.
 #
+# The keys persona-path cell clicks a Foot row of fuzzel, which 1.9.2 ignores
+# (sh-34): with fuzzel 1.9.2 it ends in SKIP naming the version, not after 30 s
+# in "the Foot row of Programs started no foot".
+#
 # Usage: tests/gate-lib-selftest.sh
 # shellcheck disable=SC2016 # the inner gate expands its own arguments
 set -u
@@ -313,6 +317,11 @@ fi
 out=$(fuzzel_gate old 'fuzzel_older 1.11 && echo older; echo "$fuzzel_version"')
 if [ "$out" != "$(printf 'older\n1.9.2\nwent-on')" ]; then
     echo "FAIL: fuzzel_older 1.11 with fuzzel 1.9.2 is not true with fuzzel_version 1.9.2: $out"
+    failures=$((failures + 1))
+fi
+out=$(PATH=$stub/old:$PATH CHORA_GATE_LOCK_HELD=1 env -u CI timeout 20 "$repo/tests/gate-construct-keys-persona.sh" 2>&1)
+if [ "$out" != "SKIP: fuzzel 1.9.2 < 1.11" ]; then
+    echo "FAIL: gate-construct-keys-persona.sh with fuzzel 1.9.2 does not end in 'SKIP: fuzzel 1.9.2 < 1.11': $out"
     failures=$((failures + 1))
 fi
 out=$(fuzzel_gate new 'fuzzel_older 1.11 || echo not-older')

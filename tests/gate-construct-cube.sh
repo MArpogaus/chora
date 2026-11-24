@@ -64,6 +64,7 @@
 #         (default: at once): the clocks of the construct and of xp draw at
 #         the change, the stress of a check across a minute
 # pid_of NAME gives the first process of the binary NAME in this session.
+# The xp of the cube outlives its core by 30 s, so the EXIT trap ends it with the gate (merge-gate fails a step that leaves a chora process).
 # shellcheck disable=SC2016 # until_ok evaluates its code later
 set -u
 . "$(dirname "$0")/gate-lib.sh"
@@ -143,6 +144,12 @@ if [ "${CUBE_LOAD:-0}" = 1 ]; then
         pids+=($!)
     done
 fi
+end_cube_xp() {
+    local xp
+    xp=$(pid_of chora-xp)
+    [ -z "$xp" ] || kill "$xp" 2>/dev/null
+}
+trap 'status=$?; end_cube_xp; gate_cleanup $status' EXIT
 grant input.inject screen.capture
 ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
 

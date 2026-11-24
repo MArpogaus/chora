@@ -33,6 +33,10 @@ export XDG_RUNTIME_DIR
 unset DBUS_SESSION_BUS_ADDRESS
 pids=()
 cleanup() {
+    local pid
+    for pid in $(pgrep -x chora-tiling); do
+        ! grep -qzx "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR" "/proc/$pid/environ" 2>/dev/null || kill "$pid" 2>/dev/null
+    done
     kill "${pids[@]}" 2>/dev/null || true
     remove_after_exit "$XDG_RUNTIME_DIR" "${pids[@]}"
 }

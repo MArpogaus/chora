@@ -7,7 +7,19 @@
 #   faces-have-bars      every virtual output has its taskbar and its
 #                        wallpaper
 #   opens-under-pointer  a new window opens on the virtual output whose
-#                        pane is under the pointer, here the second one
+#                        pane is under the pointer, here the second one;
+#                        the gate starts foot only after xp has heard the
+#                        pointer.entered of the wall of that output (xp-42:
+#                        xp reads the output of the pointer from that event),
+#                        and it moves the pointer away and back when the
+#                        entry does not come in 1 s (the late-pointer cell
+#                        forces that)
+#   opens-under-late-pointer  the same with the motion of the pointer
+#                        forced to land 3 s late, after foot has started
+#                        (xp-42; `motion_late` makes the next `motion` of the
+#                        gate land that many seconds late, in the background):
+#                        the window must still open on the second virtual
+#                        output
 #   moves-to-face        `window.move` of xp moves the window to the third
 #                        virtual output, where it shows with the focus
 #   tasks-of-own-face    the task button of the window is on the taskbar
@@ -51,10 +63,12 @@
 #
 # Usage: tests/gate-xp-faces.sh   BIN: directory with the binaries
 #   SHOTS: directory for the logs and the capture (default: a temp dir)
+#   XP_FACES_CELLS: the cells to run, in this order (default: all)
 set -uo pipefail
 
 EXPECTED='
 faces-have-bars pass
+opens-under-late-pointer pass
 opens-under-pointer pass
 moves-to-face pass
 tasks-of-own-face pass
@@ -101,6 +115,19 @@ pids+=($!)
 ctl wait "id:xp-bar-${faces[3]}" --timeout 20 >/dev/null || fail "xp does not start: $(tail -n 3 "$shots/xp.log")"
 
 inject() { echo "$1" | ctl inject >/dev/null || fail "inject $1"; }
+motion_late=0
+late_pid=
+motion() {
+    local late=$motion_late
+    motion_late=0
+    if [ "$late" = 0 ]; then
+        inject "$1"
+    else
+        { pace "$late"; inject "$1"; } &
+        late_pid=$!
+        run_pid "$late_pid"
+    fi
+}
 w=
 
 on_face() {
@@ -132,17 +159,49 @@ opens_state() {
     echo "opens-under-pointer: xp.log $(tail -n 3 "$shots/xp.log" | tr '\n' ' ')" >&2
 }
 
+wall_entries() { grep -c "\"pointer.entered\",\"node\":\"xp-wall-$1\"" "$shots/pointer.log"; }
+
+pointer_lands_on() {
+    local face=$1 point=$2
+    ctl events >"$shots/pointer.log" 2>&1 &
+    run_pid $!
+    for _ in $(seq 10); do
+        motion "[{\"pointer_move\": {\"position\": $point}}]"
+        if until_ok "[ \"\$(wall_entries $face)\" -gt 0 ]" 4; then
+            ctl state xp >/dev/null
+            return 0
+        fi
+        inject '[{"pointer_move": {"position": [300, 200]}}]'
+    done
+    echo "opens-under-pointer: no pointer.entered of xp-wall-$face after 10 moves to $point" >&2
+    return 1
+}
+
 cell_opens_under_pointer() {
     local moved seen
     moved=$(date +%s.%N)
-    inject '[{"pointer_move": {"position": [960, 200]}}]'
+    pointer_lands_on "${faces[1]}" '[960, 200]' || return 1
     foot -f "DejaVu Sans Mono:size=10" -a probe sh -c 'sleep 900' >"$shots/foot.log" 2>&1 &
-    run_pid $!
+    probe_pid=$!
+    run_pid "$probe_pid"
     w=$(ctl wait "app_id:probe kind:surface" --timeout 20 | jq -r '.[0].id') || fail "foot does not show"
     seen=$(date +%s.%N)
     on_face "${faces[1]}" 10 && return 0
     opens_state "$moved" "$seen"
     return 1
+}
+
+cell_opens_under_late_pointer() {
+    local rc
+    motion_late=3
+    cell_opens_under_pointer
+    rc=$?
+    kill "$probe_pid" 2>/dev/null
+    [ -z "$w" ] || ctl wait "id:$w" --gone --timeout 10 >/dev/null
+    w=
+    wait "$late_pid" 2>/dev/null
+    inject '[{"pointer_move": {"position": [300, 200]}}]'
+    return "$rc"
 }
 
 cell_moves_to_face() {
@@ -285,7 +344,7 @@ cell() {
         fail "the window left xp after $id: $(ctl query "id:$w" | jq -c '.[0] | {owner, rects}')"
 }
 
-cells=(faces-have-bars opens-under-pointer moves-to-face tasks-of-own-face face-removed no-cube-on-faces drag-keeps-rect still-faces-draw-nothing float-is-guarded float-survives-restart)
+read -ra cells <<<"${XP_FACES_CELLS:-faces-have-bars opens-under-late-pointer opens-under-pointer moves-to-face tasks-of-own-face face-removed no-cube-on-faces drag-keeps-rect still-faces-draw-nothing float-is-guarded float-survives-restart}"
 for id in "${cells[@]}"; do cell "$id"; done
 ctl capture "$shots/faces.png" >/dev/null 2>&1
 

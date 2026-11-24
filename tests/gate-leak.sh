@@ -14,17 +14,24 @@
 #
 # Red when, over the rounds after WARMUP:
 #   - the median of the round-to-round RSS differences is above 1024 kB per
-#     round (bound set before the first run: a leaked 200x200 probe buffer per
-#     round is 160 kB, a 1280x800 window texture 4 MB). One bounded step of heap
+#     round for the 10 rounds after warm-up that 12 rounds give (a bound for
+#     fewer rounds is higher, see leak-verdict.awk; a leaked 200x200 probe
+#     buffer per round is 160 kB, which no RSS bound can see in this
+#     container, a 1280x800 window texture 4 MB). One bounded step of heap
 #     (a tiling or xp turn keeps up to 50 MB, by timing: train118 had +7 MB at
 #     round 6, flat after) moves one difference; a leak moves all of them.
+#     sh-38: the heap of the core also sits on one of two levels about 7 MB
+#     apart and moves between them from round to round, so 8 rounds gave
+#     slopes from -1199 to +1736 kB per round with no leak; with 12 rounds the
+#     slopes of 10 idle runs were -252 to +252
+#     (reports/flake-series.md r8).
 #     The verdict is tests/leak-verdict.awk, tested by leak-verdict-selftest.sh;
 #   - the fds grow by more than one per 10 rounds (last minus first);
 #   - a round ends with more windows or clients than the base before
 #     round 1.
 #
 # Usage: tests/gate-leak.sh   BIN: directory with the binaries
-#   ROUNDS (default 8, at most 12), WINDOWS (default 8), WARMUP (default 2)
+#   ROUNDS (default 12, at most 12), WINDOWS (default 8), WARMUP (default 2)
 #   LEAK_LOG: the per-round table (default: a temp file, printed at the end)
 # Helpers: fds (the fds of the core by kind), clients (clients.list but
 # the gate), look NAME and unlook NAME (start and end the look of a round).
@@ -34,7 +41,7 @@ need jq
 need_bins chora choractl chora-probe chora-tiling chora-xp chora-mc
 temp_config
 export PATH=$bin:$PATH
-ROUNDS=${ROUNDS:-8}
+ROUNDS=${ROUNDS:-12}
 WINDOWS=${WINDOWS:-8}
 WARMUP=${WARMUP:-2}
 RSS_SLOPE_KB=1024

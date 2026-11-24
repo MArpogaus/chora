@@ -63,6 +63,10 @@
 # starts with `FAIL:` or `MISMATCH`, or when it has the line
 # `test result: FAILED`. One line per step: name, PASS or FAIL, seconds,
 # log path. A failed step prints the last 30 lines of its log.
+# Every step runs with CHORA_GATE_RUN (the pid of the gate) and CHORA_GATE_STEP in its
+# environment. A step that ends with a live chora* process of its tag, also one that left
+# the group of the step with setsid, is FAIL: its log lists the pids, and they are ended.
+# The stop of a red or interrupted gate ends the ones of the whole run. Never by name alone.
 # With --jobs N, the steps after 2d-guard run up to N at once: each gate
 # script has its own sockets and runtime directory and judges its
 # programs by pid (the hook no-foreign-kill), and the steps mostly wait,
@@ -475,19 +479,51 @@ skipped_reasons=()
 group_alive() {
     kill -0 -- "-$1" 2>/dev/null
 }
+export CHORA_GATE_RUN=$$
+stray_pids() {
+    local dir pid comm state env
+    for dir in /proc/[0-9]*; do
+        pid=${dir#/proc/}
+        [ "$pid" != "$$" ] || continue
+        comm=$(cat "$dir/comm" 2>/dev/null) || continue
+        case $comm in chora*) ;; *) continue ;; esac
+        state=$(sed -n 's/^State:[[:space:]]*\(.\).*/\1/p' "$dir/status" 2>/dev/null)
+        [ -n "$state" ] && [ "$state" != Z ] || continue
+        env=$(tr '\0' '\n' <"$dir/environ" 2>/dev/null) || continue
+        grep -qx "CHORA_GATE_RUN=$$" <<<"$env" || continue
+        [ -z "${1:-}" ] || grep -qx "CHORA_GATE_STEP=$1" <<<"$env" || continue
+        echo "$pid $comm"
+    done
+}
+poll() {
+    local tries=$1 n
+    shift
+    for ((n = 0; n < tries; n++)); do
+        "$@" && return 0
+        sleep 0.1
+    done
+    return 1
+}
+no_strays() { [ -z "$(stray_pids "$@")" ]; }
+none_alive() {
+    local pid
+    for pid in "${!running[@]}"; do
+        ! group_alive "$pid" || return 1
+    done
+}
+end_strays() {
+    local pids
+    mapfile -t pids < <(stray_pids "$@" | cut -d' ' -f1)
+    [ "${#pids[@]}" -gt 0 ] || return 0
+    kill -TERM "${pids[@]}" 2>/dev/null
+    poll 30 no_strays "$@" || kill -KILL "${pids[@]}" 2>/dev/null
+}
 stop_children() {
-    local pid tries alive
+    local pid
     for pid in "${!running[@]}"; do
         kill -TERM -- "-$pid" 2>/dev/null
     done
-    for ((tries = 0; tries < 50; tries++)); do
-        alive=0
-        for pid in "${!running[@]}"; do
-            ! group_alive "$pid" || alive=1
-        done
-        [ "$alive" = 1 ] || break
-        sleep 0.1
-    done
+    poll 50 none_alive
     for pid in "${!running[@]}"; do
         ! group_alive "$pid" || kill -KILL -- "-$pid" 2>/dev/null
     done
@@ -495,6 +531,7 @@ stop_children() {
         wait "$pid" 2>/dev/null
     done
     running=()
+    end_strays
 }
 on_signal() {
     stop_children
@@ -514,13 +551,13 @@ log_failed() {
 
 start_step() {
     local log=$run_dir/${step_names[$1]}.log
-    (cd "$repo" && exec setsid bash -c "${step_commands[$1]}") >"$log" 2>&1 &
+    (cd "$repo" && CHORA_GATE_STEP=${step_names[$1]} exec setsid bash -c "${step_commands[$1]}") >"$log" 2>&1 &
     running[$!]=$1
     started[$!]=$SECONDS
 }
 
 wait_step() {
-    local pid code i name log result=PASS
+    local pid code i name log left result=PASS
     wait -n -p pid "${!running[@]}"
     code=$?
     i=${running[$pid]}
@@ -528,6 +565,16 @@ wait_step() {
     name=${step_names[$i]}
     log=$run_dir/$name.log
     if [ "$code" != 0 ] || log_failed "$log"; then
+        result=FAIL
+    fi
+    poll 30 no_strays "$name"
+    left=$(stray_pids "$name")
+    if [ -n "$left" ]; then
+        {
+            echo "FAIL: the step left chora processes behind (pid, name):"
+            echo "$left"
+        } >>"$log"
+        end_strays "$name"
         result=FAIL
     fi
     if [ "$result" = PASS ] && grep -q '^SKIP: ' "$log"; then
