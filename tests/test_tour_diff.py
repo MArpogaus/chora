@@ -128,7 +128,7 @@ class PixelDiff(unittest.TestCase):
 
 
 class Verdict(unittest.TestCase):
-    intended = [{"act": "x7", "kind": "rect", "cause": "xp-give Send To row"}]
+    intended = [{"act": "x7", "kind": "rect", "cause": "xp-give Send To row", "nodes": ["n"]}]
 
     def test_same(self):
         self.assertEqual(diff.verdict("x1", [], True, self.intended)["verdict"], "same")
@@ -424,10 +424,11 @@ class RowsPerNode(unittest.TestCase):
         v = diff.verdict("x5", self.SCENE, True, [found])
         self.assertEqual((v["verdict"], v["unnamed"]), ("regression", ["meta"]), v)
 
-    def test_a_row_without_nodes_keeps_the_match_by_kind(self):
+    def test_a_row_without_nodes_names_the_kind_but_proves_nothing(self):
+        """rtb6-1: was `change` (the match by kind); the act of a row that lists no nodes stays `open`."""
         row = {"act": "x5", "kind": "meta", "cause": "29281054 labels"}
         v = diff.verdict("x5", self.SCENE, True, [row])
-        self.assertEqual((v["verdict"], v["cause"]), ("change", "29281054 labels"), v)
+        self.assertEqual((v["verdict"], v["cause"], v["unproven"]), ("open", "29281054 labels", ["meta"]), v)
 
     def test_a_pixel_row_has_boxes_not_nodes(self):
         row = {"act": "x5", "kind": "pixel", "cause": "d78fc4bb pager", "boxes": [[100, 680, 200, 40]]}
@@ -501,6 +502,60 @@ class RowsCannotAbsorbWhatTheyDoNotName(unittest.TestCase):
             outside = diff.compare(base, cand, [{**row, "boxes": [[0, 0, 40, 40]]}])
             listless = diff.compare(base, cand, [row])
         self.assertEqual([r["verdict"] for r in inside + outside + listless], ["change", "regression", "open"])
+
+
+class NoRowKindAbsorbsWhatItDoesNotName(unittest.TestCase):
+    """rtb6-1 (MAJOR, third round of this class): r5 made `added`, `visible` and `pixel` strict and left `missing`, `rect`,
+    `meta` and `owner` to absorb any unrelated node of their kind. One rule for every kind tour-diff knows: a row absorbs
+    the nodes (or, for pixel, the boxes) it names; a row that names none matches nothing and its act stays `open`."""
+
+    @staticmethod
+    def kinds():
+        """Every kind of scene diff tour-diff.py can emit (read from its source, so a kind added later is in the table),
+        and the wildcard."""
+        source = (HERE / "tour-diff.py").read_text()
+        return sorted(set(re.findall(r'"kind": "([a-z-]+)"', source)) | {"*"})
+
+    def test_the_table_has_the_kinds_of_the_scene_diff(self):
+        self.assertTrue({"missing", "rect", "meta", "owner", "added", "visible", "z-order"} <= set(self.kinds()), self.kinds())
+
+    def test_a_row_without_nodes_leaves_an_unrelated_node_open_for_every_kind(self):
+        for kind in self.kinds():
+            with self.subTest(kind=kind):
+                rows = [{"act": "m1", "kind": kind, "cause": "675ebd55 the column"}]
+                v = diff.verdict("m1", [{"kind": kind if kind != "*" else "missing", "id": "unrelated-node"}], True, rows)
+                self.assertNotEqual(v["verdict"], "change", v)
+                self.assertEqual(v["verdict"], "open", v)
+
+    def test_a_row_with_nodes_absorbs_its_node_and_not_an_unrelated_one_for_every_kind(self):
+        for kind in self.kinds():
+            if kind == "*":
+                continue
+            with self.subTest(kind=kind):
+                rows = [{"act": "m1", "kind": kind, "cause": "675ebd55 the column", "nodes": ["named-node"]}]
+                v = diff.verdict("m1", [{"kind": kind, "id": "named-node"}], True, rows)
+                self.assertEqual((v["verdict"], v["cause"]), ("change", "675ebd55 the column"), v)
+                v = diff.verdict("m1", [{"kind": kind, "id": "unrelated-node"}], True, rows)
+                self.assertEqual(v["verdict"], "regression", v)
+
+    def test_the_run_of_the_finding(self):
+        """rtb6-1: `verdict('m4', [missing unrelated, rect unrelated, visible mc-regions-0], True, rows)` was `change`."""
+        rows = [
+            {"act": "m4", "kind": "missing", "cause": "675ebd55 column"},
+            {"act": "m4", "kind": "rect", "cause": "675ebd55 column"},
+            {"act": "m4", "kind": "visible", "cause": "675ebd55 column", "nodes": ["mc-regions-0"]},
+        ]
+        scene = [{"kind": "missing", "id": "unrelated"}, {"kind": "rect", "id": "unrelated"}, {"kind": "visible", "id": "mc-regions-0"}]
+        self.assertEqual(diff.verdict("m4", scene, True, rows)["verdict"], "open")
+
+    def test_every_closed_row_of_intended_toml_names_its_nodes_or_boxes(self):
+        """The rule on the data: a closed row of a scene kind lists `nodes`, a closed pixel row `boxes` (the `check` rows
+        name a check, not a node); a row that cannot say which is `open = true`."""
+        import tomllib
+
+        rows = tomllib.loads((HERE.parent / "demo/tour/intended.toml").read_text())["change"]
+        loose = [(r["act"], r["kind"]) for r in rows if r["kind"] != "check" and not r.get("open") and not (r.get("boxes") if r["kind"] == "pixel" else r.get("nodes"))]
+        self.assertEqual(loose, [])
 
 
 class IntendedRows(unittest.TestCase):
