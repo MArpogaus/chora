@@ -370,6 +370,17 @@ class OpenAndNamedChecks(unittest.TestCase):
             v = diff.verdict("m1", scene, True, rows)
             self.assertEqual(v["verdict"], "open", v)
 
+    def test_a_check_the_candidate_stops_measuring_is_not_same(self):
+        """rtb3-1: base green or red, candidate "not measured": a flip, absorbed only by a check row naming it."""
+        for was in ("green", "red"):
+            v = diff.verdict("a", [], True, [], ({"I6": was}, {"I6": "not measured"}))
+            self.assertEqual((v["verdict"], v.get("flipped")), ("regression", ["I6"]), v)
+        row = [{"act": "a", "kind": "check", "check": "I6", "cause": "xp-39"}]
+        v = diff.verdict("a", [], True, row, ({"I6": "green"}, {"I6": "not measured"}))
+        self.assertEqual(v["verdict"], "change", v)
+        v = diff.verdict("a", [], True, [], ({"I6": "not measured"}, {"I6": "not measured"}))
+        self.assertEqual(v["verdict"], "same", v)
+
     def test_base_not_measured_and_cand_green_has_no_red_note(self):
         write_capture(self.base, "x1.Q", data='{"nodes": [], "checks": {"I6": "not measured"}}')
         write_capture(self.cand, "x1.Q", data='{"nodes": [], "checks": {"I6": "green"}}')
