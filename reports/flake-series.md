@@ -329,3 +329,24 @@ Spread of the slope by the old statistic (median of the differences, warm 2), kB
 ### Verdict
 
 rfs7-1 fixed (778). rfs7-2: red made (forced delay), 05a23dca kept. sh-38: statistic and rounds fixed, bound not raised; red then fix; planted leaks fail. Open: the cause of the 7 MB level switches of the heap of the core is not found (not a leak by fds, windows, clients and the 12-round slopes); rfs7-3 (selftest race fix 6f7bcb26 without a red) not touched.
+
+## Review r8
+
+Seeded review of claude/flake-series-r7 head d2c2174c, base 2adac16a (6 files, +139 -54); read-only, no merge gate run. `cargo check --workspace` green.
+
+Checks:
+1. sh-38: `bash tests/leak-verdict-selftest.sh` red at 252b3d3e (idle6: 1736 > 1024, exit 1), green at d2c2174c (10/10 ok, exit 0). (It is a bash script: `sh` = dash fails with a syntax error on both commits.) At the default 12 rounds (n = 10 after warm-up, sxx 82.5) the bound stays 1024: not a raised bar. Planted ramps checked with the d2c2174c awk: +1.5 MB/round fails on r12-2, r12-8 and a flat 12-round table (+1.1 and +1.2 fail too; +1.0 fails on r12-2, not on flat). merge-gate.sh calls gate-leak.sh with no ROUNDS, so the gate runs 12. Gate time: the lane's leak step took 463-467 s, under the 10-min cap of gate-leak.sh and about +155 s on a 73-79-min gate: fits.
+2. xp-42: c0900955 is a pure revert; 5b280d4c adds the `motion_late` knob and the cell on the reverted code (the lane's red: gap, exit 1; not rerun here, no gate run); e7192a72 puts the fix back. The wait is `until_ok` on `wall_entries` (a condition poll, 1-2 s), no fixed sleep; `pace "$late"` is the forced delay of the knob, not a wait.
+3. rfs7-1: d2c2174c merged with d40142e4 in a scratch worktree (one comment-only conflict in tests/gate-lib-selftest.sh, kept both); `tools/sleep-ratchet`: ok, sleep 778 / 779, sleep-all 929 / 930. poll()/poll_for() sleep 0.1 between condition checks; the three `sleep 0.5` became polls on a condition; no fixed sleep moved into a helper.
+4. Red-first: 5b280d4c before e7192a72, 252b3d3e before d2c2174c, both red on their own commit. 380fa09a has no red commit; measured here: the W9 count is 787 on 2adac16a and 778 on d2c2174c, so the red is the count on the parent (rfs8-3).
+5. `bash tests/merge-gate-selftest.sh`: exit 0, 231 ok, no FAIL at both 2adac16a and d2c2174c here. The lane's 2 pre-commit-stub FAILs did not reproduce in this container; they depend on the environment and are the same on both commits, so they were not caused by this branch.
+
+Findings:
+- rfs8-1 MINOR tests/leak-verdict.awk:26: the bound is scaled by sqrt(sxx), which is the noise of a least-squares slope (about n^-1.5), but the statistic is the median of the differences (noise about n^-0.5). For a run below 12 rounds the bound grows faster than the noise of that statistic: 2223 at 6 rounds, where sqrt(10/6) would give about 1320. So ROUNDS=8 lets a steady +1.5 to +2.2 MB/round pass (checked: +1.5 passes). The default of 12 is unaffected. Fix: scale by sqrt(10/(n-1)) to match the statistic, or have gate-leak.sh refuse ROUNDS < 12.
+- rfs8-2 MINOR tests/leak-verdict-selftest.sh:54: the fix commit d2c2174c raised the planted leak on idle6 from the red commit's +2.5 to +4 MB/round and moved the old 8-round "+1.5 MB/round" row to 12 rounds (line 38), which relaxes planted-leak assertions in a fix. idle6 + 2.5 MB/round still fails under the new awk (slope 4236 > 2223). Fix: keep the +2.5 MB/round idle6 row next to the +4 one.
+- rfs8-3 MINOR 380fa09a (tests/merge-gate.sh:497): a fix(...) with no red commit. The lane's reason ("no count gate before guard-4") is weak because tools/sleep-ratchet from d40142e4 shows 787 > 779 on 2adac16a. The change is a behaviour-preserving wait refactor, and the count was verified here from 787 to 778, so this is not MAJOR. Fix: record the ratchet red (787 > 779 on the parent) in the report; no code change.
+- rfs8-4 NIT tests/merge-gate-selftest.sh:858: the hang stub changed from `sleep 60` to `timeout 60 tail -f /dev/null`. It is the same hang under another name and lowers the W9 count by one without removing a wait. Fix: keep `sleep 60`, or count it as a hang stub in the report rather than as a removed wait.
+- rfs8-5 NIT tests/merge-gate.sh:497, tests/merge-gate-selftest.sh:128: poll() and poll_for() are two copies of the same loop, and a third next to gate-lib's until_ok (the brief asked for existing helpers). Fix: one shared helper once merge-gate.sh can source gate-lib.
+- rfs8-6 NIT tests/gate-lib-selftest.sh:17: merging with d40142e4 gives a comment-only conflict in the header, which comes from ce866b0d and d40142e4 (not from this branch). Fix: keep both paragraphs at merge.
+
+Verdict: MERGE-OK (0 BLOCK, 0 MAJOR, 3 MINOR, 3 NIT).
