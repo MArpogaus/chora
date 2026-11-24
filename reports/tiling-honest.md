@@ -74,3 +74,36 @@ EXIT 0
 ```
 - Kept: tour tiling `28 acts, 28 green, 0 red`; tour handover `11 acts, 11 green, 0 red`; `cargo test -p chora-tiling` 197
   passed; `tools/sleep-ratchet` ok (sleep 778, sleep-all 929: below the list, no new sleep line); no `chora --headless` left.
+
+## Review r1
+
+Seeded review (opus, high) of claude/tiling-honest-r1 head b02dbea9 against base bb4c07d9 (11 files, +216 -4). One round, read-only on code.
+Step 0: `git fetch --unshallow` and `cargo check --workspace` both OK. `cargo test -p chora input`: 85 passed. `cargo test -p chora-tiling`: 197 passed. No merge gate was run (the lane's run was green, 65 steps).
+
+**Verdict: MERGE-OK** (0 BLOCK, 0 MAJOR, 6 MINOR, 2 NIT).
+
+Checks:
+1. Red first: yes. f068941a (tests only) comes before 46760cf7. b02dbea9 is a refactor: it makes the existing `HELPER_PROGRAM` constant `pub`, with the same string. The cut-check red on 46760cf7 covers it, so it is not a fix that lacks a red test.
+2. Core `press_layer`:
+   - The escape hatch is untouched (`grab_button` returns first).
+   - `note_act` still refuses injected presses and a locked session.
+   - A press noted by `press_node` keeps its act, because the same serial is not overwritten.
+   - No key goes to a hovered client (D55).
+   - The act goes only to manager connections, never to the layer's client.
+   - Open points: rth-1, rth-2, rth-3.
+3. ti-52: the bar click calls `show_helper`, which uses `Host::run` (the same path as `MOD+a {run: chora-chat}`). The change to `waybar/config.jsonc` is one line. The door cell types `hallo` and checks that it reached the helper and not the probe.
+4. ti-53:
+   - The old settings stay (`undo`; the gate checks gap_inner 30).
+   - The notice is plain: "Settings not applied … The old settings stay." It names the file and the parser's line.
+   - Open points: rth-4, rth-5, rth-6.
+5. The gates poll with `until_ok` and add no new `sleep` line. The `merge-gate.sh` change is only the cell list. The `docs/configuration.md` row is mostly true (rth-7).
+
+Findings:
+- rth-1 | MINOR | crates/chora/src/input.rs:1037 | Outside every claim, the act of a layer press goes to the oldest manager (`first_manager`), not to the look whose bar was clicked. In a two-look session where tiling joined second (D119, for example xp first), a click on the tiling helper word gives the act to xp. Tiling's token is then unstamped and the chat opens without the keys (ti-52 again), while xp holds an act for a click it never took. | Fix: give the act to the manager whose claim lies on the output of the layer surface (else to every live manager), and test it in a two-manager unit test.
+- rth-2 | MINOR | docs/api.md:941, docs/architecture.md:441, crates/chora/src/state.rs:1070 | A press on any layer surface (a clock, a notice card, fuzzel) is now an act of a manager. The three places that define an act still list only a grabbed key or button, a key to a node, and a press on a node. | Fix: add "a real press on a layer surface, to the manager of the claim at the point" to all three.
+- rth-3 | MINOR | crates/chora/src/input.rs:1025 | No core unit test covers `press_layer`. Only the doors cell does, and it runs with `--test-injected-press-is-real`. Untested cases: an injected press gives no act, a locked session gives none, and a layer outside every claim goes to the right manager. | Fix: add one test in the core input tests for these three cases.
+- rth-4 | MINOR | plugins/chora-tiling/src/reload.rs:62 | Without chora-notify, a failed reload is still silent on screen (stderr only). The real flavor starts it (chora-tiling.target Wants chora-tiling-notify.service), and rc1-pass p2 and p3 start it. The persona tiling session does not (tests/persona/session.sh:245-250, reports/tiling-doors-plan.md:13), so a persona still sees nothing. | Fix: when `show_or_log` answers None, show the short reason in tiling's own chip (`show_chip`), or start chora-notify as a tiling companion in session.sh.
+- rth-5 | MINOR | plugins/chora-tiling/src/main.rs:1137 | A good reload after a failed one leaves the "Settings not applied" card up for up to 12 s, next to settings that did apply. `reload_notice` is dismissed only by the next failure. | Fix: on `Ok` of `reload_settings`, dismiss `reload_notice`, and add a gate step that checks it.
+- rth-6 | MINOR | plugins/chora-tiling/src/reload.rs:17 | A wrong action name gets a notice with the file and the cause but no line, because the parser gives none. Done criterion (b) wanted the file and the line. The YAML error text ("simple key expected ':' at line 24, column 3") is parser wording, not plain words. | Fix: later, carry the line of the bad key from the YAML location into the cause, and say it as "line 24: a colon is missing after the name".
+- rth-7 | NIT | docs/configuration.md:365 | "`MOD+a`: opens the chat…" reads as if `MOD+a` calls `show_helper`. In fact `MOD+a` is `{run: chora-chat}` (tiling.yaml:168), and a rebound `MOD+a` leaves the bar on chora-chat. | Fix: write "as `MOD+a` (`run: chora-chat`) does: opens …".
+- rth-8 | NIT | tests/gate-tiling-reload-notice.sh:29 | `card_shows` compares the pixel at the card centre with a pixel taken earlier at (1000,700), a different point. The check holds only on a flat background. | Fix: take the earlier pixel at the same point as the card centre (capture before the reload, read it after `rect` is known).
