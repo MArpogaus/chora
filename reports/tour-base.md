@@ -397,3 +397,9 @@ rtb3-1 (a check the candidate stops measuring is `same`): fixed.
 - Full gate `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2`: `all steps passed; no --push, nothing is pushed`, `EXIT 0`, no FAIL line (acts PASS 2056s, e2e PASS 275s). Last cells: tiling-disc, mc-host, tiling-bar, e2e PASS.
 - `pgrep -fa 'chora --headless'` after the gate: empty.
 - Branch claude/tour-base-r4 at d0801b7e, pushed.
+
+## PM review r4 (d0801b7e, base d40142e4; diff 13+/1-, 2 files)
+- Red 44b79d4e then fix d0801b7e, rerun here: red `FAILED (failures=1)`, fix `OK` (65 tests). rtb3-1 fixed: base green or red, candidate "not measured" is `regression` with `flipped ["I6"]`; a `check` row absorbs it.
+- Full gate EXIT 0 (lane), no foreign red. --check did not run headless (100 s, no output); the Done-when allows the reason.
+- rtb4-1 MINOR: a check absent on the base and "not measured" on the candidate is also a flip: `verdict('a',[],True,[],({}, {'I9':'not measured'}))` gives `regression` (run here). A check new in v9 and unmeasured would mark every act; base absent should count as unmeasured (`base.get(n) not in (NOT_MEASURED, None)`). Next tour-base round.
+- Verdict (computed): no open MAJOR, MERGE-OK. Next train.
