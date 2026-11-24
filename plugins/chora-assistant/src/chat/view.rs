@@ -607,7 +607,7 @@ impl Session {
     ) -> Vec<String> {
         let empty = matches!(&self.mode, Mode::List(picks, _) if picks.is_empty());
         (self.hint(language))
-            .filter(|_| !(margin && self.card == Some(crate::chat::Where::Chat)))
+            .filter(|_| self.card != Some(crate::chat::Where::Chat))
             .or_else(|| (margin && empty).then(|| self.header(language)))
             .map(|hint| hint_lines(theme, &hint, width))
             .unwrap_or_default()
@@ -629,12 +629,14 @@ impl Session {
     #[must_use]
     pub fn hint_room(&self, theme: &Theme, frame: &Frame, language: Language) -> i32 {
         let width = frame.rect()[2] - 2 * PAD;
-        self.hint(language).map_or(0, |hint| {
-            hint_room(
-                &hint_lines(theme, &hint, width),
-                hint_lines_of(in_margin(frame)),
-            )
-        })
+        let hint = self.hint(language);
+        hint.filter(|_| self.card != Some(crate::chat::Where::Chat))
+            .map_or(0, |hint| {
+                hint_room(
+                    &hint_lines(theme, &hint, width),
+                    hint_lines_of(in_margin(frame)),
+                )
+            })
     }
 
     fn parts(&mut self, theme: &Theme, frame: &Frame, language: Language) -> Parts {

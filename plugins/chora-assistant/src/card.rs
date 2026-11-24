@@ -369,7 +369,7 @@ fn page_rows(
         let lines = no_widow(wrap(&text, room, measure), room, measure);
         rows.extend(lines.into_iter().map(|line| (set, line)));
     }
-    if parts == usize::MAX && shown.buttons && !shown.too_long && !face.is_xp() {
+    if parts == usize::MAX && shown.buttons && !shown.too_long {
         let measure = |line: &str| theme.svg_width(&element(Set::Note, face, line, [0, 0], [0; 3]));
         let said = Word::TypingNoAnswer.text(language);
         let lines = no_widow(wrap(said, width, measure), width, measure);
@@ -1253,7 +1253,7 @@ mod tests {
     }
 
     #[test]
-    fn the_xp_card_keeps_its_keys_under_the_buttons_and_leaves_typing_to_the_field() {
+    fn the_xp_card_keeps_its_keys_under_the_buttons() {
         let cache = cache("xp-keys");
         let theme = theme(&cache, "Tahoma").unwrap();
         let mut card = shown(&notes(), Instant::now());
@@ -1262,11 +1262,6 @@ mod tests {
         card.max_width = Some(312);
         let laid = layout(&theme, &card, Language::En, [1280, 800]);
         let [yes, _] = laid.buttons.expect("buttons");
-        assert!(
-            !laid.text.contains("Typing does not answer"),
-            "the field says it once: {}",
-            laid.text
-        );
         let keys_row = laid.text.lines().position(|l| l.contains("Alt+Y"));
         let prompt_row = laid.text.lines().position(|l| l.contains("wants to"));
         assert!(keys_row > prompt_row, "{}", laid.text);
