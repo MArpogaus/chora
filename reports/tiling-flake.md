@@ -86,3 +86,14 @@ Branch claude/tiling-flake-r3, head f68f596a (pushed; merge of origin/claude/aut
 
 ### Gate
 `tests/merge-gate.sh --jobs 2` (full, detached) on f68f596a: EXIT 0, "all steps passed", 65 PASS lines (tiling-windows 182 s, e2e 270 s), no red. `pgrep -fa 'chora --headless'` empty.
+
+## PM review r3 (f68f596a, base 4e257c06; 2026-11-24)
+Diff of the lane (4e257c06..e7c46b84): 2 files, +35 -15, tests only; f68f596a merges the session head.
+- sh-39: red 4e3291b4 (a bar change counted as the launcher showing; a late fuzzel stub makes it reproducible), green 3da841b9 (waits for the Zebra row pixel). Red first: yes.
+- sh-40: red f65d21b9 (slide sampled after its 200 ms), green e7c46b84 (choractl record, 24 frames; frames 2-12 must show a window in the gap). Red first: yes.
+- Gate: full, EXIT 0, 65 PASS (lane report).
+- Ratchets on d40142e4 + f68f596a (merge 0f3af52a, scratch): sleep 779/779, sleep-all 930, size 0 over, lint ok.
+Findings:
+- rtf3-1 NIT: the stub line `printf '#!/bin/sh\nsleep 3\n...'` is not counted by the ratchet regex (`\nsleep` has a letter before it). It is a stand-in for a slow program, not a test wait, so it is fine; a later ratchet change may count it.
+- rtf3-2 NIT: the poll loop in gate-tiling-motion.sh still steps by `sleep 0.25` (it replaces `sleep 1`, net 0).
+Verdict (computed): 0 BLOCK, 0 MAJOR -> MERGE-OK. Joins the next train.
