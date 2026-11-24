@@ -37,3 +37,7 @@ The 82 open acts (cause row present, not proven) are in `tour-diff-r1.txt` (one 
 The brief asks for `media/tour-v9.mp4` and `media/tour-v9-sheet.png` on claude/tour-v9-take. The commit was refused by the repository's hooks and I did not bypass them: `no-session-files` (media/ not allowed in the repository) and `check-added-large-files` (500 KB limit, mp4 6740 KB, sheet 780 KB). Nothing was pushed to claude/tour-v9-take (it stays at d40142e4). The files are on claude/session-log, which holds media/ already: `media/2026-11-24/tour-v9/` (tour-v9.mp4, tour-v9-sheet.png, tour-diff-r1.txt and .json, timeline-table.md). The PM can publish from there.
 
 `pgrep -fa 'chora --headless'` empty at the end.
+
+## PM note r1
+
+- Run-only round, nothing to merge. Done when met except the media place: the brief (PM) named a place the hooks refuse (media/ and 500 KB on product branches); the lane was right not to bypass. Brief fault, not the lane's; the next take brief names media/<date>/ on claude/session-log. Published on the status page as status/video/tour-v9.mp4. Next: tour-v9-judge r1.
