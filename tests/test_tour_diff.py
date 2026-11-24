@@ -397,6 +397,44 @@ class OpenAndNamedChecks(unittest.TestCase):
         self.assertNotIn("cand red", out)
 
 
+class RowsPerNode(unittest.TestCase):
+    """rv9j-5: a row of intended.toml may name the nodes it explains (`nodes = [...]`); it absorbs those
+    only, so "proven" can be checked per node. A row without `nodes` matches by act and kind as before."""
+
+    SCENE = [{"kind": "meta", "id": "desk-label"}, {"kind": "meta", "id": "hud-chat"}]
+
+    def test_a_row_with_nodes_absorbs_only_those_nodes(self):
+        found = {"act": "x5", "kind": "meta", "cause": "29281054 labels", "nodes": ["desk-label"]}
+        opened = {"act": "x5", "kind": "meta", "cause": "xp-47 greeting (open)", "open": True}
+        for rows in ([found, opened], [opened, found]):
+            v = diff.verdict("x5", self.SCENE, True, rows)
+            self.assertEqual(v["verdict"], "open", v)
+            self.assertEqual(v["cause"], "29281054 labels; xp-47 greeting (open)", v)
+            v = diff.verdict("x5", self.SCENE[:1], True, rows)
+            self.assertEqual((v["verdict"], v["cause"]), ("change", "29281054 labels"), v)
+
+    def test_a_node_not_in_the_row_stays_open_where_an_open_row_is_the_rest(self):
+        found = {"act": "x5", "kind": "meta", "cause": "29281054 labels", "nodes": ["desk-label"]}
+        opened = {"act": "x5", "kind": "meta", "cause": "xp-47 greeting (open)", "open": True}
+        v = diff.verdict("x5", self.SCENE[1:], True, [found, opened])
+        self.assertEqual((v["verdict"], v["cause"]), ("open", "xp-47 greeting (open)"), v)
+
+    def test_a_node_no_row_names_is_unnamed(self):
+        found = {"act": "x5", "kind": "meta", "cause": "29281054 labels", "nodes": ["desk-label"]}
+        v = diff.verdict("x5", self.SCENE, True, [found])
+        self.assertEqual((v["verdict"], v["unnamed"]), ("regression", ["meta"]), v)
+
+    def test_a_row_without_nodes_keeps_the_match_by_kind(self):
+        row = {"act": "x5", "kind": "meta", "cause": "29281054 labels"}
+        v = diff.verdict("x5", self.SCENE, True, [row])
+        self.assertEqual((v["verdict"], v["cause"]), ("change", "29281054 labels"), v)
+
+    def test_a_pixel_row_has_no_node(self):
+        row = {"act": "x5", "kind": "pixel", "cause": "d78fc4bb pager", "nodes": ["xp-pager-1"]}
+        v = diff.verdict("x5", [], False, [row])
+        self.assertEqual((v["verdict"], v["cause"]), ("change", "d78fc4bb pager"), v)
+
+
 class IntendedRows(unittest.TestCase):
     def test_h2_lists_kinds_and_no_wildcard(self):
         import tomllib
