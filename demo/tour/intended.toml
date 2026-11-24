@@ -26,10 +26,11 @@ kind = "rect"
 
 [[change]]
 act = "h2"
-cause = "xp-give Send To row (22fead94)"
+cause = "xp-give Send To row (22fead94); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "added"
-
 # record-v9 r2: causes found by git log between 733967aa and the head (reports/record-v9.md r2).
+open = true
+
 [[change]]
 act = "c1"
 cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
@@ -37,8 +38,9 @@ kind = "missing"
 
 [[change]]
 act = "c1"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c1"
@@ -64,8 +66,9 @@ kind = "missing"
 
 [[change]]
 act = "c2"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c2"
@@ -80,8 +83,9 @@ kind = "missing"
 
 [[change]]
 act = "c2b"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c2b"
@@ -96,8 +100,9 @@ kind = "missing"
 
 [[change]]
 act = "c3"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c3"
@@ -112,8 +117,9 @@ kind = "missing"
 
 [[change]]
 act = "c3b"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c3b"
@@ -128,8 +134,9 @@ kind = "missing"
 
 [[change]]
 act = "c3c"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c3c"
@@ -144,8 +151,9 @@ kind = "missing"
 
 [[change]]
 act = "c3d"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c3d"
@@ -155,8 +163,9 @@ open = true
 
 [[change]]
 act = "c4"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); b8872054 one key list for all four looks (kit::keysheet)"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); b8872054 one key list for all four looks (kit::keysheet); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "added"
+open = true
 
 [[change]]
 act = "c4b"
@@ -165,8 +174,9 @@ kind = "missing"
 
 [[change]]
 act = "c4b"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c4b"
@@ -181,8 +191,9 @@ kind = "missing"
 
 [[change]]
 act = "c5"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c5"
@@ -202,8 +213,9 @@ kind = "missing"
 
 [[change]]
 act = "c5b"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c5b"
@@ -229,8 +241,9 @@ kind = "missing"
 
 [[change]]
 act = "c5c"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c5c"
@@ -245,8 +258,9 @@ kind = "missing"
 
 [[change]]
 act = "c5d"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c5d"
@@ -264,151 +278,391 @@ open = true
 act = "x1"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x1"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x10"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x10"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x10c"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x10c"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x11"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x11"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x11b"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x11b"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x12"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x12"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x12b"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x12b"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x12c"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x12c"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x2"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x2"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x2b"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x2b"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x2c"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x2c"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x3"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x3"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x4"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x4"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x5"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x5"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x5b"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x5b"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x5c"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x5c"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x5d"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x5d"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x5e"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x5e"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x5f"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x5f"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x5g"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x5g"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x6"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x6"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x6b"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x6b"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x6c"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x6c"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x6d"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x6d"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x6e"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x6e"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x7"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x7"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x7b"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x7b"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x8"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x8"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x9"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x9"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x9b"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
+
+[[change]]
+act = "x9b"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "t1"
@@ -670,8 +924,9 @@ open = true
 
 [[change]]
 act = "c4"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip)"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c4"
@@ -761,31 +1016,37 @@ open = true
 act = "h1"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "h1b"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "h1c"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "h1d"
 cause = "371f0fa1 xp desktop under windows of other looks (T7)"
 kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "t10"
-cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 573496e5 the inner gap is 12 (I2)"
+cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 573496e5 the inner gap is 12 (I2); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t10c"
-cause = "675ebd55 chora-notify shows the notices (sh-31)"
+cause = "675ebd55 chora-notify shows the notices (sh-31); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "added"
+open = true
 
 [[change]]
 act = "t10c"
@@ -817,8 +1078,9 @@ open = true
 
 [[change]]
 act = "t7"
-cause = "675ebd55 chora-notify shows the notices (sh-31)"
+cause = "675ebd55 chora-notify shows the notices (sh-31); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "added"
+open = true
 
 [[change]]
 act = "t7"
@@ -828,8 +1090,9 @@ open = true
 
 [[change]]
 act = "t8"
-cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 573496e5 the inner gap is 12 (I2)"
+cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 573496e5 the inner gap is 12 (I2); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t9"
@@ -838,19 +1101,28 @@ kind = "rect"
 
 [[change]]
 act = "t9"
-cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 573496e5 the inner gap is 12 (I2)"
+cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 573496e5 the inner gap is 12 (I2); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "x10b"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found; open: cause not found"
+cause = "xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found; open: cause not found"
 kind = "added"
+nodes = ["hud-line", "xp-dlg-help-content-c-scroll"]
 open = true
+
+[[change]]
+act = "x10b"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x12c"
 cause = "20e4ad6e menus shut on a new window (xp-item, xp-menu at x12c)"
 kind = "visible"
+nodes = ["xp-menu"]
 
 [[change]]
 act = "m1"
@@ -885,8 +1157,9 @@ kind = "rect"
 
 [[change]]
 act = "m2"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "added"
+open = true
 
 [[change]]
 act = "m2"
@@ -907,13 +1180,15 @@ open = true
 
 [[change]]
 act = "m2"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "m2b"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "added"
+open = true
 
 [[change]]
 act = "m2b"
@@ -934,13 +1209,15 @@ open = true
 
 [[change]]
 act = "m2b"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "m3"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "added"
+open = true
 
 [[change]]
 act = "m3"
@@ -961,8 +1238,9 @@ open = true
 
 [[change]]
 act = "m3"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "m3b"
@@ -1008,6 +1286,7 @@ kind = "rect"
 act = "m4"
 cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
 kind = "visible"
+nodes = ["mc-regions-0", "mc-regions-1"]
 
 [[change]]
 act = "m4b"
@@ -1023,6 +1302,7 @@ kind = "rect"
 act = "m4b"
 cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
 kind = "visible"
+nodes = ["mc-regions-0", "mc-regions-1"]
 
 [[change]]
 act = "m4c"
@@ -1055,8 +1335,9 @@ open = true
 
 [[change]]
 act = "m5"
-cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it)"
+cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "m5"
@@ -1078,8 +1359,9 @@ open = true
 
 [[change]]
 act = "m5b"
-cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it)"
+cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "m5b"
@@ -1107,8 +1389,9 @@ open = true
 
 [[change]]
 act = "m6"
-cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it)"
+cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "m6"
@@ -1136,8 +1419,9 @@ open = true
 
 [[change]]
 act = "m6b"
-cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it)"
+cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "m6b"
@@ -1186,8 +1470,9 @@ kind = "missing"
 
 [[change]]
 act = "m7c"
-cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it)"
+cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "m7c"
@@ -1197,8 +1482,9 @@ open = true
 
 [[change]]
 act = "m7c"
-cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it)"
+cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "m8"
@@ -1242,8 +1528,9 @@ open = true
 
 [[change]]
 act = "m8b"
-cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it)"
+cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "m9"
@@ -1324,13 +1611,15 @@ open = true
 # tour-base r2: rows that the full take of the head showed and the take of r1 did not.
 [[change]]
 act = "m10"
-cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6)"
+cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "added"
+open = true
 
 [[change]]
 act = "m9b"
-cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6)"
+cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "added"
+open = true
 
 [[change]]
 act = "t6"
@@ -1339,8 +1628,9 @@ kind = "missing"
 
 [[change]]
 act = "t6"
-cause = "a611c08a key list columns clear the longest row, titles in text; fa076e7b keycaps of the key list read at 14 px (the nodes tiling-keys-body-N are numbered anew)"
+cause = "a611c08a key list columns clear the longest row, titles in text; fa076e7b keycaps of the key list read at 14 px (the nodes tiling-keys-body-N are numbered anew); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "added"
+open = true
 
 [[change]]
 act = "t6c"
@@ -1349,8 +1639,9 @@ kind = "missing"
 
 [[change]]
 act = "t6c"
-cause = "a611c08a key list columns clear the longest row, titles in text; fa076e7b keycaps of the key list read at 14 px (the nodes tiling-keys-body-N are numbered anew)"
+cause = "a611c08a key list columns clear the longest row, titles in text; fa076e7b keycaps of the key list read at 14 px (the nodes tiling-keys-body-N are numbered anew); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "added"
+open = true
 
 [[change]]
 act = "h1"
@@ -2221,163 +2512,195 @@ nodes = ["xp-item-3", "xp-item-4"]
 
 [[change]]
 act = "h1"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 h1, h1.jpg)"
+boxes = [[1052, 694, 94, 22], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right (blobs at the pager buttons, the bin and the moved windows in the take of r6; judge r1 h1, h1.jpg)"
 kind = "pixel"
 
 [[change]]
 act = "h1b"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 h1, h1.jpg)"
+boxes = [[1052, 694, 94, 22], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/h1b.Q.png)"
 kind = "pixel"
 
 [[change]]
 act = "h1c"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 h1c, t8b-h1c.jpg)"
+boxes = [[1052, 694, 94, 22], [14, 14, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; judge r1 h1c, t8b-h1c.jpg)"
 kind = "pixel"
 
 [[change]]
 act = "h1d"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 h1c, t8b-h1c.jpg)"
+boxes = [[1052, 694, 94, 22], [14, 14, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/h1d.Q.png)"
 kind = "pixel"
 
 [[change]]
 act = "x1"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x1, x7-tray.jpg)"
+boxes = [[1052, 694, 94, 22], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right (blobs at the pager buttons, the bin and the moved windows in the take of r6; judge r1 x1, x7-tray.jpg)"
 kind = "pixel"
 
 [[change]]
 act = "x10"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x10.Q.png)"
 kind = "pixel"
 
 [[change]]
 act = "x10b"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x10b.Q.png)"
 kind = "pixel"
 
 [[change]]
 act = "x10c"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x10c.Q.png)"
 kind = "pixel"
 
 [[change]]
 act = "x11"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x11.Q.png)"
 kind = "pixel"
 
 [[change]]
 act = "x11b"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x11b.Q.png)"
 kind = "pixel"
 
 [[change]]
 act = "x12b"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67], [1213, 593, 39, 20]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x12b.Q.png; the eyes of the paperclip blink in both builds, an animation, no commit)"
 kind = "pixel"
 
 [[change]]
 act = "x2"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 675ebd55 chora-notify shows the notices (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [927, 615, 265, 83], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 675ebd55 chora-notify shows the notices (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x2.Q.png)"
 kind = "pixel"
 
 [[change]]
 act = "x2b"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 675ebd55 chora-notify shows the notices (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [927, 615, 265, 83], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 675ebd55 chora-notify shows the notices (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x2b.Q.png)"
 kind = "pixel"
 
 [[change]]
 act = "x2c"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [14, 14, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x2c.Q.png)"
 kind = "pixel"
 
 [[change]]
 act = "x3"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [14, 14, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x3.Q.png)"
 kind = "pixel"
 
 [[change]]
 act = "x5"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x5.Q.png)"
 kind = "pixel"
 
 [[change]]
 act = "x5b"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x5b.Q.png)"
 kind = "pixel"
 
 [[change]]
 act = "x5c"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x5c.Q.png)"
 kind = "pixel"
 
 [[change]]
 act = "x5d"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x5d.Q.png)"
 kind = "pixel"
 
 [[change]]
 act = "x5e"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x5e.Q.png)"
 kind = "pixel"
 
 [[change]]
 act = "x5f"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x5f.Q.png)"
 kind = "pixel"
 
 [[change]]
 act = "x5g"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67], [1213, 593, 39, 20]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x5g.Q.png; the eyes of the paperclip blink in both builds, an animation, no commit)"
 kind = "pixel"
 
 [[change]]
 act = "x6"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x6.Q.png)"
 kind = "pixel"
 
 [[change]]
 act = "x6b"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x6b.Q.png)"
 kind = "pixel"
 
 [[change]]
 act = "x6c"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x6c.Q.png)"
 kind = "pixel"
 
 [[change]]
 act = "x6d"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x6d.Q.png)"
 kind = "pixel"
 
 [[change]]
 act = "x6e"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67], [1213, 593, 39, 20]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x6e.Q.png; the eyes of the paperclip blink in both builds, an animation, no commit)"
 kind = "pixel"
 
 [[change]]
 act = "x7"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; judge r1 x7, x7.jpg)"
 kind = "pixel"
 
 [[change]]
 act = "x7b"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x7b.Q.png)"
 kind = "pixel"
 
 [[change]]
 act = "x8"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons; 675ebd55 chora-notify shows the notices (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg); open: the blobs at (1213, 593) and (1233, 593) are the eyes of the paperclip, open in the v8 still and closed in the v9 still (a blink, the phase of the animation), no commit; the tour does not mask them"
+boxes = [[1052, 694, 94, 22], [903, 628, 289, 70], [274, 84, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons; 675ebd55 chora-notify shows the notices (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x8.Q.png); open: the blobs at (1213, 593) and (1233, 593) are the eyes of the paperclip, open in the v8 still and closed in the v9 still (a blink, the phase of the animation), no commit; the tour does not mask them"
 kind = "pixel"
 open = true
 
 [[change]]
 act = "x9"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x9.Q.png)"
 kind = "pixel"
 
 [[change]]
 act = "x9b"
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r5; judge r1 x7, x7.jpg)"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x9b.Q.png)"
 kind = "pixel"
 
 [[change]]
