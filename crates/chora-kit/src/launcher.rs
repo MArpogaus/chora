@@ -418,18 +418,29 @@ mod tests {
     }
 
     #[test]
-    fn the_helper_row_can_stand_after_the_programs() {
+    fn the_helper_row_stands_first_and_the_flavor_rows_last() {
         let list = apps(
             [
+                entry("Dark theme", "chora-tiling --launch look dark"),
                 entry("Chat with a helper", "chora-chat"),
                 entry("Zed", "foot"),
+                entry("Edit settings", "chora-tiling --launch settings"),
+                entry("Alpha", "foot --alpha"),
             ],
             "foot",
             |_| true,
         );
-        assert_eq!(list[0].name, "Chat with a helper");
         let names: Vec<String> = helper_last(list).into_iter().map(|a| a.name).collect();
-        assert_eq!(names, ["Zed", "Chat with a helper"]);
+        assert_eq!(
+            names,
+            [
+                "Chat with a helper",
+                "Alpha",
+                "Zed",
+                "Dark theme",
+                "Edit settings"
+            ]
+        );
     }
 
     fn on_path(program: &str) -> bool {

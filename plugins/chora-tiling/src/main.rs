@@ -1950,6 +1950,55 @@ mod tests {
         );
     }
 
+    /// The words of the hint chips that tiling drew so far.
+    fn hints_shown(methods: &Log) -> Vec<String> {
+        let chips = sent_commands(methods).into_iter().map(|c| c.to_string());
+        chips
+            .filter(|c| c.contains("tiling-chip-word") && c.contains("does nothing here"))
+            .collect()
+    }
+
+    /// A tiling with one output and its grabs, as a person starts it.
+    fn tiling_with_grabs(tag: &str) -> (Tiling, Log) {
+        let (mut tiling, methods) = on_fake_core(tag);
+        tiling.grab_all().unwrap();
+        tiling
+            .wm
+            .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
+        tiling.wm.add_window("s1");
+        (tiling, methods)
+    }
+
+    #[test]
+    fn an_unbound_chord_shows_the_hint_on_the_chip_ti_56() {
+        let (mut tiling, methods) = tiling_with_grabs("stray-hint");
+        tiling.act("Super+q").unwrap();
+        let hints = hints_shown(&methods);
+        assert_eq!(hints.len(), 1, "{hints:?}");
+        assert!(
+            hints[0].contains("Super+Q does nothing here. Super+F1 shows all keys."),
+            "{hints:?}"
+        );
+        assert!(tiling.chip_until.is_some(), "the chip has a time to go");
+    }
+
+    #[test]
+    fn a_second_unbound_chord_within_ten_seconds_shows_no_hint_ti_56() {
+        let (mut tiling, methods) = tiling_with_grabs("stray-twice");
+        tiling.act("Super+q").unwrap();
+        tiling.act("Super+x").unwrap();
+        assert_eq!(hints_shown(&methods).len(), 1, "once in ten seconds");
+    }
+
+    #[test]
+    fn an_unbound_chord_shows_no_hint_while_the_key_list_shows_ti_56() {
+        let (mut tiling, methods) = tiling_with_grabs("stray-keys");
+        tiling.toggle_keys().unwrap();
+        assert!(tiling.keys_open());
+        tiling.act("Super+q").unwrap();
+        assert_eq!(hints_shown(&methods), Vec::<String>::new());
+    }
+
     #[test]
     fn an_injected_button_grab_drags_no_window_in_tiling() {
         let (mut tiling, _methods) = on_fake_core("injected-grab");

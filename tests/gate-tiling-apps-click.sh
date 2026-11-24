@@ -4,7 +4,8 @@
 # programs Aa alpha and Ab Zebra before every row of the flavor, so that the
 # list of nine rows that fuzzel shows has Zebra second whatever the flavor
 # adds; the pointer moves to the Zebra row, whose y is
-# computed from its index in that list (the middle of the first row and the
+# computed from the rows that the launcher gives a stand-in (the helper row
+# stands first, so Zebra is third) and from its index in that list (the middle of the first row and the
 # row pitch of 37 px that fuzzel.ini gives are constants), and clicks, and the window of zebra must appear while the
 # window of alpha, the first row, must not. fuzzel 1.11.1 takes the first
 # motion of the pointer as its start (wayland.c wl_pointer_motion) and
@@ -46,7 +47,17 @@ grant screen.capture input.inject
 row_x=600
 first_row_y=294
 row_h=37
-zebra_index=1
+mkdir -p "$work/fake"
+cat >"$work/fake/fuzzel" <<FAKE
+#!/bin/sh
+case " \$* " in *" --dmenu "*) cat >"$work/fake/rows" ;; esac
+FAKE
+chmod +x "$work/fake/fuzzel"
+PATH=$work/fake:$PATH timeout 20 "$bin/chora-tiling" --launch fuzzel >/dev/null 2>&1
+zebra_row=$(grep -nxF "Ab Zebra" "$work/fake/rows" | head -n 1 | cut -d: -f1)
+[ -n "$zebra_row" ] || fail "no Zebra row in the list: $(tr '\n' '|' <"$work/fake/rows")"
+zebra_index=$((zebra_row - 1))
+[ "$zebra_index" -lt 9 ] || fail "the Zebra row is not among the nine that fuzzel shows: $zebra_index"
 zebra_row_y=$((first_row_y + zebra_index * row_h))
 ctl capture "$work/empty.png" >/dev/null || fail "capture of the empty desktop"
 started=$(ctl run "$bin/chora-tiling" --launch fuzzel) || fail "the run of the launcher"
