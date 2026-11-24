@@ -10,6 +10,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import re
 import shutil
 import struct
 import subprocess
@@ -344,13 +345,30 @@ class OpenAndNamedChecks(unittest.TestCase):
         v = diff.verdict("c2", [], True, rows, checks=({"I2": "green"}, {"I2": "red"}))
         self.assertEqual(v["verdict"], "change", v)
 
-    def test_base_not_measured_and_cand_red_is_printed_as_such(self):
+    def test_base_not_measured_and_cand_red_is_a_regression_unless_a_check_row_names_it(self):
+        """rtb2-2: a check the base marks "not measured" and the candidate reads red is a flip."""
         write_capture(self.base, "x1.Q", data='{"nodes": [], "checks": {"I6": "not measured", "I2": "green"}}')
         write_capture(self.cand, "x1.Q", data='{"nodes": [], "checks": {"I6": "red", "I2": "green"}}')
         code, out, _ = run_tool("tour-diff.py", self.base, self.cand)
         self.assertIn("I6 not measured (cand red)", out)
+        self.assertEqual(code, 1, out)
         [row] = diff.compare(self.base, self.cand, [])
-        self.assertEqual((row["verdict"], row["unmeasured"], row["cand_red"]), ("same", ["I6"], ["I6"]), row)
+        self.assertEqual((row["verdict"], row["flipped"], row["unmeasured"]), ("regression", ["I6"], ["I6"]), row)
+        other = [{"act": "x1", "kind": "check", "check": "I2", "cause": "co-44"}]
+        [row] = diff.compare(self.base, self.cand, other)
+        self.assertEqual((row["verdict"], row["flipped"]), ("regression", ["I6"]), row)
+        named = [{"act": "x1", "kind": "check", "check": "I6", "cause": "xp-39"}]
+        [row] = diff.compare(self.base, self.cand, named)
+        self.assertEqual((row["verdict"], row["cause"]), ("change", "xp-39"), row)
+
+    def test_a_kind_with_a_found_row_and_an_open_row_gives_open_in_either_order(self):
+        """rtb2-4: the open row is not dropped for the found one."""
+        found = {"act": "m1", "kind": "rect", "cause": "675ebd55 the mc column"}
+        opened = {"act": "m1", "kind": "rect", "cause": "mc-59 open", "open": True}
+        scene = [{"kind": "rect", "id": "n"}]
+        for rows in ([found, opened], [opened, found]):
+            v = diff.verdict("m1", scene, True, rows)
+            self.assertEqual(v["verdict"], "open", v)
 
     def test_base_not_measured_and_cand_green_has_no_red_note(self):
         write_capture(self.base, "x1.Q", data='{"nodes": [], "checks": {"I6": "not measured"}}')
@@ -372,48 +390,18 @@ class IntendedRows(unittest.TestCase):
 class IntendedCauses(unittest.TestCase):
     """TOUR-BASE r2 (rtb-2, rtb-5, rtb-6, rtb-7): what a row of intended.toml may claim."""
 
-    WIDE_BEFORE_R1 = {
-        ("c1", "pixel"),
-        ("c2b", "added"),
-        ("c4b", "added"),
-        ("c5b", "pixel"),
-        ("c5e", "added"),
-        ("m10", "missing"),
-        ("m7", "pixel"),
-        ("m7", "rect"),
-        ("m9", "missing"),
-        ("m9b", "missing"),
-        ("t1", "pixel"),
-        ("t10b", "pixel"),
-        ("t1b", "pixel"),
-        ("t1c", "pixel"),
-        ("t1d", "pixel"),
-        ("t2", "pixel"),
-        ("t3", "pixel"),
-        ("t3b", "pixel"),
-        ("t3c", "pixel"),
-        ("t3d", "pixel"),
-        ("t3e", "pixel"),
-        ("t3f", "pixel"),
-        ("t3g", "pixel"),
-        ("t3h", "pixel"),
-        ("t4", "pixel"),
-        ("t5", "pixel"),
-        ("t6b", "pixel"),
-        ("t6d", "pixel"),
-        ("t8b", "pixel"),
-        ("t9b", "pixel"),
-    }
-    """The 30 rows of record-v9 r2 that name more than three causes; the rows of tour-base r1 do not."""
-
     @classmethod
     def rows(cls):
         import tomllib
 
         return tomllib.loads((HERE.parent / "demo/tour/intended.toml").read_text())["change"]
 
+    TOKEN = re.compile(r"\b(?=[0-9a-f]*\d)[0-9a-f]{8}\b|\b[a-z]{2,3}\d?-\d+\b")
+    """A cause is a commit (8 hex digits with a digit) or a finding id (`co-44`, `rv9-2`)."""
+
     def test_a_row_names_at_most_three_causes_or_is_open(self):
-        wide = [(r["act"], r["kind"], len(r["cause"].split("; "))) for r in self.rows() if len(r["cause"].split("; ")) > 3 and not r.get("open") and (r["act"], r["kind"]) not in self.WIDE_BEFORE_R1]
+        """rtb2-3: the shas and finding ids of the cause text are counted, not its `; ` units; no row is grandfathered."""
+        wide = [(r["act"], r["kind"], len(set(self.TOKEN.findall(r["cause"])))) for r in self.rows() if len(set(self.TOKEN.findall(r["cause"]))) > 3 and not r.get("open")]
         self.assertEqual(wide, [])
 
     def test_no_row_cites_co_61_the_ledger_id_of_another_finding(self):
@@ -426,8 +414,19 @@ class IntendedCauses(unittest.TestCase):
         named = {"x10b", "x5e", "x5g", "x7", "x8", "x9b"}
         self.assertEqual(sorted({r["act"] for r in self.rows() if "xp-43" in r["cause"]} - named), [])
 
+    UNPROVEN = ("cause not found", "(open)", "(proposed)")
+    UNPROVEN_FINDINGS = ("mc-59", "co-63", "xp-43")
+    """The findings whose ledger state is open with the cause not found (findings/mc.md:50, construct.md:65, xp.md:44)."""
+
     def test_an_open_row_says_what_is_open(self):
         self.assertEqual([(r["act"], r["kind"]) for r in self.rows() if r.get("open") and "open" not in r["cause"]], [])
+
+    def test_a_row_whose_cause_is_unproven_is_open(self):
+        """rtb2-1, two-way: a cause that says it is not found, open or proposed, or cites a finding that is open with
+        no cause found, is `open = true`; else tour-diff prints `change` and a later unrelated diff passes."""
+        marks = self.UNPROVEN + self.UNPROVEN_FINDINGS
+        unproven = [(r["act"], r["kind"]) for r in self.rows() if any(m in r["cause"] for m in marks) and not r.get("open")]
+        self.assertEqual(unproven, [])
 
 
 @unittest.skipUnless(shutil.which("ffmpeg"), "no ffmpeg")
