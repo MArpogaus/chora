@@ -5,10 +5,10 @@
 # "FAIL: <why>" with exit 1. Sources cleanly from any directory.
 # TILING_LOAD=N: session_start also starts N busy shell loops per CPU for the
 # run (a loaded host), the stress of the timed checks of the tiling gates.
-# load_scaled_limit FLOOR BASELINE_MS FACTOR prints the bound in ms of a timed call on a
-# host of unknown load (sh-37): FACTOR times the BASELINE_MS that the same cell measured for
-# similar work, at least FLOOR. A slow host slows the baseline too and raises the bound; an
-# idle one keeps FLOOR.
+# cpu_probe_ms prints the ms of a fixed small piece of work; load_scaled_limit FLOOR
+# NOW_MS MIN_MS prints the bound in ms of a timed call on a host of unknown load (sh-37):
+# FLOOR times how much slower the probe is now than at its best, at least FLOOR. A loaded
+# host slows the probe too and raises the bound; an idle one keeps FLOOR.
 # session_pids PGREP_ARGS... prints the pids that pgrep finds whose
 # environment has the XDG_RUNTIME_DIR of the gate, so that a gate beside
 # it never counts, and exits 1 when it finds none.
@@ -47,8 +47,14 @@ skip() {
 }
 ok() { echo "ok: $*"; }
 
+cpu_probe_ms() {
+    local started
+    started=$(date +%s%3N)
+    python3 -I -c 'sum(range(2000000))'
+    echo $(($(date +%s%3N) - started))
+}
 load_scaled_limit() {
-    local scaled=$(($2 * $3))
+    local scaled=$(($1 * $2 / ($3 > 0 ? $3 : 1)))
     echo $((scaled > $1 ? scaled : $1))
 }
 fail() {

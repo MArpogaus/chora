@@ -16,8 +16,8 @@
 #
 # Its load_scaled_limit (sh-37): a timing bound that a loaded host breaks
 # (gate-mc-scale: a settings.set beside 300 panels took 9316 ms, bound 5000 ms)
-# is the floor or FACTOR times the baseline of the same work in the same cell,
-# whichever is larger, so a slow host raises it and an idle one keeps the floor.
+# is the floor times how much slower a probe is now than at its best in the same
+# cell, at least the floor, so a slow host raises it and an idle one keeps it.
 #
 # Usage: tests/gate-lib-selftest.sh
 # shellcheck disable=SC2016 # the inner gate expands its own arguments
@@ -350,14 +350,14 @@ out=$(CHORA_GATE_LOCK_HELD=x bash -c '. "$1/tests/gate-lib.sh"; until_ok false 2
     echo "FAIL: until_ok does not give up on a state that never comes: $out"
     failures=$((failures + 1))
 }
-loaded=$(CHORA_GATE_LOCK_HELD=x bash -c '. "$1/tests/gate-lib.sh"; load_scaled_limit 5000 5000 3' gate "$repo" 2>&1)
-[ "$loaded" = 15000 ] || {
-    echo "FAIL: load_scaled_limit 5000 5000 3 gives '$loaded', want 15000 (a scene.show of 5 s on a loaded host)"
+loaded=$(CHORA_GATE_LOCK_HELD=x bash -c '. "$1/tests/gate-lib.sh"; load_scaled_limit 5000 500 250' gate "$repo" 2>&1)
+[ "$loaded" = 10000 ] || {
+    echo "FAIL: load_scaled_limit 5000 500 250 gives '$loaded', want 10000 (a probe twice as slow as its best)"
     failures=$((failures + 1))
 }
-idle=$(CHORA_GATE_LOCK_HELD=x bash -c '. "$1/tests/gate-lib.sh"; load_scaled_limit 5000 1200 3' gate "$repo" 2>&1)
+idle=$(CHORA_GATE_LOCK_HELD=x bash -c '. "$1/tests/gate-lib.sh"; load_scaled_limit 5000 100 100' gate "$repo" 2>&1)
 [ "$idle" = 5000 ] || {
-    echo "FAIL: load_scaled_limit 5000 1200 3 gives '$idle', want 5000 (an idle host keeps the floor)"
+    echo "FAIL: load_scaled_limit 5000 100 100 gives '$idle', want 5000 (an idle host keeps the floor)"
     failures=$((failures + 1))
 }
 [ "${loaded:-0}" -gt 9316 ] 2>/dev/null && [ "${idle:-0}" -lt 9316 ] 2>/dev/null || {

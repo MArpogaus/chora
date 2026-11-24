@@ -12,14 +12,14 @@
 # release. So there is no partial rebuild: the release time is no stall.
 #
 # The bound is not a fixed 5000 ms (sh-37: a settings.set took 9316 ms in a
-# lane that ran cargo beside the gate, 16 s in a train cell). The scene.save
-# of the same cell, 300 panels through the same core, is the baseline: the
-# other calls may take 5000 ms or twice the baseline, whichever is more, so a
-# loaded host raises the bound with its own speed and a call that is slow
-# against the same cell (idle: settings.set 0.9 of the baseline, scene.show
-# 0.5) still fails. The baseline itself is bound by the 10 s that a method
-# call of the core waits: the call fails there, and the check at the end
-# fails on a late answer.
+# lane that ran cargo beside the gate, 16 s in a train cell, and a baseline
+# taken once at the start of the cell was too old when the load rose later).
+# Before and after each call the cell times a fixed piece of work (cpu_probe_ms);
+# the bound is 5000 ms times how much slower the slower of the two is than the
+# best probe of the cell, at least 5000 ms. A loaded host slows the probe and
+# the call alike; a call that is slow on an idle host still fails. A call that
+# the core does not answer in the 10 s that it waits fails by itself, and the
+# check at the end fails on a late answer.
 #
 # Usage: tests/gate-mc-scale.sh   BIN: directory with the binaries
 . "$(dirname "$0")/gate-lib.sh"
@@ -38,29 +38,34 @@ for _ in $(seq 75); do
     sleep 0.2
 done
 
+probe_best=$(cpu_probe_ms)
 answers_within() {
-    local limit=$1 what=$2 started
-    shift 2
+    local what=$1 started before after worst limit
+    shift
+    before=$(cpu_probe_ms)
     started=$(date +%s%3N)
     mc "$@" || fail "$what fails after $(($(date +%s%3N) - started)) ms"
     took=$(($(date +%s%3N) - started))
-    [ "$took" -le "$limit" ] || fail "$what takes $took ms, more than $limit ms"
-    ok "$what in $took ms"
+    after=$(cpu_probe_ms)
+    worst=$((before > after ? before : after))
+    probe_best=$((worst < probe_best ? worst : probe_best))
+    limit=$(load_scaled_limit 5000 "$worst" "$probe_best")
+    [ "$took" -le "$limit" ] || fail "$what takes $took ms, more than $limit ms (probe $worst ms, best $probe_best ms)"
+    ok "$what in $took ms (limit $limit ms)"
 }
 
 panels=$(python3 -I -c 'import json
 print(json.dumps([{"id": "p%d" % i, "cell": [i % 20, i // 20, 1, 1],
     "title": "T%d" % i, "lines": ["%d\tline" % i]} for i in range(300)]))')
-answers_within 10000 "scene.save of 300 panels" scene.save \
+answers_within "scene.save of 300 panels" scene.save \
     "{\"name\": \"many\", \"grid\": [20, 15], \"panels\": $panels}"
-limit=$(load_scaled_limit 5000 "$took" 2)
 mc scene.save '{"name": "day", "grid": [1, 1], "panels": [
     {"id": "a", "cell": [0, 0, 1, 1], "title": "A", "lines": ["one"]}]}'
-answers_within "$limit" "scene.show of 300 panels" scene.show '{"name": "many"}'
-answers_within "$limit" "settings.set of a theme beside 300 panels" settings.set '{"theme": "light"}'
-answers_within "$limit" "scene.show of a small scene after it" scene.show '{"name": "day"}'
-answers_within "$limit" "scene.show of 300 panels again" scene.show '{"name": "many"}'
-answers_within "$limit" "settings.set of the write time beside 300 panels" settings.set \
+answers_within "scene.show of 300 panels" scene.show '{"name": "many"}'
+answers_within "settings.set of a theme beside 300 panels" settings.set '{"theme": "light"}'
+answers_within "scene.show of a small scene after it" scene.show '{"name": "day"}'
+answers_within "scene.show of 300 panels again" scene.show '{"name": "many"}'
+answers_within "settings.set of the write time beside 300 panels" settings.set \
     '{"write": {"duration_ms": 300}}'
 late=$(grep -ac "no call .* waits for this connection" "$CHORA_LOG")
 [ "$late" = 0 ] || fail "the core dropped $late late answers of chora-mc"
