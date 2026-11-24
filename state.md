@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-24 14:24 UTC)
+## Now (2026-11-24 14:25 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 14:02 PM 4.9 % (11-22) + 5.2 % (11-23) + 4.3 % (11-24), week about 29 % vs 49 % pace
 session branch: 6d336bdf (t129 14:20, co-pull); 77 greens; t130 14:25: xp-38 r2, flake-series r8, tiling-flake r3, tour-base r4.
@@ -24,7 +24,7 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin); F5 7 rows, no serie
 |---|---|---|
 | co-pull-r2.md (rc 2; co-70, co-71; 1 %) | sonnet high, claude/co-pull-r2 be6e62ec | session_016iS3kQfpC9MnJi7JhzqpHe |
 | rc1-pass-tiling-r1.md (rc 1; 1.5 %) | opus high, claude/rc1-pass-tiling d40142e4 | session_016iS3kM4PtnnwHL12RWmh3X |
-| p2-r8-tiling.md (rc 2; 0.8 %) | sonnet medium, claude/p2-r8-tiling bb4c07d9 | starting |
+| p2-r8-tiling.md (rc 2; 0.8 %) | sonnet medium, claude/p2-r8-tiling bb4c07d9 | session_016iS3kNcvWg4qUZ6HRwTWte |
 | tour-v9-take-r1.md (F7, rc 1b; 1 %) | sonnet medium, claude/tour-v9-take d40142e4 | session_016iS3kQ7AREXGscKyEdNsv9 |
 | stray-super-r1.md (rc 1; xp-46, mc-60; 1 %) | sonnet high, claude/stray-super-r1 d40142e4 | session_016iS3kNnjci4yeBhCJRuWif |
 | helper-greet-r1.md (rc 1; xp-47; 0.8 %) | sonnet high, claude/helper-greet-r1 d40142e4 | session_016iS3kMT9MeqAv9J4kbg26x |
