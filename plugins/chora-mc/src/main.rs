@@ -607,7 +607,7 @@ const ASSISTANT: &str = "assistant";
 /// The events; `voice.*` are those of the voice agent (D65),
 /// `assistant.chat` says where the HUD host shows its chat, and
 /// `assistant.chat.keyboard` when its field takes the keyboard.
-const EVENTS: [&str; 21] = [
+const EVENTS: [&str; 22] = [
     "voice.*",
     "focus.changed",
     "focus.node",
@@ -618,6 +618,7 @@ const EVENTS: [&str; 21] = [
     "effects.dropped",
     "client.connected",
     "client.disconnected",
+    "input.ungrabbed",
     "pointer.scroll",
     "pointer.pressed",
     "pointer.entered",
@@ -1887,9 +1888,12 @@ mod tests {
             data: serde_json::json!({}),
         };
         chora_kit::runtime::Plugin::event(&mut mc, ready("evil")).unwrap();
-        assert_eq!(model.lock().unwrap().emits.last(), None, "only the host");
+        let last = || {
+            let emits = model.lock().unwrap().emits.clone();
+            emits.into_iter().rev().find(|e| e["event"] == "mc.theme")
+        };
+        assert_eq!(last(), None, "only the host");
         chora_kit::runtime::Plugin::event(&mut mc, ready("assistant")).unwrap();
-        let last = || model.lock().unwrap().emits.last().cloned();
         assert_eq!(last(), Some(chora_kit::hud::theme_event("mc", false)));
         mc.settings.value.theme = crate::config::Theme::Dark;
         chora_kit::runtime::Plugin::settings_changed(&mut mc).unwrap();

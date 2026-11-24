@@ -55,6 +55,9 @@
 #   chat-focus     after a request to the helper and Escape in the chat
 #                  the page holds the keyboard again, state.get says mc
 #                  (mc-45)
+#   stray-super    Super+x, Super+k, Super+m and Super+q, which mc binds
+#                  to nothing, type nothing into the window of a page
+#                  that holds the keyboard (mc-60); Super+F1 still acts
 #   all-keys       the full key list stays in the column and on the
 #                  screen, and its rule crosses no text
 #
@@ -566,6 +569,34 @@ cell_all_keys() {
     until_ok '! has_text "Show overview"' 20 || fail "Super+F1 does not close the list"
 }
 
+stray_alive() { session_pids -f -- "--app-id=mcstray" >/dev/null; }
+stray_end() {
+    local pid
+    for pid in $(session_pids -f -- "--app-id=mcstray"); do kill "$pid"; done
+    until_ok '! stray_alive' 20
+}
+cell_stray_super() {
+    local log=$work/mcstray typed chord
+    rm -f "$log"
+    foot --app-id=mcstray sh -c "stty raw -echo; cat >$log" &
+    until_ok 'stray_alive && [ "$(current)" = mcstray ]' 40 || { stray_end; fail "the window of a program has no page: $(current)"; }
+    key Return
+    until_ok '[ "$(jq -r .surface <<<"$(mc_focus)")" != null ]' 20 || { stray_end; fail "Return does not give the keyboard to the window: $(mc_focus)"; }
+    echo '[{"text": {"text": "start:"}}]' | ctl inject >/dev/null || { stray_end; fail "inject text"; }
+    for chord in Super+x Super+k Super+m Super+q; do
+        key "$chord"
+    done
+    echo '[{"text": {"text": ":end"}}]' | ctl inject >/dev/null || { stray_end; fail "inject text"; }
+    until_ok '[ "$(tr -d "\r" <"$log" 2>/dev/null)" = "start::end" ]' 20
+    typed=$(tr -d '\r' <"$log" 2>/dev/null)
+    stray_end
+    [ "$typed" = "start::end" ] || fail "mc-60: the window page typed '$typed' and not start::end"
+    key Super+F1
+    until_ok 'has_text "Show overview"' 20 || fail "Super+F1 no longer shows the key list"
+    key Super+F1
+    until_ok '! has_text "Show overview"' 20 || fail "Super+F1 does not close the key list"
+}
+
 failed=()
 run_cell() {
     local name=$1
@@ -577,7 +608,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-for name in first-page first-turn arrows terminal-keys terminal-back terminal-turn mouse-back mute terminal-chat window-chat chat-click-turn chat-focus all-keys; do
+for name in first-page first-turn arrows terminal-keys terminal-back terminal-turn mouse-back mute terminal-chat window-chat chat-click-turn chat-focus all-keys stray-super; do
     run_cell "$name"
 done
 if [[ chat-click-close =~ ${CELLS:-.} ]]; then

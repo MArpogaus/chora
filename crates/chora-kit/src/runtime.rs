@@ -68,7 +68,7 @@ fn test_session() -> bool {
 /// exported methods.
 pub trait Plugin {
     /// What a grabbed binding does.
-    type Action;
+    type Action: Clone;
 
     /// The runtime of the plugin.
     fn runtime(&mut self) -> &mut Runtime<Self::Action>;
@@ -128,16 +128,33 @@ pub trait Plugin {
 pub struct Runtime<A> {
     /// The connection to the core.
     pub conn: Conn,
-    name: String,
+    pub(crate) name: String,
     /// The outputs that `--output` leaves to the plugin; all when empty.
     outputs: Vec<String>,
     /// The grabbed bindings, as the core names them.
-    grabs: Vec<(String, A)>,
+    pub(crate) grabs: Vec<(String, A)>,
     /// The bindings of the set before [`Self::start_grabs`] that the
     /// core still holds for the plugin.
-    old_grabs: Vec<String>,
+    pub(crate) old_grabs: Vec<String>,
     /// The bindings whose refusal was logged, so that each logs once.
     refused: std::collections::HashSet<String>,
+    /// The bindings of the set that the core refused, with their action
+    /// and whether they swallow: asked again when the core tells that
+    /// another client let one go (`input.ungrabbed`, D117).
+    pub(crate) waiting: Vec<(String, A, bool)>,
+    /// The modifier and the action of the swallow of the set, see
+    /// [`Self::grab_swallowed`].
+    pub(crate) swallow: Option<(String, A)>,
+    /// The grabbed bindings that swallow, as the core names them.
+    pub(crate) swallowed: std::collections::HashSet<String>,
+    /// The window managers that connected after the plugin.
+    pub(crate) after: std::collections::BTreeSet<String>,
+    /// The window managers of [`Self::after`] that said that they swallow
+    /// (`NAME.swallow`): while there is one, the plugin swallows nothing
+    /// (D118).
+    pub(crate) joined: std::collections::BTreeSet<String>,
+    /// Whether the plugin said that it swallows.
+    pub(crate) said: bool,
     /// Makes the action of a give key; none when the plugin has no give
     /// keys.
     give_keys: Option<fn(&'static str) -> A>,
@@ -191,6 +208,12 @@ impl<A> Runtime<A> {
             grabs: Vec::new(),
             old_grabs: Vec::new(),
             refused: std::collections::HashSet::new(),
+            waiting: Vec::new(),
+            swallow: None,
+            swallowed: std::collections::HashSet::new(),
+            after: std::collections::BTreeSet::new(),
+            joined: std::collections::BTreeSet::new(),
+            said: false,
             give_keys: None,
             give_tried: None,
             inject_ok: test_session(),
@@ -293,18 +316,22 @@ impl<A> Runtime<A> {
     }
 
     /// Subscribes to `events`; the subscription replaces the earlier one.
+    /// A window manager of [`crate::give::KEYS`] also hears whether the
+    /// others swallow (`NAME.swallow`, see [`Self::swallow_event`]).
     ///
     /// # Errors
     ///
     /// The socket fails.
     pub fn subscribe<E: AsRef<str>>(&mut self, events: &[E]) -> Result<(), ClientError> {
+        let mut events: Vec<String> = events.iter().map(|e| e.as_ref().into()).collect();
+        if !events.is_empty() && crate::swallow::manager(&self.name) {
+            let others = (crate::give::KEYS.iter())
+                .filter(|(_, to)| *to != self.name)
+                .map(|(_, to)| crate::swallow::said_event(to));
+            events.extend(others);
+        }
         self.conn
-            .call::<_, Value>(
-                "events.subscribe",
-                Subscribe {
-                    events: events.iter().map(|e| e.as_ref().into()).collect(),
-                },
-            )
+            .call::<_, Value>("events.subscribe", Subscribe { events })
             .map(drop)
     }
 
@@ -349,38 +376,58 @@ impl<A> Runtime<A> {
 
     /// Grabs a binding for an action. False when the core refuses it, for
     /// example while another client holds it; the first refusal of a
-    /// binding logs a line.
+    /// binding logs a line, and the runtime asks again when the core
+    /// tells that the binding is free (`input.ungrabbed`, D117).
     ///
     /// # Errors
     ///
     /// The socket fails, or the core knows no such key, so that a
     /// `settings.set` with it fails.
     pub fn grab(&mut self, binding: Binding, action: A) -> Result<bool, ClientError> {
+        self.grab_as(binding, action, false)
+    }
+
+    /// As [`Self::grab`]; a binding that `swallows` logs no refusal.
+    pub(crate) fn grab_as(
+        &mut self,
+        binding: Binding,
+        action: A,
+        swallows: bool,
+    ) -> Result<bool, ClientError> {
         let text = binding.to_string();
-        if let Some(held) = self.grabs.iter_mut().find(|(b, _)| *b == text) {
+        self.waiting.retain(|(waits, ..)| *waits != text);
+        let normal = if let Some(held) = self.grabs.iter_mut().find(|(b, _)| *b == text) {
             held.1 = action;
-            return Ok(true);
-        }
-        if let Some(i) = self.old_grabs.iter().position(|b| *b == text) {
-            self.grabs.push((self.old_grabs.swap_remove(i), action));
-            return Ok(true);
-        }
-        match self.conn.call::<_, String>("input.grab", Grab { binding }) {
-            Ok(normal) => {
-                self.grabs.push((normal, action));
-                Ok(true)
-            }
-            Err(ClientError::Rpc(err)) if err.code == RpcError::INVALID_PARAMS => {
-                Err(RpcError::new(err.code, format!("{text}: {}", err.message)).into())
-            }
-            Err(ClientError::Rpc(err)) => {
-                if self.refused.insert(text.clone()) {
-                    eprintln!("chora-{}: {text}: {err}", self.name);
+            text
+        } else if let Some(i) = self.old_grabs.iter().position(|b| *b == text) {
+            let normal = self.old_grabs.swap_remove(i);
+            self.grabs.push((normal.clone(), action));
+            normal
+        } else {
+            match self.conn.call::<_, String>("input.grab", Grab { binding }) {
+                Ok(normal) => {
+                    self.grabs.push((normal.clone(), action));
+                    normal
                 }
-                Ok(false)
+                Err(ClientError::Rpc(err)) if err.code == RpcError::INVALID_PARAMS => {
+                    return Err(RpcError::new(err.code, format!("{text}: {}", err.message)).into());
+                }
+                Err(ClientError::Rpc(err)) => {
+                    if !swallows && self.refused.insert(text.clone()) {
+                        eprintln!("chora-{}: {text}: {err}", self.name);
+                    }
+                    self.waiting.push((text, action, swallows));
+                    return Ok(false);
+                }
+                Err(err) => return Err(err),
             }
-            Err(err) => Err(err),
+        };
+        if swallows {
+            self.swallowed.insert(normal);
+        } else {
+            self.swallowed.remove(&normal);
         }
+        Ok(true)
     }
 
     /// Lets all grabbed bindings go, except the give keys while the
@@ -410,6 +457,8 @@ impl<A> Runtime<A> {
                     .any(|b| b.to_string() == normal)
         };
         let serves = self.give_keys.is_some();
+        self.waiting.clear();
+        self.swallow = None;
         let (kept, old): (Vec<_>, Vec<_>) = std::mem::take(&mut self.grabs)
             .into_iter()
             .partition(|(normal, _)| keep(normal, serves));
@@ -425,7 +474,11 @@ impl<A> Runtime<A> {
     ///
     /// As [`Self::ungrab_all`].
     pub fn end_grabs(&mut self) -> Result<(), ClientError> {
+        if self.swallow.is_none() {
+            self.say_swallow(false)?;
+        }
         for normal in std::mem::take(&mut self.old_grabs) {
+            self.swallowed.remove(&normal);
             let binding = normal.parse().map_err(|err| {
                 RpcError::new(RpcError::INVALID_PARAMS, format!("{normal}: {err}"))
             })?;
@@ -495,6 +548,10 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
         Event::InputKey { injected: true, .. } if !rt.inject_ok => Ok(()),
         event => {
             rt.regrab_give_keys()?;
+            rt.swallow_event(&event)?;
+            if crate::swallow::is_said(&event) {
+                return Ok(());
+            }
             plugin.event(event)
         }
     }
