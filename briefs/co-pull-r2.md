@@ -1,0 +1,14 @@
+# co-pull r2 (rc 2: construct C2 reach; co-70 MAJOR, co-71 MAJOR verify)
+
+Model: sonnet, effort high (hint state and key sheet close in one plugin; routine with care for the r1 states)
+Lane: cloud, branch claude/co-pull-r2 at be6e62ec (co-pull r1 head, MERGE-OK, in train129). Area: plugins/chora-construct (hints.rs, input.rs, overlay.rs key sheet), its tests, tests/gate-construct-*.sh. Stop at 250 k. Cost at most 1 %.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, then `cargo build --workspace`. A failure: send_message the PM "co-pull-r2 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Read on claude/session-log: reports/p2-r11-co.md "## r11" (fix-check table, candidates 1 and 3, the co68 hand run steps); reports/co-pull.md "## r1" and its review; findings/construct.md co-64, co-68, co-70, co-71.
+1) Red commits first (tests only, each message cites its id): co-70: stood back from a face window with the keyboard and no pane beside (row, Return, Super+t, Alt+Escape), the hint bar names `Super Alt 4 Pull out`; co-71: the key sheet opened from a face closes by Esc, by a click outside and by its Close button (unit test and a gate step; first confirm the fault by hand and paste the state). If co-71 does not reproduce, say so with the capture and drop it. Paste the failing lines.
+2) Fix: the pull is named in every state where Super+Alt+4 acts and in no other (co-68 holds: a pane beside with the keyboard in the pane stays silent); the key sheet closes by Esc, click and Close. KISS: derive the hint from the same predicate the key uses, no second rule.
+3) The three hand runs of r11 (co68 no pane, rcp1-1 pane beside, co64) 5x each from a fresh compositor: told and acts rates pasted.
+4) Full gate: `setsid nohup bash -c '(CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2 > /tmp/gate.log 2>&1; echo EXIT $? >> /tmp/gate.log)' >/dev/null 2>&1 </dev/null &`, poll in the same turn; paste the last 20 lines. A red cell you did not cause: name it with its log line. `tools/sleep-ratchet` ok. Before ending: `pgrep -fa 'chora --headless'` empty.
+Never end a turn to wait; poll any long command in the same turn.
+Done when: red then fix shas with pasted lines; the 5x table; full gate green or its foreign reds named.
+Report: reports/co-pull.md "## r2" on claude/session-log; send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 5 lines with the head sha.
+Rules: push claude/co-pull-r2 and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).
