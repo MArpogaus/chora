@@ -15,8 +15,8 @@
 # lane that ran cargo beside the gate, 16 s in a train cell, and a baseline
 # taken once at the start of the cell was too old when the load rose later).
 # Before and after each call the cell times a fixed piece of work (cpu_probe_ms);
-# the bound is 5000 ms times how much slower the slower of the two is than the
-# best probe of the cell, at least 5000 ms. A loaded host slows the probe and
+# the bound is 5000 ms times the slowdown of the slower of the two above the idle noise of the
+# best probe of the cell (ratio 2), at least 5000 ms, at most 9000 ms. A loaded host slows the probe and
 # the call alike; a call that is slow on an idle host still fails. A call that
 # the core does not answer in the 10 s that it waits fails by itself, and the
 # check at the end fails on a late answer.
