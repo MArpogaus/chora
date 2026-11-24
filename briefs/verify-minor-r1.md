@@ -1,0 +1,13 @@
+# verify-minor r1 (rc 8: honest known-issues list; xp and mc have no open BLOCK/MAJOR)
+
+Model: haiku, effort medium (tests: reproduce or not, one capture or gate cell per row; no product change)
+Lane: cloud, claude/verify-minor at ce866b0d (session head, t124). Cost at most 0.4 %; stop at 150 k context. Read only: no product code, no commit on claude/verify-minor.
+Why: findings/xp.md and findings/mc.md on claude/session-log hold MINOR rows in state "verify" whose fix sha may already be in the head: xp-5, xp-6, xp-7, xp-8, xp-12, xp-14, xp-15, xp-17, xp-18, xp-34; mc-9, mc-10, mc-11, mc-12. The known-issues list (rc 8) must name only what is still true.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `git fetch origin claude/session-log`, `cargo check --workspace`, `cargo build --workspace`; a failure: send_message the PM "verify-minor BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1) Per row: read its text and named sha (`git show --stat <sha>`; ancestor of ce866b0d by `git merge-base --is-ancestor`). Find a gate cell or unit test that checks the claim (`grep -rn` in tests/ and plugins/*/src for the element or number); run it once and paste its pass/fail line. No cell: one headless capture by the row's own act (demo/tour or tests/acts; `python3 demo/tour/run.py --only <act>` if it exists) and read the number the row names (px size, contrast, position) from the scene dump, not by eye.
+2) State per row, computed: claim false on the head with a passing cell -> "fixed <sha> (guard <cell>, verify-minor r1)"; claim false without a cell -> "not reproduced (<dump line>), no guard"; claim true -> "open: reproduced (<dump line>)"; not checkable headless -> "verify: needs <what>".
+3) No severity changes, no new findings beyond one line each under "## Seen".
+Gate: none (no code); run each command in the foreground, never end a turn to wait. Before ending: `pgrep -fa 'chora --headless'` empty.
+Done when: one line per row above with sha, ancestor yes/no, check, pasted line and the computed state.
+Report: reports/verify-minor.md "## r1" on claude/session-log (a table: id, sha, in head, check, line, proposed state); the PM edits findings/. send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 5 lines: counts fixed, not reproduced, open, verify.
+Rules: push claude/session-log only, your report only (fetch and merge on reject, no force); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).

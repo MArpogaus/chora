@@ -1,0 +1,18 @@
+# review tiling-reach r1 (rc 1, 2): seeded review of claude/tiling-reach before its merge
+
+Model: sonnet, effort high (harness and script process ownership plus key-list layout; routine but exact)
+Lane: cloud, read-only on code: claude/tiling-reach head 4e257c06, base cae62f50 (`git diff cae62f50...4e257c06`: 18 files, +339 -29). One round.
+Stop at 120 k context; cost at most 0.5 %; at most 8 findings. No merge gate (the lane's gate: 65 PASS); cargo test -p and the single cells below only.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `git fetch origin claude/session-log`, `cargo check --workspace`, `cargo build --workspace`; a failure: send_message the PM "review-tiling-reach BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Read on claude/session-log: briefs/tiling-reach-r1.md (done criteria), reports/tiling-reach.md "## r1"; findings/tiling.md ti-47, ti-48; vision-card.md (tiling: beginners must not be stranded; KISS, POLS).
+Known, not findings: ti-49 MINOR; xp, mc, construct keep "Give window to a look" (lane note 3, backlog); the tiling-audit fullscreen transient (sh-38 lane runs).
+Checks, each with its command and files:
+1) Red first (rule 8): 7fb9db06 before f358771c and 689bff45 (ti-47); 451e6a83 before 64b60b8a and f0557aa3 (ti-48). Check out each red commit, run its cell (`tests/gate-tiling-one-bar.sh`; `cargo test -p chora-tiling -p chora-kit` names of the report; `tests/gate-tiling-apps.sh`), paste the red line; at 4e257c06 green.
+2) ti-47 exact: flavors/tiling/waybar/waybar.sh flock: the lock is held for waybar's life (not released by a subshell or exec order), a stale lock after a crash does not block the next start, the second start exits 0 with a stderr line; the plugin's own panel path (theme::start_companions) and the unit (`flavors/tiling/systemd` or packaging) both go through the lock; `tests/gate-tiling-one-bar.sh` 3x green (paste counts) and it counts per session, not machine-wide.
+3) ti-48 exact: launcher rows and key list words come from one source (chora_kit::give::move_words; keysheet); give.sh refuses honestly (notice "Window not moved", rc); German strings fit (no overlap at 800 px: the keys layout tests); docs/configuration.md and docs/api.md match the code.
+4) Harness: tests/persona/session.sh tiling with --no-companions does not change what a real session runs (the product path keeps companions); gate-launcher-click and gate-tiling-apps-click y values: derived or a constant (lane note 4); a constant that breaks when a flavor adds a row is a MINOR finding, not more.
+5) `cargo test -p chora-tiling -p chora-kit` green; `tests/gate-tiling-apps.sh` and `tests/doors/tiling.sh` (or its gate step) green once.
+6) Scope: no change outside tiling, chora-kit give/keysheet, the named tests and docs; merge-gate.sh change is the one-bar wiring only.
+Verdict computed: an open BLOCK or MAJOR is FIX, else MERGE-OK. Findings one line each (rtr-N, severity, file:line, text, fix in one sentence). Append to reports/tiling-reach.md on claude/session-log under "## Review r1".
+Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 5 lines): verdict, counts, BLOCK and MAJOR list. Poll every command in the same turn; never end a turn to wait. Before ending: `pgrep -fa 'chora --headless'` empty.
+Rules: push only claude/session-log (fetch and merge on reject, no force), only that report; author Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email); no attribution lines; never --no-verify; no system packages.

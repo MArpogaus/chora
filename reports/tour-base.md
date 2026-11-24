@@ -185,3 +185,143 @@ Reviewer: sonnet, not the builder. Step 0 green at 9616d7d6 (the branch tip has 
 - Causes by family are read from `git show --stat` and element names, not from controlled takes (as briefed): a sha that touches the family is plausible, not proven (rr9-1).
 - `--check` and the takes were not re-run; the 23 red acts and their ids are the report's, matched against the ledger text.
 - The scratch cases for check 2 were run on a copy in the scratchpad, not committed.
+
+## r2 (F7, rc 11, 1b: no unexplained act passes as `change`; rtb-1..8; 2026-11-24)
+
+Branch `claude/tour-base` from 645afaf5 (r1 9616d7d6 plus the session head 05a63377); head **1e62811f** (pushed). Step 0 green: `git fetch --unshallow`, `cargo check --workspace`, `python3 -m pytest tests/test_tour.py -q` (83 passed), `python3 -I tests/test_tour_diff.py` (50 tests OK). Harness and tests only; no product code. The repo hooks refuse attribution lines and subjects over 68 characters, so the commits carry none (the brief says the same).
+
+### Commits (red, then fix, then rows)
+| sha | what |
+|---|---|
+| 457b7ee4 | red: tests only (a)..(d) |
+| 192aebbe | fix: `open` verdict, `check` field, `cand_red`, `BOX_CHECKS` (tests/tour-diff.py, demo/tour/tour.py) |
+| 1bf04706 | red: `IntendedCauses` in tests/test_tour_diff.py (rtb-2, 5, 6, 7 as data tests) |
+| 8649f08d | rows: mc rows from the bisect, co-63, named checks, xp-43, width (demo/tour/intended.toml) |
+| 1e62811f | rows: t6, t6c key list renumbered (a611c08a, fa076e7b); m9b, m10 chat nodes (old rows restored) |
+
+Red at 457b7ee4 (`python3 -I tests/test_tour_diff.py`, `python3 -m pytest tests/test_tour.py -q`):
+```
+(a) FAIL: test_an_open_row_gives_the_verdict_open_not_change        AssertionError: 'change' != 'open'
+(a) FAIL: test_the_f7_count_fails_on_an_open_act                    AssertionError: '1 open' not found in 'm1       Q     change      mc-59\ntour-diff: 0 same, 1 change, 0 regression, 0 none\n'
+(b) ERROR: test_a_check_row_with_a_name_does_not_absorb_another_check   KeyError: 'flipped'   (the row absorbed the I6 flip: no regression)
+(c) FAIL: test_base_not_measured_and_cand_red_is_printed_as_such    AssertionError: 'I6 not measured (cand red)' not found in 'x1       Q     same        I6 not measured\ntour-diff: 1 same, 0 change, 0 regression, 0 none\n'
+(d) E  AttributeError: module 'tour' has no attribute 'BOX_CHECKS'
+    FAILED tests/test_tour.py::CaptureDumps::test_a_baseline_without_boxes_marks_the_box_checks_from_one_constant
+Ran 57 tests ... FAILED (failures=3, errors=1);  1 failed, 83 passed
+```
+Red at 1bf04706 (the data tests): `test_a_check_row_names_its_check`, `test_a_row_names_at_most_three_causes_or_is_open` (49 rows), `test_no_row_cites_co_61_the_ledger_id_of_another_finding`, `test_xp_43_is_cited_only_on_the_acts_that_finding_names`: `Ran 62 tests ... FAILED (failures=4)`.
+
+After 192aebbe: `python3 -m pytest tests/test_tour.py -q`: 84 passed; `python3 -I tests/test_tour_diff.py`: 62 tests OK (after 1e62811f the same).
+
+What the fix is (KISS: one constant, one new verdict, one new field):
+- `tour.BOX_CHECKS = (I2, I5, I6, I9, I12, I13)`: on a snapshot without `scene.boxes` the dump marks them `not measured`, except I6 where a look or block reports a run (`invariants.reported_texts`): that part of I6 reads no box (rtb-4, check 5).
+- tour-diff: a row with `open = true` gives the verdict `open` (a row with a found cause is taken first; `open` never hides an unnamed kind or a flip), exit 1 on `regression` or `open`; the summary line has the four verdicts (`same, change, open, regression, none`).
+- a row of kind `check` with `check = "I2"` absorbs only that flip; without the field it absorbs every flip (old rows).
+- a check that the base marks `not measured` and the candidate reads red is printed `I6 not measured (cand red)` (field `cand_red`; the verdict stays what the rest says; `--check` still counts it, 13 I6 and 10 I2 captures in the full diff below).
+
+### rtb-1: the bisect of mc-59 (mc chapter only)
+Method: the mc chapter (`TOUR_BASELINE=1 TOUR_OUT=... TOUR_REPO=<worktree> python3 demo/tour/run.py mc`) on a worktree at each sha, `cargo build -p chora -p choractl -p chora-mc -p chora-notify -p chora-xp -p chora-assistant`. Five bisect builds; the baseline (733967aa) and the head (05a63377 + harness) are two more builds, not bisect steps. Five criteria read from the captures of each build: m1 `mc-r0-right-notify` present, m1 `mc-r0-right-chat-door` y, m1 `mc-s-ingredients-panels-lead-rule` x, m1 `mc-r0-right-keys-2-key-hit` height, the region slot visible (`mc-regions-N`) at m1 m2 m3 m3b m4 m4b m9.
+
+| build | sha | notify block | chat door y | lead rule x | key hit h | slot m1 m2 m3 m3b m4 m4b m9 |
+|---|---|---|---|---|---|---|
+| base | 733967aa | yes | 194 | 42 | 28 | 0 0 0 0 1 0 0 |
+| 1 | 675ebd55^ (6ddd808f) | yes | 194 | 42 | 28 | 0 0 0 0 1 0 0 |
+| 2 | **675ebd55** chora-notify shows the notices, mc stacks none | no | 110 | 42 | 28 | 0 1 1 1 0 1 0 |
+| 3 | 6fa86c16^ (d3cc19de) | no | 110 | 42 | 28 | 0 1 1 0 0 1 1 |
+| 4 | **6fa86c16** key hit, key text, page 2 copy, empty font, heads, rule | no | 110 | 94 | 56 | 0 1 1 0 0 1 1 |
+| 5 | fa7faabd Home alone goes to the first page (mc-38) | no | 110 | 42 | 28 | 0 1 1 0 0 1 1 |
+| head | 05a63377 | no | 110 | 94 | 56 | 0 1 1 0 0 1 1 |
+
+**The first sha that moves the m1 rect and the visible region slot is 675ebd55** (build 1 equals the baseline in all five columns; build 2 moves the chat door, drops `mc-rN-right-notify`, adds the `notify-card` nodes of chora-notify and flips the slot at m2). The lead rule and the key hit (22 acts, rect) are **6fa86c16**. Not found by sha: the slot parity at m3b and m9 and the pixel, visible, rect diffs of the pages, which lie in (675ebd55..fa7faabd] (284 commits) and (fa7faabd..6fa86c16^] (543), and 3 rects after 6fa86c16. Diff of consecutive builds, acts and kinds (tour-diff, same masks):
+
+| interval | acts | kinds |
+|---|---|---|
+| (733967aa..675ebd55^] | 4 (m1b, m8, m8b, m9b) | pixel 3, rect 4, visible 1 (not a named cause; rows: open) |
+| 675ebd55 | 22 | missing 22, rect 22, visible 12, pixel 8, added 8 |
+| (675ebd55..fa7faabd] | 15 | pixel 15, rect 15, visible 12, added 6, missing 6 |
+| (fa7faabd..6fa86c16^] | 5 | pixel 5, rect 4 |
+| 6fa86c16 | 22 | rect 22 |
+| (6fa86c16..head] | 3 (m7b, m9b, m10) | rect 3 |
+
+Rows (22 mc acts): a (act, kind) cites 675ebd55 or 6fa86c16 where its interval shows the kind, fa7faabd only for the kinds the controlled take of r1 showed (pixel on m5, m5b, m6, m6b, m7c, m8b; visible on m7c, m8b), and every other interval is one `mc-59 open` unit naming the commits it lies in, with `open = true`. The r1 statement "fa7faabd explains the page divergence and the rest is mc-59" stands for the pages; the m1 rect, which r1 credited to fa7faabd, is 675ebd55 and 6fa86c16. mc: 4 acts `change` (m1, m1c, m4, m4b), 18 `open`. The handover acts h1..h1d (the mc part) were not bisected (the brief says the mc chapter only): `open`.
+mc-59 text for the PM: the cause is **found for the column rects, the notify block and the first slot flips (675ebd55) and for the lead rule and key hit (6fa86c16)**; open for the slot parity at m3b and m9 and the remaining pixel and rect diffs: the two intervals above.
+
+### rtb-2..8
+- rtb-2: `co-61 (proposed)` is `co-63 (open)` in the 20 rows (test `test_no_row_cites_co_61...`).
+- rtb-5: the 14 `check` rows carry `check = "I2"`. With I2 now `not measured` on the baseline (BOX_CHECKS) the 14 I2 flips of r1 are no flips any more, so the rows are not used on this pair; they stay for a baseline that measures I2.
+- rtb-6: at most three causes (units split at "; ") per row; 18 rows that were wider are `open` with the unit "open: more than three causes, none proven for this act alone" (x2, x2b, x5b..x6d, x10b, t6, t6c, c2, c4, c5e among them); the 30 rows of record-v9 r2 with more than three causes are listed in the test (`WIDE_BEFORE_R1`), not touched. The `09ff8ff9 ... bd5af4b3` pair is one unit (xp-28), the `co-44 (...; ...)` semicolon is a comma, so the count by "; " is the count of causes.
+- rtb-7: xp-43 only on x10b, x5e, x5g, x7, x8, x9b (named by the finding); the pager unit says "by the position of the blobs, no controlled take" in every row that cites it.
+- rtb-8 (the PM edits the ledger): run order to scene id of construct (rows-construct.json of the take; the 14 acts of co-44, I2, are 4..12 and 14..18): 1 c1, 2 c5, 3 c5b, 4 c2, 5 c5c, 6 c5d, 7 c3, 8 c3b, 9 c3c, 10 c3d, 11 c4, 12 c4b, 13 c5e, 14 c2b, 15 c3e, 16 c3f, 17 c3g, 18 c3h. So co-44 is c2, c5c, c5d, c3, c3b, c3c, c3d, c4, c4b, c2b, c3e, c3f, c3g, c3h (act 13 c5e has I6 only). The same mix-up holds for xp: xp-44 "act x17" is the 17th act of the xp run; its scene id is **x10** (x10b holds the same I6 in `hidden`). And xp-45's I6 'chart' (xp-title-s6) 4.31:1 is red in 11 construct acts (run order 1, 2, 3, 4, 5, 6, 10, 11, 12, 13, 14 = c1, c5, c5b, c2, c5c, c5d, c3d, c4, c4b, c5e, c2b), not the four r1 names. sh-31: t28 is green in this take (see below).
+
+### `run.py --check` and the verdict counts (head 1e62811f, binaries at 05a63377's tree)
+```
+chapter xp: 31 acts, 29 green, 0 inv, 1 known, 1 red, 0 todo, 0 unchecked
+chapter tiling: 28 acts, 28 green, 0 inv, 0 known, 0 red, 0 todo, 0 unchecked
+chapter mc: 22 acts, 22 green, 0 inv, 0 known, 0 red, 0 todo, 0 unchecked
+chapter construct: 18 acts, 0 green, 0 inv, 0 known, 18 red, 0 todo, 0 unchecked
+chapter handover: 11 acts, 11 green, 0 inv, 0 known, 0 red, 0 todo, 0 unchecked
+tour: check: 19 red, 0 broken
+```
+r1 had 23 red: the four tiling acts (t17, t19 ti-30; t21, t28 sh-31) are green on this head (658119d7 key list header 7:1, fa076e7b keycaps 14 px, 60a38634 card text 14 px); the PM may close ti-30 and sh-31 (a take of the same head shows tiling 0 red). 0 unexplained: xp x10 (xp-44); construct 18: I2 14 acts (co-44), I6 chart 11 acts (xp-45), I6 help heads 11 px at c4 (co-45).
+Full take of the head (`TOUR_OUT=... run.py`: 19 red, 0 broken) against the full baseline take of 733967aa (`TOUR_BASELINE=1`: xp 31 red, tiling 28, mc 22, construct stops at `construct.cube.list`, handover BROKE, as designed):
+```
+python3 tests/tour-diff.py <base>/captures <head>/captures --intended demo/tour/intended.toml
+tour-diff: 1 same, 60 change, 38 open, 0 regression, 11 none        (110 captures)
+```
+Per family (acts): xp change 20, open 11; tiling change 25, same 1, open 2; mc change 4, open 18; construct change 11, open 3, none 4; handover open 4, none 7. The 38 open captures: mc 18 (mc-59), xp 11 (more than three causes: x10b x2 x2b x5b x5c x5d x5f x6 x6b x6c x6d), construct 3 (c2, c4, c5e: co-63 open), tiling 2 (t6, t6c), handover 4 (h1..h1d: the mc part is not bisected). **F7 is not met by this count: 38 captures are open, none is hidden**; `tests/tour-diff.py` exits 1 on them. The first full diff of 1e62811f^ showed 4 regressions the rows now name (t6, t6c: the key list renumbered by a611c08a, fa076e7b, which came with the session head; m9b, m10: `added` chat-close nodes; I had dropped those two old rows with the mc block). 16 captures print `not measured (cand red)` (c1..c5e, x10, x10b): the red I6 and I2 of the take that the baseline cannot read.
+Not a finding in `--check` but seen: the mc-only take of the head (`run.py mc`, twice) has act 7 (Escape closes the chat, capture m9b) red: `the chat is shown: ['hud-chat']`; `--check` and the full take of the same head have it green. A timing flake of the 0.2 s settle after 8ba700f5 or 8d0645cc (busy while the regions cross-fade), not bisected: **mc-60 (proposed, MINOR verify, harness or product)**.
+
+### Gate
+`CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` (no --only) on 1e62811f, detached; last 20 lines:
+```
+voice-acp  PASS    11s /tmp/merge-gate.tLezTV/voice-acp.log
+voice-events PASS     1s /tmp/merge-gate.tLezTV/voice-events.log
+agent      PASS    39s /tmp/merge-gate.tLezTV/agent.log
+acts       PASS  1732s /tmp/merge-gate.tLezTV/acts.log
+tiling-keys-more PASS    41s /tmp/merge-gate.tLezTV/tiling-keys-more.log
+tiling-system PASS    11s /tmp/merge-gate.tLezTV/tiling-system.log
+handover   PASS    25s /tmp/merge-gate.tLezTV/handover.log
+mc-scale   PASS    14s /tmp/merge-gate.tLezTV/mc-scale.log
+watchdog-starved PASS    52s /tmp/merge-gate.tLezTV/watchdog-starved.log
+tiling-windows PASS   174s /tmp/merge-gate.tLezTV/tiling-windows.log
+xp-run     PASS    13s /tmp/merge-gate.tLezTV/xp-run.log
+demo       PASS   235s /tmp/merge-gate.tLezTV/demo.log
+leak       PASS   315s /tmp/merge-gate.tLezTV/leak.log
+tiling-theme PASS    18s /tmp/merge-gate.tLezTV/tiling-theme.log
+tiling-disc PASS    72s /tmp/merge-gate.tLezTV/tiling-disc.log
+mc-host    PASS    19s /tmp/merge-gate.tLezTV/mc-host.log
+tiling-bar PASS   135s /tmp/merge-gate.tLezTV/tiling-bar.log
+e2e        PASS   262s /tmp/merge-gate.tLezTV/e2e.log
+all steps passed; no --push, nothing is pushed
+EXIT 0
+```
+No red cell. `pgrep -fa 'chora --headless'` is empty at the end.
+
+### Limits
+- The bisect names a sha only where both sides of it were built (675ebd55, 6fa86c16); the other intervals are commit ranges, so their rows are open, not named. fa7faabd was built once (as an interval boundary), its credit is the controlled take of r1.
+- The five takes ran with other builds and the gate not running; the mc-only head take had one flaky act (above). The row text for 675ebd55 and 6fa86c16 is by interval, a row names a sha for the kind in the act, not for every element.
+- The handover chapter and the other families (xp, tiling, construct) have no controlled take; their rows are as in r1 except for the width rule and the open rows above.
+
+## Review r2 (seeded review of claude/tour-base 645afaf5..1e62811f; rc 11, 1b; 2026-11-24)
+
+Reviewer: sonnet, not the builder. Step 0 green at 1e62811f (the branch tip is 883214b5, a later merge; reviewed at 1e62811f, an ancestor): `git fetch --unshallow`, `cargo check --workspace`, `python3 -m pytest tests/test_tour.py -q` (84 passed), `python3 -I tests/test_tour_diff.py` (62 tests OK). No take, no gate (as briefed).
+
+**Verdict: FIX** (rtb2-1 is an open MAJOR). 4 findings: 1 MAJOR, 3 MINOR, 0 BLOCK.
+
+### Checks
+1. **Red first: OK.** Worktrees at each sha: 457b7ee4 `python3 -I tests/test_tour_diff.py`: `Ran 57 tests ... FAILED (failures=3, errors=1)` (open verdict, F7 count, check name, cand red) and `pytest tests/test_tour.py -q`: `1 failed, 83 passed` (box checks from one constant); 192aebbe: `OK` and `84 passed`. 1bf04706: `Ran 62 tests ... FAILED (failures=4)` (check name, three causes, co-61, xp-43); 8649f08d: `OK`; head: both green.
+2. **rtb-1: mostly OK, one gap (rtb2-1).** `intended.toml` has 369 rows, 79 `open = true`; all 61 rows that cite mc-59 are `open`, none is `change`. The tour-diff code is right: `verdict` returns `open` when any named row of the act is open, `main` exits 1 on `open` and prints the fourth count. Sample of 97 rows citing 675ebd55 or 6fa86c16, 15 read with `git show --stat`: 675ebd55 touches plugins/chora-mc (mc.yaml, main.rs, region.rs, agent.rs, notify slot) and tests/acts/looks, so mc `missing`, `visible` and column `rect` rows (m1, m1c, m2, m2b, m3, m4, m4b, m7, m8, m9b) fit its family; 6fa86c16 touches keys.rs, layout.rs, region.rs, build.rs, so the `rect` rows (m1, m1c, m4, m4b, m7b, m8b) fit. Rows on t7, t10c (added, pixel), x2, x2b (rect) cite 675ebd55 as sh-31 "chora-notify card": the sha touches no tiling or xp file, so the family is by the ledger (sh-31, rv9-4), not by `--stat` (known: rr9-1, family without a controlled take). The bisect table in the report fits the rows (build 1 equals the base, build 2 is the first mover).
+3. **rtb-2..7.** rtb-2 OK: no row cites co-61, 20 rows cite co-63 (the ledger id, construct.md:65). rtb-3 half: `cand_red` is listed and printed (`I6 not measured (cand red)`), but it changes neither the verdict nor the exit code (rtb2-2). rtb-4 OK: `BOX_CHECKS` constant tour.py:141, I6 kept measured where `invariants.reported_texts(after)` is non-empty (test `test_a_baseline_without_boxes_marks_the_box_checks_from_one_constant`); a green reported-run part with a red box part on the candidate stays a flip (the safe side). rtb-5 OK: 14 `check` rows, all with `check = "I2"`, `verdict` absorbs only the named flip (test with I2 and I6). rtb-6 partial (rtb2-3). rtb-7 OK both ways: xp-43 is cited on exactly x10b, x5e, x5g, x7, x8, x9b (the six acts the ledger names), and on each of them.
+4. **Counts: not checkable.** No capture folder or take row is committed on the branch (`git ls-files | grep captures`: only tests/construct-captures.sh), so `tests/tour-diff.py` cannot reproduce "1 same, 60 change, 38 open, 0 regression, 11 none". From the report and the ledger: the 19 red acts of `--check` are x10 (xp-44) and the 18 construct acts; the union of co-44 (14 acts, scene ids in the r2 map), xp-45 (11 acts) and co-45 (c4) is exactly those 18, so each has a findings id. xp-44 and xp-45 are "fixed" in the ledger by f65e7f70 and f1397d98, which are not in the head (`merge-base --is-ancestor` fails), so they stay red on this head as the report says. Note for the count: the 9 rows of rtb2-1 are `change` in the 60, not `open`.
+5. **A path to a later unrelated diff passing: yes, three (rtb2-1, rtb2-2, rtb2-4).**
+
+### Findings
+- **rtb2-1** | MAJOR | demo/tour/intended.toml:1004 (c4 missing), 1080 (c5e visible), 1085 (c5e missing), 1265 (x10b added), 1371, 1387, 1436, 1446, 1451 (x5e, x5g, x7, x8, x9b pixel) | nine rows without `open = true` whose own cause text says the cause is unproven ("cause not found for every element", co-63 "(open)", xp-43 "(proposed) ... cause not found"; the ledger lines xp.md:44 and construct.md:65 are `open`); tour-diff prints `change`, the same partial credit as rtb-1 (owner 11-17), and a later unrelated `missing`, `visible` or `added` diff on c4, c5e, x10b passes | Fix: set `open = true` on these nine rows (or split the unproven unit into its own open row) and make `test_an_open_row_says_what_is_open` two-way: a row whose cause contains "not found", "(open)" or "(proposed)" must carry `open = true`.
+- **rtb2-2** | MINOR | tests/tour-diff.py:189-190 (`cand_red`), :294 | a check that the base marks "not measured" (I2, I5, I6, I9, I12, I13 on 733967aa) and the candidate reads red is only printed: the verdict stays `same` or `change` and the exit code 0, so a new red I9 or I12 on a later head passes tour-diff; only `run.py --check` sees it (16 captures today); rtb-3 asked the gate to read both | Fix: make `cand_red` a flip that only a `check` row naming that check absorbs (else `regression`), so the 14 I2 rows and the red I6 rows are named in the toml.
+- **rtb2-3** | MINOR | tests/test_tour_diff.py:375 (`WIDE_BEFORE_R1`), :415 | the three-cause rule counts "; " units, not causes: 30 grandfathered rows keep 4 to 6 units, and 36 non-open rows have 3 units but 6 shas and ids (c1 added, c2 added, c3 added, c5 added, c5b added ...: `29281054`, a pager unit with 3 shas); rtb-6 asked at most three causes per row | Fix: count the sha and finding tokens of a row, drop the grandfather set (split the rows or set `open = true`), or say in the test that a unit is one cause.
+- **rtb2-4** | MINOR | tests/tour-diff.py:168-171 (`named`) | for a kind with a found row and an open row the found one is taken and the open one is dropped: the act is `change`, the open diff is hidden; none exists in the toml today (21 duplicate (act, kind) pairs, none mixed) | Fix: prefer the open row (or the open flag of any row of the kind), and add a test that a kind with one found and one open row gives `open`.
+
+### Limits
+- No take, no gate; the committed pair of check 4 does not exist, so counts are from the report.
+- Causes by family are read from `git show --stat` and element names (rr9-1, known); 15 of 97 rows sampled, the rest by the pattern of the row text.
+- The scratch scripts were in the scratchpad, not committed.
