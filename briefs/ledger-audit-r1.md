@@ -7,7 +7,7 @@ Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`
 1) Per row: the fix sha it names; is that sha an ancestor of ce866b0d (`git merge-base --is-ancestor`)? The test or gate cell that guards it (file:line or tests/gate-*.sh step); run that test or step once on ce866b0d (cargo test -p <crate> <name>, or the gate script alone) and paste the pass/fail line.
 2) Verdict per row, computed: fix in the head and its guard passes -> "fixed <sha> (guard <cell>, ledger-audit r1)"; no guard -> "open: no guard" (a MAJOR stays open); guard fails -> "open: red <line>"; "not a bug" rows: the deciding line.
 3) No severity changes and no new findings beyond one line each under "## Seen" in the report.
-Gate: none (no code). Before ending: `pgrep -fa 'chora --headless'` empty.
+Gate: none (no code); run each test in the foreground, never end a turn to wait. Before ending: `pgrep -fa 'chora --headless'` empty.
 Done when: one line per row above with sha, ancestor yes/no, guard, pasted pass/fail line and the computed state.
 Report: reports/ledger-audit.md "## r1" on claude/session-log (a table: id, fix sha, in head, guard, line, proposed state); the PM edits findings/. send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 5 lines: count open BLOCK/MAJOR before and after.
 Rules: push claude/session-log only, your report only (fetch and merge on reject, no force); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).
