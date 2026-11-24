@@ -137,8 +137,10 @@ impl Agent {
         self.voice = Some((VOICE.to_owned(), assistant::context_state(name)));
         self.muted = state["muted"]["mic"].as_bool().unwrap_or(false);
         self.machine.seed(&state);
-        let mut commands = self.sync_assistant(Instant::now())?;
+        let now = Instant::now();
+        let mut commands = self.sync_assistant(now)?;
         commands.extend(self.sync_badge()?);
+        commands.extend(self.greeting_follows_helper(now));
         self.apply(commands)?;
         Ok(true)
     }
@@ -209,6 +211,7 @@ impl Agent {
             let mut commands = self.sync_assistant(now)?;
             commands.extend(self.sync_row()?);
             commands.extend(self.sync_task());
+            commands.extend(self.greeting_follows_helper(now));
             return Ok(commands);
         }
         match kind {
@@ -220,6 +223,7 @@ impl Agent {
                 }
                 let mut commands = self.sync_assistant(now)?;
                 commands.extend(self.sync_badge()?);
+                commands.extend(self.greeting_follows_helper(now));
                 Ok(commands)
             }
             Some("say") => {
@@ -240,6 +244,23 @@ impl Agent {
             }
             _ => Ok(Vec::new()),
         }
+    }
+
+    /// The greeting that said "no helper is set up" is said again as the
+    /// plain greeting once the agent or a helper is there, for what is left
+    /// of its time; it never stays to be wrong.
+    fn greeting_follows_helper(&mut self, now: Instant) -> Vec<Command> {
+        if self.voice.is_none() && self.helpers.is_empty() {
+            return Vec::new();
+        }
+        let no_helper = Word::GreetingNoHelper.text(self.language);
+        let until = match &self.said {
+            Some((text, until)) if *until > now && text == no_helper => *until,
+            _ => return Vec::new(),
+        };
+        let text = Word::Greeting.text(self.language);
+        self.said = Some((text.to_owned(), until));
+        self.say(text, until - now, now)
     }
 
     /// Notes the state of a helper for the context; the helpers that the
@@ -311,15 +332,18 @@ impl Agent {
     /// The chat opened or closed. Open, it is the one surface: it takes
     /// in the sentence, the last one when it is the balloon of the figure,
     /// else the one still spoken, and the balloon of the sentence goes.
-    /// Closed, the balloon of the figure shows the last sentence again, and
-    /// another look the sentence that the agent still speaks.
+    /// A sentence whose time is over does not go in: it is not in the
+    /// balloon any more. Closed, the balloon of the figure shows the last
+    /// sentence again, and another look the sentence that the agent still
+    /// speaks.
     pub fn chat_toggled(&mut self, open: bool, now: Instant) -> Vec<Command> {
         let balloon = self.balloon_chat();
         let last = (self.said.as_ref())
             .filter(|(_, until)| balloon || *until > now)
             .map(|(text, _)| text.clone());
         if open {
-            if let Some(text) = &last {
+            let current = (self.said.as_ref()).filter(|(_, until)| *until > now);
+            if let Some((text, _)) = current {
                 self.chat.agent_said(text);
             }
             return self
