@@ -1235,11 +1235,10 @@ fn with_hint_bar(name: &str) -> (Construct, FakeCore, Log) {
     (construct, core, lines)
 }
 
-/// Stood back with a pane beside the cube, the hint bar names the two acts
-/// of a pane: a click on it flies in, and the key that pulls a window out
-/// of a face; a person who sees the pane knows what it takes (co-64).
+/// Stood back with a pane beside the cube, the hint bar names the click
+/// on it that flies in (co-64).
 #[test]
-fn a_pane_beside_the_cube_names_its_click_and_the_pull_key() {
+fn a_pane_beside_the_cube_names_its_click() {
     let (mut construct, core, _lines) = with_hint_bar("pane-acts");
     construct.draw_hints().unwrap();
     let model = core.model();
@@ -1248,9 +1247,48 @@ fn a_pane_beside_the_cube_names_its_click_and_the_pull_key() {
         has(&model, "construct-hint-click-pane"),
         "the hint bar names the click on the pane"
     );
+}
+
+/// The hint bar names `Super Alt 4 Pull out` only where the key acts: it
+/// gives the window with the keyboard to the construct, and the window of
+/// a pane is the construct's already, so with the keyboard in the pane
+/// beside the cube, or in no window at all, the key does nothing and
+/// the hint is not told (co-68).
+#[test]
+fn the_pull_key_is_named_only_where_it_acts() {
+    let (mut construct, core, _lines) = with_hint_bar("pull-named");
+    construct.draw_hints().unwrap();
+    assert!(
+        !has(&core.model(), "construct-hint-pull-out"),
+        "no window to pull: the key is not named"
+    );
+    construct.core_focus = Some("s1".into());
+    construct.draw_hints().unwrap();
+    assert!(
+        !has(&core.model(), "construct-hint-pull-out"),
+        "the keyboard is in the pane, the construct's own window: the key is not named"
+    );
+    construct.core_focus = Some("s7".into());
+    construct.draw_hints().unwrap();
+    let model = core.model();
+    assert!(
+        has(&model, "construct-hint-click-pane"),
+        "the click on the pane stays named"
+    );
     assert!(
         has(&model, "construct-hint-pull-out"),
-        "the hint bar names the pull key"
+        "the keyboard is in a window of a face: the key pulls it out, so it is named"
+    );
+    construct.core_focus = None;
+    construct
+        .cube
+        .as_mut()
+        .unwrap()
+        .note_focus(Some("s7".into()));
+    construct.draw_hints().unwrap();
+    assert!(
+        has(&core.model(), "construct-hint-pull-out"),
+        "the window of a face noted at the step back is pulled out: named"
     );
 }
 
