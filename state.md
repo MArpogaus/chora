@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-24 14:12 UTC)
+## Now (2026-11-24 14:13 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 14:02 PM 4.9 % (11-22) + 5.2 % (11-23) + 4.3 % (11-24), week about 29 % vs 49 % pace
 session branch: d40142e4 (t127b 12:28); 76 greens, series 2/3; t128 red (sleep-ratchet); t129 12:40 co-pull.
@@ -23,8 +23,8 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin); F5 7 rows, no serie
 | Lane | Model, branch | State |
 |---|---|---|
 | co-pull-r2.md (rc 2; co-70, co-71; 1 %) | sonnet high, claude/co-pull-r2 be6e62ec | session_016iS3kQfpC9MnJi7JhzqpHe |
-| rc1-pass-tiling-r1.md (rc 1; independent pass; 1.5 %) | opus high, claude/rc1-pass-tiling d40142e4 | starting |
-| tiling-calm-r2.md (rc 2; t128 red sleep-ratchet 782/779; 0.6 %) | sonnet medium, claude/tiling-calm-r2 e9387fb2 | session_016iS3kNyLMFdcTUGYBG8Fui |
+| rc1-pass-tiling-r1.md (rc 1; 1.5 %) | opus high, claude/rc1-pass-tiling d40142e4 | session_016iS3kM4PtnnwHL12RWmh3X |
+| tiling-calm-r2.md (rc 2; t128 red 782/779; 0.6 %) | sonnet medium, claude/tiling-calm-r2 e9387fb2 | session_016iS3kNyLMFdcTUGYBG8Fui |
 | tour-v9-take-r1.md (F7, rc 1b; 1 %) | sonnet medium, claude/tour-v9-take d40142e4 | session_016iS3kQ7AREXGscKyEdNsv9 |
 | stray-super-r1.md (rc 1; xp-46, mc-60; 1 %) | sonnet high, claude/stray-super-r1 d40142e4 | starting |
 | helper-greet-r1.md (rc 1; xp-47; 0.8 %) | sonnet high, claude/helper-greet-r1 d40142e4 | starting |
