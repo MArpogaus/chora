@@ -174,3 +174,8 @@ Measure: each round logs the settled RSS (after `end_probes`, 0 windows open) an
 Caveats: the per-hour fits assume uniform round time (1008 rounds at 336 per hour). The core settled block means stay 246 to 263 MB; single-round excursions of 40 to 130 MB above the mean do not climb block by block.
 
 Note: a stop hook flags commit `47da935` (and `0e41f658` in r3) as Unverified because the author is Marcel Arpogaus. Kept as the brief requires.
+
+## PM review soak r4 (2026-11-24 00:08 UTC)
+39283655..f0c45fcf, 2 files, +73 -2, test script and RESULTS only (no product code): PM review under 200 lines.
+Checks: per-round settled RSS only at 0 windows (round_rss), peak via VmHWM reset with clear_refs (refusal logged, not silent); 1008 rounds, 0 windows left, 0 deaths, 0 panics; core settled +1.7 %/h, peak -0.7 %/h, both under the 5 %/h bar.
+Findings: none. sh-36 CLOSED. Verdict (computed): MERGE-OK f0c45fcf, joins train123.
