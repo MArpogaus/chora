@@ -16,6 +16,7 @@ mod dress;
 mod keys;
 mod layout;
 mod lifecycle;
+mod looks;
 mod methods;
 mod overlay;
 mod reload;
@@ -210,6 +211,8 @@ struct Tiling {
     voiced: chora_kit::helper::Helper,
     /// When the layout chip leaves.
     chip_until: Option<std::time::Instant>,
+    /// When the hint of an unbound chord showed last.
+    hinted: Option<std::time::Instant>,
     /// The notice of the last failed reload, which the next one dismisses.
     reload_notice: Option<u32>,
     /// The colours of the look, and the scheme they come from.
@@ -306,13 +309,15 @@ fn launch(argv: &[String]) -> ExitCode {
     let line = match theme::launch_line(program, rest, &dirs, theme::written_scheme(&dirs)) {
         Ok(line) => line,
         Err(err) => {
-            eprintln!("chora-tiling: cannot start {program}: {err}");
             tell_launch_error(&err);
-            return ExitCode::FAILURE;
+            return cannot_start(program, &err);
         }
     };
-    if program == "power" || (program == "fuzzel" && rest.is_empty()) {
+    if program == "power" || program == "looks" || (program == "fuzzel" && rest.is_empty()) {
         close_key_list();
+    }
+    if program == "looks" {
+        return launch_looks(&dirs);
     }
     if program == "fuzzel" && rest.is_empty() {
         let flavor = dirs.iter().find(|d| d.join("applications").is_dir());
@@ -340,9 +345,68 @@ fn launch(argv: &[String]) -> ExitCode {
             command.env("XDG_DATA_DIRS", data);
         }
     }
-    let err = command.exec();
+    cannot_start(program, &command.exec())
+}
+
+/// Says on stderr why a program of a launch did not start.
+fn cannot_start(program: &str, err: &dyn std::fmt::Display) -> ExitCode {
     eprintln!("chora-tiling: cannot start {program}: {err}");
     ExitCode::FAILURE
+}
+
+/// `--launch looks`: the menu of the Looks word of the bar. It lists the
+/// other looks that run (the clients of the core) as the rows that move the
+/// focused window there, under the prompt "Move this window to ", or says
+/// that no other look runs; the row that the person chooses runs `give.sh`.
+fn launch_looks(dirs: &[std::path::PathBuf]) -> ExitCode {
+    use std::io::Write as _;
+    use std::os::unix::process::CommandExt as _;
+    let language = chora_kit::words::Language::of_session();
+    let clients =
+        launch_conn().and_then(|mut conn| conn.call::<_, Value>("clients.list", Value::Null));
+    let clients = match clients {
+        Ok(clients) => clients,
+        Err(err) => return cannot_start("looks", &err),
+    };
+    let running = looks::running(&clients);
+    let scheme = theme::written_scheme(dirs);
+    let fuzzel = match theme::launch_line("fuzzel", &[], dirs, scheme) {
+        Ok(line) => line,
+        Err(err) => {
+            tell_launch_error(&err);
+            return ExitCode::FAILURE;
+        }
+    };
+    let spawned = std::process::Command::new(&fuzzel[0])
+        .args(&fuzzel[1..])
+        .args(["--dmenu", "--prompt", looks::prompt(language)])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn();
+    let mut child = match spawned {
+        Ok(child) => child,
+        Err(err) => return cannot_start("fuzzel", &err),
+    };
+    if let Some(mut stdin) = child.stdin.take() {
+        let _ = stdin.write_all(looks::rows(&running, language).join("\n").as_bytes());
+    }
+    let Ok(out) = child.wait_with_output() else {
+        return ExitCode::FAILURE;
+    };
+    let line = String::from_utf8_lossy(&out.stdout);
+    let Some(look) = looks::chosen(&running, language, &line) else {
+        return ExitCode::SUCCESS;
+    };
+    match theme::launch_line("give", &[look.to_owned()], dirs, scheme) {
+        Ok(give) => cannot_start(
+            "give.sh",
+            &std::process::Command::new(&give[0]).args(&give[1..]).exec(),
+        ),
+        Err(err) => {
+            tell_launch_error(&err);
+            ExitCode::FAILURE
+        }
+    }
 }
 
 /// `--apply-theme`: the files of the palette of the configuration.
@@ -410,6 +474,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         open: chora_kit::wm::open::Open::default(),
         voiced: chora_kit::helper::Helper::default(),
         chip_until: None,
+        hinted: None,
         reload_notice: None,
         colors: theme::Colors::of(theme::Scheme::Ink),
         scheme: theme::Scheme::Ink,
@@ -440,6 +505,12 @@ const WALLPAPER_UNIT: &str = "chora-tiling-swaybg.service";
 
 /// How long the layout chip shows.
 const CHIP_TIME: std::time::Duration = std::time::Duration::from_millis(700);
+
+/// How long the hint of an unbound chord shows on the chip.
+const HINT_TIME: std::time::Duration = std::time::Duration::from_secs(3);
+
+/// How long after a hint the next one may show.
+const HINT_AGAIN: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// The time between two frames of the effects, 60 Hz.
 const FRAME: std::time::Duration = std::time::Duration::from_micros(16_667);
@@ -1113,6 +1184,7 @@ impl Tiling {
         };
         match action {
             Action::System(system) => perform(self, &system),
+            Action::Look(Own::Swallow) => self.hint_unbound(binding),
             Action::Look(own) => self.turn(&own),
         }
     }
@@ -1239,6 +1311,7 @@ mod tests {
             open: chora_kit::wm::open::Open::default(),
             voiced: chora_kit::helper::Helper::default(),
             chip_until: None,
+            hinted: None,
             reload_notice: None,
             colors: theme::Colors::of(theme::Scheme::Ink),
             scheme: theme::Scheme::Ink,
@@ -1949,6 +2022,55 @@ mod tests {
             methods.lock().unwrap().len() > before,
             "the move of the person"
         );
+    }
+
+    /// The words of the hint chips that tiling drew so far.
+    fn hints_shown(methods: &Log) -> Vec<String> {
+        let chips = sent_commands(methods).into_iter().map(|c| c.to_string());
+        chips
+            .filter(|c| c.contains("tiling-chip-word") && c.contains("does nothing here"))
+            .collect()
+    }
+
+    /// A tiling with one output and its grabs, as a person starts it.
+    fn tiling_with_grabs(tag: &str) -> (Tiling, Log) {
+        let (mut tiling, methods) = on_fake_core(tag);
+        tiling.grab_all().unwrap();
+        tiling
+            .wm
+            .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
+        tiling.wm.add_window("s1");
+        (tiling, methods)
+    }
+
+    #[test]
+    fn an_unbound_chord_shows_the_hint_on_the_chip_ti_56() {
+        let (mut tiling, methods) = tiling_with_grabs("stray-hint");
+        tiling.act("Super+q").unwrap();
+        let hints = hints_shown(&methods);
+        assert_eq!(hints.len(), 1, "{hints:?}");
+        assert!(
+            hints[0].contains("Super+Q does nothing here. Super+F1 shows all keys."),
+            "{hints:?}"
+        );
+        assert!(tiling.chip_until.is_some(), "the chip has a time to go");
+    }
+
+    #[test]
+    fn a_second_unbound_chord_within_ten_seconds_shows_no_hint_ti_56() {
+        let (mut tiling, methods) = tiling_with_grabs("stray-twice");
+        tiling.act("Super+q").unwrap();
+        tiling.act("Super+x").unwrap();
+        assert_eq!(hints_shown(&methods).len(), 1, "once in ten seconds");
+    }
+
+    #[test]
+    fn an_unbound_chord_shows_no_hint_while_the_key_list_shows_ti_56() {
+        let (mut tiling, methods) = tiling_with_grabs("stray-keys");
+        tiling.toggle_keys().unwrap();
+        assert!(tiling.keys_open());
+        tiling.act("Super+q").unwrap();
+        assert_eq!(hints_shown(&methods), Vec::<String>::new());
     }
 
     #[test]
