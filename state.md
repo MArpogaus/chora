@@ -27,7 +27,7 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin: W9 779 = RC; GUARD-4
 | co-reach-r3.md (rc 1, 2; 2 %) | opus high, claude/co-reach-r3 b2fa7792 | session_016iS3kNvatmG2tDzUZuAFQy 03:32 |
 | xp-title-r1.md (F7; 0.6 %) | sonnet medium, claude/xp-title 05a63377 | session_016iS3kNJs4X9FpcdTqsoc7j 03:32 |
 | tour-base-r2.md (F7, rc 11; 1.2 %) | sonnet high, claude/tour-base 645afaf5 | session_016iS3kQ1y8Tx71ijH6jpEzF 03:35 |
-| flake-series-r8.md (F5, F4; 1.2 %) | sonnet high, claude/flake-series-r7 6f7bcb26 | starting 05:13 |
+| flake-series-r8.md (F5, F4; 1.2 %) | sonnet high, claude/flake-series-r7 6f7bcb26 | session_016iS3kPwWVUYse7EqYxr313 05:12 |
 ## Queue (% week; 5 % reserve)
 1. (rc 1, 2) TRAIN124 green ce866b0d (co-reach-r2); lanes merge ce866b0d; next train: guard-4 (harness) after review.
 2. (rc 1, 2; 2 %) co r9 not met: CO-REACH r3 co-64, co-65 MAJOR, then persona r10; TILING-REACH r1, then persona r7.
