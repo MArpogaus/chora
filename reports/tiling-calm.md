@@ -34,3 +34,31 @@ Script and captures: media/2026-11-24/tiling-calm-r1/ti51/ (ti51.sh, key-list-al
 - A bar click on Keys with the Apps list or power menu open is not handled (the popups hold the keyboard and are layer surfaces; tiling hears nothing of them). The helper opening over a key list closes the list; the key list opening over an open helper panel leaves the panel (not asked; the panel is a side, not a popup).
 - `launch` now makes one `methods.call` (1 s at most) before the launcher or the power menu; with no tiling listening it ends silently and the launcher opens as before.
 - Review hint: the `chora-chat --door` read in `helper_name()` waits at most 2 s on a thread; a hung presenter delays the launcher by that.
+
+## Review r1
+
+Review of claude/tiling-calm r1 (head e9387fb2, base ad0093ba; 12 files, +283 -22) by the build lane review-tiling-calm-r1 (sonnet, high; no merge gate run, the lane gate is all PASS on e9387fb2). Step 0: `git fetch --unshallow`, `cargo check --workspace` ok, `cargo test -p chora-tiling -p chora-kit` ok (kit 328, tiling 197).
+
+**Verdict: MERGE-OK** (0 BLOCK, 0 MAJOR, 5 MINOR, 2 NIT).
+
+### Checks
+1. Red first: built the tree at 4a284cdc (tests of 1f722eb3, 6b526318, 4a284cdc over the code of ad0093ba) and ran each cell, then at e9387fb2.
+   - ti-27: `tests/gate-tiling-power.sh` red: `FAIL: the key list stays open under the power menu (ti-27)`; head: rc 0. `cargo test -p chora-tiling -- an_opening_helper_panel the_method_hide_keys`: both FAILED at the red commit.
+   - ti-50: `tests/gate-tiling-apps.sh` red: `FAIL: no launcher row "Chat with a helper · atlas" ... alpha|Dark look|...|Zebra|Chat with a helper`; head: rc 0 (`ok: the launcher has one helper row, with the name of the helper (ti-50)`).
+   - rtr-1/3: `tests/gate-tiling-one-bar.sh lock` red: `FAIL: lock: waybar inherits the descriptor of panel.lock (9), so a child that outlives it keeps the lock (rtr-1)`; head: both `ok` lines. Every fix has a red before it.
+2. ti-27: `launch` calls `close_key_list` only for `power` and for `fuzzel` with no args (main.rs:311-313; Super+space, Super+r, bar Apps, power icon go through them); `fuzzel --dmenu ...` and every other program leave the list. The helper panel closes it only when it opens with a rect (main.rs:751). Super+slash alone still opens and holds the list (`open_list` in the power cell). Capture 2 and 3 show menu only, then nothing. Focus after close: see rtc1-3.
+3. ti-50: the row is the same `chora-chat` row as Super+a (`helper_named` renames only the row whose last word is `chora-chat`, launcher.rs:117-124); typing atlas or help finds it (capture 6); ASCII choice stated in the doc comment (launcher.rs:111-114). The doors cell regex `^row Chat with a helper( \([^)]+\))?$` (tests/doors/tiling.sh:121) still demands the row and only allows the name: no assert dropped.
+4. rtr-1/3: `9>&-` at waybar.sh:98 (the only `&` line of the script); the else branch prints one line (waybar.sh:46-47). `tools/lint-ratchet`: ok (allow 360); the one `#[allow]` moved from `tell_launch_error` to `launch_conn` (net 0), no `ratchet-raise:` needed.
+5. ti-51: the lane's verdict "check reads hidden rows" is right and a harness fault (rtc1-5), not a product one.
+6. KISS/POLS/look: one new exported method `hide_keys` (documented, listed in methods.rs and its tests), no new mode, setting or look. crates/chora-kit callers: `launcher::run` (chora-mc main.rs:460, chora-xp launch.rs:43) passes `None`, so their lists are unchanged (kit unit tests; xp and mc launcher cells); only chora-tiling passes `helper_last` and the name.
+
+### Findings
+- rtc1-1, MINOR, crates/chora-kit/src/launcher.rs:96-107: `helper_name` runs `chora-chat --door` before every Apps list; a hung presenter delays the list 2 s and the child is left running (the thread is dropped, nobody kills it). Fix: read the door with a deadline that kills the child, or take the name from the bar state that tiling already holds.
+- rtc1-2, MINOR, crates/chora-kit/src/launcher.rs:117-124: the name comes from the door as it is; a helper named with a multibyte character (Zoë) gives a row that, by the lane's own measurement (fuzzel in the C locale), no typed text finds, not even "helper", worse than the plain row. Fix: append the name only when it is ASCII, else keep the plain row; add the case to `the_helper_row_names_the_helper_that_the_door_names`.
+- rtc1-3, MINOR, tests/gate-tiling-power.sh:105-130: the cell has no window, so "no lost focus after the layer closes" is not asserted (hide_keys sends `FocusNode none`). Fix: run one foot first and want it focused after the Escape of each sequence.
+- rtc1-4, MINOR, tests/gate-tiling-apps.sh:76-83: no cell chooses the helper row and sees `chora-chat` start (lane: not clicked end to end). Fix: let the stand-in `chora-chat` write a mark and pick the row with the fake fuzzel's answer.
+- rtc1-5, MINOR (harness, ti-51), tests/acts/invariants.py:565-580: `guide_breaches` measures each text node's rect on the capture with no check that a layer-shell popup covers it, so rows under a fuzzel popup read 1.00:1. Fix: skip a node (and name it) whose rect lies inside a region that differs from the scene render or when a layer surface covers it; no product fix.
+- rtc1-6, NIT, tests/gate-tiling-apps.sh:76: the final `(atlas)` form was never red first (the red cell asked for the middle dot, 6b526318; the form changed with the fix 985c3373). Fix: none needed; say so in the report.
+- rtc1-7, NIT, plugins/chora-tiling/src/main.rs:751: the key list opening over an open helper panel leaves the panel (the lane says so, not asked). Fix: none; keep as a known edge.
+
+Known, not findings: ti-47, ti-48, sh-39, sh-40, co-*, xp-*.

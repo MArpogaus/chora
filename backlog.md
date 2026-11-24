@@ -400,6 +400,7 @@ DB21 | 11-22 | later | gate-tiling-motion.sh: restore the deep (focused) vs ligh
 - MH-1, MH-2 (MINOR, mc-helper review r1): mc-host check rewrites without a product sha; no mouse doors while the chat is open. Next mc round.
 - XH-1 (MINOR, xp-helper review r2): gate-xp-helper.sh xp29-none bare sleep 1 before the click. Next xp round (with FLK-CHAT-IDLE).
 - H-RF (harness): red-first per finding id: each fix commit naming an id needs an earlier test commit naming the same id in the range.
+- H-RF2 (harness, critic 11-24): red-first per fix commit: each fix(...) commit needs a test commit before it in the range that is red on that parent; 689bff45 (tiling-reach) passed H-RF and the review.
 - TF-1 (MINOR, tiling-fix review r1): tiling-scripts-selftest.sh:95 clock selftest skips silently without PIL or Inter; print a skip line. Next tiling round.
 - TI-27B (MINOR, tiling, core): one Escape leaves the key list under a cancelled power menu; tiling gets no layer-focus event from the core. Needs a core event; after the RC unless a review raises it.
 - FLK-HANG (flake, F5, t110e 11-23 00:12): crates/chora/src/hang.rs:346 `start.elapsed() >= 9 * S` red once (test passed in t110d on the same head 40a2ba92). Cause (PM read): the 9 s Timer is created before `start = Instant::now()`, so a timer that fires on time ends the loop a few microseconds before 9 s from start. Fix: take start before inserting the sources, or assert against the timer's own deadline. Lane flk-hang r1.
