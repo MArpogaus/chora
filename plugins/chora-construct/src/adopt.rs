@@ -306,12 +306,13 @@ impl Construct {
 
     /// Asks the window that the person sees focused to close, as a close
     /// button does (co-75): in a face of the cube the window of the face
-    /// with the keyboard, else the pane with the focus ring (`focus`). A
-    /// window out of view never closes, so in a face no pane does, and
-    /// with no window focused nothing does. A pane goes when its window
+    /// with the keyboard, else the pane with the focus ring (`focus`); a
+    /// pane flown into always closes. A window out of view never closes,
+    /// so in a face no pane does, and with no window focused nothing does. A pane goes when its window
     /// does; a plugin pane goes at once.
     pub(crate) fn close_focused(&mut self) -> Result<(), ClientError> {
-        let in_face = (self.cube.as_ref()).is_some_and(|c| c.view().mode() == Mode::Use);
+        let in_face =
+            !self.in_pane() && (self.cube.as_ref()).is_some_and(|c| c.view().mode() == Mode::Use);
         if in_face {
             let Some(surface) = (self.core_focus.clone())
                 .filter(|s| !(self.panes.iter()).any(|p| p.window() == Some(s)))
