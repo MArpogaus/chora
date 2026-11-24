@@ -24,7 +24,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 |---|---|---|
 | tour-base-r6.md (F7; rtb5-1 MAJOR; 1 %) | sonnet high, claude/tour-base-r6 61d0ef7a | session_016iS3kNhSNkSHNMgkjDGCwZ |
 | stray-super-r3.md (rc 1; rss-7 MAJOR; 1.5 %) | opus high, claude/stray-super-r3 1eb30643 | session_016iS3kQeFgVrTUeBWbwLj1s |
-| flake-series-r9.md (rc 3, F5; 5/5; 0.6 %) | haiku high, claude/flake-series-r9 c3c37c2e | starting |
+| flake-series-r9.md (rc 3, F5; 5/5; 0.6 %) | haiku high, claude/flake-series-r9 c3c37c2e | session_016iS3kL6R9aghhfvTsKiyJx |
 | tiling-doors-r1.md (rc 2; ti-55, ti-56, ti-50; 1 %) | sonnet high, claude/tiling-doors-r1 b02dbea9 | session_016iS3kLja4YEVy42LaEmr7i |
 | co-repro-r1.md (rc 2; co-77, co-78 5x; 0.4 %) | haiku high, claude/co-repro-r1 280b9dcf | session_016iS3kPjhLSuijoa2h3Uxsv |
 | co-close-r1.md (rc 1; co-75 BLOCK, co-76 MAJOR; 1.5 %) | opus high, claude/co-close-r1 280b9dcf | session_016iS3kN4bp8VEeTupxTZ58i |
