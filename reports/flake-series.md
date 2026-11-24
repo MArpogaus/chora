@@ -236,3 +236,50 @@ Note on the stalls: the two stalled reruns (2 and 3) each started right after an
 ### Verdict
 
 F5 "no flaky gate" is **not met**: 0 of 5 full runs green (runs 1, 2, 3, 4b, 5 red; run 4 void). The red steps are `acts` (run 1) and `keys` (runs 2, 3, 4b, 5, always the Foot-row line). The `acts` reruns are red once and stalled twice; the `keys` reruns were not run. Next: a separate look at the Foot-row `keys` failure, and at the stall of the `acts` rerun with the leftover chora-voice and chora-assistant processes. F17 stays open.
+
+## r7
+
+Brief: flake-series-r7 (F5, rc 3: sh-34, the stray-process stall, xp-42; red test first). Lane: cloud, branch claude/flake-series-r7 from 1ec04694, head 6f7bcb26 (8 commits, all pushed). Step 0 tools present (cargo, sccache, foot, fuzzel 1.11.1 in ~/.local/bin, python3, ffmpeg); `cargo check --workspace` green.
+
+### sh-34 (keys: "the Foot row of Programs started no foot")
+
+- Cause (environment, reproduced): fuzzel 1.9.2 ignores clicks on a row (mc-47). This container has two fuzzel: ~/.local/bin/fuzzel 1.11.1 first on PATH (cell 10/10 green alone, also 6 runs under 12 busy loops) and /usr/bin/fuzzel 1.9.2. With 1.9.2 first on PATH the cell fails with the exact line after 30 s. That the lane containers lack the 1.11.1 is inferred from the mc-tidy evidence, not checked there.
+- Red fecb1f14 (gate-lib-selftest: the keys cell on a fuzzel 1.9.2 stub must end in `SKIP: fuzzel 1.9.2 < 1.11`; red). Fix 516789eb: `need_fuzzel 1.11` in tests/gate-construct-keys-persona.sh and `keys` in the tool_minimums row of merge-gate.sh (same change as claude/guard-3 has; identical text).
+- Environment line for the lane containers: put a fuzzel >= 1.11 first on PATH (here ~/.local/bin/fuzzel 1.11.1 over /usr/bin/fuzzel 1.9.2); without it keys and launcher-click are SKIP.
+- Result: cell 10/10 green on 1.11.1 after the fix; SKIP with the version on 1.9.2.
+
+### Stall (leftover chora-voice and chora-assistant)
+
+- Cause: acts' harness starts chora-voice and chora-assistant each in a session of its own (start_new_session), so the stop of the process group of a step does not reach them when run.py ends without its cleanup; the same for any program a gate script leaves. The next run refuses or stalls (r6 run 4, reruns).
+- Red 7d2ca087: merge-gate-selftest cases (a step that leaves a chora process is FAIL and names it; an interrupted gate leaves none). Fix b31fbae5: merge-gate.sh tags each step with CHORA_GATE_RUN (gate pid) and CHORA_GATE_STEP; when a step ends, live chora* processes with that tag (also after setsid; zombies excluded; 3 s settle) make the step FAIL, are listed in its log and ended; the stop of a red or interrupted gate ends those of the whole run. Only processes that carry this gate's tag are signalled, never by name alone. Seen live: gates that I interrupted left no live chora process.
+- The check found three more real leaks in earlier gates of this round, each red first (`merge-gate.sh --only build,STEP`) and fixed: cube (the xp of the cube outlives its core by ~30 s; 0c185eab), agent (chora-tiling; 96fe4109), tiling-bar (chora-notify under setsid + dbus-run-session; gate_cleanup now also signals the group of each run_pid; 99e431cb). Those gate attempts went red on this round's own new check and are not counted below.
+- 6f7bcb26: merge-gate-selftest ran its inner gates beside the leak cases of gate-lib-selftest; an inner gate refuses to start while any `chora --headless` lives, so "a gate script inside the gate does not wait for the lock" went red in 4 of 4 gate-lib steps after 99e431cb (green before). With MERGE_GATE_NESTED=1 on the inner gates the step passed 3 of 3. Why it was green before is not found; the refusal by the parallel compositors is the likely cause, not proven.
+- `pgrep -a chora` after a gate still lists [defunct] chora-voice, chora-assistant, chora-probe, chora-notify: zombies reparented to PID 1 of this container, which does not reap. Live (non-zombie) chora processes after each of the 3 gates: 0.
+
+### xp-42 (opens-under-pointer)
+
+- Not reproduced: 20/20 under 12 busy loops, 40/40 under 24, and 11 plain runs green; so there is no red commit for this item. A forced delay (SIGSTOP of the pane host) did not delay the entry.
+- The log shows xp takes the output of a new window from the last `pointer.entered` it heard (xp-wall-VIRTUAL-N, injected). Fix 05a23dca: the cell subscribes to the events, waits for that entry on the wall of the target output, asks xp once (ordered after the entry on its socket) and only then starts foot; it moves the pointer away and back if the entry does not come in 1 s. No timeout raised. Cell 20/20 green after the fix. That this was the cause of the two xp-42 hits is not proven.
+
+### Gate (`tests/merge-gate.sh --jobs 2`, full, no --only, on 6f7bcb26)
+
+| run | exit | red step | minutes |
+|---|---|---|---|
+| 1 | 0 | none | 86 |
+| 2 | 1 | leak: `FAIL: the RSS of the core grows 1613 kB per round (bound 1024)` | 75 |
+| 3 | 0 | none | 81 |
+
+2 of 3 green. The red is a flake outside this brief: the RSS slope of the leak step is -1199 kB/round in run 1 and +1613 in run 2 (fds flat), so the 1024 kB bound sits inside the noise of this container. Not rerun, not ignored, not marked known-red; it needs a finding (sh-33 area) and a look at the slope estimator. No FAIL from xp-faces or keys in the 3 runs; no step left a chora process.
+
+### Verdict
+
+sh-34: environment, closed with a SKIP guard (cell 10/10 here). Stall: fixed by the stray check in merge-gate (it found and fixed 3 more real leaks). xp-42: a synchronisation fix, no reproduction. F5 stays open on the RSS bound of the leak step (1 of 3 gates red).
+
+## PM review r7 (05:12 UTC, 6f7bcb26 vs base 1ec04694; 146 lines, PM not the builder)
+| id | sev | where | finding |
+|---|---|---|---|
+| rfs7-1 | MAJOR | tests/gate-xp-faces.sh, tests/merge-gate.sh | F4 W9 breach: merged onto ce866b0d the audit count (`grep -h -E '(^|[^a-z_])sleep ' tests/*.sh \| wc -l`) is 787 vs RC value 779 (+8: new `sleep 0.1`/`0.3` in pointer_lands_on, stray_pids waits, and the merge). guard-4 freezes 779, so this would turn F4 red. |
+| rfs7-2 | MAJOR | 05a23dca | xp-42 fix with no red commit before it (not reproduced in 71 runs). The brief allowed a forced delay as the red; none was made. Cause unproven. |
+| rfs7-3 | MINOR | 6f7bcb26 | selftest race fix with no red commit; small, test-only. |
+| ok | - | 7d2ca087 -> b31fbae5, fecb1f14 -> 516789eb | stray check and sh-34 SKIP: red then fix, by env tag not by name; 3 real leaks fixed (cube xp, agent chora-tiling, tiling-bar notify). |
+Gate: 2/3 green; gate 2 red on leak RSS slope (+1613 vs 1024): new finding sh-38. Verdict (computed): FIX (2 MAJOR). Earliest gate for rfs7-1: the sleep ratchet of guard-4 (not merged yet); for rfs7-2: red-first step checks only that a test commit exists, not that it fails before (backlog item exists: rg4 reds were missing-command reds).
