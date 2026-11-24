@@ -1,0 +1,29 @@
+# rc1-pass tiling: log and stand-in excerpts (scratch paths shortened to <p1>, <p2>, <p3>)
+
+## p1 fake/calls.log (no get-volume, is-system-running)
+fuzzel --config /tmp/chora-hl.MqbDt8/chora-tiling/theme/fuzzel.ini --dmenu
+fuzzel-first-row Dark look
+loginctl lock-session
+fuzzel --config /tmp/chora-hl.MqbDt8/chora-tiling/theme/fuzzel.ini --dmenu --prompt Power   --lines 5 --width 20
+fuzzel-first-row Lock
+swaylock -C /tmp/chora-hl.MqbDt8/chora-tiling/theme/swaylock.conf -f
+fuzzel --config /tmp/chora-hl.MqbDt8/chora-tiling/theme/fuzzel.ini --dmenu --prompt Power   --lines 5 --width 20
+fuzzel-first-row Lock
+systemctl poweroff
+wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+
+wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+
+## p1 chora.log, lines of chora-tiling
+chora-tiling: p1/config/chora/chora-tiling.yaml: simple key expected ':' at line 24, column 3
+chora-tiling: p1/config/chora/chora-tiling.yaml: unknown variant, expected one of `focus_next`, `focus_previous`, `focus_back`, `focus_urgent`, `swap_next`, `swap_previous`, `move_to_master`, `toggle_floating`, `toggle_fullscreen`, `toggle_maximized`, `toggle_maximized_horizontal`, `toggle_maximized_vertical`, `toggle_on_top`, `minimize`, `restore_minimized`, `inc_master_width`, `inc_masters`, `inc_columns`, `next_layout`, `previous_layout`, `focus_next_output`, `focus_previous_output`, `move_to_next_output`, `view_tag`, `toggle_tag_view`, `move_to_tag`, `toggle_window_tag`, `view_next`, `view_previous`, `view_back`, `reload`
+
+## p2 fake/calls.log (no get-volume, is-system-running)
+
+## p2 chora.log, lines of chora-tiling
+chora-tiling: p2/config/chora/chora-tiling.yaml: simple key expected ':' at line 24, column 3
+
+## p3 fake/calls.log (no get-volume, is-system-running)
+
+## p3 chora.log, lines of chora-tiling
+chora-tiling: give to xp: command 0: "xp" holds no claim; only a window manager receives a window

@@ -191,3 +191,143 @@ the chapter; the persona mc shows atlas idle and "Listening").
 - Two MAJOR in xp and one in mc are new at this pass; the tour and the gates did not see them (no act
   presses an unbound Super chord over a window; the first `voice.state` of a chapter is what makes rpx1-2).
 - Context used about 160 k; no `chora --headless` left.
+
+## r1 tiling
+
+Lane rc1-pass-tiling, opus high, cloud, head d40142e4 (claude/rc1-pass-tiling). Run and read only, no product change.
+Step 0 green: `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`, `run.py --help`
+(it has no help: it ran the chapters, as in r1 xp, mc; not a failure).
+
+Runs, each from a fresh compositor:
+- tour1: `TOUR_OUT=<scratch>/tour1 python3 demo/tour/run.py tiling`: 28 acts, 28 green, 0 red (t9 green, ti-29 holds).
+- tour2: `run.py handover`: 11 acts, 11 green, 0 red.
+- persona (`CHORA_TEST_FLAGS=--test-injected-press-is-real tests/persona/session.sh tiling WxH`, then
+  `tests/persona/act.py`): p1 (1280x800), p2 (1280x720, with `choractl run -- chora-notify`, so a notice could
+  show), p3 (1280x720, with chora-notify). Host calls go to the stand-ins (`calls.log`); no host power call.
+
+Captures: `media/rc1-pass/tiling-*` on claude/session-log (35 PNG and `tiling-36-logs.txt`, 4.7 MB in all, each
+under 600 KB). claude/rc1-pass-tiling refuses `media/` (hook `no-session-files`; no --no-verify), so they sit
+beside this report as in r1 xp, mc. A name below without folder is `media/rc1-pass/tiling-<name>`.
+
+### Verdict
+
+- **tiling: does not confirm: rpt1-1, rpt1-2** (two MAJOR, each reproduced twice from a fresh compositor).
+
+### tiling: shared RC bar and main paths
+
+| Item | Result | Capture |
+|---|---|---|
+| Start a program (mouse) | pass with rpt1-5, rpt1-6: Apps, then a click on Foot starts a terminal that takes the focus | 09, 10 |
+| Start a program (keys) | pass: Super+Return (themed foot); Apps by Super+r/Super+Space (tour t8) | 02, 32 |
+| Key list (mouse) | pass with rpt1-3: Keys in the bar opens it, with a Mouse line | 07 |
+| Key list (keys) | pass with rpt1-3: Super+F1 and Super+/ (tour t6), Escape gives the keys back to foot | 04, 06, 31 |
+| Helper (mouse) | **rpt1-1 MAJOR**: the bar word opens the chat, but the keys stay in the window | 11, 12, 13 |
+| Helper (keys) | pass: Super+a opens the chat beside the tiles, the text reaches the helper | 14, 15 |
+| No stray keys into clients | pass: 20 unbound chords (Super+x q z d g b e w y i p c v F5 period, Super+Alt+9, Super+Shift+x, Super+Ctrl+x, Super+Delete, Super+BackSpace) between `|` in foot: `start:||||...|:end`, no letter; tour t2 probe heard no key | 03 |
+| Lock | pass with rpt1-10: power icon > Lock runs `swaylock -C <palette> -f` (stand-in window "Screen locked"); Super+Shift+Escape runs `loginctl lock-session` | 17, 18, 16, 36-logs |
+| Power | pass: power icon > Shut down runs `systemctl poweroff` (stand-in); Escape leaves the menu | 17, 19 |
+| Volume | pass: wheel on "Volume 50%" gives 55 % (`wpctl set-volume 5%+`), a click shows "Muted" and a second unmutes | 20, 21 |
+| Screenshot | pass with rpt1-4: Super+Print and power > Screenshot, notice "Screenshot saved" with the path (the date in the name is the tour's fixed clock stand-in, launch.py:75) | 22, 23 |
+| Clock | pass: "Tue 24 Nov 14:22" centred in its island | 01 |
+| Honest failure states | **rpt1-2 MAJOR**; rpt1-7, rpt1-8; pass: Apps "frobnicate" says Nothing found (ti-49) | 25, 26, 28, 29, 30, 32 |
+| Handover to and from tiling | pass: xp > tiling by Send To, typed line on tiling, tiling > mc by Super+Alt+3, all lines kept (the chapter starts tiling without bar and wallpaper on purpose: its checker exempts them) | 33, 34, 35 |
+| Power user (keys): shell, layouts, master, tags, float, Super+drag, key list, chat, Escape | pass with rpt1-3, rpt1-9 (tour 28 green; gaps 12 outer and 12 inner from the border, as docs/configuration.md:248) | 02, 04, 14, 15, 31 |
+| Ricer: Super+s, live edit, new key | pass: Super+s opens the yaml in vi in themed foot; `gap_inner: 40` then Super+Ctrl+r applies at once; a new `MOD+x: {run: ...}` shows in the key list | 24, 27, 08 |
+| Ricer: a broken line | **rpt1-2 MAJOR**: silent; rpt1-8 (missing program, silent); not stranded: the old settings and every key keep working | 25, 26, 28, 30 |
+| Beginner, mouse only, no key known | pass for Apps, Keys, power, volume; **rpt1-1** for the helper; rpt1-5, rpt1-6 on the way | 09, 10, 07, 17, 20, 11 |
+| Style (tiling-v2) | rpt1-3, rpt1-4, rpt1-5, rpt1-9; bar, tags, chip, gaps, radius and focus glow as designed | 01, 02 |
+
+### Findings
+
+| id | severity | text |
+|---|---|---|
+| rpt1-1 | MAJOR | a click on the bar's helper word opens the chat without the keyboard: the typed message goes into the focused window, Return runs it in a shell |
+| rpt1-2 | MAJOR | Super+Ctrl+r with a broken line in chora-tiling.yaml fails silently: no notice, no word; the reason only on stderr |
+| rpt1-3 | MINOR | key list at 1280x720: the last rows run past the panel, its bottom border crosses the text |
+| rpt1-4 | MINOR | notices in tiling are chora-notify's neutral light card (fill 250, border 140, system sans) on the Ink desktop |
+| rpt1-5 | MINOR | Apps > Foot starts an unthemed foot: about 10 px text 2 px from the border, grey ground; Super+Return starts the themed one |
+| rpt1-6 | MINOR | Apps preselects "Dark look": Apps then Enter changes the theme; setting and give rows sit among the programs |
+| rpt1-7 | MINOR | Super+Alt+2..4 to a look that is not running: the window stays, nothing says why (the Apps row of the same act does say) |
+| rpt1-8 | MINOR | a binding `{run: PROGRAM}` whose program is missing does nothing and says nothing, not even on stderr |
+| rpt1-9 | COSMETIC | while the chat field has the keys, the tile keeps the focus glow ("exactly one thing glows: the window that has the keys") |
+| rpt1-10 | MINOR | Super+Shift+Escape runs `loginctl lock-session`, which locks only while swayidle (an optdepend) listens; without it the key does nothing and says nothing |
+
+**rpt1-1 (MAJOR; bar: the helper by mouse; P11, tiling.md "Super+a or a click on the segment opens the panel ... the
+field has the keyboard").** With foot focused, a click on "atlas · idle" in the bar opens the chat panel beside the
+tiles, but the field has no caret; typing goes into foot and Return runs it: `hello there` gave `bash: hello: command
+not found` (11), `echo LEAKED-R2` printed LEAKED-R2 (12). A beginner who clicks the helper, types a question and presses
+Enter runs it as a command in a shell. Workaround: click into the field (13) or use Super+a (14, same session, works).
+Cause (read): the module's `on-click` is `choractl run -- chora-chat` (flavors/tiling/waybar/config.jsonc:118), a new
+connection; `activation.token` is stamped with the act only for a connection that received it
+(crates/chora/src/ipc.rs:996-1011), so the chat gets a token without the act and may not take the keyboard. The doors
+cell (tests/doors/tiling.sh:128-140) checks only that the chat opens. Repro: fresh `session.sh tiling 1280x720`;
+`key Super+Return`, wait 3 s, `click 932 24`, wait 2 s, `type "echo LEAKED"`, `key Return`, `look`. R1 p1 (11),
+R2 p2 (12).
+
+**rpt1-2 (MAJOR; bar: honest failure states; main path of the ricer, tiling.md "see errors at once").** Insert the
+line `  gap_inner 20` (no colon) under `radius:` in `$XDG_CONFIG_HOME/chora/chora-tiling.yaml`, press Super+Ctrl+r:
+nothing changes on screen and nothing says why (25); with chora-notify running, `notify state.get` lists `shown: []`
+(26). A wrong action name (`MOD+Shift+c: closee`) is the same (28). The reason goes to stderr only ("simple key
+expected ':' at line 24, column 3", "unknown variant, expected one of ...", 36-logs). Not stranded: the old settings
+and keys stay in force (28: gap 40 of the edit before still on, Super+Return works). Cause (read):
+plugins/chora-tiling/src/main.rs:1097-1100 (`eprintln!` only); at start the same file gives the defaults with a line on
+stderr (crates/chora-kit/src/settings.rs:134-135; read, not run). Repro: fresh session, Super+s once (writes the file)
+or `chora-tiling --print-config > FILE`, break a line, Super+Ctrl+r, `look`. R1 p1 (25, 28), R2 p2 (26).
+
+**rpt1-3 (MINOR).** At 1280x720 the key list has rows past its panel: "Super+Shift+S  Screenshot of an area" sits on the
+bottom border, the keycap reaches 4 px below it (04, zoom 05, tour t6; p2 06); with one more binding the right column
+grows and "All keys" sits on the border (p3 08). At 1280x800 it fits (07). review-checklist 2: no text touches an edge.
+Likely cause: the group "Other desktops" (ti-48, in d40142e4) adds two rows; related ti-9 (verify), rtd-5.
+
+**rpt1-4 (MINOR).** The screenshot notice is a white card (250,250,250) with a grey border and dark sans text over the
+Ink desktop (22, 23); review-checklist 8: no light panel on dark; tiling-v2 build step 10 wants chora-notify in the
+flavor. flavors/tiling/chora-tiling-notify.service:7 runs `/usr/bin/chora-notify` with no `--assets`, so the neutral
+folder (plugins/chora-notify/assets/values.yaml) draws it. It is also a third face beside Inter and JetBrains Mono
+(ti-18).
+
+**rpt1-5 (MINOR).** Apps > Foot (fresh p1, 09 then 10): the new foot has foot's own defaults: line pitch 13 px (about
+10 px text, under 12), a grey (35,35,35) ground and text 2 px from the border; the foot of Super+Return beside it has
+the flavor's 14 px face, padding and Ink ground. The `.desktop` entry runs `foot` without the flavor's foot.ini; only
+`chora-tiling --launch foot` passes it. The mouse door gives the beginner the worse terminal.
+
+**rpt1-6 (MINOR).** Apps lists settings and acts among programs, sorted: the first and preselected row is "Dark look"
+(09; calls.log `fuzzel-first-row Dark look`), then Edit settings, Foot, Foot Client, Foot Server, ImageMagick ...;
+"Light look" and "Move window to the construct desktop" follow. Apps then Enter changes the theme, not a program
+(POLS; ti-2 fixed the same with Screenshot). Raw rows: ti-25.
+
+**rpt1-7 (MINOR).** In a tiling-only session (the default) Super+Alt+2 leaves the window where it is (not lost) and
+shows nothing (29; notify `shown: []`); stderr only: `give to xp: command 0: "xp" holds no claim`
+(plugins/chora-tiling/src/main.rs:567-573). The key list heads the key with "Other desktops: xp, media center,
+construct" (08). flavors/tiling/give.sh, the Apps row, sends "Window not moved" with the reason.
+
+**rpt1-8 (MINOR).** `MOD+x: {run: firefoxx}` loads (the key list shows "Super+X  Run firefoxx", 08); Super+x then
+does nothing, with no notice and no line in the log (30, 36-logs). A ricer's typo in a program name cannot be found.
+
+**rpt1-9 (COSMETIC).** After Super+a the chat field has the keys, and the left foot still carries the focused
+border and glow (14); tiling-v2 philosophy: light means the window that has the keys.
+
+**rpt1-10 (MINOR; read plus the call).** Super+Shift+Escape runs `loginctl lock-session` (16, 36-logs). It locks only
+when swayidle runs (flavors/tiling/chora-tiling-swayidle.service, `ConditionPathExists=/usr/bin/swayidle`), and
+swayidle is an optdepend (dist/arch/PKGBUILD); without it the key the key list calls "Lock the screen" does nothing and
+says nothing. The power menu's Lock runs swaylock directly (18). The doors cell `lock-key` accepts the loginctl call as
+a pass (tests/doors/tiling.sh:149-152). Not run against a real logind (no host call).
+
+### Known ids seen again (not new)
+
+sh-13 (bar "atlas · idle" lower case in the persona, "Atlas · idle" in the tour; a "Listening" pill and dot float at
+the bottom right over the tile while the bar says idle, 03, 10; tiling.md "No dot at the bottom right"), ti-9 ("Window
+that asks"), ti-25 (floated window half off the output after Super+drag, 22; raw launcher rows Foot Client, Foot
+Server, ImageMagick, 09), ti-28 (Super+q: nothing and no sign, 03), ti-49 (Nothing found only after Return, 32),
+ti-50 (no helper row in Apps; in flight). Look fixed on d40142e4: ti-14 (the key list has a Mouse line, 07), ti-8 (a
+new window takes the focus, 10), ti-13 (bar says "Connected", the volume word works, 20).
+
+### Notes for the PM
+
+- rpt1-1 and rpt1-2 are new at this pass; no gate or act types after a click on the helper word, or reloads a broken
+  file.
+- ti-31's text says the inner gap of 10 holds; code, docs/configuration.md:248 and gate-tiling-gaps.sh say 12, and 12
+  is what shows (02); tiling-v2 still says 10. A ledger line to rewrite.
+- Tour act t2 ("Super+d and two more Super chords") presses Super+m, which is bound (maximize), so the probe fills the
+  output in still 02-02d-stray.
+- A `chora-notify` started with `choractl run` in a persona session outlived `session.sh --stop` by about a minute.
+- Context used about 175 k; no `chora --headless` left.
