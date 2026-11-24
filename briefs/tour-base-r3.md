@@ -1,0 +1,14 @@
+# tour-base r3 (F7, rc 11, 1b): no unproven row passes as `change` (rtb2-1 MAJOR, rtb2-2..4 MINOR)
+
+Model: sonnet, effort high (harness verdict logic and red-first test design over tour-diff and intended.toml)
+Lane: cloud, branch claude/tour-base at 883214b5 (r2 1e62811f plus the session head). One area: demo/tour, tests/tour-diff.py, tests/test_tour*.py; no product code. Stop at 200 k. Cost at most 0.8 %.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, `python3 -m pytest tests/test_tour.py -q`, `python3 -I tests/test_tour_diff.py`. A failure: send_message the PM "tour-base-r3 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Read on claude/session-log: reports/tour-base.md "## Review r2" (rtb2-1..4, each with its fix line); design/tour-v9.md.
+1) Red commit first (one commit, tests only, message cites rtb2-1..4 only): (a) every row whose cause says "cause not found", "(open)" or "(proposed)", or cites a findings id whose ledger state is open, has `open = true` (two-way: test_an_open_row_says_what_is_open fails on the 9 rows of rtb2-1); (b) a check the base marks "not measured" and the candidate reads red is a `regression` unless a `check` row names that check (rtb2-2); (c) the three-cause rule counts sha and finding tokens, no grandfather set (rtb2-3); (d) a kind with one found and one open row gives `open` (rtb2-4). Paste the failing lines.
+2) Fix commit(s): the 9 rows get `open = true`; rows over three causes are split or get `open = true`; tour-diff makes (b) and (d) pass. KISS: no new verdict, no new field.
+3) `python3 demo/tour/run.py --check`: paste the summary (r2: 19 red) and the tour-diff counts per verdict; open acts are the honest F7 rest, do not hide them.
+4) Full gate: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` (no --only), detached: `setsid nohup bash -c '(tests/merge-gate.sh --jobs 2 > /tmp/gate.log 2>&1; echo EXIT $? >> /tmp/gate.log)' >/dev/null 2>&1 </dev/null &`, poll in the same turn; paste the last 20 lines. A red cell you did not cause: name it with its log line. Before ending: `pgrep -fa 'chora --headless'` empty.
+Never end a turn to wait; poll any long command in the same turn.
+Done when: red then fix shas with pasted lines for (a)..(d); --check and verdict counts; full gate green or its foreign reds named.
+Report: reports/tour-base.md "## r3" on claude/session-log; send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 6 lines with the head sha.
+Rules: push claude/tour-base and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).
