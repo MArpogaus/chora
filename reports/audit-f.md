@@ -538,8 +538,8 @@ Flake half. Closed on P since r5 (fix is an ancestor of P): sh-32 (eb831349, led
 chora-voice/chora-assistant after a red or interrupted gate, fs r6; r7 running); sh-37 MINOR (gate-mc-scale 9316 ms > 5000 under lane
 load, no owner); named, not reproduced: FLK-HUD2, FLK-TA1, FLK-XP-HW, FLK-LAUNCHER. Watch rows unchanged (FLK-CUBE-OPEN, FW-RW, FLAKE-H).
 Bar (r4, unchanged): 5 of 5 full `tests/merge-gate.sh --jobs 2` in a row on the final head, no rerun, keys and launcher-click PASS or named
-SKIP. Series: none since r6 (0/5 on 230ea0e5, before GUARD-3). Trains since r5: 4 green (t117b, t121, t122 and t115 before), 2 red on
-flakes (t117 xp-42, t118 sh-35) of 7. **F5: open.** Gap: r7 (xp-42, stall), sh-37 (slice 1), then a 5/5 series on the final head
+SKIP. Series: none since r6 (0/5 on 230ea0e5, before GUARD-3). Trains 116-122: 3 green (t117b, t121, t122), 4 red: 2 on flakes
+(t117 xp-42, t118 sh-35), 2 on product (t116 rtd-2, t119 rtd-6). **F5: open.** Gap: r7 (xp-42, stall), sh-37 (slice 1), then a 5/5 series on the final head
 (slice 2). PM ledger: mark sh-34, sh-35, mc-58 fixed with the shas above, and the ~20 FLK rows of r5 section 3.
 
 ### 4. F7
