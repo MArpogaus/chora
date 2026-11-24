@@ -64,3 +64,15 @@ Checks:
 - `bash tests/gate-mc-scale.sh` idle, twice (debug build): run 1 calls 2851 / 1247 / 2392 / 512 / 1559 / 176 ms, run 2 2810 / 1323 / 2505 / 458 / 1307 / 356 ms; all bounds 5000.
 - Beside `cargo build --workspace` (separate target dir, load average 3.9): 2847 / 1662 / 2414 / 520 / 1764 / 136 ms, all bounds 5000, pass (the calls slowed too little to need more).
 - Full gate `tests/merge-gate.sh --jobs 2` on 284ce9a5: all steps passed, rc 0, no reds, none foreign.
+
+## PM review r2 (06:27 UTC, ce866b0d..284ce9a5, own diff 4 commits, about 190 lines of harness; PM is not the builder)
+
+- rg4-1: load_scaled_limit 5000*now/(2*best), floor 5000; selftest 69/44 -> 5000 and a 5.5 s call fails; red c9e2e851 (4 FAIL) before 9b9e0c00. OK.
+- rg4-2: cap 9000, selftest 4000/100 -> 9000. OK.
+- rg4-3: --update fails above the list, selftest "update does not raise"; red c99befaf before 284ce9a5. OK.
+- rg4-4: size and sleep list cases in ratchet-raise-selftest; additive, pass at once (the hook already covered them). OK.
+- rg4-5: sleep-all 930 (subdirectories, time.sleep), sleep stays 779; both in ci-check (merge-gate.sh:255). OK.
+- f6554f13: the merge of soak-r4 05a63377, part of the session head. OK.
+- rg4r2-1 | MINOR | tests/gate-mc-scale.sh | the scaling never raised a bound in a real run (beside cargo, load 3.9: all 5000); only the selftest shows it. Fix: flake-series series under load names one scaled bound.
+- rg4r2-2 | MINOR | tests/gate-lib.sh cap 9000 | the sh-37 case (9316 ms) still fails by design; F5 watches it.
+- Gate EXIT 0 on 284ce9a5. Verdict (computed): 0 MAJOR -> MERGE-OK; harness, own train126 after train125.
