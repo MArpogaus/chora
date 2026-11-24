@@ -1119,7 +1119,7 @@ mod tests {
         assert_eq!(
             names,
             [
-                "Other looks",
+                "Other desktops",
                 "Windows",
                 "Layouts",
                 "Tags",
@@ -1128,7 +1128,7 @@ mod tests {
             ]
         );
         let first = |g: usize| groups[g].1[0].1.clone();
-        assert_eq!(first(0), "Give window to a look");
+        assert_eq!(first(0), "Move window to the xp desktop");
         assert_eq!(first(1), "Move focus");
         assert_eq!(first(2), "Next layout");
         assert_eq!(first(3), "Show tag 1-9");
@@ -1167,16 +1167,25 @@ mod tests {
     #[test]
     fn the_give_keys_have_a_group_of_their_own_above_the_windows() {
         let groups = groups();
-        assert_eq!(groups[0].0, "Other looks");
+        assert_eq!(groups[0].0, "Other desktops");
+        let expected = [
+            ("Super+Alt+2", "Move window to the xp desktop"),
+            ("Super+Alt+3", "Move window to the media center desktop"),
+            ("Super+Alt+4", "Move window to the construct desktop"),
+        ];
         assert_eq!(
             groups[0].1,
-            [(
-                "Super+Alt+1-4".to_owned(),
-                "Give window to a look".to_owned()
-            )]
+            expected.map(|(keys, words)| (keys.to_owned(), words.to_owned()))
         );
         let de = rows(&parse::<Config>(DEFAULT).unwrap(), Language::De);
-        assert_eq!(de[0].0, "Andere Fenstermanager");
+        assert_eq!(de[0].0, "Andere Desktops");
+        assert_eq!(
+            de[0].1[0],
+            (
+                "Super+Alt+2".to_owned(),
+                "Fenster auf den xp-Desktop verschieben".to_owned()
+            )
+        );
     }
 
     #[test]
@@ -1191,7 +1200,7 @@ mod tests {
                 })
                 .unwrap_or_else(|| panic!("no heading {words}"))
         };
-        assert!(top("Other looks") < 100.0, "{}", top("Other looks"));
+        assert!(top("Other desktops") < 100.0, "{}", top("Other desktops"));
         assert!(top("Windows") < 160.0, "{}", top("Windows"));
     }
 

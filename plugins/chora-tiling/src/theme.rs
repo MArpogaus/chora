@@ -1066,6 +1066,46 @@ mod tests {
     }
 
     #[test]
+    fn a_launcher_row_per_other_desktop_moves_the_window_in_the_words_of_the_key_list() {
+        let flavors = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors");
+        let apps = flavors.join("tiling/applications");
+        for (to, en, de) in [
+            (
+                "xp",
+                "Move window to the xp desktop",
+                "Fenster auf den xp-Desktop verschieben",
+            ),
+            (
+                "mc",
+                "Move window to the media center desktop",
+                "Fenster auf den Mediencenter-Desktop verschieben",
+            ),
+            (
+                "construct",
+                "Move window to the construct desktop",
+                "Fenster auf den Construct-Desktop verschieben",
+            ),
+        ] {
+            let entry = std::fs::read_to_string(apps.join(format!("chora-give-{to}.desktop")))
+                .unwrap_or_else(|e| panic!("no launcher row for {to}: {e}"));
+            assert!(entry.contains(&format!("\nName={en}\n")), "{to}: {entry}");
+            assert!(
+                entry.contains(&format!("\nName[de]={de}\n")),
+                "{to}: {entry}"
+            );
+            assert!(
+                entry.contains(&format!("\nExec=chora-tiling --launch give {to}\n")),
+                "{to}: {entry}"
+            );
+        }
+        assert!(!apps.join("chora-give-tiling.desktop").exists());
+        let dirs = [flavors.join("tiling")];
+        let line = launch_line("give", &["xp".into()], &dirs, Scheme::Ink).unwrap();
+        assert!(line[1].ends_with("flavors/tiling/give.sh"), "{line:?}");
+        assert_eq!(line[2], "xp");
+    }
+
+    #[test]
     fn the_settings_door_is_a_script_and_an_entry_of_the_flavor() {
         let flavors = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors");
         let dirs = [flavors.join("tiling")];
