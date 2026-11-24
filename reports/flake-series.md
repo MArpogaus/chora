@@ -274,3 +274,12 @@ Brief: flake-series-r7 (F5, rc 3: sh-34, the stray-process stall, xp-42; red tes
 ### Verdict
 
 sh-34: environment, closed with a SKIP guard (cell 10/10 here). Stall: fixed by the stray check in merge-gate (it found and fixed 3 more real leaks). xp-42: a synchronisation fix, no reproduction. F5 stays open on the RSS bound of the leak step (1 of 3 gates red).
+
+## PM review r7 (05:12 UTC, 6f7bcb26 vs base 1ec04694; 146 lines, PM not the builder)
+| id | sev | where | finding |
+|---|---|---|---|
+| rfs7-1 | MAJOR | tests/gate-xp-faces.sh, tests/merge-gate.sh | F4 W9 breach: merged onto ce866b0d the audit count (`grep -h -E '(^|[^a-z_])sleep ' tests/*.sh \| wc -l`) is 787 vs RC value 779 (+8: new `sleep 0.1`/`0.3` in pointer_lands_on, stray_pids waits, and the merge). guard-4 freezes 779, so this would turn F4 red. |
+| rfs7-2 | MAJOR | 05a23dca | xp-42 fix with no red commit before it (not reproduced in 71 runs). The brief allowed a forced delay as the red; none was made. Cause unproven. |
+| rfs7-3 | MINOR | 6f7bcb26 | selftest race fix with no red commit; small, test-only. |
+| ok | - | 7d2ca087 -> b31fbae5, fecb1f14 -> 516789eb | stray check and sh-34 SKIP: red then fix, by env tag not by name; 3 real leaks fixed (cube xp, agent chora-tiling, tiling-bar notify). |
+Gate: 2/3 green; gate 2 red on leak RSS slope (+1613 vs 1024): new finding sh-38. Verdict (computed): FIX (2 MAJOR). Earliest gate for rfs7-1: the sleep ratchet of guard-4 (not merged yet); for rfs7-2: red-first step checks only that a test commit exists, not that it fails before (backlog item exists: rg4 reds were missing-command reds).
