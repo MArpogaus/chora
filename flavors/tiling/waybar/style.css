@@ -51,6 +51,7 @@ tooltip label {
 }
 
 #custom-apps,
+#custom-looks,
 #custom-layout,
 #custom-keys,
 #custom-helper,
@@ -115,6 +116,7 @@ tooltip label {
 }
 
 #custom-apps:hover,
+#custom-looks:hover,
 #custom-layout:hover,
 #custom-keys:hover,
 #custom-helper:hover,

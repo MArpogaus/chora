@@ -48,7 +48,7 @@ until_ok bar_shows 80 ||
 
 bar_y=24
 apps_x=55
-looks_x=110
+looks_x=116
 helper_x=929
 clock_x=640
 volume_x=1018
