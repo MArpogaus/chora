@@ -25,7 +25,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 | tour-base-r7.md (F7; rtb6-1 MAJOR; 1 %) | sonnet high, claude/tour-base-r7 9311e155 | session_016iS3kLs22zFkCsvrRdypFa |
 | train133 (rc 1, 2; stray-super r3 73c6b19c, tiling-doors r1 b1ba6743) | PM, 84f66d43 | gate re-run 22:48 (2nd container restart) |
 | flake-series-r9.md (rc 3, F5; 5/5; 0.6 %) | haiku high, claude/flake-series-r9 c3c37c2e | session_016iS3kL6R9aghhfvTsKiyJx |
-| co-reach-r1.md (rc 1, 2; co-79 MAJOR; 1.2 %) | opus high, claude/co-reach-r1 fbdcd6e2 | starting |
+| co-reach-r1.md (rc 1, 2; co-79 MAJOR; 1.2 %) | opus high, claude/co-reach-r1 fbdcd6e2 | session_016iS3kLNYWe7A8GuMJ46b8V |
 ## Queue (% week; 5 % reserve)
 1. (rc 1, 2) TRAIN132 green c3c37c2e (ti-52, ti-53, co-70, co-71). TRAIN133 84f66d43 (stray-super r3, tiling-doors r1) running.
 2. (rc 1, 2) construct: CO-CLOSE r2 MERGE-OK (train134); CO-REACH r1 co-79 running; co-77, co-78 MINOR after. sh-42: SH42-FIX r1 b92de049 MERGE-OK (rsf1-1..3 MINOR), train134 after t133.
