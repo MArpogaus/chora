@@ -126,3 +126,106 @@ Findings:
 - rss-4, MINOR, crates/chora-kit/src/runtime.rs:378, a swallow beside a look that already holds the chords logs one `grabbed already` line per chord (about 200 per start of mc after tiling or the construct, of xp beside tiling), new for mc and xp; fix: `grab_swallowed` takes a refusal quietly (chora-kit only, no core change).
 - rss-5, MINOR, docs/decisions.md:167, D118 names the manager of a face or pane; swallow by xp on a screen of its own from its first window and by mc as a full look is a new rule without a decision row; fix: amend D118 with the rule and its join cost once rss-1/rss-2 settle it.
 - rss-6, NIT, tests/gate-xp-notepad.sh:70, `menu_visible && fail` checks once right after the text arrived, while xp opens Start on its own handling of the release, so a late open passes; fix: poll a short while (`until_ok` on the menu staying closed for a few rounds) or check after a settle.
+
+## r2
+
+Lane stray-super-r2 (opus, high, cloud), branch `claude/stray-super-r2` from e1183766, head `1eb30643`.
+Fixes rss-1, rss-2 (MAJOR), rss-3, rss-4, rss-6, rss-5 (doc); xp-46 and mc-60 stay fixed. No core change.
+
+### Commits
+
+| sha | what |
+|---|---|
+| 429ce20f | red: gate-join-keys cells `xp-window` and `mc-first` (each also types Super+x/k/m/q into the xp or mc client and wants `start::end`); chora-kit swallow unit tests for the yield, the retry and the quiet refusal |
+| d88dee68 | fix: the kit swallow yields to a joining window manager and comes back when it went; a refused grab is asked again on `input.ungrabbed` (D117); a refused swallow logs nothing; tiling and mc subscribe to `input.ungrabbed` |
+| 160b62fd | fix: revert of e1183766 (xp "from the first window", the `Chords` state of rss-3): the rule makes it needless, xp swallows from its start |
+| 47aad40d | test: gate-xp-notepad polls that Start stays closed (`until_ok menu_visible 4 && fail`, rss-6); xp-window opens its second tile with Super+Return of tiling |
+| 4455b2a3 | docs: D118 amended with the rule and its cost (rss-5) |
+| 6a8bd3b9 | fix: `grab_swallowed` loops over no chord instead of an early return (gate run 1 red at ci-check, `tests/grab-gap-check.py`) |
+| 1eb30643 | fix: the swallow grabs its chords in one batch, `call_all` (gate run 2 red at xp-notepad, see below) |
+
+### The rule (kit only, `crates/chora-kit/src/swallow.rs`, `runtime.rs`)
+
+- `runtime::dispatch` hands `client.connected`, `client.disconnected` and `input.ungrabbed` to `Runtime::swallow_event`
+  (the existing events; no new core message). A window manager of `give::KEYS` (tiling, xp, mc, construct) that
+  connects after the look: the look lets its swallow set go in one batch and swallows nothing while one is there
+  (`grab_swallowed` records the wish only). When the last one went, the look swallows again.
+- Every refused grab waits (`waiting`) and is asked again when the core says the binding is free (`input.ungrabbed`):
+  so a joiner whose grab met the swallow before the swallow let go still gets the chord. A refused bound chord stays
+  bound: the look's own swallow skips it (found by the mc-first cell: tiling's Super+4 went to its own swallow).
+- So the last look that joined holds the unbound chords; the joiner gets every chord it binds that no other look
+  binds (first grab wins for bound chords, as before). xp, mc, tiling and the construct share the code.
+- `Plugin::Action` gets a `Clone` bound (every action already was).
+
+### Red (429ce20f, on e1183766 binaries)
+
+```
+FAIL: xp-window: Super+h of tiling does nothing beside xp: the rects stay [[14.0,54.0,618.0,702.0],[648.0,54.0,618.0,702.0]]
+xp-window: tiling refused 233 grabs
+FAIL: mc-first: Super+2 of tiling does nothing beside mc: [{"output":"HEADLESS-2","shown":[1]}]
+mc-first: tiling refused 232 grabs
+swallow::tests::a_swallow_yields_to_a_window_manager_that_joins_and_comes_back_when_it_goes:
+  rss-2: the swallow of xp holds Super+q against tiling, which joined
+swallow::tests::a_refused_grab_is_asked_again_when_the_core_lets_it_go:
+  rss-1: Super+1 of tiling stays dead after the swallow of mc let it go
+swallow::tests::a_refused_swallow_logs_nothing:
+  rss-4: chora-mc: Super+q: held by another client (code 1)
+```
+
+Both cells type `start::end` already at red: the stray part holds on r1, the join part does not.
+
+### Review repros rerun (gate-join-keys logs, head)
+
+- mc-first (mc `--manage-windows --output A`, tiling joins on B): tiling `grabbed already` 19 lines (base 23, r1 232),
+  only chords mc binds (Super+F1, Super+a, Super+space, Super+n, the media keys, the give keys ...). Super+1..8 act.
+- xp-window (xp with a foot, tiling joins): 15 lines (r1 233), only chords xp binds (Super+F1, Alt+Tab, ...);
+  Super+Return, Super+h, Shift+Super+1 of tiling act after xp gave the foot. xp and mc logs: 0 refusals.
+
+### r1 hand repros rerun (head)
+
+Fresh `CHORA_TEST_FLAGS=--test-injected-press-is-real tests/persona/session.sh`, `act.py`; a foot with
+`stty raw -echo; cat >FILE` is the focused client.
+- xp 1280x800 (Super, click Notepad, then the foot): `type start:`, Super+x, `|`, Super+k, `|`, Super+m, Super+q,
+  `:end`. File `start:||:end`; Start menu `visible: false`; then Super alone opens it (`true`).
+- mc 1280x720, the foot a page, `key Return`, the same plus Super+Shift+x: `start:||:end`.
+
+### Gate
+
+Run 3 at 1eb30643: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2`, EXIT 0, 65 PASS (`matrix` 285 s with
+gate-join-keys, `xp-notepad` 51 s, `mc-paths` 120 s). Last lines:
+
+```
+tiling-windows PASS   150s
+xp-run     PASS    11s
+demo       PASS   194s
+leak       PASS   309s
+tiling-theme PASS    18s
+tiling-disc PASS   70s
+tiling-bar PASS   155s
+mc-host    PASS    18s
+e2e        PASS   265s
+all steps passed; no --push, nothing is pushed
+EXIT 0
+```
+
+Earlier runs, both mine: run 1 at 4455b2a3 red at `ci-check`
+(`swallow.rs:300: grab_swallowed skips its grab on a branch`), fixed by 6a8bd3b9; run 2 at 6a8bd3b9 red at
+`xp-notepad` (`FAIL: the start button opens no start menu`): xp now swallows from its start, and about 200 grabs, one
+round trip each, sat between its scene and its `events.subscribe`, so the first click came while xp did not listen;
+1eb30643 grabs them in one batch (green also with `TILING_LOAD=1`).
+`tools/sleep-ratchet`: `ok: sleep-ratchet (sleep 779, sleep-all 930)`. `pgrep -fa 'chora --headless'`: empty.
+
+### Found on the way (not fixed, outside the lane)
+
+- When tiling joins, the focused window of xp or of mc loses the keyboard: no surface is focused
+  (`ctl query '*'` shows none focused; xp state says holder xp; mc holder null) and in mc neither a click nor
+  Return on the page gives it back. Seen on e1183766 binaries with waybar stubbed out, so not the bar; not checked on
+  base. Against D119 ("the keyboard stays where the person is"). The cells work around it: xp-window clicks the foot,
+  mc-first opens the page after tiling joined. Worth a finding (tiling or core).
+
+### Cost
+
+A join costs the earlier look one batch of about 200 `input.ungrab` and every subscriber of `input.ungrabbed` as
+many events; while two looks run the unbound chords belong to the one that joined last. tiling and mc subscribe to
+`input.ungrabbed` (one line each in `plugins/chora-tiling` and `plugins/chora-mc`, outside the listed key paths of
+tiling, needed for the joiner's retry).
