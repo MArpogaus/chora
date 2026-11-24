@@ -24,13 +24,13 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin); F5 7 rows, no serie
 |---|---|---|
 | review-flake-series-r8.md (F5; 0.5 %) | opus medium, d2c2174c | session_016iS3kQhGkPs6wBQKttHSum |
 | tiling-flake-r3.md (sh-39, sh-40; 1 %) | sonnet high, claude/tiling-flake-r3 4e257c06 | session_016iS3kPxH8AyTt14UBrf3hi |
-| xp-38-r2.md (rc 3) | MERGE-OK 31b5a11d (PM review), next train | handed back 13:09 |
+| p2-r11-co.md (rc 1, 2; C2 reach; 0.8 %) | sonnet medium, claude/p2-r11-co be6e62ec | starting |
 | tour-base-r4.md (F7; rtb3-1; 0.5 %) | sonnet medium, claude/tour-base-r4 d40142e4 | session_016iS3kNJtZ94HWpr1njZs7F |
 | tiling-calm-r2.md (rc 2; t128 red sleep-ratchet 782/779; 0.6 %) | sonnet medium, claude/tiling-calm-r2 e9387fb2 | session_016iS3kNyLMFdcTUGYBG8Fui |
 | tour-v9-take-r1.md (F7, rc 1b; 1 %) | sonnet medium, claude/tour-v9-take d40142e4 | session_016iS3kQ7AREXGscKyEdNsv9 |
 ## Queue (% week; 5 % reserve)
 0. (rc 8) VERIFY-MINOR r2: 12 of 14 closed (xp-14, xp-15, xp-17 fixed d40142e4); xp-34 known; xp-18 verify.
-1. (F4, F5, rc 1) t128 red 12:36: sleep-ratchet 782/779 -> TILING-CALM r2; TRAIN129 co-pull be6e62ec 12:40; then tiling persona r8.
+1. (F4, F5, rc 1, 3) TRAIN129 co-pull 12:40; next train: XP-38 r2 31b5a11d MERGE-OK, flake-series r8, tiling-calm r2; then tiling persona r8.
 2. (rc 1, 2) CO-PULL be6e62ec MERGE-OK (co-68) in train129; then persona r11 on construct (C2 reach).
 3. (rc 3, 9; F5) FLAKE-SERIES r8 (rfs7-1, rfs7-2; sh-38 leak slope); TILING-FLAKE r3 (sh-39, sh-40).
 4. (F7, rc 11) TOUR-BASE r3 merged d40142e4 (rtb3-1 MINOR open); TOUR-V9 take lane.
