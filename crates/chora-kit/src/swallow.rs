@@ -353,6 +353,84 @@ mod tests {
         assert_eq!(look.rt.action("Super+d"), Some(&"desktop"));
     }
 
+    /// The event of a window manager that says whether it swallows, as
+    /// the core hands it on.
+    fn swallows(name: &str, on: bool) -> Event {
+        Event::Emitted {
+            event: format!("{name}.swallow"),
+            client: name.into(),
+            data: json!({"on": on}),
+        }
+    }
+
+    /// A window manager that joins and swallows nothing, as the construct
+    /// with `--overlay` or without a window in a pane, leaves the swallow
+    /// with the look (rss-7): only a joiner that says that it swallows
+    /// takes it, and when it stops the look swallows again (D118).
+    #[test]
+    fn a_joiner_that_swallows_nothing_leaves_the_swallow_with_the_look() {
+        let core = FakeCore::start();
+        let mut look = Look {
+            rt: core.runtime("tiling"),
+        };
+        look.rt.grab_swallowed("Super", &"swallow").unwrap();
+        dispatch(&mut look, joined("construct")).unwrap();
+        assert_eq!(
+            look.rt.action("Super+q"),
+            Some(&"swallow"),
+            "rss-7: tiling lets its swallow go to the construct, which swallows nothing"
+        );
+        dispatch(&mut look, swallows("construct", true)).unwrap();
+        assert_eq!(
+            look.rt.action("Super+q"),
+            None,
+            "the construct swallows for a window in a pane"
+        );
+        dispatch(&mut look, swallows("construct", false)).unwrap();
+        assert_eq!(
+            look.rt.action("Super+q"),
+            Some(&"swallow"),
+            "the construct stopped swallowing, tiling swallows again"
+        );
+    }
+
+    /// A look whose swallow came first does not yield to the swallow of
+    /// a look that came before it: else each yields to the other and
+    /// nobody swallows.
+    #[test]
+    fn the_swallow_of_an_earlier_look_takes_nothing() {
+        let core = FakeCore::start();
+        let mut look = Look {
+            rt: core.runtime("tiling"),
+        };
+        look.rt.grab_swallowed("Super", &"swallow").unwrap();
+        dispatch(&mut look, swallows("xp", true)).unwrap();
+        assert_eq!(look.rt.action("Super+q"), Some(&"swallow"));
+    }
+
+    /// A plugin says through the core whether it swallows, once when it
+    /// starts and once when it stops (D118), so that a look that came
+    /// earlier lets the swallow go to it and takes it back.
+    #[test]
+    fn a_swallow_says_when_it_starts_and_when_it_stops() {
+        let core = FakeCore::start();
+        let mut rt = core.runtime::<&str>("construct");
+        rt.start_grabs();
+        rt.grab_swallowed("Super", &"swallow").unwrap();
+        rt.end_grabs().unwrap();
+        rt.start_grabs();
+        rt.grab_swallowed("Super", &"swallow").unwrap();
+        rt.end_grabs().unwrap();
+        rt.start_grabs();
+        rt.end_grabs().unwrap();
+        let emits = core.model().lock().unwrap().emits.clone();
+        let said: Vec<_> = (emits.iter())
+            .filter(|e| e["event"] == "construct.swallow")
+            .map(|e| e["data"]["on"].clone())
+            .collect();
+        assert_eq!(said, [json!(true), json!(false)], "{emits:?}");
+    }
+
     /// The window manager that joins asks again for a chord that it was
     /// refused, once the core tells that it is free (D117): the swallow of
     /// the other look let it go after the refusal (rss-1). Its own swallow

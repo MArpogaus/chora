@@ -19,6 +19,11 @@
 #                 the second, then such a foot is a window page of mc:
 #                 Super+x, k, m and q type nothing into the foot (mc-60),
 #                 and Super+1 to Super+8 of tiling act (rss-1)
+#   tiling-overlay tiling starts and such a foot is its tile; the construct
+#                 joins with --overlay, which swallows nothing: Super+x, k,
+#                 m and q still type nothing into the foot, and Super+Return
+#                 and Super+h of tiling act (rss-7: only a joiner that
+#                 swallows takes the swallow, D118)
 #
 # In xp-window the join of tiling leaves no surface focused (stray-super
 # r2, found on the way), so a click on the foot gives it the keyboard again.
@@ -36,7 +41,7 @@ set -uo pipefail
 . "$(dirname "$0")/gate-lib.sh"
 need jq
 need foot
-need_bins chora choractl chora-tiling chora-xp chora-mc
+need_bins chora choractl chora-tiling chora-xp chora-mc chora-construct
 temp_config
 for look in tiling xp mc; do
     printf 'test_accept_injected_keys: true\n' >"$XDG_CONFIG_HOME/chora-$look.yaml"
@@ -211,8 +216,31 @@ cell_mc_first() {
     end_session
 }
 
+cell_tiling_overlay() {
+    local name=tiling-overlay before
+    CHORA_TEST_FLAGS=--test-injected-press-is-real env_file=$shots/$name.env session_start 1280x800
+    grant input.inject methods.call
+    start_look tiling "$name"
+    stray_start "$name" tiling
+    until_ok stray_focused 40 || fail "$name: the typing foot does not hold the keyboard"
+    "$bin/chora-construct" --overlay >"$shots/$name-construct.log" 2>&1 &
+    pids+=($!)
+    until_ok "ctl state construct >/dev/null 2>&1" 80 || fail "$name: the construct does not answer state.get: $(tail -n 3 "$shots/$name-construct.log")"
+    ctl state tiling >/dev/null || fail "$name: tiling does not answer after the construct joined"
+    until_ok stray_focused 40 || fail "$name: the typing foot lost the keyboard to the construct"
+    no_stray "$name" tiling
+    key Super+Return
+    until_ok "ctl state tiling | jq -e '[.windows[] | select(.shown)] | length == 2' >/dev/null" 80 || fail "$name: Super+Return of tiling opened no second tile beside the construct: $(ctl state tiling | jq -c .windows)"
+    before=$(tiling_rects)
+    key Super+h
+    until_ok '[ "$(tiling_rects)" != "$before" ]' 40 || fail "$name: Super+h of tiling does nothing beside the construct: the rects stay $before"
+    ok "$name: Super+Return and Super+h of tiling act beside the construct --overlay"
+    end_session
+}
+
 cell tiling xp
 cell xp tiling
 cell_xp_window
 cell_mc_first
+cell_tiling_overlay
 ok "gate-join-keys: a joining look leaves the keyboard with the look that holds it (${SECONDS}s)"
