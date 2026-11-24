@@ -23,7 +23,7 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin: W9 779 = RC; GUARD-4
 | Lane | Model, branch | State |
 |---|---|---|
 | tiling-reach-r1.md (rc 1, 2; 1 %) | sonnet high, claude/tiling-reach | session_016iS3kMq4yU2VPBXarSuEkP 01:52 |
-| co-reach-r4.md (rc 1, 2; co-67; 1 %) | sonnet high, claude/co-reach-r4 909bc57b | starting |
+| co-reach-r4.md (rc 1, 2; co-67; 1 %) | sonnet high, claude/co-reach-r4 909bc57b | session_016iS3kQqSPtSAjLg9NseHmk 06:31 |
 | notify-body-r1.md (F7, sh-31 maybe stale; 0.5 %) | sonnet medium, claude/notify-body ce866b0d | session_016iS3kLDJQDi23rF5JppHqP 06:08 |
 | tour-base-r2.md (F7, rc 11; 1.2 %) | sonnet high, claude/tour-base 645afaf5 | session_016iS3kQ1y8Tx71ijH6jpEzF 03:35 |
 | flake-series-r8.md (F5, F4; 1.2 %) | sonnet high, claude/flake-series-r7 6f7bcb26 | session_016iS3kPwWVUYse7EqYxr313 05:12 |
