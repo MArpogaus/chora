@@ -44,9 +44,14 @@ rtb4-1 | MINOR (F7) | PM review r4 of tour-base d0801b7e (reports/tour-base.md "
 rv9j-4 | MINOR (F7, tour) | tour-v9-judge r1 (reports/tour-v9-judge.md, 6ae0d041) | open; TOUR-BASE r5 | handover.py:96 starts chora-tiling --no-companions with no bar or wallpaper: black stills in the handover acts | handover-LR.jpg
 rv9j-5 | MINOR (F7 tooling) | tour-v9-judge r1 (reports/tour-v9-judge.md, 6ae0d041) | open; TOUR-BASE r5 | intended.toml rows match per act and kind: wrong causes (29281054, fc9675ac, 11e34cf8, 94579f91, d9b2c4f1), missing 62708d35, d78fc4bb, 86343e3f, 6d336bdf, f1397d98; open cannot reach 0 | tour-diff-judge.txt
 sh-42 | MAJOR (rc 1; handover, D119) | stray-super r2 lane, reports/stray-super.md "## r2" Found on the way (e1183766 binaries, waybar stubbed) | open (confirmed 5/5 xp, 5/5 mc, control 0/3; reports/sh42-repro.md r2); SH42-FIX r1 | when tiling joins beside xp or mc, the focused window loses the keyboard (no surface focused; xp holder xp, mc holder null); in mc neither a click nor Return gives it back
-rtb5-1 | MAJOR (F7) | review tour-base r5 (reports/tour-base.md "## Review r5") | open; r6 9311e155, review r6 | added (35), pixel (32) and x12c visible rows have no nodes or boxes, so they absorb any later unrelated diff; 13 acts moved to change rest on them
-rtb5-2 | MINOR (F7) | review tour-base r5 | open; r6 9311e155, review r6 | pixel rows cite judge x7.jpg for 30 acts the judge did not see
-rtb5-3 | MINOR (F7) | review tour-base r5 | open; r6 9311e155, review r6 | handover.py:106 companion start unchecked; the test reads command lines only
+rtb5-1 | MAJOR (F7) | review tour-base r5 (reports/tour-base.md "## Review r5") | r6 9311e155 (review r6: closed; rtb6-* follow) | added (35), pixel (32) and x12c visible rows have no nodes or boxes, so they absorb any later unrelated diff; 13 acts moved to change rest on them
+rtb5-2 | MINOR (F7) | review tour-base r5 | r6 9311e155 (review r6: closed; rtb6-* follow) | pixel rows cite judge x7.jpg for 30 acts the judge did not see
+rtb5-3 | MINOR (F7) | review tour-base r5 | r6 9311e155 (review r6: closed; rtb6-* follow) | handover.py:106 companion start unchecked; the test reads command lines only
 rss-11 | MINOR | review stray-super r3 (reports/stray-super.md "## Review r3") | open | construct with a cube binds Super keys but never says swallow on; beside an earlier tiling its keys race xp's swallow (plausible, not reproduced)
 rss-12 | MINOR | review stray-super r3 | open | say_swallow sets said before the emit; a say the core drops (32 emits/s) is never sent again
 rss-13 | MINOR | review stray-super r3 | open | about 75 "grabbed already" log lines per join in tiling; one line would do
+rtb6-1 | MAJOR (F7) | review tour-base r6 (reports/tour-base.md "## Review r6") | open; TOUR-BASE r7 | bare missing (30) and rect (11) rows still absorb any unrelated node; m1, m1c, m4, m4b change rests on them
+rtb6-2 | MINOR (F7) | review tour-base r6 | open | Notepad-frame pixel boxes cover the whole frame
+rtb6-3 | MINOR (F7) | review tour-base r6 | open | handover alive check scans all of /proc, not this session
+rtb6-4 | MINOR (F7) | review tour-base r6 | open; TOUR-BASE r7 | m1 row omits rv9j-2
+rtb6-5 | MINOR (F7) | review tour-base r6 | open; TOUR-BASE r7 | xp-desktop rows cite no capture; no r6 tour-diff output committed
