@@ -322,6 +322,9 @@ pub struct Wm {
     pointer_output: Option<String>,
     /// The bindings of the cube that are grabbed.
     cube_keys: CubeKeys,
+    /// Whether the unbound Super chords are swallowed on a screen of its
+    /// own: from the first window of xp.
+    chords: Chords,
     /// The client that hosts the faces of a cube on the outputs, and the
     /// one that went, until it lists the same faces again.
     host: Option<Host>,
@@ -832,16 +835,29 @@ fn of_the_cube(action: &KeyAction) -> bool {
     )
 }
 
+/// What xp does with the Super chords that it binds no action for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Chords {
+    /// Leaves them free for a look that joins, as long as xp has no
+    /// window.
+    Free,
+    /// Swallows them: no window gets them (xp-46).
+    Swallowed,
+}
+
 /// Grabs the bindings of the settings with those of the cube that `cube`
 /// names; a binding of the cube that another client holds falls back to
-/// its stand-in. Xp is the window manager of its screen or face, so it
-/// swallows the Super chords that it binds no action for: no window gets
-/// them (xp-46).
+/// its stand-in. Xp swallows the Super chords that it binds no action for,
+/// so that no window gets them (xp-46): on a face of a cube always, on a
+/// screen of its own once it holds a window (`chords`).
+/// Before, the chords stay free for a look that joins, whose keys would
+/// lose to a grab of xp (the first grab of a chord wins).
 #[allow(clippy::expect_used, reason = "the settings check their bindings")]
 fn grab_keys(
     rt: &mut Runtime<KeyAction>,
     bindings: &BTreeMap<String, KeyAction>,
     cube: CubeKeys,
+    chords: Chords,
 ) -> Result<(), ClientError> {
     let held = |action: &KeyAction| {
         !matches!(cube, CubeKeys::Flat | CubeKeys::Hosted) || !of_the_cube(action)
@@ -854,7 +870,10 @@ fn grab_keys(
             }
         }
     }
-    rt.grab_swallowed("Super", &KeyAction::Look(Look::Swallow))
+    if chords == Chords::Swallowed || matches!(cube, CubeKeys::Flat | CubeKeys::Hosted) {
+        rt.grab_swallowed("Super", &KeyAction::Look(Look::Swallow))?;
+    }
+    Ok(())
 }
 
 /// Changes the grabs to the keys with or without those of the cube. A
@@ -863,9 +882,10 @@ fn change_keys(
     rt: &mut Runtime<KeyAction>,
     bindings: &BTreeMap<String, KeyAction>,
     cube: CubeKeys,
+    chords: Chords,
 ) -> Result<(), ClientError> {
     rt.start_grabs();
-    grab_keys(rt, bindings, cube)?;
+    grab_keys(rt, bindings, cube, chords)?;
     rt.end_grabs()
 }
 
@@ -1105,7 +1125,7 @@ mod tests {
     fn without_a_cube_xp_holds_no_turn_key_and_no_drag() {
         let (mut rt, _calls) = on_fake_core("flat-keys");
         let bindings = crate::config::defaults().common.bindings;
-        grab_keys(&mut rt, &bindings, CubeKeys::Flat).unwrap();
+        grab_keys(&mut rt, &bindings, CubeKeys::Flat, Chords::Free).unwrap();
         assert!(rt.action("Ctrl+Alt+Left").is_none(), "no turn key");
         assert!(
             rt.action("Super+BTN_LEFT").is_none(),
@@ -1115,14 +1135,14 @@ mod tests {
 
     /// On a face of a cube, xp is the window manager: a Super chord that
     /// it binds no action for is its own, so no window gets it. A chord
-    /// it binds keeps its action; the same holds on a screen of its own.
+    /// it binds keeps its action.
     #[test]
     fn on_a_face_xp_swallows_the_super_chords_it_binds_nothing_for() {
         for cube in [CubeKeys::Flat, CubeKeys::Hosted] {
             let (mut rt, _calls) = on_fake_core("face-swallow");
             let bindings = crate::config::defaults().common.bindings;
             rt.start_grabs();
-            grab_keys(&mut rt, &bindings, cube).unwrap();
+            grab_keys(&mut rt, &bindings, cube, Chords::Free).unwrap();
             rt.end_grabs().unwrap();
             for chord in [
                 "Super+q",
@@ -1146,12 +1166,16 @@ mod tests {
         }
     }
 
-    /// xp-46 (rpx1-1): on a screen of its own xp swallows them too.
+    /// xp-46 (rpx1-1): on a screen of its own xp swallows them once it
+    /// holds a window; before, the chords are free for a look that joins.
     #[test]
-    fn on_a_screen_xp_swallows_the_super_chords_it_binds_nothing_for() {
+    fn on_a_screen_xp_swallows_once_it_holds_a_window() {
         let (mut rt, _calls) = on_fake_core("own-swallow");
         let bindings = crate::config::defaults().common.bindings;
-        grab_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
+        grab_keys(&mut rt, &bindings, CubeKeys::Own, Chords::Free).unwrap();
+        assert!(rt.action("Super+q").is_none(), "no window, nothing to keep");
+        assert_eq!(rt.action("Super+d"), Some(&KeyAction::Look(Look::Desktop)));
+        change_keys(&mut rt, &bindings, CubeKeys::Own, Chords::Swallowed).unwrap();
         for chord in ["Super+x", "Super+k", "Super+m", "Super+q"] {
             assert!(
                 rt.action(chord).is_some(),
@@ -1201,16 +1225,16 @@ mod tests {
         let (mut rt, calls) = on_fake_core_refusing("no-stand-in", &["Ctrl+Alt+Left"]);
         let mut bindings = crate::config::defaults().common.bindings;
         bindings.insert("Ctrl+Alt+Left".into(), KeyAction::System(System::Close));
-        grab_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
-        let _ = calls;
-        assert_eq!(
-            rt.action("Ctrl+Super+Left"),
-            Some(&KeyAction::Look(Look::Swallow)),
-            "no turn of the cube, only the swallow of the free chord"
+        grab_keys(&mut rt, &bindings, CubeKeys::Own, Chords::Free).unwrap();
+        let calls = calls.lock().unwrap().clone();
+        assert!(
+            !calls.iter().any(|c| c.contains("Ctrl+Super+Left")),
+            "{calls:?}"
         );
+        assert!(rt.action("Ctrl+Super+Left").is_none());
         let (mut rt, _calls) = on_fake_core_refusing("stand-in", &["Ctrl+Alt+Left"]);
         let bindings = crate::config::defaults().common.bindings;
-        grab_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
+        grab_keys(&mut rt, &bindings, CubeKeys::Own, Chords::Free).unwrap();
         assert_eq!(
             rt.action("Ctrl+Super+Left"),
             Some(&KeyAction::System(System::Cube(Turn::Left)))
@@ -1224,13 +1248,13 @@ mod tests {
     fn a_change_of_the_cube_keys_keeps_the_other_keys() {
         let (mut rt, calls) = on_fake_core("cube-keys");
         let bindings = crate::config::defaults().common.bindings;
-        grab_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
+        grab_keys(&mut rt, &bindings, CubeKeys::Own, Chords::Free).unwrap();
         calls.lock().unwrap().clear();
-        change_keys(&mut rt, &bindings, CubeKeys::Hosted).unwrap();
+        change_keys(&mut rt, &bindings, CubeKeys::Hosted, Chords::Free).unwrap();
         let sent = std::mem::take(&mut *calls.lock().unwrap());
         assert!(
-            !sent.iter().any(|c| c.ends_with(" Super+q")),
-            "the swallowed chords stay grabbed in between: {sent:?}"
+            sent.iter().any(|c| c == "input.grab Super+q"),
+            "on a face the unbound chords are swallowed: {sent:?}"
         );
         let mut gone: Vec<String> = sent
             .into_iter()
@@ -1249,7 +1273,7 @@ mod tests {
         );
         assert_eq!(rt.action("Super+d"), Some(&KeyAction::Look(Look::Desktop)));
         assert!(rt.action("Ctrl+Alt+Left").is_none());
-        change_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
+        change_keys(&mut rt, &bindings, CubeKeys::Own, Chords::Free).unwrap();
         assert_eq!(
             rt.action("Ctrl+Alt+Left"),
             Some(&KeyAction::System(System::Cube(Turn::Left)))

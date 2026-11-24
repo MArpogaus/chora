@@ -1,10 +1,10 @@
 //! The windows of the look: adopting, focusing, minimizing, forgetting, requests, tasks and hover.
 
 use super::{
-    Bar, ClientError, Command, DESKTOPS, DISPLAY_TASK, Decoration, Dialog, HELP_TASK, Instant,
-    MENUS, Menu, NAME, Panel, Part, PropsUpdate, Rect, RpcError, SurfaceRequest, Task, Value,
-    Window, Wm, change_keys, close, context, decoration, desk_id, dropped_at, help, home_bar,
-    restart, taskbar, window, window_icon,
+    Bar, Chords, ClientError, Command, DESKTOPS, DISPLAY_TASK, Decoration, Dialog, HELP_TASK,
+    Instant, MENUS, Menu, NAME, Panel, Part, PropsUpdate, Rect, RpcError, SurfaceRequest, Task,
+    Value, Window, Wm, change_keys, close, context, decoration, desk_id, dropped_at, help,
+    home_bar, restart, taskbar, window, window_icon,
 };
 use chora_kit::wm::focus;
 
@@ -37,6 +37,7 @@ impl Wm {
         }
         let desk = desk_id(window.desktop);
         self.windows.push(window);
+        self.first_window();
         self.opened.push(surface.into());
         let mut commands = decoration::create(surface, &desk, false);
         if let Some(look) = self.kept.get(surface).map(|k| k.look.clone()) {
@@ -388,10 +389,25 @@ impl Wm {
             return;
         }
         self.cube_keys = cube;
-        let grabbed = change_keys(&mut self.rt, &self.settings.value.common.bindings, cube)
+        self.regrab_keys();
+    }
+
+    /// Grabs the keys again for the cube and for the windows that xp has.
+    fn regrab_keys(&mut self) {
+        let bindings = &self.settings.value.common.bindings;
+        let grabbed = change_keys(&mut self.rt, bindings, self.cube_keys, self.chords)
             .and_then(|()| self.rt.grab_give_keys());
         if let Err(err) = grabbed {
             chora_kit::runtime::report(crate::wm::NAME, &err);
+        }
+    }
+
+    /// The first window of xp: from now on its unbound Super chords are
+    /// swallowed (xp-46).
+    pub(super) fn first_window(&mut self) {
+        if self.chords == Chords::Free {
+            self.chords = Chords::Swallowed;
+            self.regrab_keys();
         }
     }
 
