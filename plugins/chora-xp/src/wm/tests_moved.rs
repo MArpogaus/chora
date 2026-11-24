@@ -1101,6 +1101,43 @@ mod press {
         );
     }
 
+    /// xp-17: Display Properties has a task button as Help has, and the
+    /// button goes with the dialog; a press on it takes the dialog to the top.
+    #[test]
+    fn display_properties_has_a_task_button_that_raises_it() {
+        let (mut wm, _methods) = wm_on_fake_core("display-task");
+        let created = |commands: &[Command]| {
+            commands.iter().any(|c| {
+                matches!(c, Command::Create { id, .. } if id == &format!("xp-task-{DISPLAY_TASK}-X"))
+            })
+        };
+        let commands = wm.open_display_dialog([0, 0, 1280, 770]);
+        let ids: Vec<&str> = commands
+            .iter()
+            .filter_map(|c| match c {
+                Command::Create { id, .. } => Some(id.as_str()),
+                _ => None,
+            })
+            .filter(|id| id.starts_with("xp-task-"))
+            .collect();
+        assert!(created(&commands), "no task button for Display: {ids:?}");
+        wm.open_help(0);
+        assert!(
+            !matches!(wm.panels.last(), Some(Panel::Display(_))),
+            "Help is on top"
+        );
+        let _ = wm.press_taskbar(taskbar::Part::Task(DISPLAY_TASK.into()));
+        assert!(
+            matches!(wm.panels.last(), Some(Panel::Display(_))),
+            "the button raised Display"
+        );
+        let closed = wm.close_panel(wm.panels.len() - 1);
+        assert!(
+            closed.iter().any(|c| matches!(c, Command::Remove { id, .. } if id == &format!("xp-task-{DISPLAY_TASK}-X"))),
+            "the button goes with the dialog"
+        );
+    }
+
     /// A pager button of the taskbar turns the cube to its desktop.
     #[test]
     fn the_pager_turns_the_cube_to_its_desktop() {

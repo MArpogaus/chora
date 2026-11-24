@@ -105,6 +105,9 @@ const SWITCHER: &str = "xp-alttab";
 /// buttons and Alt+Tab, in the place of a surface. It has no dash, which
 /// the ids of task buttons split at.
 const HELP_TASK: &str = "helppanel";
+/// The name that the open Display Properties has for the task buttons, as
+/// [`HELP_TASK`] has for Help.
+const DISPLAY_TASK: &str = "displaypanel";
 /// How long a taskbar that hides itself waits after the pointer left it.
 const HIDE_DELAY: Duration = Duration::from_millis(500);
 /// The left mouse button.

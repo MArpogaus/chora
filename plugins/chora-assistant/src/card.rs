@@ -369,7 +369,7 @@ fn page_rows(
         let lines = no_widow(wrap(&text, room, measure), room, measure);
         rows.extend(lines.into_iter().map(|line| (set, line)));
     }
-    if parts == usize::MAX && shown.buttons && !shown.too_long && !face.is_xp() {
+    if parts == usize::MAX && shown.buttons && !shown.too_long {
         let measure = |line: &str| theme.svg_width(&element(Set::Note, face, line, [0, 0], [0; 3]));
         let said = Word::TypingNoAnswer.text(language);
         let lines = no_widow(wrap(said, width, measure), width, measure);
@@ -1232,8 +1232,28 @@ mod tests {
         let _ = std::fs::remove_dir_all(cache);
     }
 
+    /// xp-14: the line that typing does not answer stands in the card, the
+    /// last line of it, as in the card of a page; a line between the card and
+    /// the field read as outside the card (the capture of tests/xp.sh 16b).
     #[test]
-    fn the_xp_card_keeps_its_keys_under_the_buttons_and_leaves_typing_to_the_field() {
+    fn the_xp_card_holds_the_line_that_typing_does_not_answer() {
+        let cache = cache("xp-typing-line");
+        let theme = theme(&cache, "Tahoma").unwrap();
+        let mut card = shown(&notes(), Instant::now());
+        card.ink = Ink::XP;
+        card.face = Some(Face::of(&xp_look()).unwrap());
+        card.max_width = Some(312);
+        let laid = layout(&theme, &card, Language::En, [1280, 800]);
+        assert!(
+            laid.text.contains("Typing does not answer."),
+            "the card lacks the line: {}",
+            laid.text
+        );
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn the_xp_card_keeps_its_keys_under_the_buttons() {
         let cache = cache("xp-keys");
         let theme = theme(&cache, "Tahoma").unwrap();
         let mut card = shown(&notes(), Instant::now());
@@ -1242,11 +1262,6 @@ mod tests {
         card.max_width = Some(312);
         let laid = layout(&theme, &card, Language::En, [1280, 800]);
         let [yes, _] = laid.buttons.expect("buttons");
-        assert!(
-            !laid.text.contains("Typing does not answer"),
-            "the field says it once: {}",
-            laid.text
-        );
         let keys_row = laid.text.lines().position(|l| l.contains("Alt+Y"));
         let prompt_row = laid.text.lines().position(|l| l.contains("wants to"));
         assert!(keys_row > prompt_row, "{}", laid.text);
