@@ -25,6 +25,8 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 | tour-base-r5.md (F7; rv9j-4, rv9j-5, rtb4-1; 1 %) | sonnet high, claude/tour-base-r5 d0801b7e | session_016iS3kQ1eXAcuS9WmgxHfSS |
 | stray-super-r2.md (rc 1; rss-1, rss-2 MAJOR; 1.5 %) | opus high, claude/stray-super-r2 e1183766 | session_016iS3kM7GXtGirZm9qkxpMf |
 | tiling-doors-r1.md (rc 2; ti-55, ti-56, ti-50; 1 %) | sonnet high, claude/tiling-doors-r1 b02dbea9 | session_016iS3kLja4YEVy42LaEmr7i |
+| p2-r12-co.md (rc 2; co-70, co-71 fix check; 0.8 %) | sonnet medium, claude/p2-r12-co 280b9dcf | starting |
+| rc1-pass-construct-r1.md (rc 1; independent pass; 1.5 %) | opus high, claude/rc1-pass-construct 280b9dcf | starting |
 ## Queue (% week; 5 % reserve)
 0. (rc 8) VERIFY-MINOR r2 12/14
 1. (rc 1, 2) TRAIN131 green 73925ee2. TRAIN132 running: tiling-honest r1 b02dbea9 (MERGE-OK 16:59), co-pull r2 280b9dcf (MERGE-OK 17:23). (rc 2) TILING-DOORS r1 running.
