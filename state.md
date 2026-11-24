@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-24 19:31 UTC)
+## Now (2026-11-24 19:46 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 18:58 PM 4.9 % (11-22) + 5.2 % (11-23) + 5.1 % (11-24), week about 31 % vs 51 % pace: under-spending, fill 6 lanes
 session branch: c3c37c2e (t132 19:20); 80 greens; t132: tiling-honest r1 (ti-52, ti-53), co-pull r2 (co-70, co-71).
@@ -26,11 +26,11 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 | stray-super-r3.md (rc 1; rss-7 MAJOR; 1.5 %) | opus high, claude/stray-super-r3 1eb30643 | session_016iS3kQeFgVrTUeBWbwLj1s |
 | flake-series-r9.md (rc 3, F5; 5/5; 0.6 %) | haiku high, claude/flake-series-r9 c3c37c2e | session_016iS3kL6R9aghhfvTsKiyJx |
 | tiling-doors-r1.md (rc 2; ti-55, ti-56, ti-50; 1 %) | sonnet high, claude/tiling-doors-r1 b02dbea9 | session_016iS3kLja4YEVy42LaEmr7i |
-| sh42-repro-r1.md (rc 1; sh-42 5x; 0.4 %) | haiku high, claude/sh42-repro-r1 c3c37c2e | session_016iS3kMR9ZMkXTKJHgENV6v |
+| sh42-repro-r2.md (rc 1; sh-42 5x; r1 harness; 0.6 %) | sonnet medium, claude/sh42-repro-r2 c3c37c2e | starting |
 | co-close-r1.md (rc 1; co-75 BLOCK, co-76 MAJOR; 1.5 %) | opus high, claude/co-close-r1 280b9dcf | session_016iS3kN4bp8VEeTupxTZ58i |
 ## Queue (% week; 5 % reserve)
 1. (rc 1, 2) TRAIN132 green c3c37c2e (ti-52, ti-53, co-70, co-71). TILING-DOORS r1 running.
-2. (rc 1, 2) construct after CO-CLOSE r1: co-79 MAJOR round (+co-77, co-78 MINOR confirmed by CO-REPRO r1). sh-42: SH42-REPRO r1 running.
+2. (rc 1, 2) construct after CO-CLOSE r1: co-79 MAJOR round (+co-77, co-78 MINOR confirmed by CO-REPRO r1). sh-42: SH42-REPRO r2 (r1 lost budget on harness).
 3. (rc 3, F5) FLAKE-SERIES r9 5/5 on c3c37c2e running.
 4. (F7, rc 11) TOUR-BASE r6 running (rtb5-1..3); then v9 take; rv9j-1..5 MINOR after.
 5. (F4, F5) after train127: FLAKE-SERIES r8 5/5 on final head (haiku), TOUR-V9 final take + 5 reviews (2.5 %), CI-PR (rc 4, 5). (rc 1) after reviews: co-44, co-45 only when construct has no open MAJOR (rules.md 6); rtd-5, rtd-7 MINOR backlog.
