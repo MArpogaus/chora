@@ -21,8 +21,8 @@
 #                 and Super+1 to Super+8 of tiling act (rss-1)
 #   tiling-overlay tiling starts and such a foot is its tile; the construct
 #                 joins with --overlay, which swallows nothing: Super+x, k,
-#                 m and q still type nothing into the foot, and Super+Return
-#                 and Super+h of tiling act (rss-7: only a joiner that
+#                 m and q still type nothing into the foot, and Super+m,
+#                 Super+Return and Super+h of tiling act (rss-7: only a joiner that
 #                 swallows takes the swallow, D118)
 #
 # In xp-window the join of tiling leaves no surface focused (stray-super
@@ -229,12 +229,15 @@ cell_tiling_overlay() {
     ctl state tiling >/dev/null || fail "$name: tiling does not answer after the construct joined"
     until_ok stray_focused 40 || fail "$name: the typing foot lost the keyboard to the construct"
     no_stray "$name" tiling
+    until_ok "ctl state tiling | jq -e '.windows[0].maximized' >/dev/null" 40 || fail "$name: Super+m of tiling did not maximize the foot: $(ctl state tiling | jq -c .windows)"
+    key Super+m
+    until_ok "ctl state tiling | jq -e '.windows[0].maximized | not' >/dev/null" 40 || fail "$name: a second Super+m of tiling keeps the foot maximized"
     key Super+Return
     until_ok "ctl state tiling | jq -e '[.windows[] | select(.shown)] | length == 2' >/dev/null" 80 || fail "$name: Super+Return of tiling opened no second tile beside the construct: $(ctl state tiling | jq -c .windows)"
     before=$(tiling_rects)
     key Super+h
     until_ok '[ "$(tiling_rects)" != "$before" ]' 40 || fail "$name: Super+h of tiling does nothing beside the construct: the rects stay $before"
-    ok "$name: Super+Return and Super+h of tiling act beside the construct --overlay"
+    ok "$name: Super+m, Super+Return and Super+h of tiling act beside the construct --overlay"
     end_session
 }
 

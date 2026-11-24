@@ -113,6 +113,45 @@ pub fn chords(modifier: &str) -> Vec<String> {
         .collect()
 }
 
+/// Whether `name` is a window manager of [`crate::give::KEYS`].
+#[must_use]
+pub fn manager(name: &str) -> bool {
+    crate::give::KEYS.iter().any(|(_, to)| *to == name)
+}
+
+/// The event by which the window manager `name` says whether it
+/// swallows: `NAME.swallow {on}` (D118).
+#[must_use]
+pub fn said_event(name: &str) -> String {
+    format!("{name}.swallow")
+}
+
+/// Whether `event` is the event of a window manager that says whether
+/// it swallows, which the runtime handles and no plugin gets.
+#[must_use]
+pub fn is_said(event: &Event) -> bool {
+    matches!(event, Event::Emitted { event, client, .. }
+        if manager(client) && *event == said_event(client))
+}
+
+impl<A> Runtime<A> {
+    /// Says to the other window managers whether the plugin swallows, on
+    /// a change only: a window manager that came earlier lets its swallow
+    /// go while the plugin swallows (D118). A refusal of the core, such
+    /// as its limit of events per second, is no error.
+    pub(crate) fn say_swallow(&mut self, on: bool) -> Result<(), ClientError> {
+        if self.said == on {
+            return Ok(());
+        }
+        self.said = on;
+        let said = json!({"event": said_event(&self.name), "data": {"on": on}});
+        match self.conn.call::<_, Value>("events.emit", said) {
+            Ok(_) | Err(ClientError::Rpc(_)) => Ok(()),
+            Err(err) => Err(err),
+        }
+    }
+}
+
 impl<A: Clone> Runtime<A> {
     /// The chords of [`chords`] that the plugin holds no binding for and
     /// waits for none: a bound chord that the core refused stays bound.
@@ -142,9 +181,12 @@ impl<A: Clone> Runtime<A> {
     /// A refusal logs nothing.
     ///
     /// The swallow is the last claim (D118): while a window manager that
-    /// joined after the plugin is there, the plugin swallows nothing, so
-    /// that the joiner gets every chord that it binds and swallows the
-    /// rest itself; see [`Self::swallow_event`].
+    /// connected after the plugin says that it swallows, the plugin
+    /// swallows nothing, so that the joiner gets every chord that it
+    /// binds and swallows the rest itself; see [`Self::swallow_event`].
+    /// The plugin says so itself once it swallows, and
+    /// [`Self::end_grabs`] of a set without a swallow says that it
+    /// stopped.
     ///
     /// # Errors
     ///
@@ -167,7 +209,8 @@ impl<A: Clone> Runtime<A> {
                 asked.push(text);
             }
         }
-        self.ask_swallowed(asked, swallow)
+        self.ask_swallowed(asked, swallow)?;
+        self.say_swallow(true)
     }
 
     /// Grabs the chords `asked` for the swallow in one batch, so that the
@@ -199,9 +242,12 @@ impl<A: Clone> Runtime<A> {
     }
 
     /// The events of the swallow, which [`crate::runtime::dispatch`]
-    /// hands here: a window manager of [`crate::give::KEYS`] that joins
-    /// takes the swallow, which the plugin lets go at once, and when the
-    /// last one that joined went the plugin swallows again. A binding that
+    /// hands here: a window manager of [`crate::give::KEYS`] that
+    /// connected after the plugin and says that it swallows
+    /// (`NAME.swallow {on: true}`) takes the swallow, which the plugin lets
+    /// go at once; when the last one stopped or went the plugin swallows
+    /// again. One that swallows nothing, as the construct with `--overlay`
+    /// or without a window in a pane, takes nothing (rss-7). A binding that
     /// the core refused is asked again when the core tells that it is free
     /// (`input.ungrabbed`, D117): so the joiner gets the chords that the
     /// swallow let go after its own grab of them.
@@ -210,22 +256,39 @@ impl<A: Clone> Runtime<A> {
     ///
     /// The socket fails.
     pub fn swallow_event(&mut self, event: &Event) -> Result<(), ClientError> {
-        let manager = |name: &str| crate::give::KEYS.iter().any(|(_, to)| *to == name);
         match event {
             Event::ClientConnected { name } if manager(name) && *name != self.name => {
-                self.joined.insert(name.clone());
-                self.let_swallow_go()
+                self.after.insert(name.clone());
+                Ok(())
             }
-            Event::ClientDisconnected { name } if self.joined.remove(name) => {
-                match self.swallow.clone() {
-                    Some((modifier, swallow)) if self.joined.is_empty() => {
-                        self.grab_swallowed(&modifier, &swallow)
-                    }
-                    _ => Ok(()),
+            Event::Emitted { client, data, .. }
+                if is_said(event) && self.after.contains(client) =>
+            {
+                if data["on"].as_bool() == Some(true) {
+                    self.joined.insert(client.clone());
+                    self.let_swallow_go()
+                } else {
+                    self.leaves(client)
                 }
+            }
+            Event::ClientDisconnected { name } => {
+                self.after.remove(name);
+                self.leaves(name)
             }
             Event::InputUngrabbed { binding } => self.ask_again(binding),
             _ => Ok(()),
+        }
+    }
+
+    /// The window manager `name` swallows no more: when it was the last
+    /// one that did, the plugin swallows again.
+    fn leaves(&mut self, name: &str) -> Result<(), ClientError> {
+        if !self.joined.remove(name) || !self.joined.is_empty() {
+            return Ok(());
+        }
+        match self.swallow.clone() {
+            Some((modifier, swallow)) => self.grab_swallowed(&modifier, &swallow),
+            None => Ok(()),
         }
     }
 
@@ -322,6 +385,7 @@ mod tests {
             "voice manages no windows"
         );
         dispatch(&mut look, joined("tiling")).unwrap();
+        dispatch(&mut look, swallows("tiling", true)).unwrap();
         assert_eq!(
             look.rt.action("Super+q"),
             None,

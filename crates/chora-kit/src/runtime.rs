@@ -147,9 +147,14 @@ pub struct Runtime<A> {
     pub(crate) swallow: Option<(String, A)>,
     /// The grabbed bindings that swallow, as the core names them.
     pub(crate) swallowed: std::collections::HashSet<String>,
-    /// The window managers that joined after the plugin: while there is
-    /// one, the plugin swallows nothing (D118).
+    /// The window managers that connected after the plugin.
+    pub(crate) after: std::collections::BTreeSet<String>,
+    /// The window managers of [`Self::after`] that said that they swallow
+    /// (`NAME.swallow`): while there is one, the plugin swallows nothing
+    /// (D118).
     pub(crate) joined: std::collections::BTreeSet<String>,
+    /// Whether the plugin said that it swallows.
+    pub(crate) said: bool,
     /// Makes the action of a give key; none when the plugin has no give
     /// keys.
     give_keys: Option<fn(&'static str) -> A>,
@@ -206,7 +211,9 @@ impl<A> Runtime<A> {
             waiting: Vec::new(),
             swallow: None,
             swallowed: std::collections::HashSet::new(),
+            after: std::collections::BTreeSet::new(),
             joined: std::collections::BTreeSet::new(),
+            said: false,
             give_keys: None,
             give_tried: None,
             inject_ok: test_session(),
@@ -309,18 +316,22 @@ impl<A> Runtime<A> {
     }
 
     /// Subscribes to `events`; the subscription replaces the earlier one.
+    /// A window manager of [`crate::give::KEYS`] also hears whether the
+    /// others swallow (`NAME.swallow`, see [`Self::swallow_event`]).
     ///
     /// # Errors
     ///
     /// The socket fails.
     pub fn subscribe<E: AsRef<str>>(&mut self, events: &[E]) -> Result<(), ClientError> {
+        let mut events: Vec<String> = events.iter().map(|e| e.as_ref().into()).collect();
+        if !events.is_empty() && crate::swallow::manager(&self.name) {
+            let others = (crate::give::KEYS.iter())
+                .filter(|(_, to)| *to != self.name)
+                .map(|(_, to)| crate::swallow::said_event(to));
+            events.extend(others);
+        }
         self.conn
-            .call::<_, Value>(
-                "events.subscribe",
-                Subscribe {
-                    events: events.iter().map(|e| e.as_ref().into()).collect(),
-                },
-            )
+            .call::<_, Value>("events.subscribe", Subscribe { events })
             .map(drop)
     }
 
@@ -463,6 +474,9 @@ impl<A> Runtime<A> {
     ///
     /// As [`Self::ungrab_all`].
     pub fn end_grabs(&mut self) -> Result<(), ClientError> {
+        if self.swallow.is_none() {
+            self.say_swallow(false)?;
+        }
         for normal in std::mem::take(&mut self.old_grabs) {
             self.swallowed.remove(&normal);
             let binding = normal.parse().map_err(|err| {
@@ -535,6 +549,9 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
         event => {
             rt.regrab_give_keys()?;
             rt.swallow_event(&event)?;
+            if crate::swallow::is_said(&event) {
+                return Ok(());
+            }
             plugin.event(event)
         }
     }
