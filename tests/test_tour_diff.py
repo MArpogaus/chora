@@ -569,6 +569,13 @@ class IntendedCauses(unittest.TestCase):
         cited = [(r["act"], r["kind"]) for r in self.rows() if r["act"] in acts and any(c in r["cause"] for c in self.SESSION_CAPTIONS)]
         self.assertEqual(cited, [])
 
+    def test_a_row_cites_a_judge_capture_only_for_the_act_the_judge_looked_at(self):
+        """rtb5-2: `judge r1 x7, x7.jpg` on the pixel row of x2..x12b and h1..h1d: the judge looked at x2 and x7 (and x1 by
+        x7-tray.jpg of x7, h1, h1c, x5d, x6b, x10b); the blob classification of the other acts is the builder's own, read in
+        the still of its take. A row cites `judge r1 <its own act>` or no judge capture."""
+        wrong = [(r["act"], r["kind"], m) for r in self.rows() if r["kind"] == "pixel" and re.fullmatch(r"x\d+[a-z]?|h1[a-d]?", r["act"]) for m in re.findall(r"judge r1 (\w+),", r["cause"]) if m != r["act"]]
+        self.assertEqual(wrong, [])
+
     def test_the_greeting_in_the_chat_is_no_label_change(self):
         """rv9j-5: the text of `hud-chat` is the greeting (4fec75c3), not the desktop labels (29281054)."""
         wrong = [(r["act"], r["kind"]) for r in self.rows() if any(n.startswith("hud-chat") for n in r.get("nodes", [])) and "29281054" in r["cause"]]
