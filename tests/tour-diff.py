@@ -24,9 +24,9 @@ BASE, a capture missing in either folder), none (a declared `baseline: none`, wi
 (every diff has a row, and a row carries `open = true`: the cause is not found; the F7 count fails on it,
 exit 1). A row may list the nodes it names (`nodes = ["hud-chat"]`, the ids of the scene diff, a window as `app_id:title`): it
 absorbs those nodes only and wins over a row of the kind without a list; a node that no row names is unnamed, one that
-only an `open` row without a list names stays `open` (rv9j-5). A row of kind added or visible lists its `nodes` and a row of kind pixel its `boxes`
+only an `open` row without a list names stays `open` (rv9j-5). Every row of a scene kind (added, missing, visible, rect, meta, owner, z-order, or `*`) lists its `nodes` and a row of kind pixel its `boxes`
 (`[[x, y, w, h], ...]` in the pixels of the capture): it absorbs those only, and a row without the list absorbs nothing, the act is `open`
-(`unproven` in the result) until the row says what it explains (rtb5-1); a pixel diff is named when every one of its blobs lies in a box.
+(`unproven` in the result) until the row says what it explains (rtb5-1, rtb6-1: no kind is exempt); a pixel diff is named when every one of its blobs lies in a box.
 A red check that is meant has a row of kind "check" and `check = "I2"` (the name of the check it
 absorbs; without it the row absorbs every flip of the act). A check that either side marks "not measured"
 is left out of the flips and listed in the row as `unmeasured` (`cand_red` where the candidate reads it red). Exit 1 on a regression, an open act or no capture.
@@ -182,11 +182,6 @@ def named(rows, kinds, node=None):
     return next((r for r in hits if r.get("open")), hits[0] if hits else None)
 
 
-STRICT = ("added", "visible", "pixel")
-"""The kinds whose row must say what it explains (`nodes` of the scene kinds added and visible, `boxes` of pixel): a row of
-these kinds without the list is no proof and keeps its act `open` (rtb5-1)."""
-
-
 def inside(blob, box, slack=RECT_SLACK):
     """A blob (x, y, w, h) lies in a box (x, y, w, h), give or take `slack` pixels."""
     return blob[0] >= box[0] - slack and blob[1] >= box[1] - slack and blob[0] + blob[2] <= box[0] + box[2] + slack and blob[1] + blob[3] <= box[1] + box[3] + slack
@@ -214,7 +209,7 @@ def pixel_rows(rows, blobs):
 def verdict(act, scene, pixel_same, intended, checks=None, blobs=None):
     """same, change, open or regression for one capture; `checks` is (baseline, candidate) name -> colour and
     `blobs` the boxes of the pixel diff. A row with `open = true` names a diff whose cause is not found: the verdict is
-    `open`, not `change`; so is a row of the kinds in STRICT that lists no `nodes` or `boxes` (it proves nothing)."""
+    `open`, not `change`; so is a row of any kind that lists no `nodes` (a pixel row no `boxes`): it proves nothing (rtb6-1)."""
     diffs = [(d["kind"], d.get("id")) for d in scene]
     rows = [r for r in intended if r["act"] == act]
     causes, unnamed, opened, unproven = [], [], False, []
@@ -222,7 +217,7 @@ def verdict(act, scene, pixel_same, intended, checks=None, blobs=None):
         row = named(rows, (kind, "*"), node)
         if row:
             causes.append(row["cause"])
-            guess = kind in STRICT and not row.get("nodes")
+            guess = not row.get("nodes")
             opened = opened or bool(row.get("open")) or guess
             if guess and kind not in unproven:
                 unproven.append(kind)
