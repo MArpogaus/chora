@@ -1921,3 +1921,34 @@ act = "m10"
 cause = "mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
 kind = "visible"
 open = true
+
+# tour-base r2: rows that the full take of the head showed and the take of r1 did not.
+[[change]]
+act = "m10"
+cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6)"
+kind = "added"
+
+[[change]]
+act = "m9b"
+cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6)"
+kind = "added"
+
+[[change]]
+act = "t6"
+cause = "a611c08a key list columns clear the longest row, titles in text; fa076e7b keycaps of the key list read at 14 px (the nodes tiling-keys-body-N are numbered anew)"
+kind = "missing"
+
+[[change]]
+act = "t6"
+cause = "a611c08a key list columns clear the longest row, titles in text; fa076e7b keycaps of the key list read at 14 px (the nodes tiling-keys-body-N are numbered anew)"
+kind = "added"
+
+[[change]]
+act = "t6c"
+cause = "a611c08a key list columns clear the longest row, titles in text; fa076e7b keycaps of the key list read at 14 px (the nodes tiling-keys-body-N are numbered anew)"
+kind = "missing"
+
+[[change]]
+act = "t6c"
+cause = "a611c08a key list columns clear the longest row, titles in text; fa076e7b keycaps of the key list read at 14 px (the nodes tiling-keys-body-N are numbered anew)"
+kind = "added"
