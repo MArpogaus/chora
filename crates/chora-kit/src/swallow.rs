@@ -156,8 +156,44 @@ impl<A: Clone> Runtime<A> {
         } else {
             Vec::new()
         };
+        let mut asked = Vec::new();
         for binding in free {
-            self.grab_as(binding, swallow.clone(), true)?;
+            let text = binding.to_string();
+            if let Some(i) = self.old_grabs.iter().position(|b| *b == text) {
+                let normal = self.old_grabs.swap_remove(i);
+                self.swallowed.insert(normal.clone());
+                self.grabs.push((normal, swallow.clone()));
+            } else {
+                asked.push(text);
+            }
+        }
+        self.ask_swallowed(asked, swallow)
+    }
+
+    /// Grabs the chords `asked` for the swallow in one batch, so that the
+    /// plugin takes one round trip for about 200 chords and a press of the
+    /// person meets a plugin that listens soon; a refused one waits.
+    fn ask_swallowed(&mut self, asked: Vec<String>, swallow: &A) -> Result<(), ClientError> {
+        if asked.is_empty() {
+            return Ok(());
+        }
+        let calls: Vec<(&str, Value)> = (asked.iter())
+            .map(|text| ("input.grab", json!({"binding": text})))
+            .collect();
+        let answers = self.conn.call_all(&calls)?;
+        for (text, answer) in asked.into_iter().zip(answers) {
+            self.waiting.retain(|(waits, ..)| *waits != text);
+            match answer {
+                Ok(normal) => {
+                    let normal = normal.as_str().map_or_else(|| text.clone(), str::to_owned);
+                    self.swallowed.insert(normal.clone());
+                    self.grabs.push((normal, swallow.clone()));
+                }
+                Err(err) if err.code == RpcError::INVALID_PARAMS => {
+                    return Err(RpcError::new(err.code, format!("{text}: {}", err.message)).into());
+                }
+                Err(_) => self.waiting.push((text, swallow.clone(), true)),
+            }
         }
         Ok(())
     }

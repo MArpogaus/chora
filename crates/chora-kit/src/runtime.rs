@@ -135,7 +135,7 @@ pub struct Runtime<A> {
     pub(crate) grabs: Vec<(String, A)>,
     /// The bindings of the set before [`Self::start_grabs`] that the
     /// core still holds for the plugin.
-    old_grabs: Vec<String>,
+    pub(crate) old_grabs: Vec<String>,
     /// The bindings whose refusal was logged, so that each logs once.
     refused: std::collections::HashSet<String>,
     /// The bindings of the set that the core refused, with their action
