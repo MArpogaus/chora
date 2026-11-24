@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-24 23:12 UTC)
+## Now (2026-11-24 23:13 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 21:59 PM 5.2 % (11-23) + 5.1 % (11-24) + 1.1 % (11-25), week about 32 % vs 53 % pace: under-spending, fill 6 lanes
 session branch: c3c37c2e (t132 19:20); 80 greens; t132: tiling-honest r1 (ti-52, ti-53), co-pull r2 (co-70, co-71).
@@ -25,7 +25,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 | tour-base-r7.md (F7; rtb6-1 MAJOR; 1 %) | sonnet high, claude/tour-base-r7 9311e155 | session_016iS3kLs22zFkCsvrRdypFa |
 | train133 (rc 1, 2; stray-super r3 73c6b19c, tiling-doors r1 b1ba6743) | PM, 84f66d43 | gate re-run 22:48 (2nd container restart) |
 | flake-series-r9.md (rc 3, F5; 5/5; 0.6 %) | haiku high, claude/flake-series-r9 c3c37c2e | session_016iS3kL6R9aghhfvTsKiyJx |
-| review-sh42-fix-r1.md (rc 1; sh-42; 0.5 %) | opus high, claude/sh42-fix-r1 b92de049 | starting |
+| review-sh42-fix-r1.md (rc 1; sh-42; 0.5 %) | opus high, claude/sh42-fix-r1 b92de049 | session_016iS3kMrCwb5osg1NNQqKUV |
 | co-close-r2.md (rc 1; rcc1-1 MAJOR; 0.8 %) | sonnet high, claude/co-close-r2 8517022f | session_016iS3kPX44dZpETU2t5uKgY |
 ## Queue (% week; 5 % reserve)
 1. (rc 1, 2) TRAIN132 green c3c37c2e (ti-52, ti-53, co-70, co-71). TRAIN133 84f66d43 (stray-super r3, tiling-doors r1) running.
