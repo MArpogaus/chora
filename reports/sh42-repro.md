@@ -27,3 +27,31 @@ Note: the r2 fix commits (stray-super-r2, head 1eb30643) are not in c3c37c2, so 
 3. Record per run: holder of xp, tiling and mc (`choractl state <look>` `.focus.holder`), owners of `kind:surface`, whether the typed bytes reach the focused foot, and in mc whether a click or Return gives the keyboard back.
 
 Captures: none. Scripts are in the lane scratchpad, not committed.
+
+## r2
+
+Lane: cloud, branch claude/sh42-repro-r2 at c3c37c2e (session head, unfixed). Run only. Step 0: unshallow, `cargo check --workspace`, `cargo build --workspace` ok. `pgrep -fa 'chora --headless'` empty at the end.
+Harness: `tests/persona/session.sh xp|mc` with `CHORA_TEST_FLAGS=--test-injected-press-is-real`, typing and keys by `tests/persona/act.py`, join by `choractl run ... chora-tiling --no-companions` (as session.sh starts a joiner). `session.sh xp+tiling` starts both at once, so the window could not exist before the join; I started the first look alone, opened the window, then joined tiling. Script and raw per-run lines: media/2026-11-24/sh42-repro/run.sh, results.txt (the Start-menu route was not used).
+
+Window: `foot -a r2 sh -c 'stty raw -echo; cat > FILE'` (xp); `foot --app-id=mcstray ...` plus `Return` (mc page). Typed text is read back from FILE.
+
+### Steps (shortest)
+1. `session.sh xp 1280x800` (or `mc 1280x720`).
+2. `choractl run foot ...` as above; in mc `act.py key Return`. Typing `echo aN` reaches FILE (5/5 both).
+3. `choractl run chora-tiling --no-companions` (in its own dbus session, `CHORA_FLAVOR_DIR=flavors/tiling`); wait 5 s.
+4. `act.py type "echo rN"`: nothing reaches FILE.
+
+### Rate table (state after the join; core = surfaces with focused=true)
+| Path | runs | core focus after | look holder after | typed text lost | recovered |
+|---|---|---|---|---|---|
+| xp window, tiling joins | 5 | none 5/5 (before: s1) | xp="xp", tiling=null | **5/5** | click on window 5/5 |
+| mc page, tiling joins | 5 | none 5/5 (before: s1) | mc=null, tiling=null | **5/5** | Return 0/5, click 0/5 |
+| control: xp, no window, tiling joins | 3 | none (none before) | xp="xp", tiling=null | n/a (no window) | n/a |
+| control: mc, no window, tiling joins | 3 | none | mc="mc", tiling=null | n/a | n/a |
+| control: xp window, mc joins (no tiling) | 3 | s1 stays focused | xp="xp", mc=null | **0/3** (`echo rN` arrives) | n/a |
+
+Notes: the xp to mc control is mc started beside xp (a join), not a look switch; no switch-without-join command was found in the harness. Holder before the join in all window runs: xp "xp" / mc "mc", core s1. xp holder says "xp" while no surface is focused, so xp's state and the core disagree; in mc the holder itself is null. The mc `Return` and click recovery was tried in that order (Return, then a click at screen centre); the page window text stays `^M`-only, i.e. only the pre-join Return.
+
+Captures (4, under 150 kB each): media/2026-11-24/sh42-repro/{xp,mc}-join-1.png, {xp,mc}-nowin_join-1.png.
+
+sh-42: keys lost 5/5 (xp), 5/5 (mc); recovered by click 5/5 (xp), 0/5 (mc). Reproduces on the session head whenever tiling joins while xp or mc holds a window; a no-window join and an mc join beside xp lose nothing.
