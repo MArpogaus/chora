@@ -46,7 +46,8 @@ in a construct without a cube and in xp (principle 1).
 |-----|-------|----------|---------------|
 | step back, from use mode | a click on `STEP BACK` | `fly_out`: `Alt+Escape`; `Escape` alone when the grant `input.grab-any` lets the construct take it | "step back"; `view.step_back` |
 | step in, from navigate mode | a click on a face, or on `STEP IN` for the front face | `fly_in`: `Return` | "step in"; `view.step_in` |
-| fly into a pane beside the cube, in navigate mode | a click on the pane | `Tab`, then `Return` on its row | `window.show` |
+| fly into a pane beside the cube, in navigate mode | a click on the pane, or on the hint `Click Fly in` | `Tab`, then `Return` on its row | `window.show` |
+| pull a window out of a face into a pane | a title drag off the face; a click on the hint `Super Alt 4 Pull out` | `Super+Alt+4`, the give key of the construct | `window.give` |
 | turn the cube by one face | a click on `TURN LEFT` or `TURN RIGHT`; in navigate mode also a drag on the cube | `Ctrl+Alt+Left` and `Ctrl+Alt+Right`, in both modes | "turn left", "turn right"; `cube.turn` |
 | walk and look, in navigate mode | a drag on the empty space, the wheel | the walk keys of the construct | the methods of the walk |
 | show the keys, in navigate mode | none | `F1`, and `Super+F1` | none |
@@ -92,7 +93,10 @@ in their row, so that they cover no label. In use mode one chip shows,
 with the work on the face. The hint bar at the bottom centre names the
 way out as well: stepped into a face it shows `Alt Esc Step back` beside
 `Super F1 All keys`, also after the first 3 s, so the person who stepped
-in always sees how to step out. The
+in always sees how to step out. The same holds in a pane that the
+camera flew into from the cube stood back, as a program started from
+`Programs` opens: the hint bar shows `Alt Esc Step back` and `All keys`,
+never the hints of the cube, whose keys do not hold there. The
 turn chips carry an arrow, `← TURN LEFT` and `TURN RIGHT →`. In
 navigate mode three chips show, and each face of the cube is a control
 of its own: the pointer over a face lights its edge, and a click steps
@@ -112,7 +116,10 @@ faces, as `cube.open` without params does, and stands back from it; the
 walk hints name it,
 `Super C  Cube`, and a click on that hint does the same. Stood back, the
 hints at the bottom centre are the chips of the cube: `Ctrl Alt ← Turn
-left`, `Return Step in` and `Turn right Ctrl Alt →`, and the face label
+left`, `Return Step in` and `Turn right Ctrl Alt →`; while a pane shows
+beside the cube, also `Click Fly in`, the click on the pane, and
+`Super Alt 4 Pull out`, the key that pulls the focused window of a face
+out into a pane; and the face label
 under the cube names the window manager and the face, with a dot per
 face. A refusal, for example while another client `xp` runs, shows in
 the HUD.
