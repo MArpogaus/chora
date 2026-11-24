@@ -168,6 +168,9 @@ pub enum Word {
     /// A typed key that does nothing in the construct; `{key}` shows the
     /// keys.
     KeysWalk,
+    /// A chord that tiling swallows because nothing is bound to it: `{chord}`
+    /// does nothing, `{key}` shows the keys.
+    KeyUnbound,
     /// The prompt of the Looks menu of the tiling bar; the rows follow.
     MoveThisWindowTo,
     /// The one row of the Looks menu while no other look runs.
@@ -223,7 +226,7 @@ pub enum Word {
 }
 
 /// Every word, for the checks of the tests.
-pub const ALL: [Word; 86] = [
+pub const ALL: [Word; 87] = [
     Word::Asleep,
     Word::Listening,
     Word::Thinking,
@@ -284,6 +287,7 @@ pub const ALL: [Word; 86] = [
     Word::NoOutputDevice,
     Word::ChangeFailed,
     Word::KeysWalk,
+    Word::KeyUnbound,
     Word::MoveThisWindowTo,
     Word::NoOtherLook,
     Word::PickFirst,
@@ -393,6 +397,7 @@ impl Word {
             Self::NoOutputDevice => "No output device",
             Self::ChangeFailed => "Change failed",
             Self::KeysWalk => "The keys walk here. {key} shows them all.",
+            Self::KeyUnbound => "{chord} does nothing here. {key} shows all keys.",
             Self::MoveThisWindowTo => "Move this window to ",
             Self::NoOtherLook => "No other look is running",
             Self::PickFirst => "Pick a helper first: type its number and press Enter, or click it.",
@@ -495,6 +500,7 @@ impl Word {
             Self::NoOutputDevice => "Kein Ausgabegerät",
             Self::ChangeFailed => "Änderung fehlgeschlagen",
             Self::KeysWalk => "Hier bewegen die Tasten die Ansicht. {key} zeigt alle.",
+            Self::KeyUnbound => "{chord} ist hier nicht belegt. {key} zeigt alle Tasten.",
             Self::MoveThisWindowTo => "Dieses Fenster verschieben nach ",
             Self::NoOtherLook => "Kein anderer Look läuft",
             Self::PickFirst => {

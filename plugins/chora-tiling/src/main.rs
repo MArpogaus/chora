@@ -211,6 +211,8 @@ struct Tiling {
     voiced: chora_kit::helper::Helper,
     /// When the layout chip leaves.
     chip_until: Option<std::time::Instant>,
+    /// When the hint of an unbound chord showed last.
+    hinted: Option<std::time::Instant>,
     /// The notice of the last failed reload, which the next one dismisses.
     reload_notice: Option<u32>,
     /// The colours of the look, and the scheme they come from.
@@ -476,6 +478,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         open: chora_kit::wm::open::Open::default(),
         voiced: chora_kit::helper::Helper::default(),
         chip_until: None,
+        hinted: None,
         reload_notice: None,
         colors: theme::Colors::of(theme::Scheme::Ink),
         scheme: theme::Scheme::Ink,
@@ -506,6 +509,12 @@ const WALLPAPER_UNIT: &str = "chora-tiling-swaybg.service";
 
 /// How long the layout chip shows.
 const CHIP_TIME: std::time::Duration = std::time::Duration::from_millis(700);
+
+/// How long the hint of an unbound chord shows on the chip.
+const HINT_TIME: std::time::Duration = std::time::Duration::from_secs(3);
+
+/// How long after a hint the next one may show.
+const HINT_AGAIN: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// The time between two frames of the effects, 60 Hz.
 const FRAME: std::time::Duration = std::time::Duration::from_micros(16_667);
@@ -1178,6 +1187,7 @@ impl Tiling {
         };
         match action {
             Action::System(system) => perform(self, &system),
+            Action::Look(Own::Swallow) => self.hint_unbound(binding),
             Action::Look(own) => self.turn(&own),
         }
     }
@@ -1304,6 +1314,7 @@ mod tests {
             open: chora_kit::wm::open::Open::default(),
             voiced: chora_kit::helper::Helper::default(),
             chip_until: None,
+            hinted: None,
             reload_notice: None,
             colors: theme::Colors::of(theme::Scheme::Ink),
             scheme: theme::Scheme::Ink,

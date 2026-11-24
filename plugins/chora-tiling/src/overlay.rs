@@ -1,11 +1,12 @@
 //! The bar, theme, chip and key list that tiling draws over the windows.
 
+use chora_kit::{actions::System, keysheet};
 use chora_scene::{Command, PropsUpdate, ipc::ClientError};
 use serde_json::Value;
 
 use crate::{
-    ANSWER_CHECK, CHIP_TIME, NAME, PANEL_UNIT, THEME_CHECK, Tiling, WALLPAPER_UNIT, dress, keys,
-    theme,
+    ANSWER_CHECK, Action, CHIP_TIME, HINT_AGAIN, HINT_TIME, NAME, PANEL_UNIT, THEME_CHECK, Tiling,
+    WALLPAPER_UNIT, dress, keys, theme,
 };
 
 impl Tiling {
@@ -173,12 +174,47 @@ impl Tiling {
 
     /// Shows the chip that names the layout of the current tag for 700 ms.
     pub(super) fn show_chip(&mut self) -> Result<(), ClientError> {
-        let (Some((output, size)), Some((layout, _))) =
-            (self.wm.current_output(), self.wm.current())
-        else {
+        let Some((layout, _)) = self.wm.current() else {
             return Ok(());
         };
         let lang = chora_kit::words::Language::of_session();
+        self.show_words(keys::layout_word(layout, lang), CHIP_TIME)
+    }
+
+    /// Says on the chip that nothing is bound to the chord `binding`, and
+    /// which key shows them all: for 3 seconds, at most once in 10 seconds,
+    /// and not while the key list shows. The key stays swallowed.
+    pub(super) fn hint_unbound(&mut self, binding: &str) -> Result<(), ClientError> {
+        let now = std::time::Instant::now();
+        let due = self
+            .hinted
+            .is_none_or(|at| now.duration_since(at) >= HINT_AGAIN);
+        if self.keys_open() || !due {
+            return Ok(());
+        }
+        self.hinted = Some(now);
+        let config = &self.wm.config;
+        let help = (config.common.bindings.iter())
+            .find(|(_, action)| **action == Action::System(System::Keys))
+            .and_then(|(text, _)| config.binding(text).ok())
+            .map_or_else(|| "Super+F1".to_owned(), |b| b.to_string());
+        let words = chora_kit::words::say(
+            chora_kit::words::Language::of_session(),
+            chora_kit::words::Word::KeyUnbound,
+            &[
+                ("chord", &keysheet::chord(binding)),
+                ("key", &keysheet::chord(&help)),
+            ],
+        );
+        self.show_words(&words, HINT_TIME)
+    }
+
+    /// Shows the chip with `word` in the middle of the current output for
+    /// `time`; a chip that still shows gives way to it.
+    fn show_words(&mut self, word: &str, time: std::time::Duration) -> Result<(), ClientError> {
+        let Some((output, size)) = self.wm.current_output() else {
+            return Ok(());
+        };
         let mut commands = Vec::new();
         if self.chip_until.is_some() {
             commands.push(Command::Remove {
@@ -189,12 +225,12 @@ impl Tiling {
         commands.extend(keys::chip(
             &format!("screen:{output}"),
             size,
-            keys::layout_word(layout, lang),
+            word,
             &self.colors,
         ));
-        self.chip_until = Some(std::time::Instant::now() + CHIP_TIME);
+        self.chip_until = Some(std::time::Instant::now() + time);
         if self.apply_report(commands)? {
-            let guess = keys::guess(keys::layout_word(layout, lang));
+            let guess = keys::guess(word);
             let measured = self.measured(&format!("{}-word", keys::CHIP));
             let animate = self.wm.config.look.animations;
             self.apply(keys::chip_fit(size, measured.unwrap_or(guess), animate))?;
