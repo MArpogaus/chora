@@ -350,18 +350,24 @@ out=$(CHORA_GATE_LOCK_HELD=x bash -c '. "$1/tests/gate-lib.sh"; until_ok false 2
     echo "FAIL: until_ok does not give up on a state that never comes: $out"
     failures=$((failures + 1))
 }
-loaded=$(CHORA_GATE_LOCK_HELD=x bash -c '. "$1/tests/gate-lib.sh"; load_scaled_limit 5000 500 250' gate "$repo" 2>&1)
-[ "$loaded" = 10000 ] || {
-    echo "FAIL: load_scaled_limit 5000 500 250 gives '$loaded', want 10000 (a probe twice as slow as its best)"
-    failures=$((failures + 1))
-}
-idle=$(CHORA_GATE_LOCK_HELD=x bash -c '. "$1/tests/gate-lib.sh"; load_scaled_limit 5000 100 100' gate "$repo" 2>&1)
+lsl() { CHORA_GATE_LOCK_HELD=x bash -c '. "$1/tests/gate-lib.sh"; load_scaled_limit "$2" "$3" "$4"' gate "$repo" "$@" 2>&1; }
+idle=$(lsl 5000 69 44)
 [ "$idle" = 5000 ] || {
-    echo "FAIL: load_scaled_limit 5000 100 100 gives '$idle', want 5000 (an idle host keeps the floor)"
+    echo "FAIL: load_scaled_limit 5000 69 44 gives '$idle', want 5000 (idle probe jitter keeps the floor)"
     failures=$((failures + 1))
 }
-[ "${loaded:-0}" -gt 9316 ] 2>/dev/null && [ "${idle:-0}" -lt 9316 ] 2>/dev/null || {
-    echo "FAIL: 9316 ms must pass at a loaded baseline ($loaded ms) and fail at an idle one ($idle ms)"
+[ "${idle:-0}" -lt 5500 ] 2>/dev/null || {
+    echo "FAIL: a 2x regression (5.5 s) must fail an idle host's bound, which is '$idle' ms"
+    failures=$((failures + 1))
+}
+loaded=$(lsl 5000 600 200)
+[ "$loaded" = 7500 ] || {
+    echo "FAIL: load_scaled_limit 5000 600 200 gives '$loaded', want 7500 (a probe 3x slower: 1.5x the floor)"
+    failures=$((failures + 1))
+}
+capped=$(lsl 5000 4000 100)
+[ "$capped" = 9000 ] || {
+    echo "FAIL: load_scaled_limit 5000 4000 100 gives '$capped', want 9000 (cap below the core's 10 s)"
     failures=$((failures + 1))
 }
 [ "$failures" = 0 ] || exit 1
