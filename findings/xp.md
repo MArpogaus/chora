@@ -6,7 +6,7 @@ xp-4 | MAJOR | fb-erika-r1:1; fb-erika6:37 | fixed 99f40faf (xtc) gate-xp-notepa
 xp-5 | MINOR | swarm-6:28; fb-erika6:7 | verify | Start lists LibreOffice though not installed: "Cannot open" after 30 s; list installed programs only
 xp-6 | MINOR | fb-erika-r1:23; P2 r1 Erika T1 (hit +1: Starting Notepad balloon waits 30 s) | verify | No sign that a program is starting (slow start looks like a dead click); a busy cursor or taskbar button (X4 panel is later)
 xp-7 | MINOR | ux-deep-xp:39 | verify | Notify balloon sat on the paperclip head, text 12 px under the 14 px floor (165a1105 moved it left of the clip)
-xp-8 | MINOR | ux-deep-xp:48 | verify | Caption buttons 22 px, 4 apart; spec 24 px, 2 apart, 4 from the edge (8e1cf99d)
+xp-8 | MINOR | ux-deep-xp:48 | fixed 8e1cf99d (spec 21 px since fd93053d; guard every_caption_button_fills_its_21_pixels, verify-minor r1) | Caption buttons 22 px, 4 apart; spec 24 px, 2 apart, 4 from the edge (8e1cf99d)
 xp-9 | MINOR | ux-deep-xp:49; pixel-xp-r4:57; P2 r1 Erika T4 (hit +1: Cancel small and low) | open | Turn Off dialog: Cancel about 56x16 (under 24 px target), icon captions 13 px, desktop not dimmed behind it
 xp-10 | MINOR | ux-deep-xp:50 | open | Date and Time: 12 px text, 72x20 buttons, single click on the clock does nothing, no taskbar button
 xp-11 | MAJOR | ux-deep-xp:47; P2 r1 Murat T2 (feedback/2026-11-20-p2r1-murat.md, hit +1) | fixed 72b0c2e2 + b778b05a (gone before; guard f72943f2) act:Help and Support of the Start menu opens Help on a filled pane, act:the topic Keyboard shortcuts lists every key inside the window, act:Escape shuts Help | Help window: Esc does not close, close box only, empty right pane on first topic, key table ends at y 712 with no scroll to more rows

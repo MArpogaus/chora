@@ -7,9 +7,9 @@ mc-5 | MAJOR | swarm-6:22; fb-nurse6:74,85 | fixed 35f0c227 gate-mc-paths first-
 mc-6 | MAJOR | ux-deep-mc:26 | fixed 35f0c227 gate-mc-paths terminal-chat, chat-click-turn | Terminal scene lost the column and chat opened boxed and generic; e6cc46c7 keeps the column, check chat on scene 5 and a page turn with the chat open
 mc-7 | MAJOR | ux-deep-mc:46 | fixed 35f0c227 gate-mc-paths all-keys | All-keys list overflowed the column, struck through the chat door, rows cut at the screen edge (d77f65a7 cleared the column)
 mc-8 | MAJOR | ux-deep-mc:63 | fixed 35f0c227 gate-mc-paths urgent | Critical notification: red unexplained footer line, 7 px close mark that did nothing, no urgency sign in the column row
-mc-9 | MINOR | ux-deep-mc:72 | verify | Chat field is a 1.7:1 box with a generic placeholder, 36 px off the 28 grid (84f21def round field, 6902a2d9 grid)
-mc-10 | MINOR | ux-deep-mc:85 | verify | Card text wraps badly (file name orphaned, "(412 / bytes)"), mono 14 px at the floor (72527394 fixed the widow)
-mc-11 | MINOR | ux-deep-mc:96 | verify | Stop is a 30x14 muted word on its own row, no "Stopped." line (b50159dd gave helpers a head)
+mc-9 | MINOR | ux-deep-mc:72 | fixed 6902a2d9 (guard a_field_in_the_column_is_lines_of_the_grid, verify-minor r1) | Chat field is a 1.7:1 box with a generic placeholder, 36 px off the 28 grid (84f21def round field, 6902a2d9 grid)
+mc-10 | MINOR | ux-deep-mc:85 | fixed 72527394 (guard a_card_in_a_page_has_no_widow, verify-minor r1) | Card text wraps badly (file name orphaned, "(412 / bytes)"), mono 14 px at the floor (72527394 fixed the widow)
+mc-11 | MINOR | ux-deep-mc:96 | fixed 6902a2d9 (guard stop_stands_on_the_head_line, verify-minor r1) | Stop is a 30x14 muted word on its own row, no "Stopped." line (b50159dd gave helpers a head)
 mc-12 | MINOR | ux-deep-mc:101 | verify | "NOTIFICATIONS 0" with chat open; the chat door jumps with each notice; title and body not told apart (346a6a98)
 mc-13 | MINOR | ux-deep-mc:114; fb-nurse6:63 | closed by 6fa86c16 (cell: unit minor::mc_13_*, red 3 of 3 on 598a34ff, green 5 of 5);  | Scene copy: "collector" jargon on page 2 reads as a failure, mixed fonts, red heads over nothing, divider off centre
 mc-14 | MINOR | ux-deep-mc:134,138 | half closed by 6fa86c16 (cell: minor::mc_14_*, red 3 of 3 on the key text, green 5 of 5); the chat body was already 19/28 in hud.yaml since 0fbb751e (not red; chora-assistant keeps a Face::serif(18) fallback outside mc, core lane); README says 19;  | Chat body 18 px/27 vs spec 19/28; "Super+ <- ->" key text has a stray space
