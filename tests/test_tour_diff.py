@@ -301,6 +301,65 @@ class CompareDirs(unittest.TestCase):
         self.assertEqual(self.verdicts(), [("x1", "Q", "same")])
 
 
+class OpenAndNamedChecks(unittest.TestCase):
+    """TOUR-BASE r2: an act whose cause is not found is `open`, never `change`; a check row names its check;
+    a check that the baseline could not measure and the candidate reads red is said so."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.base, self.cand = pathlib.Path(self.tmp.name, "b"), pathlib.Path(self.tmp.name, "c")
+        self.addCleanup(self.tmp.cleanup)
+
+    def test_an_open_row_gives_the_verdict_open_not_change(self):
+        rows = [{"act": "m1", "kind": "rect", "cause": "mc-59", "open": True}]
+        v = diff.verdict("m1", [{"kind": "rect", "id": "n"}], True, rows)
+        self.assertEqual(v["verdict"], "open", v)
+        self.assertEqual(v["cause"], "mc-59")
+
+    def test_an_open_row_does_not_hide_an_unnamed_kind(self):
+        rows = [{"act": "m1", "kind": "rect", "cause": "mc-59", "open": True}]
+        v = diff.verdict("m1", [{"kind": "rect", "id": "n"}, {"kind": "missing", "id": "k"}], True, rows)
+        self.assertEqual((v["verdict"], v["unnamed"]), ("regression", ["missing"]), v)
+
+    def test_the_f7_count_fails_on_an_open_act(self):
+        write_capture(self.base, "m1.Q", data='{"nodes": [{"id": "n", "kind": "node", "rects": {"O": [0, 0, 9, 9]}}]}')
+        write_capture(self.cand, "m1.Q", data='{"nodes": [{"id": "n", "kind": "node", "rects": {"O": [50, 0, 9, 9]}}]}')
+        toml = pathlib.Path(self.tmp.name, "i.toml")
+        toml.write_text('[[change]]\nact = "m1"\nkind = "rect"\ncause = "mc-59"\nopen = true\n')
+        code, out, _ = run_tool("tour-diff.py", self.base, self.cand, "--intended", toml)
+        self.assertIn("1 open", out)
+        self.assertNotIn("1 change", out)
+        self.assertEqual(code, 1, out)
+
+    def test_a_check_row_with_a_name_does_not_absorb_another_check(self):
+        rows = [{"act": "c2", "kind": "check", "check": "I2", "cause": "co-44"}]
+        both = ({"I2": "green", "I6": "green"}, {"I2": "red", "I6": "red"})
+        v = diff.verdict("c2", [], True, rows, checks=both)
+        self.assertEqual((v["verdict"], v["flipped"]), ("regression", ["I6"]), v)
+        v = diff.verdict("c2", [], True, rows, checks=({"I2": "green"}, {"I2": "red"}))
+        self.assertEqual(v["verdict"], "change", v)
+
+    def test_a_check_row_without_a_name_still_absorbs_the_flips(self):
+        rows = [{"act": "c2", "kind": "check", "cause": "co-44"}]
+        v = diff.verdict("c2", [], True, rows, checks=({"I2": "green"}, {"I2": "red"}))
+        self.assertEqual(v["verdict"], "change", v)
+
+    def test_base_not_measured_and_cand_red_is_printed_as_such(self):
+        write_capture(self.base, "x1.Q", data='{"nodes": [], "checks": {"I6": "not measured", "I2": "green"}}')
+        write_capture(self.cand, "x1.Q", data='{"nodes": [], "checks": {"I6": "red", "I2": "green"}}')
+        code, out, _ = run_tool("tour-diff.py", self.base, self.cand)
+        self.assertIn("I6 not measured (cand red)", out)
+        [row] = diff.compare(self.base, self.cand, [])
+        self.assertEqual((row["verdict"], row["unmeasured"], row["cand_red"]), ("same", ["I6"], ["I6"]), row)
+
+    def test_base_not_measured_and_cand_green_has_no_red_note(self):
+        write_capture(self.base, "x1.Q", data='{"nodes": [], "checks": {"I6": "not measured"}}')
+        write_capture(self.cand, "x1.Q", data='{"nodes": [], "checks": {"I6": "green"}}')
+        code, out, _ = run_tool("tour-diff.py", self.base, self.cand)
+        self.assertIn("I6 not measured", out)
+        self.assertNotIn("cand red", out)
+
+
 class IntendedRows(unittest.TestCase):
     def test_h2_lists_kinds_and_no_wildcard(self):
         import tomllib
