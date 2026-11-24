@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-24 01:51 UTC)
+## Now (2026-11-24 01:53 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 01:51 PM 4.9 % (11-22) + 5.2 % (11-23) + 1.4 % (11-24), week about 24 % vs 41 % pace
+budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 01:53 PM 4.9 % (11-22) + 5.2 % (11-23) + 1.4 % (11-24), week about 24 % vs 41 % pace
 session branch: cae62f50 (t122 green 00:58: notify-text, tiling-disc, xp-front-bar-r2); 72 greens; train123 running (soak-r4).
 burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin: W9 779 = RC; GUARD-4); F5 7 rows, no series; F7 open (r4 take stale, 24 acts)
 
@@ -23,7 +23,7 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin: W9 779 = RC; GUARD-4
 | Lane | Model, branch | State |
 |---|---|---|
 | train123: soak-r4 f0c45fcf | PM | on cae62f50; gate 01:00 |
-| tiling-reach-r1.md (rc 1, 2; 1 %) | sonnet high, claude/tiling-reach cae62f50 | starting |
+| tiling-reach-r1.md (rc 1, 2; 1 %) | sonnet high, claude/tiling-reach cae62f50 | session_016iS3kMq4yU2VPBXarSuEkP 01:52 |
 | guard-4-r1.md (F4 W9, F5 sh-37; 0.5 %) | sonnet medium, claude/guard-4 cae62f50 | session_016iS3kLiaHH34dzQpNbYZDk 01:40 |
 | co-reach-r2.md (rc 1, 2; 2 %) | opus high, claude/co-reach-r2 8c411416 | session_016iS3kQjgrwECodJywoZZU8 00:48 |
 | tour-base-r1.md (F7, rc 11; 1.5 %) | sonnet high, claude/tour-base 8c411416 | session_016iS3kLwgpLsqzbCZvy458S 23:54 |
