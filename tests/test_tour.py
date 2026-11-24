@@ -317,6 +317,24 @@ class CaptureDumps(unittest.TestCase):
         self.assertEqual(json.loads((self.dir / "x1.Q.json").read_text())["masks"], [])
         self.assertTrue((self.dir / "x1.Q.png").exists())
 
+    def test_a_baseline_without_boxes_is_not_an_i6_flip(self):
+        """TOUR-BASE: a snapshot without `scene.boxes` (733967aa) reads no text box, so I6 is not green there, it
+        is not measured; a candidate that measures it red is no flip, and the row says "I6 not measured"."""
+        import shutil
+
+        t = self.tour(snaps=[snap(), test_acts.snap(boxes=None)])
+        self.act(t)
+        base = self.dir
+        cand = pathlib.Path(tempfile.mkdtemp(prefix="tour-cand-"))
+        for path in base.iterdir():
+            shutil.copy(path, cand / path.name)
+        data = json.loads((cand / "x1.Q.json").read_text())
+        data["checks"]["I6"] = "red"
+        (cand / "x1.Q.json").write_text(json.dumps(data))
+        [row] = self.diff().compare(base, cand, [])
+        self.assertEqual(row["verdict"], "same", row)
+        self.assertEqual(row["unmeasured"], ["I6"], row)
+
     def test_a_new_take_keeps_no_stale_picture(self):
         """rw-1: a run folder with an old `x1.Q.png` (and an old H50 one the take did not copy) gets the new pictures."""
         t = self.tour(snaps=[snap() for _ in range(6)])
