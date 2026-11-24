@@ -1,0 +1,21 @@
+run 1: after Foot: mode navigate front 0, construct {"holder": "construct", "surface": "s1"}, xp {"holder": null}, camera [-1191, 2391] panes [('foot', [-1562, 3136])], top bar [], hint bar [Super | F1 | All keys | Alt | Esc | Step back], in the program, way out shown: yes
+  after Escape: mode navigate front 0, construct {"holder": "construct", "surface": "s1"}, camera [-1191, 2391] panes [('foot', [-1562, 3136])]
+  after Alt+Escape: mode navigate front 0, construct {"holder": "construct", "surface": "s1"}, camera [0, 0] panes [('foot', [-1562, 3136])], top bar [09:25 | Helper | Keys | Lock | Power | Programs | Screenshot | Volume 50%]
+  non-I6 breach rows: 8 I2: co-44 gap x8
+run 2: after Foot: mode navigate front 0, construct {"holder": "construct", "surface": "s1"}, xp {"holder": null}, camera [-1191, 2391] panes [('foot', [-1562, 3136])], top bar [], hint bar [Super | F1 | All keys | Alt | Esc | Step back], in the program, way out shown: yes
+  after Escape: mode navigate front 0, construct {"holder": "construct", "surface": "s1"}, camera [-1191, 2391] panes [('foot', [-1562, 3136])]
+  after Alt+Escape: mode navigate front 0, construct {"holder": "construct", "surface": "s1"}, camera [0, 0] panes [('foot', [-1562, 3136])], top bar [09:27 | Helper | Keys | Lock | Power | Programs | Screenshot | Volume 50%]
+  non-I6 breach rows: 8 I2: co-44 gap x8
+run 3: after Foot: mode navigate front 0, construct {"holder": "construct", "surface": "s1"}, xp {"holder": null}, camera [-1191, 2391] panes [('foot', [-1562, 3136])], top bar [], hint bar [Super | F1 | All keys | Alt | Esc | Step back], in the program, way out shown: yes
+  after Escape: mode navigate front 0, construct {"holder": "construct", "surface": "s1"}, camera [-1191, 2391] panes [('foot', [-1562, 3136])]
+  after Alt+Escape: mode navigate front 0, construct {"holder": "construct", "surface": "s1"}, camera [0, 0] panes [('foot', [-1562, 3136])], top bar [09:28 | Helper | Keys | Lock | Power | Programs | Screenshot | Volume 50%]
+  non-I6 breach rows: 8 I2: co-44 gap x8
+run 4: after Foot: mode navigate front 0, construct {"holder": "construct", "surface": "s1"}, xp {"holder": null}, camera [-1191, 2391] panes [('foot', [-1562, 3136])], top bar [], hint bar [Super | F1 | All keys | Alt | Esc | Step back], in the program, way out shown: yes
+  after Escape: mode navigate front 0, construct {"holder": "construct", "surface": "s1"}, camera [-1191, 2391] panes [('foot', [-1562, 3136])]
+  after Alt+Escape: mode navigate front 0, construct {"holder": "construct", "surface": "s1"}, camera [0, 0] panes [('foot', [-1562, 3136])], top bar [09:30 | Helper | Keys | Lock | Power | Programs | Screenshot | Volume 50%]
+  non-I6 breach rows: 8 I2: co-44 gap x8
+run 5: after Foot: mode navigate front 0, construct {"holder": "construct", "surface": "s1"}, xp {"holder": null}, camera [-1191, 2391] panes [('foot', [-1562, 3136])], top bar [], hint bar [Super | F1 | All keys | Alt | Esc | Step back], in the program, way out shown: yes
+  after Escape: mode navigate front 0, construct {"holder": "construct", "surface": "s1"}, camera [-1191, 2391] panes [('foot', [-1562, 3136])]
+  after Alt+Escape: mode navigate front 0, construct {"holder": "construct", "surface": "s1"}, camera [0, 0] panes [('foot', [-1562, 3136])], top bar [09:32 | Helper | Keys | Lock | Power | Programs | Screenshot | Volume 50%]
+  non-I6 breach rows: 8 I2: co-44 gap x8
+co65 hr10: 5/5 pass

@@ -1,0 +1,81 @@
+run 1 before:
+mode navigate front 0 keys ['faces', 'front', 'mode', 'turning']
+  faces [{"health": "up", "manager": "xp", "output": "VIRTUAL-1"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-2"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-3"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-4"}]
+  camera [0, 0] panes []
+  focus construct: {"holder": "construct"}
+  focus xp: {"holder": null}
+ after start:
+mode navigate front 0 keys ['faces', 'front', 'mode', 'turning']
+  faces [{"health": "up", "manager": "xp", "output": "VIRTUAL-1"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-2"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-3"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-4"}]
+  camera [-1191, 2391] panes [('foot', [-1562, 3136])]
+  surface s1 construct visible True rect [0.0, 0.0, 1280.0, 800.0]
+  focus construct: {"holder": "construct", "surface": "s1"}
+  focus xp: {"holder": null}
+ after Alt+Escape:
+mode navigate front 0 keys ['faces', 'front', 'mode', 'turning']
+  faces [{"health": "up", "manager": "xp", "output": "VIRTUAL-1"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-2"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-3"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-4"}]
+  camera [0, 0] panes [('foot', [-1562, 3136])]
+  surface s1 construct visible True rect [17.04323619070525, 283.2577286532011, 382.5296363669059, 233.4845426935978]
+  focus construct: {"holder": "construct", "surface": "s1"}
+  focus xp: {"holder": null}
+ after step in (Return):
+mode use front 0 keys ['faces', 'front', 'mode', 'turning']
+  faces [{"health": "up", "manager": "xp", "output": "VIRTUAL-1"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-2"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-3"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-4"}]
+  camera [0, 0] panes [('foot', [-1562, 3136])]
+  surface s1 construct visible True rect [17.04323619070525, 283.2577286532011, 382.5296363669059, 233.4845426935978]
+  focus construct: {"holder": "construct", "surface": "s1"}
+  focus xp: {"holder": null}
+run 2 before:
+mode navigate front 0 keys ['faces', 'front', 'mode', 'turning']
+  faces [{"health": "up", "manager": "xp", "output": "VIRTUAL-1"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-2"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-3"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-4"}]
+  camera [0, 0] panes []
+  focus construct: {"holder": "construct"}
+  focus xp: {"holder": null}
+ after start:
+mode navigate front 0 keys ['faces', 'front', 'mode', 'turning']
+  faces [{"health": "up", "manager": "xp", "output": "VIRTUAL-1"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-2"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-3"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-4"}]
+  camera [-1191, 2391] panes [('foot', [-1562, 3136])]
+  surface s1 construct visible True rect [0.0, 0.0, 1280.0, 800.0]
+  focus construct: {"holder": "construct", "surface": "s1"}
+  focus xp: {"holder": null}
+ after Alt+Escape:
+mode navigate front 0 keys ['faces', 'front', 'mode', 'turning']
+  faces [{"health": "up", "manager": "xp", "output": "VIRTUAL-1"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-2"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-3"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-4"}]
+  camera [0, 0] panes [('foot', [-1562, 3136])]
+  surface s1 construct visible True rect [17.04323619070525, 283.2577286532011, 382.5296363669059, 233.4845426935978]
+  focus construct: {"holder": "construct", "surface": "s1"}
+  focus xp: {"holder": null}
+ after step in (Return):
+mode use front 0 keys ['faces', 'front', 'mode', 'turning']
+  faces [{"health": "up", "manager": "xp", "output": "VIRTUAL-1"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-2"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-3"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-4"}]
+  camera [0, 0] panes [('foot', [-1562, 3136])]
+  surface s1 construct visible True rect [17.04323619070525, 283.2577286532011, 382.5296363669059, 233.4845426935978]
+  focus construct: {"holder": "construct", "surface": "s1"}
+  focus xp: {"holder": null}
+run 3 before:
+mode navigate front 0 keys ['faces', 'front', 'mode', 'turning']
+  faces [{"health": "up", "manager": "xp", "output": "VIRTUAL-1"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-2"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-3"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-4"}]
+  camera [0, 0] panes []
+  focus construct: {"holder": "construct"}
+  focus xp: {"holder": null}
+ after start:
+mode navigate front 0 keys ['faces', 'front', 'mode', 'turning']
+  faces [{"health": "up", "manager": "xp", "output": "VIRTUAL-1"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-2"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-3"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-4"}]
+  camera [-1191, 2391] panes [('foot', [-1562, 3136])]
+  surface s1 construct visible True rect [0.0, 0.0, 1280.0, 800.0]
+  focus construct: {"holder": "construct", "surface": "s1"}
+  focus xp: {"holder": null}
+ after Alt+Escape:
+mode navigate front 0 keys ['faces', 'front', 'mode', 'turning']
+  faces [{"health": "up", "manager": "xp", "output": "VIRTUAL-1"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-2"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-3"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-4"}]
+  camera [0, 0] panes [('foot', [-1562, 3136])]
+  surface s1 construct visible True rect [17.04323619070525, 283.2577286532011, 382.5296363669059, 233.4845426935978]
+  focus construct: {"holder": "construct", "surface": "s1"}
+  focus xp: {"holder": null}
+ after step in (Return):
+mode use front 0 keys ['faces', 'front', 'mode', 'turning']
+  faces [{"health": "up", "manager": "xp", "output": "VIRTUAL-1"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-2"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-3"}, {"health": "up", "manager": "xp", "output": "VIRTUAL-4"}]
+  camera [0, 0] panes [('foot', [-1562, 3136])]
+  surface s1 construct visible True rect [17.04323619070525, 283.2577286532011, 382.5296363669059, 233.4845426935978]
+  focus construct: {"holder": "construct", "surface": "s1"}
+  focus xp: {"holder": null}
