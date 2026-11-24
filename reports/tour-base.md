@@ -403,3 +403,98 @@ rtb3-1 (a check the candidate stops measuring is `same`): fixed.
 - Full gate EXIT 0 (lane), no foreign red. --check did not run headless (100 s, no output); the Done-when allows the reason.
 - rtb4-1 MINOR: a check absent on the base and "not measured" on the candidate is also a flip: `verdict('a',[],True,[],({}, {'I9':'not measured'}))` gives `regression` (run here). A check new in v9 and unmeasured would mark every act; base absent should count as unmeasured (`base.get(n) not in (NOT_MEASURED, None)`). Next tour-base round.
 - Verdict (computed): no open MAJOR, MERGE-OK. Next train.
+
+## r5 (F7, rc 11: rtb4-1, rv9j-4, rv9j-5)
+
+Branch claude/tour-base-r5, head 61d0ef7a (base d0801b7e). Step 0 green: `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`, `pytest tests/test_tour.py -q` (84 passed), `python3 -I tests/test_tour_diff.py` (65 OK). The chapter is `demo/tour/chapters/handover.py` (the brief said demo/tour/handover.py).
+
+### Red, then fix (every red commit holds tests only)
+
+| id | red | fix | red line |
+|---|---|---|---|
+| rtb4-1 | 51a44e9f | 6d01db40 | `FAIL: test_a_check_absent_on_the_base_and_not_measured_on_the_candidate_is_not_a_flip`, `AssertionError: 'regression' != 'same'` (`Ran 66 tests ... FAILED (failures=1)`) |
+| rv9j-5 | 1deb1bc9 | dd356a8f | `ERROR: test_a_node_no_row_names_is_unnamed` (KeyError `unnamed`: the toml row of the kind absorbed the node), `FAIL: test_a_row_with_nodes_absorbs_only_those_nodes`, `AssertionError: 'xp-47 greeting (open)' != '29281054 labels; xp-47 greeting (open)'` (`Ran 71 tests ... FAILED (failures=2, errors=1)`) |
+| rv9j-4 | a12bc57e | 671b426e | `AssertionError: unexpectedly None : chapters/handover.py builds no companion command for the tiling output`, `ValueError: substring not found` (`3 failed, 84 deselected`) |
+| rv9j-5 rows | 60e6687d | 61d0ef7a | `FAIL: test_no_row_of_the_xp_or_handover_acts_cites_the_session_captions`, `Lists differ: [('h1', 'pixel'), ('h1b', 'pixel'), ('h1c'[437 chars]el')] != []` (`Ran 74 tests ... FAILED (failures=1)`) |
+
+After the fixes: `python3 -I tests/test_tour_diff.py` `Ran 74 tests ... OK`; `pytest tests/test_tour.py -q` `87 passed`.
+
+- **rtb4-1** (tests/tour-diff.py, 1 line): `cand_lost` needs `base.get(n) not in (NOT_MEASURED, None)`. A check the base lacks and the candidate cannot measure is `unmeasured` (named in the row), no flip; base green or red and candidate "not measured" stays `regression` (rtb3-1).
+- **rv9j-5** (tests/tour-diff.py, `named()`): an optional `nodes = [...]` per row, the ids of the scene diff (a window as `app_id:title`). A node is named by the rows that list it first, else by the rows of the kind without a list, an open row first. So a closed row with `nodes` proves those nodes only; a node it does not list falls to an open row without a list (stays `open`), and with no such row it is unnamed (`regression`). A pixel diff has no node: rows without a list first, else any row of the kind. A row without `nodes` is as before. The docstring and the header of intended.toml say it; three tests on the toml (nodes are a list of ids of a scene kind; no xp or handover row cites fc9675ac, 11e34cf8, 94579f91; no `hud-chat` row cites 29281054).
+- **rv9j-4** (handover.py): `tiling_companions(output)` returns `swaybg -o <tiling output> --color #2e3440` (the colour of tiling.py:143; `-o` so the xp, mc and construct outputs keep their own desktops) and `dbus-run-session -- sh flavors/tiling/waybar/waybar.sh flavors/tiling/waybar`; `start_multi` runs them by `choractl run setsid` (CHORA_FLAVOR_DIR of the tiling flavor, as `Launcher.start`) once `owner:tiling` is up. Seen in the take: `media/2026-11-24/tour-base-r5/05-01-two-screens-R.png` has the bar and the wallpaper (before: pure black).
+
+### The rows (demo/tour/intended.toml, 61d0ef7a)
+
+The pair is a fresh take (the stills of the judge's pair are not on claude/session-log): v9 = `TOUR_OUT=... demo/tour/run.py` on the head (671b426e, the take is before the toml changes, which it does not read); v8 = `TOUR_REPO=<worktree of 733967aa, built> TOUR_BASELINE=1 demo/tour/run.py`, own `TOUR_SCRATCH`, one after the other (not at the same time: the judge's red xp and handover acts were typing under load). v9: xp 30 green 1 known, tiling 28 green, mc 22 green, handover 11 green, construct 14 red (I2 co-44 in all, I6 co-45 at act 11, as the judge). v8: xp, tiling, mc replay (every act red on the old build, as before), construct `baseline: none` at `cube.list`, handover BROKE at handover.py:190 (as the judge).
+
+127 rows of the kinds meta, rect, missing and pixel of the xp acts (x1..x12c) and the handover acts (h1..h1d) are replaced by 172 rows per node, each node of each act of the take assigned by its id; a node with no rule stops the generator, so nothing is left to a catch-all. The pixel rows are classified by the blobs of the take: every blob lies in the rect of the pager (4 buttons), the bin (`xp-icon-2`, 470 to 482), the moved Notepad window or the notify card, within 16 px; only x8 has two blobs beside (the eyes of the paperclip, a blink).
+
+| nodes | cause |
+|---|---|
+| `xp-item-3`, `xp-item-4` meta ('UXTerm' to 'Foot', 'XTerm' to 'Foot Client') | 29281054 (only these; before it covered `hud-chat` too) |
+| `hud-chat` meta (x5..x6d) | 4fec75c3 (xp-30), **open**; no row names xp-47 (judge r1 x5d, x5d.jpg) |
+| `hud-chat*` rect (x5..x6d) | 62708d35 (88 px left of the bin) and 4fec75c3, **open** (height 141 to 204 is not proven apart from the greeting) |
+| x6b `hud-card`, `hud-card-*`, `hud-chat*` rect, `hud-card` meta, `hud-chat-hint` missing | 62708d35 (88 px left) and 86343e3f (the typing line stands in the card, 'Typing does not answer.', card 188 to 208 px; the hint line goes) (judge r1 x6b, x6b.jpg); the `hud-chat` meta of x6b stays open (the greeting under "You") |
+| `xp-icon-2` rect (the bin, 12 px down) | 62708d35 (judge r1 x2, x2.jpg); before: "the label of xp-icon-2 'UXTerm' to 'Foot'" (29281054), which is the wrong node |
+| `Notepad:None`, `xp-*-s1` rect | 09ff8ff9, bd5af4b3 (xp-28; judge r1 x7, x7.jpg) |
+| `notify-card-*` rect | 675ebd55 (sh-31), as before |
+| pixel, closed | d78fc4bb (pager, 4 buttons), 62708d35 (bin), 09ff8ff9 (windows), 675ebd55 (notify) by the position of the blobs; fc9675ac, 11e34cf8, 94579f91 are cited by no xp or handover row (the session-button captions are not on screen) |
+| h1..h1d `construct-*` missing/rect | d9b2c4f1, co-63 (open), as before but for these nodes only; the pixel row of h1 no longer cites it (the blobs are pager and bin; h1c, h1d also the window) (judge r1 h1, h1.jpg; h1c, t8b-h1c.jpg) |
+| h1..h1d `mc-*` missing/rect | 675ebd55, mc-59 (open), as before for these nodes only |
+| c4 check I6 | co-45, b8872054 (the sheet's scope line and heads at 11 px; judge r1 c4, c4.jpg) |
+
+The construct acts' open pixel rows (c2, c2b, c3b, c3c, c3d, c4, c4b, c5d, c5e) lose fc9675ac, 11e34cf8, 94579f91 and name d78fc4bb (pager of the xp face), 62708d35 (bin), 909bc57b (the chips Click Fly in and Pull out, co-64, co-65) and f1397d98 (inactive titles on the face, xp-45), each still open (judge r1 c2, c3b: not proven per element).
+
+**Deviations, said plainly.**
+1. **6d336bdf is not in this head** (`git merge-base --is-ancestor 6d336bdf HEAD` fails; it is the later merge of co-pull with the fix co-68, be6e62ec). The chips of the judge's table are in the head by 909bc57b (co-64, co-65), so that sha is in the rows; no row cites 6d336bdf, a row cannot cite a commit that the take does not contain.
+2. **0a0fca76 (xp-47) is not in this head** either, so the greeting still stands in `hud-chat` in the take (x5..x6d). The rows say `open` with 4fec75c3 (xp-30) and name no row for xp-47; the next take on a head with 0a0fca76 shows whether those nine acts leave `open`.
+3. rv9j-1 and rv9j-3 are open findings, not intended changes: no row. The pager's current desktop (rv9j-1) cannot be seen in the stills and no row says it is meant.
+4. The x8 blobs (paperclip blink, 1213,593 and 1233,593) are not masked by the tour: the x8 pixel row stays open with that text.
+
+### Counts per verdict on the pair
+
+Same pair (fresh v8 replay and v9 take), `tests/tour-diff.py BASE CAND --intended demo/tour/intended.toml` (the CLI; output in `media/2026-11-24/tour-base-r5/tour-diff-r5.txt`):
+
+| | same | change | open | regression | none |
+|---|---|---|---|---|---|
+| before (intended.toml of d0801b7e) | 1 | 14 | 82 | 2 | 11 |
+| after (61d0ef7a) | 1 | 27 | 71 | 0 | 11 |
+
+Moved: open to change: x1, x2, x2b, x2c, x5e, x5g, x7, x7b, x9b, x10, x10c, x11b, x12b (13 xp acts; the rows are the per node rows above, the pixel row of each is closed). Regression to open: x6b (new `missing hud-chat-hint` row, 86343e3f; open stays because of the greeting in `hud-chat`) and c4 (the I6 flip now has its row; open stays through the construct rows of c4). No act went from change to open or regression.
+
+Acts of the xp and handover chapters that stay `open` and their row: x5, x5b, x5c, x5d, x5f, x6, x6c, x6d and x6b (`hud-chat` meta and rect: 4fec75c3 xp-30, open); x8 (pixel: paperclip blink, open); x10b (`added` rows xp-43 open: hud-line and the help scroll node); h1, h1b, h1c, h1d (construct rows d9b2c4f1 co-63 open, mc rows 675ebd55 mc-59 open). The 44 other open acts (construct 14, tiling 24, mc 18 minus the changes, as before) are untouched rows of r2 to r4: only the causes the judge named were changed.
+
+### Gate
+
+Full gate `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` on 61d0ef7a: **EXIT 1, one red cell, not caused by this change** (tests/tour tooling only, no product code): 55 cells PASS (red-first, identity, pre-commit, gate-lib, ci-check, build, test, matrix, tiling-audit, cube, pull, handover, mc-scale and the rest), `acts` FAIL after 2097s, `acts: 236 pass, 2 known red, 1 blocking`. The blocking line:
+
+`FAIL: xp I6: in act 'a click on Notepad starts it under the volume popup': on HEADLESS-1 'Starting Notepad' (notify-card-body) has the contrast 1.04:1 ((119, 179, 75) on (115, 176, 72)), the guide wants 4.5:1 (evidence /tmp/acts-run-j3mjvn3j/xp-I6)`
+
+The text colour (119, 179, 75) is the wallpaper green (115, 176, 72) at 1.04:1: the card of "Starting Notepad" was captured while it faded in. A flake of an xp act under load (the r4 gate had `acts PASS 2056s`; the xp acts do not run handover.py or intended.toml). Rerun of the xp look alone: `BIN=target/debug tests/gate-acts.sh --no-selftest xp`: `acts: 80 pass, 0 known red, 0 blocking`, `ok: every act and invariant passes or is listed as known red`, `EXIT 0`. The 2 known red of the full run are the construct I2 and I6 cells of known-red.toml (co-44, co-45). The whole gate was not run a second time (35 minutes); the other 55 cells are green.
+
+Last 20 lines of /tmp/gate.log:
+
+```
+cell xp act:the speaker opens the volume popup again pass
+cell xp act:the speaker opens the volume popup for Mute pass
+cell xp act:the speaker opens the volume popup for an outside click pass
+cell xp act:the speaker opens the volume popup over the window pass
+cell xp act:the speaker opens the volume popup to shut it pass
+cell xp act:the task button brings the window back pass
+cell xp act:the tooltip of the speaker says the level that the key set pass
+cell xp act:the tooltip of the speaker says the level that the popup set pass
+cell xp act:the topic Keyboard shortcuts lists every key inside the window pass
+cell xp act:the volume key raises the level pass
+cell xp act:the volume popup opens while the balloon shows pass
+cell xp act:the window closes pass
+cell xp act:the window of Notepad shows pass
+cell xp act:the window of Show Desktop closes pass
+cell xp act:the window of the key check closes pass
+acts: evidence kept in /tmp/acts-run-j3mjvn3j
+acts: 236 pass, 2 known red, 1 blocking
+FAIL: xp I6: in act 'a click on Notepad starts it under the volume popup': on HEADLESS-1 'Starting Notepad' (notify-card-body) has the contrast 1.04:1 ((119, 179, 75) on (115, 176, 72)), the guide wants 4.5:1 (evidence /tmp/acts-r
+FAIL: acts: a cell blocks (see the FAIL lines)
+EXIT 1
+```
+
+`tools/sleep-ratchet` ok. `pgrep -fa 'chora --headless'` empty at the end.
