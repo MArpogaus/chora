@@ -1194,8 +1194,11 @@ mod tests {
     fn the_title_of_the_give_keys_names_each_other_desktop() {
         for (language, de) in [(Language::En, false), (Language::De, true)] {
             let title = title(LOOKS, de);
-            for (_, to) in chora_kit::give::KEYS.iter().filter(|(_, to)| *to != NAME) {
-                let name = chora_kit::give::desktop_name(to, language);
+            for (_, look) in chora_kit::give::KEYS
+                .iter()
+                .filter(|(_, look)| *look != NAME)
+            {
+                let name = chora_kit::give::desktop_name(look, language);
                 assert!(title.contains(&name), "{name} in {title}");
             }
         }
