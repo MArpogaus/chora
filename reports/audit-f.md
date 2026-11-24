@@ -484,3 +484,111 @@ Sum 3.9 % (week at about 18 % against 34 % pace). Not a slice: the PM ledger pas
 on P (shas in section 3), and the rv9 severity rating (one reviewer, inside p2-r7-co's or slice 3's review).
 Honest outlook: F8 and rc 7 close with slice 1 (hours). F5 depends on leak-r1 (sh-33) more than on any slice; F7 needs slice 3 plus a
 final take and per-look reviews: likely Thu-Fri, not earlier.
+
+## r6
+
+Lane: cloud, opus, read-only on code, 11-24 01:05-01:40 UTC. Brief briefs/audit-f-r6.md. Tree **P** = session head cae62f50 (t122 green
+00:58; origin had nothing newer at 01:37). Step 0: `git fetch --unshallow`; `cargo check -p chora` green. Running lanes (flake-series r7,
+tour-base r1, co-reach r2, p2-r6-tiling) read by brief, not merged. Nothing carried from r5: every value below is measured again on P.
+Since r5 (bc153929): 15 first-parent commits, all merges; 74 files, +2081/-1056; `git diff --stat bc153929 P -- crates/chora-kit`: empty.
+
+### 1. F1-F4, F8 on P
+
+| # | value on P (r5; RC) | command | state |
+|---|---|---|---|
+| F1 | 26 slice rows; plan last changed 11-17 14:53 (1a722b9a) (26) | `git show origin/claude/session-log:reports/arch-plan-fable.md \| grep -cE '^\| *(WM\|KIT\|NET\|CUT\|MV)'`; `git log -1 -- reports/arch-plan-fable.md` | met |
+| F2 | 0 copies lines; 43 rows `max = 0` (43) | `python3 tools/cut-check \| grep -ci copies`; `grep '^max' tools/copies.toml \| sort \| uniq -c` | met; r5 nit closed: cut-check prints no `REPORT: known` line now (`ok: cut-check (8 crates, 16 reported)`, r5 18) |
+| F3 | kit wm/ = book, focus, give, kept, open, stack, state (same) | `ls crates/chora-kit/src/wm` | met |
+| F4 size | 0 files over 1,500 | `tools/size-ratchet` → `ok: size-ratchet (0 files over 1500)` | met |
+| F4 lint | allow 360, no-reason 0, eprintln 47 (360/0/47; 378/-/135) | `tools/lint-ratchet` → `ok: lint-ratchet (allow 360, no-reason 0, eprintln 47)` | met |
+| F4 workarounds | **3** (3; 9): B3 CHANGELOG.md:1 `## Unreleased` (no rc.4 heading); B6 F16-F19 rows (backlog.md:128-131) no fix; W9 **779** sleep lines (746; **779**) | `head -1 CHANGELOG.md`; `grep -h -E '(^\|[^a-z_])sleep ' tests/*.sh \| wc -l` | met, **no margin**: W9 +33 since r5 = exactly its RC value. Per file: gate-xp-readable.sh 0 → 15, gate-tiling-focus-key.sh 0 → 9, gate-leak.sh 0 → 3, gate-persona-keep.sh 0 → 3, gate-tiling-settings.sh 0 → 2, construct-captures.sh 6 → 7. One more sleep line in any running lane (co-reach r2 and flake-series r7 both write tests/*.sh) puts W9 above its RC value and reopens F4 by the r6 rule. No tool guards it (slice 1) |
+| F4 refactors | **4** (4; 7): RF2 two `on_path` (kit launcher.rs:347, desktop_entry.rs:188); RF7 `placed: bool` plugins/chora-construct/src/main.rs:238, `held: bool` plugins/chora-xp/src/window.rs:111; N1 | `grep -rn 'fn on_path\|struct ConfirmParams\|placed: bool\|held: bool' crates plugins services` | met (unchanged) |
+| F4 hygiene | **10** (10; 14): `grep -c verify docs/known-issues.md` 0; `git ls-tree -r --name-only origin/claude/session-log \| grep -i 'test.*tokens'` empty; H2, H6, H7, H9, H10, H13, H14, DB7-DB9 still counted open (no merge since r5 names them) | as named | met |
+| F4 total | **17** (17; 47) | sum | **met** (risk W9) |
+| F8 | r5 gap **closed**: CONTRIBUTING.md:41 `log` line (D120), docs/decisions.md:169 D120 (49f65382, GUARD-3, merged 6441dc7c in t121). Module loop: only `missing lib` (by design) and `missing wm/mod` (the module root, by design). Decision ids named in commit bodies since r5 (D64, D84, D95, D116, D120): each has its record. h-rf's new rule has its CONTRIBUTING item (:116); the leak verdict is documented in tests/gate-leak.sh:16 and tests/leak-verdict.awk:3 | `for m in $(ls crates/chora-kit/src \| sed 's/\.rs$//'); do grep -q "\`$m\`" CONTRIBUTING.md \|\| echo missing $m; done` (and the same for src/wm); `git log --format=%B bc153929..P --no-merges \| grep -oE '\bD[0-9]{2,3}\b' \| sort -u`, each grepped as `\| Dn \|` in docs/decisions.md | **met**. Residue (backlog, not F8 scope since not shared code): tests/battle/README.md names w1..w16 only, not soak-core.sh, frame-p99.sh (both new on P since r5 via sim-long-r2), keep.sh, repro-sl1.sh, repro-sl3.sh |
+
+### 2. F6 on P
+
+- bc153929..P: **15 first-parent commits, 15 merges, 0 direct commits.** Each merge sits in a green train of state.md history:
+  t117b green 16:38 (325a9337 sim-long-r2 84c8c5d2, 2bba38d0 mc-tidy 2025bae0, 1ec04694 leak 677790dc); t121 green 23:50 (95135b49 h-rf
+  c9d8d9f0, d3a2d498 leak-cell 0836ca58, 52426809 co-reach fe369799, ee9705b5 xp-readable 51cd0bc0, f2ec365b docs-rc-r2 37730187,
+  6441dc7c guard-3 49f65382, 4ae82139 soak-r3 39283655, cdb90088 mc-host 8dd16c0f, 8c411416 xp-cube-faces d588d573); t122 green 00:58
+  (aea3e9d9 notify-text 60a38634, 95d82986 tiling-disc ca165f7b, cae62f50 xp-front-bar-r2 da8b8fa9). The second parents equal the
+  MERGE-OK heads in state.md history. Reds on the way (t116 rtd-2, t117 xp-42, t118 sh-35, t119 rtd-6) merged nothing.
+- `git show --remerge-diff`: 13 empty; **2 hand resolutions** in data files: aea3e9d9 tests/acts/known-red.toml (48 lines) and 95d82986
+  tests/acts/known-red.toml + docs/known-issues.md (672 lines). Checked: both are the union of both sides' removals (known-red base
+  1ec04694 105 rows, session side -33 xp rows, tiling-disc side -53 tiling rows, result 19 = 105-33-53; notify-card-body rows gone as
+  60a38634 intends; known-issues keeps docs-rc-r2's drop of ti-5/6/7 and tiling-disc's ti-12 text). Both inside green t122.
+- Cut gate: `tests/cut-check-selftest.sh` → `ok: cut-check-selftest`; `python3 tools/cut-check` → `ok: cut-check (8 crates, 16 reported)`.
+- **F6: met.** Residue: the two resolutions have no named check besides the train; a merge with a resolution should name it in the train
+  line (as r5 asked for PM commits).
+
+### 3. F5 on P
+
+Test half: chora-kit **93.57 %** lines (10,512 lines, 676 missed; regions 94.05 %), `env -u XDG_RUNTIME_DIR cargo llvm-cov -p chora-kit
+--features chora-kit/testing --summary-only`, rc 0. Identical to r5 (no kit change since). Met.
+
+Flake half. Closed on P since r5 (fix is an ancestor of P): sh-32 (eb831349, ledger closed), sh-33 (soak r3, ledger closed), sh-36
+(soak r4 f0c45fcf, ledger closed; joins train123, not yet on P), and three rows the ledger still reads open:
+- sh-34: `need_fuzzel 1.11` at tests/gate-construct-keys-persona.sh:25 and `keys` in the tool_minimums row tests/merge-gate.sh:415
+  (01e6816a, GUARD-3, t121). Closed as a named SKIP on fuzzel < 1.11, PASS on 1.11.1 (t121, t122; this container has 1.11.1).
+- sh-35: red c40d6203 (verdict selftest with the train118 numbers), fix 0836ca58 (median of round differences), t121.
+- mc-58: red fa828e4d, fix 8dd16c0f (mc-host), t121.
+**Open on P: 7** (r5: 8): xp-42 = FLK-XP-FACES (one cell, xp-faces opens-under-pointer; t117 red; r7 running); the stall (leftover
+chora-voice/chora-assistant after a red or interrupted gate, fs r6; r7 running); sh-37 MINOR (gate-mc-scale 9316 ms > 5000 under lane
+load, no owner); named, not reproduced: FLK-HUD2, FLK-TA1, FLK-XP-HW, FLK-LAUNCHER. Watch rows unchanged (FLK-CUBE-OPEN, FW-RW, FLAKE-H).
+Bar (r4, unchanged): 5 of 5 full `tests/merge-gate.sh --jobs 2` in a row on the final head, no rerun, keys and launcher-click PASS or named
+SKIP. Series: none since r6 (0/5 on 230ea0e5, before GUARD-3). Trains 116-122: 3 green (t117b, t121, t122), 4 red: 2 on flakes
+(t117 xp-42, t118 sh-35), 2 on product (t116 rtd-2, t119 rtd-6). **F5: open.** Gap: r7 (xp-42, stall), sh-37 (slice 1), then a 5/5 series on the final head
+(slice 2). PM ledger: mark sh-34, sh-35, mc-58 fixed with the shas above, and the ~20 FLK rows of r5 section 3.
+
+### 4. F7
+
+Latest take: still record-v9 r4 (6949cddb, 11-23 10:48): 110 captures, **109 differ from v8** (1 same, 21 intended change, 88
+regression); **24 acts with neither row nor finding** (mc 21: m1..m4c page divergence after fa7faabd and footer-hud/chat-door rects;
+tiling t8, t9, t10; ti-35 names the t10 aim, not the bar blob rect, so it does not cover it); 43 flipped acts with unnamed kinds.
+Filed per look (`grep -rn rv9- findings/`): xp rv9-1 → xp-39, xp-41, rv9-6 → xp-40; construct rv9-2 → co-44, rv9-5 → co-45; tiling
+rv9-3 → ti-30 (fixed 7adb149c, t119); shared rv9-4 → sh-31 (fix 60a38634 merged t122, ledger still open); mc: **none**. Ratings:
+the ledger has rv9-1..5 MINOR (co-44 COSMETIC); state.md queue says "rv9 = MAJOR" for TOUR-BASE: still no independent rating.
+New since r5: the take predates **five merges that change pixels** (xp-readable, notify-text, tiling-disc, xp-cube-faces,
+xp-front-bar-r2), and tiling-disc adds a visible launcher row (flavors/tiling/settings.sh, applications/chora-settings.desktop, "Edit
+settings"; a persona discoverability fix, but a v8 difference that needs an intended row). The count on P is therefore unmeasured;
+the 24/43 numbers describe 733967aa vs a346972e only.
+What must hold for F7 met: (1) baseline says "I6 not measured" (tour-base r1 items 1-2); (2) one take on the final head (after co-reach
+r2 and tour-base merge) with 0 acts that have neither an intended row with a sha nor a filed finding id per look, and 0 unnamed kinds;
+(3) rv9-1..5 and any new finding rated by a reviewer who is neither the lane nor the PM writer; (4) a fresh-eyes reviewer per look
+(xp, construct, mc, tiling, handover; rules 7). **F7: open.**
+
+### 5. RC (design/rc.md) on P
+
+| # | state | shortest path |
+|---|---|---|
+| 1, 1b | open: co-61, co-62 MAJOR (co-reach r2 running); rv9-1..5 unrated independently; owner has not seen v9 | co-reach r2 merge; slice 3 (take + per-look reviews rate rv9); v9 to the owner after slice 3 |
+| 2 | open: construct r8 not met (co-61, co-62); tiling r5 not met, r6 running (L1, L2, T6, T7) on cae62f50; xp, mc meet | co-reach r2, then construct persona r9; p2-r6-tiling verdict |
+| 3 | open: no series since r6; xp-42 and stall in r7 | r7 merge, slice 1 (sh-37), slice 2 (series; 3 greens are inside 5/5), opt-in gates once in slice 2 |
+| 4, 5 | not run on P; deny now clean, so CI is no longer blocked by advisories | slice 4 (one CI PR, the PM opens it) |
+| 6 | met: r1 MERGE-OK, 0 MAJOR | none |
+| 7 | **met**: `cargo deny check` → `advisories ok, bans ok, licenses ok, sources ok` (url 2.5.9 via GUARD-3); `cargo machete` → no unused dependencies | none |
+| 8 | met on content: DOCS-RC r2 merged (f2ec365b, pr-1..5); known-issues 49 rows, unverified ones marked; residue B3: CHANGELOG.md:1 `## Unreleased` becomes the rc heading at the tag | rename at tag |
+| 9a | no state.md row; dist/chora-report present (`bash -n` ok), documented docs/logs.md:95; plugin logs via kit `log` (D120); not run here | PM: a row or a waiver; one smoke run in slice 4's CI PR or by the PM |
+| 9 | open: sh-33, sh-36 closed; sh-35 fixed on P (ledger open); sl-1, sl-2 open | ledger; sl-1/sl-2 owner per state.md |
+| 10 | waived | none |
+| 11 | open = F7 | slice 3 |
+
+**Met on P: 6 of 8** (F1, F2, F3, F4, F6, F8). Open: F5 (xp-42, stall, sh-37, 4 named; no series), F7 (take older than five visual
+merges; 24 acts unexplained on the old take; no independent rating). F4 is met with zero margin on W9.
+
+### 6. Slices to Sat 11-28 03:59 UTC (no new feature)
+
+| rank | name | F / rc | files | done criterion (red cell) | model | cost | conflicts |
+|---|---|---|---|---|---|---|---|
+| 1 | GUARD-4 | F4 kept (W9), F5 sh-37, rc 3 | tools/lint-ratchet + tools/lint-ratchet.list (a `sleep` count, raise only with a reason, as allow), its selftest; tests/gate-mc-scale.sh (bound from an idle baseline of the same run, not a raised 5000 ms) | red first: the ratchet selftest with a planted `sleep 1` in a tests/*.sh copy fails (today nothing fails); `tools/lint-ratchet` prints `sleep 779` or lower; gate-mc-scale red cell = a run under `stress`-like cargo load giving "takes 9316 ms, more than 5000 ms", then green 10/10 under the same load; full gate green | sonnet medium | 0.5 % | co-reach r2 and flake-series r7 add tests/*.sh lines: the PM checks the W9 grep at each merge until GUARD-4 lands (land it first, or set the list to the count after them) |
+| 2 | FLAKE-SERIES r8 | F5, rc 3 | none (runs) | after r7, GUARD-4, co-reach r2 and tour-base land: 5 of 5 full `tests/merge-gate.sh --jobs 2` on that head, no rerun; keys and launcher-click PASS on fuzzel 1.11 (or named SKIP); `pgrep -a chora` empty after each run; opt-in gates (battle, starved watchdog, shader hang, mc scale, construct-hud, construct-keys, demo) green once; each red a backlog row with cell, line, log | haiku high | 1 % | must run on the head the last train builds; none else |
+| 3 | TOUR-V9 FINAL | F7, rc 11, 1b, rc 1 | demo/tour (a take only), demo/tour/intended.toml (rows for the five visual merges and the tiling "Edit settings" row, each with its sha); reviews in reports/ | after tour-base r1 and co-reach r2: `python3 demo/tour/run.py --check` on the final head: 0 acts with neither row nor finding (24 on the r4 take; red cell now: the mc m1..m4c and t8/t9/t10 lines), 0 unnamed kinds (43); then 5 fresh-eyes reviewers (one per look) each with a verdict and a severity for every rv9 and new finding | sonnet high (take), opus medium (5 reviewers) | 2.5 % | tour-base edits the same files: start after it merges; co-reach r2 changes construct pixels: take after it |
+| 4 | CI-PR | rc 4, 5, 9a | none (a pull request from the session head; the PM opens it per rc.md) | check, msrv, e2e, coverage, docs, pre-commit green and the package workflow builds RPM and Arch with the install smoke; `dist/chora-report` run once in the smoke; each red a backlog row | sonnet medium | 0.5 % | none; do it after slice 1 so the head is the candidate shape |
+
+Sum 4.5 % (week about 24 % against 41 % pace). Not slices: the PM ledger pass (sh-34, sh-35, mc-58, sh-31 fixed with the shas above;
+~20 FLK rows of r5 section 3; tests/battle/README.md lines for soak-core.sh, frame-p99.sh), and the B3 heading at the tag.
+Honest outlook: F8 and rc 7 closed in t121. F4 holds only if nobody adds a sleep line before slice 1. F5 closes with r7 + slice 1 +
+a green slice 2 (Thu-Fri). F7 cannot close before co-reach r2 and tour-base merge; slice 3 ends Fri at the earliest, so v9 to the owner
+(1b) lands Fri-Sat with little room for a second take.
