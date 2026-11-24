@@ -22,7 +22,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| review-tour-base-r6.md (F7; rtb5-1 MAJOR; 0.5 %) | sonnet high, claude/tour-base-r6 9311e155 | starting |
+| review-tour-base-r6.md (F7; rtb5-1 MAJOR; 0.5 %) | sonnet high, claude/tour-base-r6 9311e155 | session_016iS3kQZdsBqYTjVsuEAzbM |
 | train133 (rc 1, 2; stray-super r3 73c6b19c, tiling-doors r1 b1ba6743) | PM, 84f66d43 | gate running |
 | flake-series-r9.md (rc 3, F5; 5/5; 0.6 %) | haiku high, claude/flake-series-r9 c3c37c2e | session_016iS3kL6R9aghhfvTsKiyJx |
 | sh42-fix-r1.md (rc 1; sh-42 MAJOR; 1.5 %) | opus high, claude/sh42-fix-r1 c3c37c2e | session_016iS3kMHuyqcookRmRRXXJB |
