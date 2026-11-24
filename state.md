@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-24 07:02 UTC)
+## Now (2026-11-24 07:03 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 06:06 PM 4.9 % (11-22) + 5.2 % (11-23) + 2.1 % (11-24), week about 25 % vs 43 % pace
 session branch: ce866b0d (t124 green 04:34: co-reach-r2); 74 greens; train125 running 06:05 (xp-title f65e7f70).
@@ -26,7 +26,7 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin: W9 779 = RC; GUARD-4
 | co-reach-r4.md (rc 1, 2; co-67; 1 %) | sonnet high, claude/co-reach-r4 909bc57b | session_016iS3kQqSPtSAjLg9NseHmk 06:31 |
 | tour-base-r2.md (F7, rc 11; 1.2 %) | sonnet high, claude/tour-base 645afaf5 | session_016iS3kQ1y8Tx71ijH6jpEzF 03:35 |
 | flake-series-r8.md (F5, F4; 1.2 %) | sonnet high, claude/flake-series-r7 6f7bcb26 | session_016iS3kPwWVUYse7EqYxr313 05:12 |
-| ledger-audit-r1.md (rc 1; 0.5 %) | sonnet medium, claude/ledger-audit ce866b0d | starting |
+| ledger-audit-r1.md (rc 1; 0.5 %) | sonnet medium, claude/ledger-audit ce866b0d | session_016iS3kPsQfxPe3niCpDH7XJ 07:03 |
 ## Queue (% week; 5 % reserve)
 1. (F7) TRAIN125 xp-title r1 MERGE-OK (rxt-1, rxt-2 MINOR); next train: guard-4 (harness) after review.
 2. (rc 1, 2; 2 %) co-64, co-65 fixed (CO-REACH r3 MERGE-OK, train127 r3b); co-67 MAJOR candidate -> CO-REACH r4, then persona r10; TILING-REACH r1, then persona r7.
