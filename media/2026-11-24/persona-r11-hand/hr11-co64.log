@@ -1,0 +1,16 @@
+run 1: after Super+c: mode navigate front 0, construct {"holder": "construct"}, pane s1 at [208 400], hint bar [Click | Fly in | Return | Ctrl | Alt | ← | Ctrl | Alt | → | Super | F1 | All keys], click and pull named: no
+  drag on the pane: mode navigate front 0, camera [0, 0] panes [('foot', [1755, 3136])], pane s1 at [1125 400], construct {"holder": "construct"}
+  non-I6 breach rows: 6 I2: co-44 gap x6
+run 2: after Super+c: mode navigate front 0, construct {"holder": "construct"}, pane s1 at [208 400], hint bar [Click | Fly in | Return | Ctrl | Alt | ← | Ctrl | Alt | → | Super | F1 | All keys], click and pull named: no
+  drag on the pane: mode navigate front 0, camera [0, 0] panes [('foot', [1755, 3136])], pane s1 at [1125 400], construct {"holder": "construct"}
+  non-I6 breach rows: 6 I2: co-44 gap x6
+run 3: after Super+c: mode navigate front 0, construct {"holder": "construct"}, pane s1 at [208 400], hint bar [Click | Fly in | Return | Ctrl | Alt | ← | Ctrl | Alt | → | Super | F1 | All keys], click and pull named: no
+  drag on the pane: mode navigate front 0, camera [0, 0] panes [('foot', [1755, 3136])], pane s1 at [1125 400], construct {"holder": "construct"}
+  non-I6 breach rows: 6 I2: co-44 gap x6
+run 4: after Super+c: mode navigate front 0, construct {"holder": "construct"}, pane s1 at [208 400], hint bar [Click | Fly in | Return | Ctrl | Alt | ← | Ctrl | Alt | → | Super | F1 | All keys], click and pull named: no
+  drag on the pane: mode navigate front 0, camera [0, 0] panes [('foot', [1755, 3136])], pane s1 at [1125 400], construct {"holder": "construct"}
+  non-I6 breach rows: 6 I2: co-44 gap x6
+run 5: after Super+c: mode navigate front 0, construct {"holder": "construct"}, pane s1 at [208 400], hint bar [Click | Fly in | Return | Ctrl | Alt | ← | Ctrl | Alt | → | Super | F1 | All keys], click and pull named: no
+  drag on the pane: mode navigate front 0, camera [0, 0] panes [('foot', [1755, 3136])], pane s1 at [1125 400], construct {"holder": "construct"}
+  non-I6 breach rows: 6 I2: co-44 gap x6
+co64 hr11: 0/5 pass

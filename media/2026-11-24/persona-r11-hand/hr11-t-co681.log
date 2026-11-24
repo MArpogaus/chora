@@ -1,0 +1,14 @@
+run 1 in the face after Super+t:
+mode use front 0, camera [0, 0] panes [('foot', [0, 2000])], focus construct {"holder": null}, focus xp {"holder": "xp", "surface": "s2"}
+    surface s1 owner construct visible True rect [373.76, 233.59999999999997, 532.4799999999999, 332.7999999999999]
+    surface s2 owner xp visible True rect None
+ stood back, hint bar [Click | Fly in | Return | Ctrl | Alt | ← | Ctrl | Alt | → | Super | F1 | All keys | Super | Alt | 4 | Pull out]
+mode navigate front 0, camera [0, 0] panes [('foot', [-1562, 3136])], focus construct {"holder": "construct"}, focus xp {"holder": null}
+    surface s1 owner construct visible True rect [17.04323619070525, 283.2577286532011, 382.5296363669059, 233.4845426935978]
+    surface s2 owner xp visible True rect None
+ after Super+Alt+4, hint bar [Super | F1 | All keys | Alt | Esc | Step back]
+mode navigate front 0, camera [1170, 2389] panes [('foot', [-1562, 3136]), ('foot-2', [1536, 3136])], focus construct {"holder": "construct", "surface": "s2"}, focus xp {"holder": null}
+    surface s1 owner construct visible True rect None
+    surface s2 owner construct visible True rect [290.0, 150.0, 700.0, 500.0]
+  told before: yes
+  non-I6 breaches: 0

@@ -1,0 +1,11 @@
+run 1 in the face after Super+t:
+mode use front 0, camera [0, 0] panes [], focus construct {"holder": null}, focus xp {"holder": "xp", "surface": "s1"}
+    surface s1 owner xp visible True rect None
+ stood back, hint bar [Return | Ctrl | Alt | ← | Ctrl | Alt | → | Super | F1 | All keys]
+mode navigate front 0, camera [0, 0] panes [], focus construct {"holder": "construct"}, focus xp {"holder": null}
+    surface s1 owner xp visible True rect None
+ after Super+Alt+4, hint bar [Super | F1 | All keys | Alt | Esc | Step back]
+mode navigate front 0, camera [-1028, 2373] panes [('foot', [-1358, 3136])], focus construct {"holder": "construct", "surface": "s1"}, focus xp {"holder": null}
+    surface s1 owner construct visible True rect [290.0, 150.0, 700.0, 500.0]
+  told before: no
+  non-I6 breaches: 0
