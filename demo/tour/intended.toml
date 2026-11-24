@@ -45,13 +45,15 @@ kind = "rect"
 
 [[change]]
 act = "c1"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c1"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); 6a5cfc1d chora-assistant is the only voice presenter; 8ca85eab pager on a face turns the hosted cube; b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); 6a5cfc1d chora-assistant is the only voice presenter; 8ca85eab pager on a face turns the hosted cube; b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "c2"
@@ -65,8 +67,9 @@ kind = "visible"
 
 [[change]]
 act = "c2"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c2b"
@@ -80,8 +83,9 @@ kind = "visible"
 
 [[change]]
 act = "c2b"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c3"
@@ -95,8 +99,9 @@ kind = "visible"
 
 [[change]]
 act = "c3"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c3b"
@@ -110,8 +115,9 @@ kind = "visible"
 
 [[change]]
 act = "c3b"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c3c"
@@ -125,8 +131,9 @@ kind = "visible"
 
 [[change]]
 act = "c3c"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c3d"
@@ -140,8 +147,9 @@ kind = "visible"
 
 [[change]]
 act = "c3d"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c4"
@@ -160,8 +168,9 @@ kind = "visible"
 
 [[change]]
 act = "c4b"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c5"
@@ -180,8 +189,9 @@ kind = "rect"
 
 [[change]]
 act = "c5"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c5b"
@@ -200,13 +210,15 @@ kind = "rect"
 
 [[change]]
 act = "c5b"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c5b"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); 6a5cfc1d chora-assistant is the only voice presenter; 8ca85eab pager on a face turns the hosted cube; b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); 6a5cfc1d chora-assistant is the only voice presenter; 8ca85eab pager on a face turns the hosted cube; b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "c5c"
@@ -220,8 +232,9 @@ kind = "visible"
 
 [[change]]
 act = "c5c"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c5d"
@@ -235,13 +248,15 @@ kind = "visible"
 
 [[change]]
 act = "c5d"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "c5e"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); b8872054 one key list for all four looks (kit::keysheet); cfc805d4 hint Keys of a face rests as a chip (co-42); f5bdc61f co-40 co-41; open: more than three causes, none proven for this act alone"
 kind = "added"
+open = true
 
 [[change]]
 act = "h1"
@@ -262,141 +277,6 @@ kind = "meta"
 act = "h1d"
 cause = "29281054 DB8 raw entries left out of the fill"
 kind = "meta"
-
-[[change]]
-act = "m1"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none"
-kind = "missing"
-
-[[change]]
-act = "m10"
-cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6); 675ebd55 chora-notify shows the notices, mc stacks none; b8872054 one key list for all four looks (kit::keysheet); 6fa86c16 key hit and text"
-kind = "missing"
-
-[[change]]
-act = "m10"
-cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6)"
-kind = "added"
-
-[[change]]
-act = "m1b"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none"
-kind = "missing"
-
-[[change]]
-act = "m1c"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none"
-kind = "missing"
-
-[[change]]
-act = "m2"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none"
-kind = "missing"
-
-[[change]]
-act = "m2b"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none"
-kind = "missing"
-
-[[change]]
-act = "m3"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none"
-kind = "missing"
-
-[[change]]
-act = "m4"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none"
-kind = "missing"
-
-[[change]]
-act = "m4b"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none"
-kind = "missing"
-
-[[change]]
-act = "m4c"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none"
-kind = "missing"
-
-[[change]]
-act = "m5"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none"
-kind = "missing"
-
-[[change]]
-act = "m5b"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none"
-kind = "missing"
-
-[[change]]
-act = "m6"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none; b8872054 one key list for all four looks (kit::keysheet); 6fa86c16 key hit and text"
-kind = "missing"
-
-[[change]]
-act = "m6"
-cause = "b8872054 one key list for all four looks (kit::keysheet); 6fa86c16 key hit and text"
-kind = "added"
-
-[[change]]
-act = "m6b"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none; b8872054 one key list for all four looks (kit::keysheet); 6fa86c16 key hit and text"
-kind = "missing"
-
-[[change]]
-act = "m6b"
-cause = "b8872054 one key list for all four looks (kit::keysheet); 6fa86c16 key hit and text"
-kind = "added"
-
-[[change]]
-act = "m7"
-cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6); b8872054 one key list for all four looks (kit::keysheet); 6fa86c16 key hit and text"
-kind = "rect"
-
-[[change]]
-act = "m7"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none"
-kind = "missing"
-
-[[change]]
-act = "m7"
-cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6); 675ebd55 chora-notify shows the notices, mc stacks none; b8872054 one key list for all four looks (kit::keysheet); 6fa86c16 key hit and text"
-kind = "pixel"
-
-[[change]]
-act = "m7b"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none"
-kind = "missing"
-
-[[change]]
-act = "m7c"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none"
-kind = "missing"
-
-[[change]]
-act = "m8"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none"
-kind = "missing"
-
-[[change]]
-act = "m8b"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none"
-kind = "missing"
-
-[[change]]
-act = "m9"
-cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6); 675ebd55 chora-notify shows the notices, mc stacks none; b8872054 one key list for all four looks (kit::keysheet); 6fa86c16 key hit and text"
-kind = "missing"
-
-[[change]]
-act = "m9b"
-cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6); 675ebd55 chora-notify shows the notices, mc stacks none; b8872054 one key list for all four looks (kit::keysheet); 6fa86c16 key hit and text"
-kind = "missing"
-
-[[change]]
-act = "m9b"
-cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6)"
-kind = "added"
 
 [[change]]
 act = "x1"
@@ -730,103 +610,123 @@ kind = "added"
 
 [[change]]
 act = "t1"
-cause = "bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t1b"
-cause = "bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t1c"
-cause = "bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t2"
-cause = "bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t10b"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t1d"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t3"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t3b"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t3c"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t3d"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t3e"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t3f"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t3g"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t3h"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t4"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t5"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t6b"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t6d"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t8b"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t9b"
-cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant"
+cause = "573496e5 the inner gap is 12 (I2), the tiles move 1 px (proof: the candidate take with gap_inner 10 matches the replay to the pixel outside the bar); bbb105ba the bar with a 1 px line hairline, radius 10 (ti-21); 3a9a426f clock island width; 136bbd82 layout chip width; 6a5cfc1d helper word of chora-assistant; open: more than three causes, none proven for this act alone"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "x1"
@@ -835,7 +735,7 @@ kind = "meta"
 
 [[change]]
 act = "x10"
-cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
 kind = "rect"
 
 [[change]]
@@ -845,12 +745,12 @@ kind = "meta"
 
 [[change]]
 act = "x10b"
-cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
 kind = "rect"
 
 [[change]]
 act = "x10c"
-cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
 kind = "rect"
 
 [[change]]
@@ -860,7 +760,7 @@ kind = "meta"
 
 [[change]]
 act = "x11"
-cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
 kind = "rect"
 
 [[change]]
@@ -870,7 +770,7 @@ kind = "meta"
 
 [[change]]
 act = "x11b"
-cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
 kind = "rect"
 
 [[change]]
@@ -885,7 +785,7 @@ kind = "meta"
 
 [[change]]
 act = "x12b"
-cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
 kind = "rect"
 
 [[change]]
@@ -910,7 +810,7 @@ kind = "meta"
 
 [[change]]
 act = "x2c"
-cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
 kind = "rect"
 
 [[change]]
@@ -920,7 +820,7 @@ kind = "meta"
 
 [[change]]
 act = "x3"
-cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
 kind = "rect"
 
 [[change]]
@@ -930,7 +830,7 @@ kind = "meta"
 
 [[change]]
 act = "x4"
-cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
 kind = "rect"
 
 [[change]]
@@ -940,7 +840,7 @@ kind = "meta"
 
 [[change]]
 act = "x5e"
-cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
 kind = "rect"
 
 [[change]]
@@ -950,7 +850,7 @@ kind = "meta"
 
 [[change]]
 act = "x5g"
-cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
 kind = "rect"
 
 [[change]]
@@ -960,7 +860,7 @@ kind = "meta"
 
 [[change]]
 act = "x6e"
-cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
 kind = "rect"
 
 [[change]]
@@ -970,7 +870,7 @@ kind = "meta"
 
 [[change]]
 act = "x7"
-cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
 kind = "rect"
 
 [[change]]
@@ -980,7 +880,7 @@ kind = "meta"
 
 [[change]]
 act = "x7b"
-cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
 kind = "rect"
 
 [[change]]
@@ -990,7 +890,7 @@ kind = "meta"
 
 [[change]]
 act = "x8"
-cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
 kind = "rect"
 
 [[change]]
@@ -1000,7 +900,7 @@ kind = "meta"
 
 [[change]]
 act = "x9"
-cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
 kind = "rect"
 
 [[change]]
@@ -1010,10 +910,1122 @@ kind = "meta"
 
 [[change]]
 act = "x9b"
-cause = "09ff8ff9 new windows start right of the desktop icons (xp-28); bd5af4b3 on their output only"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
 kind = "rect"
 
 [[change]]
 act = "x9b"
 cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
 kind = "meta"
+
+[[change]]
+act = "c2"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; open: more than three causes, none proven for this act alone"
+kind = "rect"
+open = true
+
+[[change]]
+act = "c2"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "c2"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+check = "I2"
+kind = "check"
+
+[[change]]
+act = "c2b"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); open: more than three causes, none proven for this act alone"
+kind = "rect"
+open = true
+
+[[change]]
+act = "c2b"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "c2b"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+check = "I2"
+kind = "check"
+
+[[change]]
+act = "c3"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); open: more than three causes, none proven for this act alone"
+kind = "rect"
+open = true
+
+[[change]]
+act = "c3"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+check = "I2"
+kind = "check"
+
+[[change]]
+act = "c3b"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); open: more than three causes, none proven for this act alone"
+kind = "rect"
+open = true
+
+[[change]]
+act = "c3b"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "c3b"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+check = "I2"
+kind = "check"
+
+[[change]]
+act = "c3c"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); open: more than three causes, none proven for this act alone"
+kind = "rect"
+open = true
+
+[[change]]
+act = "c3c"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "c3c"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+check = "I2"
+kind = "check"
+
+[[change]]
+act = "c3d"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); open: more than three causes, none proven for this act alone"
+kind = "rect"
+open = true
+
+[[change]]
+act = "c3d"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "c3d"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+check = "I2"
+kind = "check"
+
+[[change]]
+act = "c3e"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+check = "I2"
+kind = "check"
+
+[[change]]
+act = "c3f"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+check = "I2"
+kind = "check"
+
+[[change]]
+act = "c3g"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+check = "I2"
+kind = "check"
+
+[[change]]
+act = "c3h"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+check = "I2"
+kind = "check"
+
+[[change]]
+act = "c4"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "missing"
+open = true
+
+[[change]]
+act = "c4"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); open: more than three causes, none proven for this act alone"
+kind = "rect"
+open = true
+
+[[change]]
+act = "c4"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip)"
+kind = "visible"
+
+[[change]]
+act = "c4"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "c4"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+check = "I2"
+kind = "check"
+
+[[change]]
+act = "c4b"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); open: more than three causes, none proven for this act alone"
+kind = "rect"
+open = true
+
+[[change]]
+act = "c4b"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "c4b"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+check = "I2"
+kind = "check"
+
+[[change]]
+act = "c5c"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); open: more than three causes, none proven for this act alone"
+kind = "rect"
+open = true
+
+[[change]]
+act = "c5c"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+check = "I2"
+kind = "check"
+
+[[change]]
+act = "c5d"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); open: more than three causes, none proven for this act alone"
+kind = "rect"
+open = true
+
+[[change]]
+act = "c5d"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "c5d"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); I2 construct-mode-step-in and -turn-left 9 apart, no whole number of 8"
+check = "I2"
+kind = "check"
+
+[[change]]
+act = "c5e"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; open: more than three causes, none proven for this act alone"
+kind = "rect"
+open = true
+
+[[change]]
+act = "c5e"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "visible"
+open = true
+
+[[change]]
+act = "c5e"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "missing"
+open = true
+
+[[change]]
+act = "c5e"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "h1"
+cause = "d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
+kind = "missing"
+open = true
+
+[[change]]
+act = "h1"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
+kind = "rect"
+open = true
+
+[[change]]
+act = "h1"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "h1"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "h1b"
+cause = "d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
+kind = "missing"
+open = true
+
+[[change]]
+act = "h1b"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
+kind = "rect"
+open = true
+
+[[change]]
+act = "h1b"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "h1b"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "h1c"
+cause = "d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
+kind = "missing"
+open = true
+
+[[change]]
+act = "h1c"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
+kind = "rect"
+open = true
+
+[[change]]
+act = "h1c"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "h1c"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "h1d"
+cause = "d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
+kind = "missing"
+open = true
+
+[[change]]
+act = "h1d"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
+kind = "rect"
+open = true
+
+[[change]]
+act = "h1d"
+cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+kind = "added"
+
+[[change]]
+act = "h1d"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "t10"
+cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 573496e5 the inner gap is 12 (I2)"
+kind = "pixel"
+
+[[change]]
+act = "t10c"
+cause = "675ebd55 chora-notify shows the notices (sh-31)"
+kind = "added"
+
+[[change]]
+act = "t10c"
+cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 675ebd55 chora-notify shows the notices (sh-31); open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "t6"
+cause = "b8872054 one key list for all four looks, kit::keysheet (ti-30)"
+kind = "rect"
+
+[[change]]
+act = "t6"
+cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 573496e5 the inner gap is 12 (I2); b8872054 one key list for all four looks, kit::keysheet (ti-30); open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "t6c"
+cause = "b8872054 one key list for all four looks, kit::keysheet (ti-30)"
+kind = "rect"
+
+[[change]]
+act = "t6c"
+cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 573496e5 the inner gap is 12 (I2); b8872054 one key list for all four looks, kit::keysheet (ti-30); open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "t7"
+cause = "675ebd55 chora-notify shows the notices (sh-31)"
+kind = "added"
+
+[[change]]
+act = "t7"
+cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 675ebd55 chora-notify shows the notices (sh-31); open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "t8"
+cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 573496e5 the inner gap is 12 (I2)"
+kind = "pixel"
+
+[[change]]
+act = "t9"
+cause = "573496e5 the inner gap is 12 (I2)"
+kind = "rect"
+
+[[change]]
+act = "t9"
+cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 573496e5 the inner gap is 12 (I2)"
+kind = "pixel"
+
+[[change]]
+act = "x1"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
+kind = "rect"
+
+[[change]]
+act = "x1"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "x10"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "x10b"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found; open: cause not found"
+kind = "added"
+open = true
+
+[[change]]
+act = "x10b"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found, the blobs of this act carry no node; open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "x10c"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "x11b"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "x12"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
+kind = "rect"
+
+[[change]]
+act = "x12b"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "x12c"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 20e4ad6e menus shut on a new window (xp-item, xp-menu at x12c)"
+kind = "rect"
+
+[[change]]
+act = "x12c"
+cause = "20e4ad6e menus shut on a new window (xp-item, xp-menu at x12c)"
+kind = "visible"
+
+[[change]]
+act = "x2"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 675ebd55 chora-notify shows the notices (sh-31)"
+kind = "rect"
+
+[[change]]
+act = "x2"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 675ebd55 chora-notify shows the notices (sh-31); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "x2b"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 675ebd55 chora-notify shows the notices (sh-31)"
+kind = "rect"
+
+[[change]]
+act = "x2b"
+cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 675ebd55 chora-notify shows the notices (sh-31); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "x2c"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "x5"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "rect"
+open = true
+
+[[change]]
+act = "x5b"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "rect"
+open = true
+
+[[change]]
+act = "x5b"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "x5c"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "rect"
+open = true
+
+[[change]]
+act = "x5c"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "x5d"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "rect"
+open = true
+
+[[change]]
+act = "x5d"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "x5e"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found, the blobs of this act carry no node; open: cause not found"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "x5f"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "rect"
+open = true
+
+[[change]]
+act = "x5f"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "x5g"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found, the blobs of this act carry no node; open: cause not found"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "x6"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "rect"
+open = true
+
+[[change]]
+act = "x6"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "x6b"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "rect"
+open = true
+
+[[change]]
+act = "x6b"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "x6c"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "rect"
+open = true
+
+[[change]]
+act = "x6c"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "x6d"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "rect"
+open = true
+
+[[change]]
+act = "x6d"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "x7"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found, the blobs of this act carry no node; open: cause not found"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "x7b"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "x8"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found, the blobs of this act carry no node; open: cause not found"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "x9b"
+cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found, the blobs of this act carry no node; open: cause not found"
+kind = "pixel"
+open = true
+
+# tour-base r2: the mc acts from the five takes of the bisect (reports/tour-base.md ## r2): one row per act and kind of the head against 733967aa; an open row names the commits in which the cause lies.
+[[change]]
+act = "m1"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "missing"
+
+[[change]]
+act = "m1"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them)"
+kind = "rect"
+
+[[change]]
+act = "m1b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "missing"
+
+[[change]]
+act = "m1b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them); mc-59 open: the cause lies in the commits (733967aa..675ebd55^), no sha found"
+kind = "rect"
+open = true
+
+[[change]]
+act = "m1c"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "missing"
+
+[[change]]
+act = "m1c"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them)"
+kind = "rect"
+
+[[change]]
+act = "m2"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "added"
+
+[[change]]
+act = "m2"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "missing"
+
+[[change]]
+act = "m2"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd, fa7faabd..6fa86c16^), no sha found"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "m2"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd, fa7faabd..6fa86c16^), no sha found"
+kind = "rect"
+open = true
+
+[[change]]
+act = "m2"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "visible"
+
+[[change]]
+act = "m2b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "added"
+
+[[change]]
+act = "m2b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "missing"
+
+[[change]]
+act = "m2b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd, fa7faabd..6fa86c16^), no sha found"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "m2b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd, fa7faabd..6fa86c16^), no sha found"
+kind = "rect"
+open = true
+
+[[change]]
+act = "m2b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "visible"
+
+[[change]]
+act = "m3"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "added"
+
+[[change]]
+act = "m3"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "missing"
+
+[[change]]
+act = "m3"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); mc-59 open: the cause lies in the commits (fa7faabd..6fa86c16^), no sha found"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "m3"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them); mc-59 open: the cause lies in the commits (fa7faabd..6fa86c16^), no sha found"
+kind = "rect"
+open = true
+
+[[change]]
+act = "m3"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "visible"
+
+[[change]]
+act = "m3b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "added"
+open = true
+
+[[change]]
+act = "m3b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "missing"
+open = true
+
+[[change]]
+act = "m3b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd, fa7faabd..6fa86c16^), no sha found"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "m3b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd, fa7faabd..6fa86c16^), no sha found"
+kind = "rect"
+open = true
+
+[[change]]
+act = "m3b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "visible"
+open = true
+
+[[change]]
+act = "m4"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "missing"
+
+[[change]]
+act = "m4"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them)"
+kind = "rect"
+
+[[change]]
+act = "m4"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "visible"
+
+[[change]]
+act = "m4b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "missing"
+
+[[change]]
+act = "m4b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them)"
+kind = "rect"
+
+[[change]]
+act = "m4b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "visible"
+
+[[change]]
+act = "m4c"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "missing"
+
+[[change]]
+act = "m4c"
+cause = "mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "m4c"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "rect"
+open = true
+
+[[change]]
+act = "m4c"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "visible"
+open = true
+
+[[change]]
+act = "m5"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "missing"
+open = true
+
+[[change]]
+act = "m5"
+cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it)"
+kind = "pixel"
+
+[[change]]
+act = "m5"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "rect"
+open = true
+
+[[change]]
+act = "m5"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "visible"
+open = true
+
+[[change]]
+act = "m5b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "missing"
+open = true
+
+[[change]]
+act = "m5b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it)"
+kind = "pixel"
+
+[[change]]
+act = "m5b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "rect"
+open = true
+
+[[change]]
+act = "m5b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "visible"
+open = true
+
+[[change]]
+act = "m6"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "added"
+open = true
+
+[[change]]
+act = "m6"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "missing"
+open = true
+
+[[change]]
+act = "m6"
+cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it)"
+kind = "pixel"
+
+[[change]]
+act = "m6"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "rect"
+open = true
+
+[[change]]
+act = "m6"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "visible"
+open = true
+
+[[change]]
+act = "m6b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "added"
+open = true
+
+[[change]]
+act = "m6b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "missing"
+open = true
+
+[[change]]
+act = "m6b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it)"
+kind = "pixel"
+
+[[change]]
+act = "m6b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "rect"
+open = true
+
+[[change]]
+act = "m6b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "visible"
+open = true
+
+[[change]]
+act = "m7"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "missing"
+
+[[change]]
+act = "m7"
+cause = "mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "m7"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "rect"
+open = true
+
+[[change]]
+act = "m7b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "missing"
+
+[[change]]
+act = "m7b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them); mc-59 open: the cause lies in the commits (6fa86c16..head), no sha found"
+kind = "rect"
+open = true
+
+[[change]]
+act = "m7c"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "missing"
+
+[[change]]
+act = "m7c"
+cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it)"
+kind = "pixel"
+
+[[change]]
+act = "m7c"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "rect"
+open = true
+
+[[change]]
+act = "m7c"
+cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it)"
+kind = "visible"
+
+[[change]]
+act = "m8"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "missing"
+
+[[change]]
+act = "m8"
+cause = "mc-59 open: the cause lies in the commits (733967aa..675ebd55^, 675ebd55..fa7faabd, fa7faabd..6fa86c16^), no sha found"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "m8"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them); mc-59 open: the cause lies in the commits (733967aa..675ebd55^, 675ebd55..fa7faabd), no sha found"
+kind = "rect"
+open = true
+
+[[change]]
+act = "m8"
+cause = "mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "visible"
+open = true
+
+[[change]]
+act = "m8b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "missing"
+
+[[change]]
+act = "m8b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it); mc-59 open: the cause lies in the commits (733967aa..675ebd55^), no sha found"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "m8b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them); mc-59 open: the cause lies in the commits (733967aa..675ebd55^, 675ebd55..fa7faabd), no sha found"
+kind = "rect"
+open = true
+
+[[change]]
+act = "m8b"
+cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it)"
+kind = "visible"
+
+[[change]]
+act = "m9"
+cause = "mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "added"
+open = true
+
+[[change]]
+act = "m9"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "missing"
+open = true
+
+[[change]]
+act = "m9"
+cause = "mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "m9"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "rect"
+open = true
+
+[[change]]
+act = "m9"
+cause = "mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "visible"
+open = true
+
+[[change]]
+act = "m9b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "missing"
+
+[[change]]
+act = "m9b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "m9b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them); mc-59 open: the cause lies in the commits (733967aa..675ebd55^, 675ebd55..fa7faabd, 6fa86c16..head), no sha found"
+kind = "rect"
+open = true
+
+[[change]]
+act = "m9b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); mc-59 open: the cause lies in the commits (733967aa..675ebd55^, 675ebd55..fa7faabd), no sha found"
+kind = "visible"
+open = true
+
+[[change]]
+act = "m10"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+kind = "missing"
+
+[[change]]
+act = "m10"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "m10"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them); mc-59 open: the cause lies in the commits (675ebd55..fa7faabd, 6fa86c16..head), no sha found"
+kind = "rect"
+open = true
+
+[[change]]
+act = "m10"
+cause = "mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha found"
+kind = "visible"
+open = true
+
+# tour-base r2: rows that the full take of the head showed and the take of r1 did not.
+[[change]]
+act = "m10"
+cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6)"
+kind = "added"
+
+[[change]]
+act = "m9b"
+cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6)"
+kind = "added"
+
+[[change]]
+act = "t6"
+cause = "a611c08a key list columns clear the longest row, titles in text; fa076e7b keycaps of the key list read at 14 px (the nodes tiling-keys-body-N are numbered anew)"
+kind = "missing"
+
+[[change]]
+act = "t6"
+cause = "a611c08a key list columns clear the longest row, titles in text; fa076e7b keycaps of the key list read at 14 px (the nodes tiling-keys-body-N are numbered anew)"
+kind = "added"
+
+[[change]]
+act = "t6c"
+cause = "a611c08a key list columns clear the longest row, titles in text; fa076e7b keycaps of the key list read at 14 px (the nodes tiling-keys-body-N are numbered anew)"
+kind = "missing"
+
+[[change]]
+act = "t6c"
+cause = "a611c08a key list columns clear the longest row, titles in text; fa076e7b keycaps of the key list read at 14 px (the nodes tiling-keys-body-N are numbered anew)"
+kind = "added"

@@ -138,6 +138,12 @@ BUS_IDS = 24
 """How many notification ids `close_on_bus` tries on a build that cannot list the open cards."""
 
 
+BOX_CHECKS = ("I2", "I5", "I6", "I9", "I12", "I13")
+"""The checks that read `scene.boxes`: on a snapshot without it (733967aa) they find nothing and are green for
+no reason, so the dump marks them "not measured". I6 also measures the runs that the looks report, which need
+no box: it is marked only where no run is reported (TOUR-BASE r2, rtb-4)."""
+
+
 class OldCore:
     """The connection of the harness to a core that may lack `scene.boxes` (the build 733967aa of the
     v8 replay): that one call answers `None` (a snapshot without boxes: no masks, the invariants
@@ -603,7 +609,7 @@ class Tour:
     def dump(self, row, after):
         """The files of a capture for tests/tour-diff.py, in `<out>/captures`: `<id>.<capture>.json`
         (the nodes of `scene.query`, the rects of the text boxes of `scene.boxes` as masks, the colour
-        of every check) and `<id>.<capture>.png`: the picture of the quiet read (Q, Q+t) or, for H50,
+        of every check; BOX_CHECKS are "not measured" where the build has no `scene.boxes`: they read nothing) and `<id>.<capture>.png`: the picture of the quiet read (Q, Q+t) or, for H50,
         the frame in the middle of the act (taken by `run_segment`; the pointer is masked). Nothing
         is written by `--check`. Only the held frame that `copy_held` took in this take is kept; any other
         picture is taken again, and an old one in the folder is never left beside the new json."""
@@ -633,6 +639,12 @@ class Tour:
         lines = row["red"] + row["hidden"]
         red = {red_key(line) for line in lines}
         checks = {key: "red" if key in red else "green" for key in [*invariants.ALL, "expect"]}
+        if after.boxes is None:
+            import invariants as inv
+
+            for check in BOX_CHECKS:
+                if check != "I6" or not inv.reported_texts(after):
+                    checks[check] = "not measured"
         with open(os.path.join(folder, f"{name}.json"), "w", encoding="utf-8") as f:
             json.dump({"nodes": after.nodes, "masks": masks, "checks": checks}, f)
 
