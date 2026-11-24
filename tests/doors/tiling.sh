@@ -118,7 +118,7 @@ cell_launcher_door() {
 cell_launcher_chat() {
     unmark
     key Super+space
-    marked '^row Chat with a helper$'
+    marked '^row Chat with a helper( \([^)]+\))?$'
 }
 cell_helper_key() {
     chat_close
