@@ -1112,10 +1112,15 @@ mod press {
             })
         };
         let commands = wm.open_display_dialog([0, 0, 1280, 770]);
-        assert!(
-            created(&commands),
-            "no task button for Display: {commands:?}"
-        );
+        let ids: Vec<&str> = commands
+            .iter()
+            .filter_map(|c| match c {
+                Command::Create { id, .. } => Some(id.as_str()),
+                _ => None,
+            })
+            .filter(|id| id.starts_with("xp-task-"))
+            .collect();
+        assert!(created(&commands), "no task button for Display: {ids:?}");
         wm.open_help(0);
         assert!(
             !matches!(wm.panels.last(), Some(Panel::Display(_))),
@@ -1129,7 +1134,7 @@ mod press {
         let closed = wm.close_panel(wm.panels.len() - 1);
         assert!(
             closed.iter().any(|c| matches!(c, Command::Remove { id, .. } if id == &format!("xp-task-{DISPLAY_TASK}-X"))),
-            "the button goes with the dialog: {closed:?}"
+            "the button goes with the dialog"
         );
     }
 

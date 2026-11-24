@@ -107,10 +107,6 @@ const SWITCHER: &str = "xp-alttab";
 const HELP_TASK: &str = "helppanel";
 /// The name that the open Display Properties has for the task buttons, as
 /// [`HELP_TASK`] has for Help.
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "the red cell of xp-17 comes before the fix")
-)]
 const DISPLAY_TASK: &str = "displaypanel";
 /// How long a taskbar that hides itself waits after the pointer left it.
 const HIDE_DELAY: Duration = Duration::from_millis(500);
