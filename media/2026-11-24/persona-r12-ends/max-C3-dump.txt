@@ -1,0 +1,83 @@
+{
+  "faces": [
+    {
+      "health": "up",
+      "manager": "xp",
+      "output": "VIRTUAL-1"
+    },
+    {
+      "health": "up",
+      "manager": "xp",
+      "output": "VIRTUAL-2"
+    },
+    {
+      "health": "up",
+      "manager": "xp",
+      "output": "VIRTUAL-3"
+    },
+    {
+      "health": "up",
+      "manager": "xp",
+      "output": "VIRTUAL-4"
+    }
+  ],
+  "front": 0,
+  "mode": "navigate",
+  "turning": false
+}
+{
+  "busy": [],
+  "desks": [
+    {
+      "output": "VIRTUAL-1",
+      "shown": [
+        1
+      ]
+    },
+    {
+      "output": "VIRTUAL-2",
+      "shown": [
+        2
+      ]
+    },
+    {
+      "output": "VIRTUAL-3",
+      "shown": [
+        3
+      ]
+    },
+    {
+      "output": "VIRTUAL-4",
+      "shown": [
+        4
+      ]
+    }
+  ],
+  "focus": {
+    "holder": "xp",
+    "surface": "s3"
+  },
+  "helper": "listening",
+  "open": [],
+  "texts": [
+    {
+      "fg": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "node": "xp-icon-0",
+      "px": 11,
+      "rect": [
+        4.
+{
+  "busy": [],
+  "focus": {
+    "holder": null
+  },
+  "helper": "idle",
+  "open": [],
+  "views": [],
+  "windows": []
+}
