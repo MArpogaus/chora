@@ -603,7 +603,7 @@ class Tour:
     def dump(self, row, after):
         """The files of a capture for tests/tour-diff.py, in `<out>/captures`: `<id>.<capture>.json`
         (the nodes of `scene.query`, the rects of the text boxes of `scene.boxes` as masks, the colour
-        of every check) and `<id>.<capture>.png`: the picture of the quiet read (Q, Q+t) or, for H50,
+        of every check; I6 is "not measured" where the build has no `scene.boxes`: it read nothing) and `<id>.<capture>.png`: the picture of the quiet read (Q, Q+t) or, for H50,
         the frame in the middle of the act (taken by `run_segment`; the pointer is masked). Nothing
         is written by `--check`. Only the held frame that `copy_held` took in this take is kept; any other
         picture is taken again, and an old one in the folder is never left beside the new json."""
@@ -633,6 +633,8 @@ class Tour:
         lines = row["red"] + row["hidden"]
         red = {red_key(line) for line in lines}
         checks = {key: "red" if key in red else "green" for key in [*invariants.ALL, "expect"]}
+        if after.boxes is None:
+            checks["I6"] = "not measured"
         with open(os.path.join(folder, f"{name}.json"), "w", encoding="utf-8") as f:
             json.dump({"nodes": after.nodes, "masks": masks, "checks": checks}, f)
 

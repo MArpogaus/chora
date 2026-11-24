@@ -21,7 +21,8 @@ Two diffs per capture:
 Verdict: same, change (every diff is named in intended.toml: act, kind, cause), regression (an
 unnamed diff, a check green on BASE that is not green on CAND, a check red on CAND that is not red on
 BASE, a capture missing in either folder), none (a declared `baseline: none`, with no red check).
-A red check that is meant has a row of kind "check". Exit 1 on a regression or on no capture.
+A red check that is meant has a row of kind "check". A check that either side marks "not measured"
+is left out of the flips and listed in the row as `unmeasured`. Exit 1 on a regression or on no capture.
 """
 
 import collections
@@ -31,6 +32,10 @@ import pathlib
 import re
 import sys
 import tomllib
+
+NOT_MEASURED = "not measured"
+"""The colour of a check that a build could not read (I6 on a build without `scene.boxes`: 733967aa):
+neither green nor red, so a candidate that measures it red is no flip (TOUR-BASE)."""
 
 RECT_SLACK = 2
 CHANNEL = 24
@@ -170,17 +175,20 @@ def verdict(act, scene, pixel_same, intended, checks=None):
         else:
             unnamed.append(kind)
     base, cand = checks or ({}, {})
+    unmeasured = sorted(n for n in set(base) | set(cand) if NOT_MEASURED in (base.get(n), cand.get(n)))
+    base, cand = ({n: c for n, c in side.items() if n not in unmeasured} for side in (base, cand))
     flipped = sorted({n for n, c in base.items() if c == "green" and cand.get(n) != "green"} | {n for n, c in cand.items() if c == "red" and base.get(n) != "red"})
     if flipped:
         row = next((r for r in rows if r["kind"] in ("check", "*")), None)
         if row:
             causes.append(row["cause"])
             flipped = []
+    extra = {"unmeasured": unmeasured} if unmeasured else {}
     if unnamed or flipped:
-        return {"verdict": "regression", "unnamed": unnamed, "flipped": flipped}
+        return {"verdict": "regression", "unnamed": unnamed, "flipped": flipped, **extra}
     if causes:
-        return {"verdict": "change", "cause": "; ".join(dict.fromkeys(causes))}
-    return {"verdict": "same"}
+        return {"verdict": "change", "cause": "; ".join(dict.fromkeys(causes)), **extra}
+    return {"verdict": "same", **extra}
 
 
 def masks_of(*sides, width=None):
@@ -262,6 +270,8 @@ def main():
     else:
         for r in rows:
             extra = r.get("cause") or ", ".join(r.get("unnamed", []) + r.get("flipped", [])) or r.get("detail", "")
+            if r.get("unmeasured"):
+                extra = "; ".join(filter(None, [extra, ", ".join(f"{n} not measured" for n in r["unmeasured"])]))
             print(f"{r['act']:<8} {r['capture']:<5} {r['verdict']:<11} {extra}")
         count = collections.Counter(r["verdict"] for r in rows)
         print("tour-diff:", ", ".join(f"{count[v]} {v}" for v in ("same", "change", "regression", "none")))
