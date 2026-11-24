@@ -471,7 +471,7 @@ class RowsCannotAbsorbWhatTheyDoNotName(unittest.TestCase):
 
     def test_a_row_with_nodes_is_closed_for_those_nodes_only(self):
         rows = self.rows(added={"nodes": ["xp-desktop"]}, pixel={"boxes": [[0, 680, 400, 40]]})
-        v = diff.verdict("x1", [{"kind": "added", "id": "xp-desktop"}, self.METAS], False, rows, blobs=[(10, 690, 30, 20)])
+        v = diff.verdict("x1", [self.METAS, {"kind": "added", "id": "xp-desktop"}], False, rows, blobs=[(10, 690, 30, 20)])
         self.assertEqual((v["verdict"], v["cause"]), ("change", "29281054 labels; 371f0fa1 xp desktop; d78fc4bb pager"), v)
         v = diff.verdict("x1", [self.UNRELATED, self.METAS], False, rows, blobs=[(10, 690, 30, 20)])
         self.assertEqual((v["verdict"], v["unnamed"]), ("regression", ["added"]), v)

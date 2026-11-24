@@ -24,7 +24,10 @@ BASE, a capture missing in either folder), none (a declared `baseline: none`, wi
 (every diff has a row, and a row carries `open = true`: the cause is not found; the F7 count fails on it,
 exit 1). A row may list the nodes it names (`nodes = ["hud-chat"]`, the ids of the scene diff, a window as `app_id:title`): it
 absorbs those nodes only and wins over a row of the kind without a list; a node that no row names is unnamed, one that
-only an `open` row without a list names stays `open` (rv9j-5). A red check that is meant has a row of kind "check" and `check = "I2"` (the name of the check it
+only an `open` row without a list names stays `open` (rv9j-5). A row of kind added or visible lists its `nodes` and a row of kind pixel its `boxes`
+(`[[x, y, w, h], ...]` in the pixels of the capture): it absorbs those only, and a row without the list absorbs nothing, the act is `open`
+(`unproven` in the result) until the row says what it explains (rtb5-1); a pixel diff is named when every one of its blobs lies in a box.
+A red check that is meant has a row of kind "check" and `check = "I2"` (the name of the check it
 absorbs; without it the row absorbs every flip of the act). A check that either side marks "not measured"
 is left out of the flips and listed in the row as `unmeasured` (`cand_red` where the candidate reads it red). Exit 1 on a regression, an open act or no capture.
 """
@@ -179,19 +182,60 @@ def named(rows, kinds, node=None):
     return next((r for r in hits if r.get("open")), hits[0] if hits else None)
 
 
-def verdict(act, scene, pixel_same, intended, checks=None):
-    """same, change, open or regression for one capture; `checks` is (baseline, candidate) name -> colour.
-    A row with `open = true` names a diff whose cause is not found: the verdict is `open`, not `change`."""
-    diffs = [(d["kind"], d.get("id")) for d in scene] + ([] if pixel_same else [("pixel", None)])
+STRICT = ("added", "visible", "pixel")
+"""The kinds whose row must say what it explains (`nodes` of the scene kinds added and visible, `boxes` of pixel): a row of
+these kinds without the list is no proof and keeps its act `open` (rtb5-1)."""
+
+
+def inside(blob, box, slack=RECT_SLACK):
+    """A blob (x, y, w, h) lies in a box (x, y, w, h), give or take `slack` pixels."""
+    return blob[0] >= box[0] - slack and blob[1] >= box[1] - slack and blob[0] + blob[2] <= box[0] + box[2] + slack and blob[1] + blob[3] <= box[1] + box[3] + slack
+
+
+def pixel_rows(rows, blobs):
+    """The rows that name a pixel diff and the blobs no row names: a blob is named by the first row with `boxes` that
+    holds it (an `open` row first), else by a row without `boxes`, which does not prove it (`unproven`). A diff with no
+    blob to place (`[]`, or `None` where the caller has none) is named by a row without `boxes` only."""
+    hits = [r for r in rows if r["kind"] in ("pixel", "*")]
+    boxed = sorted((r for r in hits if r.get("boxes")), key=lambda r: not r.get("open"))
+    loose = [r for r in hits if not r.get("boxes")]
+    found, unnamed, unproven = [], False, False
+    for blob in blobs or [None]:
+        row = next((r for r in boxed if blob and any(inside(blob, b) for b in r["boxes"])), None)
+        if row is None and loose:
+            row, unproven = next((r for r in loose if r.get("open")), loose[0]), True
+        if row is None:
+            unnamed = True
+        elif row not in found:
+            found.append(row)
+    return found, unnamed, unproven
+
+
+def verdict(act, scene, pixel_same, intended, checks=None, blobs=None):
+    """same, change, open or regression for one capture; `checks` is (baseline, candidate) name -> colour and
+    `blobs` the boxes of the pixel diff. A row with `open = true` names a diff whose cause is not found: the verdict is
+    `open`, not `change`; so is a row of the kinds in STRICT that lists no `nodes` or `boxes` (it proves nothing)."""
+    diffs = [(d["kind"], d.get("id")) for d in scene]
     rows = [r for r in intended if r["act"] == act]
-    causes, unnamed, opened = [], [], False
+    causes, unnamed, opened, unproven = [], [], False, []
     for kind, node in dict.fromkeys(diffs):
         row = named(rows, (kind, "*"), node)
         if row:
             causes.append(row["cause"])
-            opened = opened or bool(row.get("open"))
+            guess = kind in STRICT and not row.get("nodes")
+            opened = opened or bool(row.get("open")) or guess
+            if guess and kind not in unproven:
+                unproven.append(kind)
         elif kind not in unnamed:
             unnamed.append(kind)
+    if not pixel_same:
+        found, missed, guess = pixel_rows(rows, blobs)
+        causes += [r["cause"] for r in found]
+        opened = opened or guess or any(r.get("open") for r in found)
+        if guess:
+            unproven.append("pixel")
+        if missed and "pixel" not in unnamed:
+            unnamed.append("pixel")
     base, cand = checks or ({}, {})
     unmeasured = sorted(n for n in set(base) | set(cand) if NOT_MEASURED in (base.get(n), cand.get(n)))
     cand_red = [n for n in unmeasured if cand.get(n) == "red"]
@@ -208,7 +252,7 @@ def verdict(act, scene, pixel_same, intended, checks=None):
     if unnamed or flipped:
         return {"verdict": "regression", "unnamed": unnamed, "flipped": flipped, **extra}
     if causes:
-        return {"verdict": "open" if opened else "change", "cause": "; ".join(dict.fromkeys(causes)), **extra}
+        return {"verdict": "open" if opened else "change", "cause": "; ".join(dict.fromkeys(causes)), **({"unproven": unproven} if unproven else {}), **extra}
     return {"verdict": "same", **extra}
 
 
@@ -257,7 +301,7 @@ def compare(base, cand, intended, none=()):
         else:
             pixel = pixel_diff((base / name).read_bytes(), (cand / name).read_bytes(), masks_of(side["base"], side["cand"], width=int.from_bytes((base / name).read_bytes()[16:20], "big")))
         checks = (side["base"].get("checks", {}), side["cand"].get("checks", {}))
-        rows.append({**row, **verdict(act, scene, pixel["same"], intended, checks), "scene": scene, "blobs": pixel["blobs"], "fraction": pixel["fraction"]})
+        rows.append({**row, **verdict(act, scene, pixel["same"], intended, checks, pixel["blobs"]), "scene": scene, "blobs": pixel["blobs"], "fraction": pixel["fraction"]})
     return rows
 
 
@@ -291,6 +335,8 @@ def main():
     else:
         for r in rows:
             extra = r.get("cause") or ", ".join(r.get("unnamed", []) + r.get("flipped", [])) or r.get("detail", "")
+            if r.get("unproven"):
+                extra += f" [unproven: {', '.join(r['unproven'])} rows list no nodes or boxes]"
             if r.get("unmeasured"):
                 red = r.get("cand_red", [])
                 extra = "; ".join(filter(None, [extra, ", ".join(f"{n} not measured" + (" (cand red)" if n in red else "") for n in r["unmeasured"])]))
