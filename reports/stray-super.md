@@ -89,3 +89,40 @@ Earlier runs: first at 50f78472~ red at ci-check (sleep 786), second at 9d82b085
 
 No change to docs/decisions.md (D118 stays right; the xp rule above is a refinement the PM may want to
 add to it). A joining look with an xp window already open still loses swallowed chords.
+
+## Review r1
+
+Reviewer lane review-stray-super-r1 (opus, high, cloud), read-only on `claude/stray-super-r1` e1183766, base d40142e4.
+Step 0: `git fetch --unshallow` ok, `cargo check --workspace` ok; `cargo test -p chora-xp -p chora-mc`: 197 and 353 passed.
+Verdict: **FIX** (0 BLOCK, 2 MAJOR, 3 MINOR, 1 NIT).
+
+Checks:
+1. Red first holds: 664d2893 touches tests only (unit tests, gate-xp-notepad step, mc-paths cell stray-super), before 9d82b085.
+   The e1183766 rule has a test that was red before it: matrix `gate-join-keys.sh` xp-first (on d40142e4 since ti-38),
+   red at 9d82b085 with the pasted line; the unit assert "no window, nothing to keep" is red on 9d82b085 too.
+2. xp: Super alone opens Start, a swallowed chord marks the tap so the release opens nothing, swallow from `adopt`
+   (unit test and gate step green). Before the first window no client of xp exists to type into. The swallow never ends (rss-3).
+3. mc: Super+Space, Super+F1, Super+a, Super+n act (unit test, report repro); Right, XF86Back, XF86HomePage are no Super
+   chords and the swallow list skips them; a claimed binding grabs before the swallow; `Look::Swallow` is `serde(skip)`, never
+   in a config, `sheet` and `all` skip it. Ok.
+4. Joining looks: judged MAJOR (rss-2). Grabs are global and exclusive (`crates/chora/src/ipc/grabs.rs:50`), so the swallow
+   of one look takes the keys of any look that joins later, on every output. Against base it is a regression in a supported
+   flow (D55, D119, the matrix): the person starts tiling beside xp with a window and tiling's focus and move keys do nothing,
+   no POLS. D118 accepts "the first grab wins" for bound chords and counts the cost in grabs; it never weighed a joining look
+   losing its own keys, and it names the manager of a face or pane, not xp on a screen of its own (rss-5).
+5. No core change (diff: plugins/chora-xp, plugins/chora-mc, tests only); on a face xp swallows as before (`||` in
+   `grab_keys`); the gate steps wait with `until_ok`, no new sleep line.
+
+Repros on e1183766 (headless, scripts in the reviewer's scratchpad, not committed):
+- mc `--manage-windows --output A` first, tiling `--output B` joins (the order of `gate-construct-windows.sh:477-479`):
+  tiling log `grabbed already` 232 lines, among them `Super+1` .. `Super+8`; on d40142e4 23 (only mc's bound chords).
+- xp with a foot window first, tiling joins on the same output: tiling 233 refused, among them `Super+h`, `Shift+Super+h`,
+  `Ctrl+Super+h`, `Shift+Super+1`.
+
+Findings:
+- rss-1, MAJOR, plugins/chora-mc/src/lifecycle.rs:183, mc swallows every unbound Super chord from its start, also with `--output` beside another look, so a look that joins after mc loses them on its own output (repro: tiling Super+1..8 dead, 23 -> 232 refusals); this is the xp-first breakage that e1183766 fixed for xp, left in mc and untested; fix: give mc the xp rule (swallow once mc holds a window page) or the shared rule of rss-2, with a matrix cell mc-first plus tiling joining.
+- rss-2, MAJOR, plugins/chora-xp/src/wm/windows.rs:40, once xp holds a window a joining tiling loses about 200 Super chords (Super+h, Shift+Super+1 ...), a regression against base in the join flow of D55/D119 with no test (the lane's stated cost); fix: one rule for the swallowing looks, for instance drop the swallow set when another window manager takes a claim and swallow again after its grabs, with a matrix cell xp-with-window plus tiling joining.
+- rss-3, MINOR, plugins/chora-xp/src/wm/windows.rs:407, `Chords` never goes back to Free, so after the last window closed or was given away a joining look still loses the chords; fix: back to Free (and regrab) when xp holds no window, or let the rss-2 rule cover it.
+- rss-4, MINOR, crates/chora-kit/src/runtime.rs:378, a swallow beside a look that already holds the chords logs one `grabbed already` line per chord (about 200 per start of mc after tiling or the construct, of xp beside tiling), new for mc and xp; fix: `grab_swallowed` takes a refusal quietly (chora-kit only, no core change).
+- rss-5, MINOR, docs/decisions.md:167, D118 names the manager of a face or pane; swallow by xp on a screen of its own from its first window and by mc as a full look is a new rule without a decision row; fix: amend D118 with the rule and its join cost once rss-1/rss-2 settle it.
+- rss-6, NIT, tests/gate-xp-notepad.sh:70, `menu_visible && fail` checks once right after the text arrived, while xp opens Start on its own handling of the release, so a late open passes; fix: poll a short while (`until_ok` on the menu staying closed for a few rounds) or check after a settle.
