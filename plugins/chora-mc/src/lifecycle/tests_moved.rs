@@ -125,7 +125,7 @@ fn an_unbound_super_chord_is_grabbed_and_a_bound_one_keeps_its_action() {
     mc.rt.start_grabs();
     mc.grab_all().unwrap();
     mc.rt.end_grabs().unwrap();
-    for chord in ["Super+x", "Super+k", "Super+m", "Super+q", "Super+Shift+x"] {
+    for chord in ["Super+x", "Super+k", "Super+m", "Super+q", "Shift+Super+x"] {
         assert!(
             mc.rt.action(chord).is_some(),
             "mc-60: {chord} is free, so it types into a window page"
