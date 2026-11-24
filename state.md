@@ -24,7 +24,7 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin: W9 779 = RC; GUARD-4
 |---|---|---|
 | train124: co-reach-r2 efb0f263 | PM | gate 03:08 |
 | tiling-reach-r1.md (rc 1, 2; 1 %) | sonnet high, claude/tiling-reach cae62f50 | session_016iS3kMq4yU2VPBXarSuEkP 01:52 |
-| review-guard-4-r1.md (F4, F5; 0.4 %) | sonnet high, claude/guard-4 9aa6a556 | starting 04:33 |
+| review-guard-4-r1.md (F4, F5; 0.4 %) | sonnet high, claude/guard-4 9aa6a556 | session_016iS3kL68nYyuMwdwKR2bcD 04:32 |
 | co-reach-r3.md (rc 1, 2; 2 %) | opus high, claude/co-reach-r3 b2fa7792 | session_016iS3kNvatmG2tDzUZuAFQy 03:32 |
 | xp-title-r1.md (F7; 0.6 %) | sonnet medium, claude/xp-title 05a63377 | session_016iS3kNJs4X9FpcdTqsoc7j 03:32 |
 | tour-base-r2.md (F7, rc 11; 1.2 %) | sonnet high, claude/tour-base 645afaf5 | session_016iS3kQ1y8Tx71ijH6jpEzF 03:35 |
