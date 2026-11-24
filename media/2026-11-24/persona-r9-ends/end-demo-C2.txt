@@ -1,0 +1,2 @@
+task C2 pass [scene: cube stood back, face 0, pane room no, walk no]
+breaches 63

@@ -1,0 +1,32 @@
+{"time": 1795489989.581, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.072, "result": {"path": "/tmp/persona.Pvpj0r/shots/001.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795489994.228, "action": "click", "args": {"x": 326.0, "y": 292.0, "button": "left", "double": false}, "ok": true, "seconds": 0.23, "result": "ok"}
+{"time": 1795490011.405, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.123, "result": {"path": "/tmp/persona.Pvpj0r/shots/002.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795490023.81, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.014, "result": "ok"}
+{"time": 1795490035.071, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.093, "result": {"path": "/tmp/persona.Pvpj0r/shots/003.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795490048.08, "action": "key", "args": {"combo": "Alt+Escape"}, "ok": true, "seconds": 0.007, "result": "ok"}
+{"time": 1795490059.499, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.075, "result": {"path": "/tmp/persona.Pvpj0r/shots/004.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795490147.096, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.071, "result": {"path": "/tmp/persona.Pvpj0r/shots/005.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795490160.511, "action": "click", "args": {"x": 96.0, "y": 32.0, "button": "left", "double": false}, "ok": true, "seconds": 0.288, "result": "ok"}
+{"time": 1795490172.241, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.074, "result": {"path": "/tmp/persona.Pvpj0r/shots/006.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795490184.633, "action": "click", "args": {"x": 344.0, "y": 172.0, "button": "left", "double": false}, "ok": true, "seconds": 0.239, "result": "ok"}
+{"time": 1795490195.456, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.065, "result": {"path": "/tmp/persona.Pvpj0r/shots/007.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795490208.815, "action": "click", "args": {"x": 598.0, "y": 467.0, "button": "left", "double": false}, "ok": true, "seconds": 0.239, "result": "ok"}
+{"time": 1795490221.342, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.227, "result": {"path": "/tmp/persona.Pvpj0r/shots/008.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795490238.778, "action": "key", "args": {"combo": "Escape"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1795490250.166, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.073, "result": {"path": "/tmp/persona.Pvpj0r/shots/009.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795490262.198, "action": "key", "args": {"combo": "Tab"}, "ok": true, "seconds": 0.01, "result": "ok"}
+{"time": 1795490273.445, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.07, "result": {"path": "/tmp/persona.Pvpj0r/shots/010.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795490287.551, "action": "key", "args": {"combo": "Escape"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1795490298.966, "action": "drag", "args": {"x1": 400.0, "y1": 250.0, "x2": 300.0, "y2": 200.0}, "ok": true, "seconds": 0.247, "result": "ok"}
+{"time": 1795490310.401, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.062, "result": {"path": "/tmp/persona.Pvpj0r/shots/011.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795490386.082, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.08, "result": {"path": "/tmp/persona.Pvpj0r/shots/012.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795490398.919, "action": "key", "args": {"combo": "Super+l"}, "ok": true, "seconds": 0.01, "result": "ok"}
+{"time": 1795490409.668, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.064, "result": {"path": "/tmp/persona.Pvpj0r/shots/013.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795490422.125, "action": "key", "args": {"combo": "Super+F1"}, "ok": true, "seconds": 0.012, "result": "ok"}
+{"time": 1795490434.229, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.143, "result": {"path": "/tmp/persona.Pvpj0r/shots/014.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795490449.069, "action": "key", "args": {"combo": "Super+Shift+Escape"}, "ok": true, "seconds": 0.019, "result": "ok"}
+{"time": 1795490461.172, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.13, "result": {"path": "/tmp/persona.Pvpj0r/shots/015.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795490475.116, "action": "key", "args": {"combo": "Escape"}, "ok": true, "seconds": 0.015, "result": "ok"}
+{"time": 1795490486.081, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.095, "result": {"path": "/tmp/persona.Pvpj0r/shots/016.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795490498.645, "action": "click", "args": {"x": 219.0, "y": 32.0, "button": "left", "double": false}, "ok": true, "seconds": 0.257, "result": "ok"}
+{"time": 1795490510.314, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.088, "result": {"path": "/tmp/persona.Pvpj0r/shots/017.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}

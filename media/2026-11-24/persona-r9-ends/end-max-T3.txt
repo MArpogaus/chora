@@ -1,0 +1,2 @@
+task T3 pass [scene: cube stood back, face 0, pane room yes, walk no]
+breaches 35

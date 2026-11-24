@@ -1,0 +1,11 @@
+run 1: before click: mode navigate, construct {"holder": "construct"}, pane at [208 400]; after: mode navigate, construct {"holder": "construct", "surface": "s1"}, xp {"holder": null}, camera [-1191 2391], flown in with the keys: yes
+  non-I6 breach rows: 8 I2: co-44 gap x8
+run 2: before click: mode navigate, construct {"holder": "construct"}, pane at [208 400]; after: mode navigate, construct {"holder": "construct", "surface": "s1"}, xp {"holder": null}, camera [-1191 2391], flown in with the keys: yes
+  non-I6 breach rows: 8 I2: co-44 gap x8
+run 3: before click: mode navigate, construct {"holder": "construct"}, pane at [208 400]; after: mode navigate, construct {"holder": "construct", "surface": "s1"}, xp {"holder": null}, camera [-1191 2391], flown in with the keys: yes
+  non-I6 breach rows: 8 I2: co-44 gap x8
+run 4: before click: mode navigate, construct {"holder": "construct"}, pane at [208 400]; after: mode navigate, construct {"holder": "construct", "surface": "s1"}, xp {"holder": null}, camera [-1191 2391], flown in with the keys: yes
+  non-I6 breach rows: 8 I2: co-44 gap x8
+run 5: before click: mode navigate, construct {"holder": "construct"}, pane at [208 400]; after: mode navigate, construct {"holder": "construct", "surface": "s1"}, xp {"holder": null}, camera [-1191 2391], flown in with the keys: yes
+  non-I6 breach rows: 8 I2: co-44 gap x8
+co62 hr9b: 5/5 pass

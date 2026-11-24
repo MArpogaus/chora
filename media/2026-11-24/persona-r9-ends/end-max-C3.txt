@@ -1,0 +1,2 @@
+task C3 pass [scene: cube stood back, face 1, pane room yes, walk no]
+breaches 42
