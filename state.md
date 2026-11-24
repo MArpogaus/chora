@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-24 08:46 UTC)
+## Now (2026-11-24 08:47 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 08:18 PM 4.9 % (11-22) + 5.2 % (11-23) + 2.9 % (11-24), week about 26 % vs 45 % pace
 session branch: 2235551f (t125 green 07:50: xp-title); 75 greens; train126 07:45 (guard-4 284ce9a5).
@@ -22,6 +22,7 @@ burn-down: audit r6 01:40: F1-F4, F6, F8 met (F4 no margin: W9 779 = RC; GUARD-4
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
+| p2-r10-co.md (rc 2; co-64/65/67; 0.8 %) | sonnet medium, claude/p2-r10-co f1457035 | starting |
 | tour-base-r3.md (F7, rc 11; 0.8 %) | sonnet high, claude/tour-base 883214b5 | session_016iS3kLPAifTAZd7mvFfrRp |
 | flake-series-r8.md (F5, F4; 1.2 %) | sonnet high, claude/flake-series-r7 6f7bcb26 | session_016iS3kPwWVUYse7EqYxr313 |
 | tiling-calm-r1.md (rc 2, 8; 1 %) | sonnet high, claude/tiling-calm ad0093ba | session_016iS3kLdvEtaUtMWPs87vDJ |
