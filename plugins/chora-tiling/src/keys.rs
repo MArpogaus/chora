@@ -8,6 +8,7 @@ use chora_kit::{actions::System, keysheet, volume::Change, words::Language};
 use chora_scene::{Backdrop, Border, Command, NodeKind, PropsUpdate, Transform};
 
 use crate::{
+    NAME,
     config::{Action, Config, Own},
     layout::Layout,
     theme::{Colors, channels},
@@ -219,7 +220,7 @@ fn own_words(action: &Action) -> Option<Words> {
 /// The title of a group of the key list.
 fn title(group: usize, de: bool) -> &'static str {
     let names = [
-        ["Other looks", "Andere Fenstermanager"],
+        ["Other desktops", "Andere Desktops"],
         ["Windows", "Fenster"],
         ["Layouts", "Anordnung"],
         ["Tags", "Tags"],
@@ -387,8 +388,9 @@ pub fn rows(config: &Config, lang: Language) -> Vec<(&'static str, Vec<(String, 
         let row = (rank, join(|e| &e.1), join(|e| &e.2));
         groups[SYSTEM].push(row);
     }
-    let (keys, words) = keysheet::give_row(lang);
-    groups[LOOKS].push((ORDER.len(), keys, words));
+    for (keys, words) in keysheet::move_rows(NAME, lang) {
+        groups[LOOKS].push((ORDER.len(), keys, words));
+    }
     groups
         .into_iter()
         .enumerate()

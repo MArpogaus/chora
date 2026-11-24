@@ -193,6 +193,18 @@ pub fn give_row(language: Language) -> (String, String) {
     (keys, words)
 }
 
+/// The rows of the keys that give a window to a look, one per look but
+/// `own` (a window is with its own look already): the key, as people read
+/// it, and the words of [`crate::give::move_words`]. No file binds them.
+#[must_use]
+pub fn move_rows(own: &str, language: Language) -> Vec<(String, String)> {
+    crate::give::KEYS
+        .iter()
+        .filter(|(_, to)| *to != own)
+        .map(|(key, to)| (chord(key), crate::give::move_words(to, language)))
+        .collect()
+}
+
 impl<L> Row<L> {
     /// Whether the action of the row is one of the system.
     #[must_use]

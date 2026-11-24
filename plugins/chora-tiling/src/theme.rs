@@ -795,7 +795,7 @@ pub fn launch_line(
                 .into_iter()
                 .flat_map(|f| ["-C".into(), f]),
         ),
-        "screenshot" | "power" | "look" | "settings" => line = script_line(program, dirs)?,
+        "screenshot" | "power" | "look" | "settings" | "give" => line = script_line(program, dirs)?,
         "swaybg" => {
             let names = [scheme_wallpaper(scheme), "wallpaper.png"];
             match find(&names) {

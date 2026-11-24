@@ -10,7 +10,7 @@ use std::time::Duration;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use crate::{conn::Conn, runtime};
+use crate::{conn::Conn, runtime, words::Language};
 
 /// The name of the method that hands a window to another window manager.
 pub const METHOD: &str = "window.give";
@@ -138,6 +138,34 @@ pub fn keys_row(to: &str) -> (String, Vec<&'static str>) {
     let digit = last.rsplit('+').next().unwrap_or_default();
     let names = KEYS.iter().map(|(_, name)| *name).collect();
     (format!("{first}{to}{digit}"), names)
+}
+
+/// The name of a window manager as people say it of its desktop: what
+/// the README calls the look, in the words of the language.
+#[must_use]
+pub fn desktop_name(to: &str, language: Language) -> String {
+    let de = language == Language::De;
+    match (to, de) {
+        ("mc", false) => "media center".to_owned(),
+        ("mc", true) => "Mediencenter".to_owned(),
+        ("tiling" | "construct", true) => {
+            let mut name = to.to_owned();
+            name[..1].make_ascii_uppercase();
+            name
+        }
+        _ => to.to_owned(),
+    }
+}
+
+/// What the key or the launcher row that gives the focused window to the
+/// window manager `to` says: "Move window to the xp desktop".
+#[must_use]
+pub fn move_words(to: &str, language: Language) -> String {
+    let name = desktop_name(to, language);
+    match language {
+        Language::En => format!("Move window to the {name} desktop"),
+        Language::De => format!("Fenster auf den {name}-Desktop verschieben"),
+    }
 }
 
 /// The time that a key waits for the owner of another window.
@@ -303,16 +331,33 @@ fn rejected(err: impl std::fmt::Display) -> RpcError {
 #[cfg(test)]
 mod tests {
     use super::{Duration, focused_within};
-    use super::{Step, Windows, plan};
+    use super::{Step, Windows, move_words, plan};
     use crate::conn::{
         Conn,
         fake_core::{self, Answer},
     };
+    use crate::words::Language;
     use chora_scene::{
         Node, NodeKind, Props,
         ipc::{ExportMethod, RpcError},
     };
     use serde_json::json;
+
+    #[test]
+    fn the_move_words_name_the_desktop_as_a_person_says_it() {
+        let en = |to| move_words(to, Language::En);
+        assert_eq!(en("xp"), "Move window to the xp desktop");
+        assert_eq!(en("mc"), "Move window to the media center desktop");
+        assert_eq!(en("construct"), "Move window to the construct desktop");
+        assert_eq!(
+            move_words("mc", Language::De),
+            "Fenster auf den Mediencenter-Desktop verschieben"
+        );
+        assert_eq!(
+            move_words("tiling", Language::De),
+            "Fenster auf den Tiling-Desktop verschieben"
+        );
+    }
 
     struct Own(Vec<&'static str>);
 
