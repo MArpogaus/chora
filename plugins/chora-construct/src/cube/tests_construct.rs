@@ -1201,3 +1201,82 @@ fn a_click_on_a_pane_beside_the_cube_flies_into_it() {
         "the window of the pane takes the keys"
     );
 }
+
+/// A cube stood back with the hint bar on the screen: the overlay, the
+/// output and the group of the construct, as the hints need them.
+fn with_hint_bar(name: &str) -> (Construct, FakeCore, Log) {
+    let (mut construct, core, lines) = on_core(name, cube_core(json!([])));
+    core.model().lock().unwrap().scene.add_overlay("test");
+    construct.output = Some(chora_kit::testing::output("test"));
+    construct.metrics.keep_estimates();
+    let group = Command::Create {
+        id: NAME.into(),
+        kind: NodeKind::Group,
+        parent: ROOT.into(),
+        props: PropsUpdate::default(),
+    };
+    construct.rt.conn.apply(vec![group]).unwrap();
+    construct.cube = Some(host_of(2));
+    construct.panes.push(crate::Pane {
+        name: "foot".into(),
+        source: "s1".into(),
+        content: crate::Content::Window { command: None },
+        at: [-200.0, 700.0],
+        yaw: 0.0,
+        size: PANE,
+        taken: false,
+        attached: true,
+        placed: false,
+    });
+    stepped_back(&mut construct);
+    construct.cube.as_mut().unwrap().step = None;
+    construct.hints.started = true;
+    construct.open_modes().unwrap();
+    (construct, core, lines)
+}
+
+/// Stood back with a pane beside the cube, the hint bar names the two acts
+/// of a pane: a click on it flies in, and the key that pulls a window out
+/// of a face; a person who sees the pane knows what it takes (co-64).
+#[test]
+fn a_pane_beside_the_cube_names_its_click_and_the_pull_key() {
+    let (mut construct, core, _lines) = with_hint_bar("pane-acts");
+    construct.draw_hints().unwrap();
+    let model = core.model();
+    assert!(has(&model, "construct-hint-keys"), "the cube's hints show");
+    assert!(
+        has(&model, "construct-hint-click-pane"),
+        "the hint bar names the click on the pane"
+    );
+    assert!(
+        has(&model, "construct-hint-pull-out"),
+        "the hint bar names the pull key"
+    );
+}
+
+/// Flown into a pane from the cube stood back, as a program started from
+/// Programs or the click on a pane does, the hint bar names the way out,
+/// `Step back` with its key, and no hint of the cube, whose keys do not
+/// hold in a pane; the person is never stranded (co-65).
+#[test]
+fn a_pane_flown_into_from_the_cube_names_its_way_out() {
+    let (mut construct, core, _lines) = with_hint_bar("pane-way-out");
+    construct.fly_in(0).unwrap();
+    assert!(construct.in_pane(), "the camera flies into the pane");
+    for until in [true, false] {
+        construct.draw_hints().unwrap();
+        if !until {
+            construct.hints.until = None;
+            construct.draw_hints().unwrap();
+        }
+        let model = core.model();
+        assert!(
+            has(&model, "construct-hint-step-back"),
+            "the hint bar names the way out (timed {until})"
+        );
+        assert!(
+            !has(&model, "construct-hints-construct-mode-step-in-keys-0"),
+            "no hint of the cube shows in the pane (timed {until})"
+        );
+    }
+}
