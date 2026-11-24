@@ -283,3 +283,49 @@ sh-34: environment, closed with a SKIP guard (cell 10/10 here). Stall: fixed by 
 | rfs7-3 | MINOR | 6f7bcb26 | selftest race fix with no red commit; small, test-only. |
 | ok | - | 7d2ca087 -> b31fbae5, fecb1f14 -> 516789eb | stray check and sh-34 SKIP: red then fix, by env tag not by name; 3 real leaks fixed (cube xp, agent chora-tiling, tiling-bar notify). |
 Gate: 2/3 green; gate 2 red on leak RSS slope (+1613 vs 1024): new finding sh-38. Verdict (computed): FIX (2 MAJOR). Earliest gate for rfs7-1: the sleep ratchet of guard-4 (not merged yet); for rfs7-2: red-first step checks only that a test commit exists, not that it fails before (backlog item exists: rg4 reds were missing-command reds).
+
+## r8
+
+Brief: flake-series-r8 (F5, F4, rc 3): rfs7-1, rfs7-2, sh-38; red first. Lane: cloud, branch claude/flake-series-r7 from 6f7bcb26, merged with ce866b0d (2adac16a), head d2c2174c (pushed). `cargo check --workspace` green.
+
+### rfs7-1 (W9 count)
+
+- After the merge `grep -h -E '(^|[^a-z_])sleep ' tests/*.sh | wc -l` was 787 (+8: xp-faces 2, merge-gate.sh 2, merge-gate-selftest.sh 4). Fix 380fa09a: merge-gate.sh waits through one `poll()` (no_strays, none_alive) in place of its three loops; the selftest through one `poll_for()` (orphan, lock holder, stray cases wait on the condition, not 0.5 s; the hang step is `timeout 60 tail -f /dev/null`). xp-faces back to its 5 (see below). Count now **778** (RC 779).
+- No test gate for the count exists before guard-4 (not merged), so there is no red commit for this item; the count is the check.
+- Alone, tests/merge-gate-selftest.sh shows 2 FAIL lines (the pre-commit step stub: `got ''`), the same 2 on 2adac16a before my change (checked in a worktree), so not from this round; inside the gate (gate-lib step) it passes in all 3 runs.
+
+### rfs7-2 (xp-42)
+
+- Red: a forced delay. `motion_late=SECONDS` in tests/gate-xp-faces.sh makes the next pointer motion of the gate land that late, in the background; the new cell `opens-under-late-pointer` (EXPECTED pass) lets the motion land 3 s after foot has started. Commits: c0900955 reverts 05a23dca (pure revert), 5b280d4c adds the knob and the cell on the old code: **gap** ("window at 4,25 on VIRTUAL-1", xp read the output from the old pointer position), MISMATCH, exit 1. Fix e7192a72 puts 05a23dca back (pointer_lands_on: events, motion, wait on `pointer.entered` of the wall with until_ok, ask xp once, move away and back if it does not come in 1 to 2 s), and the same cell is **pass** (3 of 3 cells pass; all 11 cells in the 3 gates). 05a23dca is kept; its two fixed sleeps are gone (until_ok), no timeout raised. That the real xp-42 hits had this cause stays unproven; the forced delay shows the cell is race-free for a late motion.
+
+### sh-38 (leak step RSS slope)
+
+Spread of the slope by the old statistic (median of the differences, warm 2), kB/round, all with no leak (fds flat, windows and clients at base):
+
+| runs | n | slopes (sorted) | sd |
+|---|---|---|---|
+| 8 rounds, idle | 10 | -784 -592 -316 -92 0 84 180 436 744 **1736** | 684 |
+| 8 rounds, beside `cargo build --workspace` (loop, own target dir) | 10 | -712 -44 -20 -16 40 80 96 104 344 864 | 367 |
+| 12 rounds, idle | 10 | -252 -28 -24 -4 28 52 64 84 84 252 | 120 |
+| 12 rounds, beside cargo build | 3 | 4 8 636 | 297 |
+
+(plus 2 more 8-round runs, 952 and 300; run 1 of the 12-round load batch broke because I edited gate-leak.sh while it ran.) One idle run of 22 of 8 rounds was red (+1736, as r7 gate 2 +1613): the bound 1024 sat inside the noise.
+
+- Cause: the anon heap of the core sits on one of two levels, about 172 and 179 MB (7 MB apart), and moves between them from round to round and by no rule I found (the RSS is flat for 20 s after a round, so it is not time to settle: traced 40 x 0.5 s per round). With 6 rounds after warm-up that is a trend of up to 1.7 MB per round; no statistic I tried (median of differences, Theil-Sen, least squares, medians or maxima of halves or thirds) tells it from a leak at 6 points (null sd 430-950, all above the planted 1.5 MB per round). Only more rounds do.
+- Red 252b3d3e: leak-verdict-selftest has the recorded tables (idle6 of 8 rounds, no leak, +1736; r12-2 and r12-8 of 12 rounds) as tables that must pass, and planted ramps on them that must fail; **red** (idle6 FAIL: the RSS of the core grows 1736 kB per round), the other rows green.
+- Fix d2c2174c: gate-leak.sh runs 12 rounds by default (10 after warm-up, 467 s in the gate); the verdict scales the bound by the number of rounds, bound * sqrt(sxx of 10 rounds / sxx of the table): **1024 for the default, not raised**; 2223 for 6 rounds (what ROUNDS=8 gives). Checked offline on every recorded table with the awk of the gate: 22 of 8 rounds and 10 of 12 rounds all pass; a planted ramp fails on 10 of 10 12-round runs at 1.5 MB per round (6 of 10 at 1.0, 9 of 10 at 1.2), on 22 of 22 8-round runs at 3.5 and 4 MB per round (21 of 22 at 3.0, 18 of 22 at 2.5). The self-test's planted leaks: 4 MB per round on 8 rounds (a window texture), 1.5 MB per round on 12 rounds, the sh-33 shape (+31 MB, +8 fds, +4 windows). Limit: 8 rounds cannot see a leak of 1.5 MB per round, and 12 rounds not one below 1.2; a leaked probe buffer (160 kB per round) is invisible to the RSS here, fds, windows and clients are the check for that.
+- The cell, final code: 10 of 10 idle at 12 rounds green (the 10 runs above, slopes -252..+252, bound 1024), 3 of 3 beside cargo build (8, 636, 4); 3 of 3 inside the full gate (88, 80, -376). The idle batch ran with the median-of-differences statistic of the old awk; the new awk differs only in the bound (equal at 10 rounds), so the verdicts are the same and I checked them offline with the new awk.
+
+### Gate (`tests/merge-gate.sh --jobs 2`, full, no --only, on d2c2174c, no rerun)
+
+| run | exit | red step | minutes | `pgrep -a chora` after |
+|---|---|---|---|---|
+| 1 | 0 | none | 79 | one `[chora-tiling] <defunct>` zombie (PID 1 does not reap), no live process |
+| 2 | 0 | none | 73 | one defunct chora-tiling |
+| 3 | 0 | none | 75 | one defunct chora-tiling |
+
+3 of 3 green; leak step 467/463/465 s (slope 88, 80, -376 kB per round); xp-faces 14 s with the late-pointer cell; keys PASS; no SKIP step.
+
+### Verdict
+
+rfs7-1 fixed (778). rfs7-2: red made (forced delay), 05a23dca kept. sh-38: statistic and rounds fixed, bound not raised; red then fix; planted leaks fail. Open: the cause of the 7 MB level switches of the heap of the core is not found (not a leak by fds, windows, clients and the 12-round slopes); rfs7-3 (selftest race fix 6f7bcb26 without a red) not touched.
