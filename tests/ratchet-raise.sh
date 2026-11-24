@@ -1,10 +1,11 @@
 #!/bin/bash
 # commit-msg hook: a staged change that raises a count in
-# tools/lint-ratchet.list or tools/size-ratchet.list needs a
+# tools/lint-ratchet.list, tools/size-ratchet.list or
+# tools/sleep-ratchet.list needs a
 # `ratchet-raise: <reason>` line in the message. $1 is the message file.
 # Falling counts and new lines with a lower value need nothing.
 set -u
-lists="tools/lint-ratchet.list tools/size-ratchet.list"
+lists="tools/lint-ratchet.list tools/size-ratchet.list tools/sleep-ratchet.list"
 counts() { sed 's/#.*//' | awk 'NF >= 2 { print $1, $2 }'; }
 raised=""
 for list in $lists; do

@@ -14,6 +14,11 @@
 # it fails in a subshell, the timeout ends it, SIGKILL ends it, the group of
 # the cell is killed with SIGKILL (the stop of merge-gate after its grace).
 #
+# Its load_scaled_limit (sh-37): a timing bound that a loaded host breaks
+# (gate-mc-scale: a settings.set beside 300 panels took 9316 ms, bound 5000 ms)
+# is the floor times how much slower a probe is now than at its best in the same
+# cell, at least the floor, so a slow host raises it and an idle one keeps it.
+#
 # Usage: tests/gate-lib-selftest.sh
 # shellcheck disable=SC2016 # the inner gate expands its own arguments
 set -u
@@ -343,6 +348,26 @@ out=$(CHORA_GATE_LOCK_HELD=x bash -c '. "$1/tests/gate-lib.sh"; (sleep 1; touch 
 out=$(CHORA_GATE_LOCK_HELD=x bash -c '. "$1/tests/gate-lib.sh"; until_ok false 2 || echo gave-up' gate "$repo" 2>&1)
 [ "$out" = gave-up ] || {
     echo "FAIL: until_ok does not give up on a state that never comes: $out"
+    failures=$((failures + 1))
+}
+lsl() { CHORA_GATE_LOCK_HELD=x bash -c '. "$1/tests/gate-lib.sh"; load_scaled_limit "$2" "$3" "$4"' gate "$repo" "$@" 2>&1; }
+idle=$(lsl 5000 69 44)
+[ "$idle" = 5000 ] || {
+    echo "FAIL: load_scaled_limit 5000 69 44 gives '$idle', want 5000 (idle probe jitter keeps the floor)"
+    failures=$((failures + 1))
+}
+[ "${idle:-0}" -lt 5500 ] 2>/dev/null || {
+    echo "FAIL: a 2x regression (5.5 s) must fail an idle host's bound, which is '$idle' ms"
+    failures=$((failures + 1))
+}
+loaded=$(lsl 5000 600 200)
+[ "$loaded" = 7500 ] || {
+    echo "FAIL: load_scaled_limit 5000 600 200 gives '$loaded', want 7500 (a probe 3x slower: 1.5x the floor)"
+    failures=$((failures + 1))
+}
+capped=$(lsl 5000 4000 100)
+[ "$capped" = 9000 ] || {
+    echo "FAIL: load_scaled_limit 5000 4000 100 gives '$capped', want 9000 (cap below the core's 10 s)"
     failures=$((failures + 1))
 }
 [ "$failures" = 0 ] || exit 1
