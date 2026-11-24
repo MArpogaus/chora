@@ -381,6 +381,14 @@ class OpenAndNamedChecks(unittest.TestCase):
         v = diff.verdict("a", [], True, [], ({"I6": "not measured"}, {"I6": "not measured"}))
         self.assertEqual(v["verdict"], "same", v)
 
+    def test_a_check_absent_on_the_base_and_not_measured_on_the_candidate_is_not_a_flip(self):
+        """rtb4-1: a check new in the candidate that it cannot measure is no loss; a build that adds I9 would flag every act."""
+        v = diff.verdict("a", [], True, [], ({}, {"I9": "not measured"}))
+        self.assertEqual(v["verdict"], "same", v)
+        self.assertEqual(v["unmeasured"], ["I9"], v)
+        v = diff.verdict("a", [], True, [], ({"I6": "green"}, {"I6": "not measured", "I9": "not measured"}))
+        self.assertEqual((v["verdict"], v["flipped"]), ("regression", ["I6"]), v)
+
     def test_base_not_measured_and_cand_green_has_no_red_note(self):
         write_capture(self.base, "x1.Q", data='{"nodes": [], "checks": {"I6": "not measured"}}')
         write_capture(self.cand, "x1.Q", data='{"nodes": [], "checks": {"I6": "green"}}')
