@@ -39,3 +39,14 @@ Not shown by a persona or by hand: the positive path (a face window with the key
 
 ### Gate
 `tests/merge-gate.sh --jobs 2` (no --only), detached, on claude/co-pull be6e62ec merged with fresh origin/claude/autonomous-dev-session-3w-i33pg7 2235551f (merge 17539f17, not pushed): **all 65 steps PASS, EXIT 0**; no foreign red. `pgrep -fa 'chora --headless'` empty after.
+
+## Review r1 (PM, 2026-11-24 12:40 UTC; diff 81+/20- under 200 lines, PM not the builder)
+Base f1457035, head be6e62ec: docs/cube-modes.md, plugins/chora-construct/src/overlay.rs, cube/tests_construct.rs.
+1) Red first: 9f257e39 (test only) before be6e62ec; `the_pull_key_is_named_only_where_it_acts` asserts no "pull-out" hint with no focus, which the old `pane_hints` (always pushed) fails. Holds.
+2) Fix: `pull_acts()` = core focus or the focus noted at step back, not the construct's own window (overlay.rs:648-652); the hint stamp includes it (`hint_stamp`), and `draw_hints` runs after every event (scene.rs:100), so a focus change redraws the bar. Holds.
+3) POLS, KISS: the hint names only a key that acts; no new mode or setting; docs/cube-modes.md follows. Holds.
+4) Gate: lane full gate EXIT 0, 65/65, on the merge with 2235551f.
+Findings:
+- rcp1-1 | MINOR | tests_construct.rs:1250-1293 | the told-and-pulls path (a face window with the keyboard, the hint shown, Super+Alt+4 pulls it) is checked by a unit test of the hint only, no gate cell or hand run of the pull | Fix: persona r11 C2 and the co-64 5x run check it on screen.
+- rcp1-2 | MINOR | overlay.rs:634-641 | in demo state (pane beside, keyboard in the pane) the bar no longer names any way to pull; C2 now rests on the title drag or a step in first; co-64 "the way is told on screen" narrows | Fix: persona r11 measures C2 reach; a told title-drag hint only if it is not reached.
+Verdict (computed): 0 BLOCK, 0 MAJOR, 2 MINOR -> MERGE-OK be6e62ec.
