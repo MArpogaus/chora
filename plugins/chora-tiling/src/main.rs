@@ -272,6 +272,26 @@ fn tell_launch_error(err: &theme::LaunchError) {
     }
 }
 
+/// The name of the helper that the door of the helper row says, from
+/// `chora-chat --door`; none without a helper, without the program or when
+/// it does not answer within two seconds.
+fn helper_name() -> Option<String> {
+    let (send, receive) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let out = std::process::Command::new("chora-chat")
+            .arg("--door")
+            .stderr(std::process::Stdio::null())
+            .output()
+            .ok()
+            .filter(|out| out.status.success());
+        let _ = send.send(out.map(|out| String::from_utf8_lossy(&out.stdout).into_owned()));
+    });
+    let door = receive
+        .recv_timeout(std::time::Duration::from_secs(2))
+        .ok()??;
+    chora_kit::launcher::helper_of_door(&door)
+}
+
 /// Asks tiling to close the key list before the launcher or the power menu
 /// opens, so that one overlay shows at a time; without a session or a tiling
 /// that answers it does nothing.
@@ -311,11 +331,13 @@ fn launch(argv: &[String]) -> ExitCode {
     }
     if program == "fuzzel" && rest.is_empty() {
         let flavor = dirs.iter().find(|d| d.join("applications").is_dir());
+        let helper = helper_name();
         chora_kit::launcher::run_ordered(
             &line,
             "chora-tiling --launch foot",
             flavor.cloned(),
             true,
+            helper.as_deref(),
         );
         return ExitCode::SUCCESS;
     }
