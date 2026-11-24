@@ -419,3 +419,5 @@ rr9-1 | MINOR | review-record-v9 r4 (reports/record-v9.md "## Review r4") | open
 - (harness, 11-24) rg4-1 slipped past gate-lib-selftest: no idle-regression case for scaled bounds; earliest gate gate-lib; guard-4 r2 adds it (red first). Rule: every scaled bound gets an idle 2x selftest.
 - (harness, 11-24) rxt-2: a change to tests/acts/invariants.py that skips or relaxes a check needs a selftest with a case that still fails; no gate checks it today (xp-title r1 f65e7f70).
 - (xp polish, 1.0) rxt-1: inactive title text 2.2:1, carried by its shadow; I6 measures the halo; document or rethink.
+
+- rfs8-1..3 MINOR (reports/flake-series.md "## Review r8"): leak bound scaling for ROUNDS<12; planted idle6 leak raised to +4 MB; 380fa09a no red. After the RC.

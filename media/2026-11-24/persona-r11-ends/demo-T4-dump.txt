@@ -1,0 +1,4 @@
+mode navigate front 0
+focus construct {"holder": "construct"}
+focus xp {"holder": null}
+camera {'pitch': 0.0, 'x': 0.0, 'yaw': 0.0, 'z': 0.0} []

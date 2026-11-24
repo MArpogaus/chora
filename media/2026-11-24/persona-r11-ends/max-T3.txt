@@ -1,0 +1,227 @@
+task T3 pass [scene: cube stood back, face 3, pane room yes, walk no]
+breach I6 in look: on VIRTUAL-1 'foot' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-1 '1:28 PM' (xp-tray-VIRTUAL-1) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-2 '1:28 PM' (xp-tray-VIRTUAL-2) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-3 '1:28 PM' (xp-tray-VIRTUAL-3) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-4 'foot' (xp-task-s1-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-4 '1:28 PM' (xp-tray-VIRTUAL-4) has the contrast 3.21:1 ((255, 255, 255) on (13, 149, 238)), the guide wants 4.5:1
+breach I6 in key: on HEADLESS-1 'CONSTRUCT · CUBE' (construct-help-body-scope) has the contrast 1.01:1 ((246, 248, 251) on (246, 247, 250)), the guide wants 4.5:1
+breach I6 in key: on HEADLESS-1 'Super' (construct-help-body-row-14-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'A' (construct-help-body-row-14-keys-1-text) has the contrast 1.01:1 ((246, 248, 251) on (246, 247, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Alt' (construct-help-body-row-15-keys-0-text) has the contrast 1.00:1 ((245, 247, 250) on (246, 247, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Y' (construct-help-body-row-15-keys-1-text) has the contrast 1.00:1 ((246, 248, 251) on (246, 248, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'or' (construct-help-body-row-15-or) has the contrast 1.00:1 ((245, 247, 249) on (246, 247, 250)), the guide wants 4.5:1
+breach I6 in key: on HEADLESS-1 'Alt' (construct-help-body-row-15-alt-0-text) has the contrast 1.00:1 ((244, 246, 248) on (245, 246, 249)), the guide wants 4.5:1
+breach I6 in key: on HEADLESS-1 'N' (construct-help-body-row-15-alt-1-text) has the contrast 1.00:1 ((245, 247, 249) on (246, 247, 250)), the guide wants 4.5:1
+breach I6 in key: on HEADLESS-1 'Ctrl' (construct-help-body-row-16-keys-0-text) has the contrast 1.01:1 ((245, 246, 249) on (246, 247, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 '.' (construct-help-body-row-16-keys-1-text) has the contrast 1.00:1 ((246, 248, 250) on (247, 248, 251)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super' (construct-help-body-row-17-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Alt' (construct-help-body-row-17-keys-1-text) has the contrast 1.00:1 ((246, 247, 250) on (245, 247, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 '1' (construct-help-body-row-17-keys-2-text) has the contrast 1.01:1 ((246, 247, 250) on (246, 248, 251)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super' (construct-help-body-row-18-keys-0-text) has the contrast 1.01:1 ((245, 246, 249) on (244, 245, 248)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Alt' (construct-help-body-row-18-keys-1-text) has the contrast 1.01:1 ((245, 247, 249) on (245, 246, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 '2' (construct-help-body-row-18-keys-2-text) has the contrast 1.01:1 ((246, 248, 250) on (246, 247, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super' (construct-help-body-row-19-keys-0-text) has the contrast 1.01:1 ((245, 246, 249) on (244, 245, 248)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Alt' (construct-help-body-row-19-keys-1-text) has the contrast 1.01:1 ((245, 247, 249) on (245, 246, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 '3' (construct-help-body-row-19-keys-2-text) has the contrast 1.01:1 ((246, 248, 250) on (246, 247, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super' (construct-help-body-row-20-keys-0-text) has the contrast 1.01:1 ((244, 245, 248) on (245, 246, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Alt' (construct-help-body-row-20-keys-1-text) has the contrast 1.00:1 ((246, 247, 250) on (245, 247, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 '4' (construct-help-body-row-20-keys-2-text) has the contrast 1.01:1 ((246, 248, 251) on (246, 247, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Esc' (construct-help-body-row-21-keys-0-text) has the contrast 1.01:1 ((245, 246, 249) on (246, 247, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super' (construct-help-body-row-22-keys-0-text) has the contrast 1.01:1 ((245, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Space' (construct-help-body-row-22-keys-1-text) has the contrast 1.01:1 ((245, 247, 249) on (244, 246, 248)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super' (construct-help-body-row-23-keys-0-text) has the contrast 1.00:1 ((245, 246, 249) on (244, 246, 248)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'F1' (construct-help-body-row-23-keys-1-text) has the contrast 1.01:1 ((245, 246, 249) on (246, 247, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super' (construct-help-body-row-24-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Shift' (construct-help-body-row-24-keys-1-text) has the contrast 1.01:1 ((245, 246, 249) on (244, 245, 248)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Esc' (construct-help-body-row-24-keys-2-text) has the contrast 1.00:1 ((246, 247, 250) on (245, 247, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super' (construct-help-body-row-25-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (244, 246, 248)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Shift' (construct-help-body-row-25-keys-1-text) has the contrast 1.00:1 ((245, 246, 249) on (244, 246, 248)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'E' (construct-help-body-row-25-keys-2-text) has the contrast 1.00:1 ((245, 247, 249) on (246, 247, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super' (construct-help-body-row-26-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Print' (construct-help-body-row-26-keys-1-text) has the contrast 1.00:1 ((244, 246, 248) on (245, 246, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Vol+' (construct-help-body-row-27-keys-0-text) has the contrast 1.00:1 ((246, 247, 250) on (245, 247, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Vol-' (construct-help-body-row-28-keys-0-text) has the contrast 3.65:1 ((38, 128, 180) on (234, 235, 238)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Mute' (construct-help-body-row-29-keys-0-text) has the contrast 6.56:1 ((74, 82, 96) on (234, 234, 238)), the guide wants 7:1
+breach I6 in key: on VIRTUAL-1 'foot' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1
+breach I6 in key: on VIRTUAL-1 '1:29 PM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in key: on VIRTUAL-2 '1:29 PM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in key: on VIRTUAL-3 '1:29 PM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in key: on VIRTUAL-4 'foot' (xp-task-s1-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1
+breach I6 in key: on VIRTUAL-4 '1:29 PM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 'CONSTRUCT · CUBE' (construct-help-body-scope) has the contrast 1.01:1 ((246, 248, 251) on (246, 247, 250)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 'Super' (construct-help-body-row-14-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'A' (construct-help-body-row-14-keys-1-text) has the contrast 1.01:1 ((246, 248, 251) on (246, 247, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Alt' (construct-help-body-row-15-keys-0-text) has the contrast 1.00:1 ((245, 247, 250) on (246, 247, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Y' (construct-help-body-row-15-keys-1-text) has the contrast 1.00:1 ((246, 248, 251) on (246, 248, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'or' (construct-help-body-row-15-or) has the contrast 1.00:1 ((245, 247, 249) on (246, 247, 250)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 'Alt' (construct-help-body-row-15-alt-0-text) has the contrast 1.00:1 ((244, 246, 248) on (245, 246, 249)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 'N' (construct-help-body-row-15-alt-1-text) has the contrast 1.00:1 ((245, 247, 249) on (246, 247, 250)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 'Ctrl' (construct-help-body-row-16-keys-0-text) has the contrast 1.01:1 ((245, 246, 249) on (246, 247, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 '.' (construct-help-body-row-16-keys-1-text) has the contrast 1.00:1 ((246, 248, 250) on (247, 248, 251)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super' (construct-help-body-row-17-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Alt' (construct-help-body-row-17-keys-1-text) has the contrast 1.00:1 ((246, 247, 250) on (245, 247, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 '1' (construct-help-body-row-17-keys-2-text) has the contrast 1.01:1 ((246, 247, 250) on (246, 248, 251)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super' (construct-help-body-row-18-keys-0-text) has the contrast 1.01:1 ((245, 246, 249) on (244, 245, 248)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Alt' (construct-help-body-row-18-keys-1-text) has the contrast 1.01:1 ((245, 247, 249) on (245, 246, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 '2' (construct-help-body-row-18-keys-2-text) has the contrast 1.01:1 ((246, 248, 250) on (246, 247, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super' (construct-help-body-row-19-keys-0-text) has the contrast 1.01:1 ((245, 246, 249) on (244, 245, 248)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Alt' (construct-help-body-row-19-keys-1-text) has the contrast 1.01:1 ((245, 247, 249) on (245, 246, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 '3' (construct-help-body-row-19-keys-2-text) has the contrast 1.01:1 ((246, 248, 250) on (246, 247, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super' (construct-help-body-row-20-keys-0-text) has the contrast 1.01:1 ((244, 245, 248) on (245, 246, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Alt' (construct-help-body-row-20-keys-1-text) has the contrast 1.00:1 ((246, 247, 250) on (245, 247, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 '4' (construct-help-body-row-20-keys-2-text) has the contrast 1.01:1 ((246, 248, 251) on (246, 247, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Esc' (construct-help-body-row-21-keys-0-text) has the contrast 1.01:1 ((245, 246, 249) on (246, 247, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super' (construct-help-body-row-22-keys-0-text) has the contrast 1.01:1 ((245, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Space' (construct-help-body-row-22-keys-1-text) has the contrast 1.01:1 ((245, 247, 249) on (244, 246, 248)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super' (construct-help-body-row-23-keys-0-text) has the contrast 1.00:1 ((245, 246, 249) on (244, 246, 248)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'F1' (construct-help-body-row-23-keys-1-text) has the contrast 1.01:1 ((245, 246, 249) on (246, 247, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super' (construct-help-body-row-24-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Shift' (construct-help-body-row-24-keys-1-text) has the contrast 1.01:1 ((245, 246, 249) on (244, 245, 248)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Esc' (construct-help-body-row-24-keys-2-text) has the contrast 1.00:1 ((246, 247, 250) on (245, 247, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super' (construct-help-body-row-25-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (244, 246, 248)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Shift' (construct-help-body-row-25-keys-1-text) has the contrast 1.00:1 ((245, 246, 249) on (244, 246, 248)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'E' (construct-help-body-row-25-keys-2-text) has the contrast 1.00:1 ((245, 247, 249) on (246, 247, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super' (construct-help-body-row-26-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Print' (construct-help-body-row-26-keys-1-text) has the contrast 1.00:1 ((244, 246, 248) on (245, 246, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Vol+' (construct-help-body-row-27-keys-0-text) has the contrast 1.00:1 ((246, 247, 250) on (245, 247, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Vol-' (construct-help-body-row-28-keys-0-text) has the contrast 3.65:1 ((38, 128, 180) on (234, 235, 238)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Mute' (construct-help-body-row-29-keys-0-text) has the contrast 6.56:1 ((74, 82, 96) on (234, 234, 238)), the guide wants 7:1
+breach I6 in look: on VIRTUAL-1 'foot' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-1 '1:29 PM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-2 '1:29 PM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-3 '1:29 PM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-4 'foot' (xp-task-s1-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-4 '1:29 PM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in type: on HEADLESS-1 'CONSTRUCT · CUBE' (construct-help-body-scope) has the contrast 1.01:1 ((246, 248, 251) on (246, 247, 250)), the guide wants 4.5:1
+breach I6 in type: on HEADLESS-1 'Super' (construct-help-body-row-14-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'A' (construct-help-body-row-14-keys-1-text) has the contrast 1.01:1 ((246, 248, 251) on (246, 247, 250)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Alt' (construct-help-body-row-15-keys-0-text) has the contrast 1.00:1 ((245, 247, 250) on (246, 247, 250)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Y' (construct-help-body-row-15-keys-1-text) has the contrast 1.00:1 ((246, 248, 251) on (246, 248, 250)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'or' (construct-help-body-row-15-or) has the contrast 1.00:1 ((245, 247, 249) on (246, 247, 250)), the guide wants 4.5:1
+breach I6 in type: on HEADLESS-1 'Alt' (construct-help-body-row-15-alt-0-text) has the contrast 1.00:1 ((244, 246, 248) on (245, 246, 249)), the guide wants 4.5:1
+breach I6 in type: on HEADLESS-1 'N' (construct-help-body-row-15-alt-1-text) has the contrast 1.00:1 ((245, 247, 249) on (246, 247, 250)), the guide wants 4.5:1
+breach I6 in type: on HEADLESS-1 'Ctrl' (construct-help-body-row-16-keys-0-text) has the contrast 1.01:1 ((245, 246, 249) on (246, 247, 250)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 '.' (construct-help-body-row-16-keys-1-text) has the contrast 1.00:1 ((246, 248, 250) on (247, 248, 251)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super' (construct-help-body-row-17-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Alt' (construct-help-body-row-17-keys-1-text) has the contrast 1.00:1 ((246, 247, 250) on (245, 247, 249)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 '1' (construct-help-body-row-17-keys-2-text) has the contrast 1.01:1 ((246, 247, 250) on (246, 248, 251)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super' (construct-help-body-row-18-keys-0-text) has the contrast 1.01:1 ((245, 246, 249) on (244, 245, 248)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Alt' (construct-help-body-row-18-keys-1-text) has the contrast 1.01:1 ((245, 247, 249) on (245, 246, 249)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 '2' (construct-help-body-row-18-keys-2-text) has the contrast 1.01:1 ((246, 248, 250) on (246, 247, 250)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super' (construct-help-body-row-19-keys-0-text) has the contrast 1.01:1 ((245, 246, 249) on (244, 245, 248)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Alt' (construct-help-body-row-19-keys-1-text) has the contrast 1.01:1 ((245, 247, 249) on (245, 246, 249)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 '3' (construct-help-body-row-19-keys-2-text) has the contrast 1.01:1 ((246, 248, 250) on (246, 247, 250)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super' (construct-help-body-row-20-keys-0-text) has the contrast 1.01:1 ((244, 245, 248) on (245, 246, 249)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Alt' (construct-help-body-row-20-keys-1-text) has the contrast 1.00:1 ((246, 247, 250) on (245, 247, 249)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 '4' (construct-help-body-row-20-keys-2-text) has the contrast 1.01:1 ((246, 248, 251) on (246, 247, 250)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Esc' (construct-help-body-row-21-keys-0-text) has the contrast 1.01:1 ((245, 246, 249) on (246, 247, 250)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super' (construct-help-body-row-22-keys-0-text) has the contrast 1.01:1 ((245, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Space' (construct-help-body-row-22-keys-1-text) has the contrast 1.01:1 ((245, 247, 249) on (244, 246, 248)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super' (construct-help-body-row-23-keys-0-text) has the contrast 1.00:1 ((245, 246, 249) on (244, 246, 248)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'F1' (construct-help-body-row-23-keys-1-text) has the contrast 1.01:1 ((245, 246, 249) on (246, 247, 250)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super' (construct-help-body-row-24-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Shift' (construct-help-body-row-24-keys-1-text) has the contrast 1.01:1 ((245, 246, 249) on (244, 245, 248)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Esc' (construct-help-body-row-24-keys-2-text) has the contrast 1.00:1 ((246, 247, 250) on (245, 247, 249)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super' (construct-help-body-row-25-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (244, 246, 248)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Shift' (construct-help-body-row-25-keys-1-text) has the contrast 1.00:1 ((245, 246, 249) on (244, 246, 248)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'E' (construct-help-body-row-25-keys-2-text) has the contrast 1.00:1 ((245, 247, 249) on (246, 247, 250)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Super' (construct-help-body-row-26-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Print' (construct-help-body-row-26-keys-1-text) has the contrast 1.00:1 ((244, 246, 248) on (245, 246, 249)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Vol+' (construct-help-body-row-27-keys-0-text) has the contrast 1.00:1 ((246, 247, 250) on (245, 247, 249)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Vol-' (construct-help-body-row-28-keys-0-text) has the contrast 3.65:1 ((38, 128, 180) on (234, 235, 238)), the guide wants 7:1
+breach I6 in type: on HEADLESS-1 'Mute' (construct-help-body-row-29-keys-0-text) has the contrast 1.00:1 ((233, 234, 237) on (234, 234, 238)), the guide wants 7:1
+breach I6 in type: on VIRTUAL-1 'foot' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1
+breach I6 in type: on VIRTUAL-1 '1:29 PM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in type: on VIRTUAL-2 '1:29 PM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in type: on VIRTUAL-3 '1:29 PM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in type: on VIRTUAL-4 'foot' (xp-task-s1-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1
+breach I6 in type: on VIRTUAL-4 '1:29 PM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in key: on HEADLESS-1 'Super' (construct-help-body-row-14-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'A' (construct-help-body-row-14-keys-1-text) has the contrast 1.01:1 ((246, 248, 251) on (246, 247, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Alt' (construct-help-body-row-15-keys-0-text) has the contrast 1.00:1 ((245, 247, 250) on (246, 247, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Y' (construct-help-body-row-15-keys-1-text) has the contrast 1.00:1 ((246, 248, 251) on (246, 248, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'or' (construct-help-body-row-15-or) has the contrast 1.00:1 ((245, 247, 249) on (246, 247, 250)), the guide wants 4.5:1
+breach I6 in key: on HEADLESS-1 'Alt' (construct-help-body-row-15-alt-0-text) has the contrast 1.00:1 ((244, 246, 248) on (245, 246, 249)), the guide wants 4.5:1
+breach I6 in key: on HEADLESS-1 'N' (construct-help-body-row-15-alt-1-text) has the contrast 1.00:1 ((245, 247, 249) on (246, 247, 250)), the guide wants 4.5:1
+breach I6 in key: on HEADLESS-1 'Ctrl' (construct-help-body-row-16-keys-0-text) has the contrast 1.01:1 ((245, 246, 249) on (246, 247, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 '.' (construct-help-body-row-16-keys-1-text) has the contrast 1.00:1 ((246, 248, 250) on (247, 248, 251)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super' (construct-help-body-row-17-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Alt' (construct-help-body-row-17-keys-1-text) has the contrast 1.00:1 ((246, 247, 250) on (245, 247, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 '1' (construct-help-body-row-17-keys-2-text) has the contrast 1.01:1 ((246, 247, 250) on (246, 248, 251)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super' (construct-help-body-row-18-keys-0-text) has the contrast 1.01:1 ((245, 246, 249) on (244, 245, 248)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Alt' (construct-help-body-row-18-keys-1-text) has the contrast 1.01:1 ((245, 247, 249) on (245, 246, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 '2' (construct-help-body-row-18-keys-2-text) has the contrast 1.01:1 ((246, 248, 250) on (246, 247, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super' (construct-help-body-row-19-keys-0-text) has the contrast 1.01:1 ((245, 246, 249) on (244, 245, 248)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Alt' (construct-help-body-row-19-keys-1-text) has the contrast 1.01:1 ((245, 247, 249) on (245, 246, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 '3' (construct-help-body-row-19-keys-2-text) has the contrast 1.01:1 ((246, 248, 250) on (246, 247, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super' (construct-help-body-row-20-keys-0-text) has the contrast 1.01:1 ((244, 245, 248) on (245, 246, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Alt' (construct-help-body-row-20-keys-1-text) has the contrast 1.00:1 ((246, 247, 250) on (245, 247, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 '4' (construct-help-body-row-20-keys-2-text) has the contrast 1.01:1 ((246, 248, 251) on (246, 247, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Esc' (construct-help-body-row-21-keys-0-text) has the contrast 1.01:1 ((245, 246, 249) on (246, 247, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super' (construct-help-body-row-22-keys-0-text) has the contrast 1.01:1 ((245, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Space' (construct-help-body-row-22-keys-1-text) has the contrast 1.01:1 ((245, 247, 249) on (244, 246, 248)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super' (construct-help-body-row-23-keys-0-text) has the contrast 1.00:1 ((245, 246, 249) on (244, 246, 248)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'F1' (construct-help-body-row-23-keys-1-text) has the contrast 1.01:1 ((245, 246, 249) on (246, 247, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super' (construct-help-body-row-24-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Shift' (construct-help-body-row-24-keys-1-text) has the contrast 1.01:1 ((245, 246, 249) on (244, 245, 248)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Esc' (construct-help-body-row-24-keys-2-text) has the contrast 1.00:1 ((246, 247, 250) on (245, 247, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super' (construct-help-body-row-25-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (244, 246, 248)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Shift' (construct-help-body-row-25-keys-1-text) has the contrast 1.00:1 ((245, 246, 249) on (244, 246, 248)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'E' (construct-help-body-row-25-keys-2-text) has the contrast 1.00:1 ((245, 247, 249) on (246, 247, 250)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Super' (construct-help-body-row-26-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Print' (construct-help-body-row-26-keys-1-text) has the contrast 1.00:1 ((244, 246, 248) on (245, 246, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Vol+' (construct-help-body-row-27-keys-0-text) has the contrast 1.00:1 ((246, 247, 250) on (245, 247, 249)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Vol-' (construct-help-body-row-28-keys-0-text) has the contrast 3.65:1 ((38, 128, 180) on (234, 235, 238)), the guide wants 7:1
+breach I6 in key: on HEADLESS-1 'Mute' (construct-help-body-row-29-keys-0-text) has the contrast 6.56:1 ((74, 82, 96) on (234, 234, 238)), the guide wants 7:1
+breach I6 in key: on VIRTUAL-1 'foot' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1
+breach I6 in key: on VIRTUAL-1 '1:29 PM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in key: on VIRTUAL-2 '1:29 PM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in key: on VIRTUAL-3 '1:29 PM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in key: on VIRTUAL-4 'foot' (xp-task-s1-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1
+breach I6 in key: on VIRTUAL-4 '1:29 PM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 'CONSTRUCT · CUBE' (construct-help-body-scope) has the contrast 1.01:1 ((246, 248, 251) on (246, 247, 250)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 'Super' (construct-help-body-row-14-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'A' (construct-help-body-row-14-keys-1-text) has the contrast 1.01:1 ((246, 248, 251) on (246, 247, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Alt' (construct-help-body-row-15-keys-0-text) has the contrast 1.00:1 ((245, 247, 250) on (246, 247, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Y' (construct-help-body-row-15-keys-1-text) has the contrast 1.00:1 ((246, 248, 251) on (246, 248, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'or' (construct-help-body-row-15-or) has the contrast 1.00:1 ((245, 247, 249) on (246, 247, 250)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 'Alt' (construct-help-body-row-15-alt-0-text) has the contrast 1.00:1 ((244, 246, 248) on (245, 246, 249)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 'N' (construct-help-body-row-15-alt-1-text) has the contrast 1.00:1 ((245, 247, 249) on (246, 247, 250)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 'Ctrl' (construct-help-body-row-16-keys-0-text) has the contrast 1.01:1 ((245, 246, 249) on (246, 247, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 '.' (construct-help-body-row-16-keys-1-text) has the contrast 1.00:1 ((246, 248, 250) on (247, 248, 251)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super' (construct-help-body-row-17-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Alt' (construct-help-body-row-17-keys-1-text) has the contrast 1.00:1 ((246, 247, 250) on (245, 247, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 '1' (construct-help-body-row-17-keys-2-text) has the contrast 1.01:1 ((246, 247, 250) on (246, 248, 251)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super' (construct-help-body-row-18-keys-0-text) has the contrast 1.01:1 ((245, 246, 249) on (244, 245, 248)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Alt' (construct-help-body-row-18-keys-1-text) has the contrast 1.01:1 ((245, 247, 249) on (245, 246, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 '2' (construct-help-body-row-18-keys-2-text) has the contrast 1.01:1 ((246, 248, 250) on (246, 247, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super' (construct-help-body-row-19-keys-0-text) has the contrast 1.01:1 ((245, 246, 249) on (244, 245, 248)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Alt' (construct-help-body-row-19-keys-1-text) has the contrast 1.01:1 ((245, 247, 249) on (245, 246, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 '3' (construct-help-body-row-19-keys-2-text) has the contrast 1.01:1 ((246, 248, 250) on (246, 247, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super' (construct-help-body-row-20-keys-0-text) has the contrast 1.01:1 ((244, 245, 248) on (245, 246, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Alt' (construct-help-body-row-20-keys-1-text) has the contrast 1.00:1 ((246, 247, 250) on (245, 247, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 '4' (construct-help-body-row-20-keys-2-text) has the contrast 1.01:1 ((246, 248, 251) on (246, 247, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Esc' (construct-help-body-row-21-keys-0-text) has the contrast 1.01:1 ((245, 246, 249) on (246, 247, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super' (construct-help-body-row-22-keys-0-text) has the contrast 1.01:1 ((245, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Space' (construct-help-body-row-22-keys-1-text) has the contrast 1.01:1 ((245, 247, 249) on (244, 246, 248)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super' (construct-help-body-row-23-keys-0-text) has the contrast 1.00:1 ((245, 246, 249) on (244, 246, 248)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'F1' (construct-help-body-row-23-keys-1-text) has the contrast 1.01:1 ((245, 246, 249) on (246, 247, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super' (construct-help-body-row-24-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Shift' (construct-help-body-row-24-keys-1-text) has the contrast 1.01:1 ((245, 246, 249) on (244, 245, 248)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Esc' (construct-help-body-row-24-keys-2-text) has the contrast 1.00:1 ((246, 247, 250) on (245, 247, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super' (construct-help-body-row-25-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (244, 246, 248)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Shift' (construct-help-body-row-25-keys-1-text) has the contrast 1.00:1 ((245, 246, 249) on (244, 246, 248)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'E' (construct-help-body-row-25-keys-2-text) has the contrast 1.00:1 ((245, 247, 249) on (246, 247, 250)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Super' (construct-help-body-row-26-keys-0-text) has the contrast 1.01:1 ((246, 247, 250) on (245, 246, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Print' (construct-help-body-row-26-keys-1-text) has the contrast 1.00:1 ((244, 246, 248) on (245, 246, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Vol+' (construct-help-body-row-27-keys-0-text) has the contrast 1.00:1 ((246, 247, 250) on (245, 247, 249)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Vol-' (construct-help-body-row-28-keys-0-text) has the contrast 3.65:1 ((38, 128, 180) on (234, 235, 238)), the guide wants 7:1
+breach I6 in look: on HEADLESS-1 'Mute' (construct-help-body-row-29-keys-0-text) has the contrast 6.56:1 ((74, 82, 96) on (234, 234, 238)), the guide wants 7:1
+breach I6 in look: on VIRTUAL-1 'foot' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-1 '1:29 PM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-2 '1:29 PM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-3 '1:29 PM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-4 'foot' (xp-task-s1-VIRTUAL-4) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-4 '1:29 PM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breaches 225
