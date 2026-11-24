@@ -12,6 +12,8 @@
 #    pane, its window and its process stay.
 # 3. With no window focused in the face, Super+x closes nothing: the pane
 #    out of view stays.
+# 4. Flown into that pane while the cube stays in use mode (pane.fly),
+#    Super+x closes it (rcc1-1).
 # Both windows are chora-probe --exit-on-close: a close request ends it.
 #
 # Usage: tests/gate-construct-close.sh   BIN: directory with the binaries
@@ -80,9 +82,17 @@ alive "$pane_pid" || fail "co-75: Super+x in a face closed the pane out of view:
 test "$(panes_n)" = 1 || fail "co-75: Super+x in a face took the pane out of view: $(dump)"
 ok "Super+x in a face closed the focused face window $face and kept the pane out of view ($(dump))"
 
-until_ok '! core_focus | grep -qx "$face"' 20 || true
+until_ok '! core_focus | grep -qx "$face" && ! xp_focus | grep -q "^xp s"' 40 || fail "co-75: a face window still has the keys after its close, the test of no window focused does not hold: $(dump)"
 key Super+x
 sleep 2
 alive "$pane_pid" || fail "co-75: Super+x with no window focused in the face closed the pane out of view: $(dump)"
 test "$(panes_n)" = 1 || fail "co-75: Super+x with no window focused in the face took the pane: $(dump)"
 ok "Super+x with no window focused in the face closed nothing out of view ($(dump))"
+
+pane_name=$(ctl call construct construct.list | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["panes"][0]["name"])')
+ctl call construct pane.fly "{\"name\": \"$pane_name\"}" >/dev/null || fail "rcc1-1: pane.fly $pane_name: $(dump)"
+until_ok 'core_focus | grep -qx "$pane"' 40 || fail "rcc1-1: the camera is in no pane flown from the face: $(dump)"
+until_ok 'test "$(mode)" = use' 8 || fail "rcc1-1: the cube left its use mode: $(dump)"
+key Super+x
+until_ok '! alive "$pane_pid"' 40 || fail "rcc1-1: Super+x left the pane flown into from a face open: $(dump)"
+ok "Super+x in a pane flown into from a face closed that pane ($(dump))"
