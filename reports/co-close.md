@@ -236,3 +236,27 @@ EXIT 0
 5. Hand runs 5/5 on all columns from a fresh compositor; old binary reproduced closed=[]. Full gate 64 PASS, EXIT 0 on fbdcd6e2.
 Findings: rcc2-1 COSMETIC adopt.rs:311 doc comment line no longer wrapped to the block's width. rcc2-2 MINOR (open question, no repro): while flying back out of a pane (`in_pane()` still true until the flight ends) Super+x closes that pane; check in the co-79 round.
 Counts: BLOCK 0, MAJOR 0, MINOR 1, COSMETIC 1. Verdict: MERGE-OK (fbdcd6e2, train134).
+
+## waits r1
+
+Head 22bf5fb7 on claude/co-close-waits-r1 (7f519bc8 + merge of 84f66d43 df111a40 + one test commit).
+
+Edits, tests/gate-construct-close.sh only (0 `sleep` left in it):
+- `sleep 5` becomes a wait on the hint bar's glass: the timed set draws it at alpha 0.84, the resting set at 0.92 (`construct-hints-glass` color[3] > 0.9), so the step-back rect is read only after the 3 s are over.
+- `sleep 1` and `sleep 2` (both negative checks) become `handled`: a core round trip, a construct state.get, `quiet`, a second state.get; then the pane is asserted alive.
+
+Ratchets (head with 84f66d43 merged):
+- sleep-ratchet: ok (sleep 778, sleep-all 929); list lowered from 779/930 (tree was 781/932 with the merge).
+- size-ratchet: ok (0 files over 1500). lint-ratchet: ok (allow 360, no-reason 0, eprintln 46).
+- The merge commit carries a `ratchet-raise:` line only because tools/sleep-ratchet.list comes in as a new file (the hook reads a new file as a raise); no count rose.
+
+Close cell, 10 runs in a row: runs 1-10 all rc=0 (10/10 green).
+
+Red proof, the fault put back by hand (git revert of 272940fc conflicts, f0ab2938 does not touch these checks), the cell turns red each time, then the tree was restored:
+| fault | result |
+|---|---|
+| face branch of close_focused also removes pane 0 | FAIL co-75: Super+x in a face closed the pane out of view (panes: 0) |
+| no window focused: falls through to remove pane 0 | FAIL co-75: ... with no window focused in the face closed the pane out of view (panes: 0) |
+| resting set shows nothing (`(true, _) => None`) | FAIL co-76: the hints did not come to rest after their 3 s |
+
+Full tests/merge-gate.sh (no --only): all steps passed, rc 0, run dir /tmp/merge-gate.i4Arnt (65 logs). A first run failed at clippy on a stray empty plugins/chora-construct/src/lib.rs that I made by a touch; removed, not committed, rerun green.
