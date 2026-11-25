@@ -6,7 +6,7 @@
 # One gate runs at a time: the gate and the gate scripts take the lock
 # of tests/gate-lock.sh, and a second one prints a line and waits.
 #
-# Steps: red-first, identity, pre-commit, gate-lib, ci-check, build, test, clippy, 2d-guard, package-deps, package-lists, xp, matrix, virtual, xp-faces, xp-paperclip, xp-fields, xp-question, hud,
+# Steps: red-first, identity, ratchets, pre-commit, gate-lib, ci-check, build, test, clippy, 2d-guard, package-deps, package-lists, xp, matrix, virtual, xp-faces, xp-paperclip, xp-fields, xp-question, hud,
 # layout, tiling-audit, tiling-look, tiling-empty, chat-keys, doors, acts, last-words, cube, pull, placed, construct-hud, construct-extra, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, mc-column, mc-handover, launcher-click, voice-acp, voice-events, agent, e2e. `layout` audits
 # the layout of the construct HUD in each state. `tiling-empty` shows that an output and a pane of tiling with no window have the bar and the wallpaper. `chat-keys` opens the
 # chat in tiling with Super+a and types into its field. `doors` asks every
@@ -25,6 +25,8 @@
 # .github/workflows/ci.yaml in its order (tests/e2e-sequence.sh); a skip fails the step unless tests/e2e-skips.txt lists it.
 # `tiling-bar`, `tiling-keys-more`, `tiling-windows` and `tiling-system` run the tiling gates that the other tiling steps do not (bar look, spacing, screenshot and launch notices; key list, keycaps, bar Keys, chip, programs; focus, follow, doors, swallow, gaps, motion; reload, system), `tiling-theme` the theme gate (Ink, Paper, accent of the focus border); `handover` the handover between window managers (D55), `mc-scale` the 300-panel scene of mc, `watchdog-starved` the frame watchdog on a starved host, `leak` one core through rounds of look switches and window churn, with the RSS slope, fds, windows and clients per round (sh-33), `xp-run` the Run box of xp, `demo` the demo scenes. A step `known-red-NAME` is a gate script whose red is filed in findings/: --list shows it, a full run leaves it out, `--only known-red-NAME` runs it.
 # `voice-acp` runs the ACP sub-agent smoke test (a question that edits a file is answered by a HUD button, not by a spoken yes), `voice-events` the voice.state events, and `agent` the agent interface in a headless sway (tests/agent.sh).
+# `ratchets` runs tools/sleep-ratchet, tools/size-ratchet and tools/lint-ratchet in turn, each output in the log, and
+# fails with one line `FAIL: <ratchet>: <its count line>` for each that is red; it also runs in --worker mode, so a lane gate refuses a breach.
 # `identity` fails when any commit of BASE..HEAD, merges included, has an author or
 # a committer other than the identity in `expected_identity` below (a lane hook has
 # re-authored commits as another identity); it prints one FAIL line with the sha, the
@@ -80,7 +82,7 @@
 #                            [--base REF] [--jobs N] [--allow-skip STEP,...] [--red-first-check]
 #                            [--identity-check] [--list] [--commands]
 #   --only STEP,...  run only these steps; never pushes
-#   --worker STEP,...  the lane mode: build, test, clippy and the steps
+#   --worker STEP,...  the lane mode: ratchets, build, test, clippy and the steps
 #                    named here (`--worker xp,hud`; `--worker ''` for none);
 #                    never pushes
 #   --base REF       the base of the merged range (default
@@ -254,6 +256,7 @@ default_steps() {
     cat <<STEPS
 red-first|tests/merge-gate.sh --red-first-check --base "$base"
 identity|tests/merge-gate.sh --identity-check --base "$base"
+ratchets|bad=0; for r in sleep-ratchet "size-ratchet --base $(git merge-base "$base" HEAD)" lint-ratchet; do n=\${r%% *}; tools/\$r >"\${TMPDIR:-/tmp}/ratchets.\$\$" 2>&1 || { bad=1; echo "FAIL: \$n: \$(tail -1 "\${TMPDIR:-/tmp}/ratchets.\$\$")"; }; cat "\${TMPDIR:-/tmp}/ratchets.\$\$"; rm -f "\${TMPDIR:-/tmp}/ratchets.\$\$"; done; exit \$bad
 pre-commit|command -v pre-commit >/dev/null || { echo "FAIL: pre-commit is not installed"; exit 1; }; SKIP=cargo-clippy,lychee,vale pre-commit run --all-files
 gate-lib|{ tests/gate-lib-selftest.sh && tests/under-load-selftest.sh && tests/cells-for-selftest.sh && tests/nested-diag-selftest.sh && tests/matrix-cap-selftest.sh; } & a=\$!; [ x\${MERGE_GATE_NESTED:-} != x ] || tests/merge-gate-selftest.sh; b=\$?; wait \$a && [ \$b = 0 ]
 ci-check|tools/cut-check --base "$(git merge-base "$base" HEAD)" && tests/cut-check-selftest.sh && tests/grab-gap-check.py && tests/grab-gap-check-selftest.sh && tests/agent-sandbox.sh && tests/gate-0.7-9.sh && tests/gate-0.8-5.sh && tests/gate-0.8-8.sh && tests/gate-0.8-plugin-runtime.sh && tests/packaging-files.py && tests/flavor-notify.py && tests/screenshot-notice.sh && tests/tiling-scripts-selftest.sh && tests/runtime-dir-selftest.sh && tests/packaging-files-selftest.sh && tools/size-ratchet --base "$(git merge-base "$base" HEAD)" && tests/size-ratchet-selftest.sh && tools/lint-ratchet && tests/lint-ratchet-selftest.sh && tools/sleep-ratchet && tests/sleep-ratchet-selftest.sh && tests/ratchet-raise-selftest.sh
@@ -366,7 +369,7 @@ selected() {
 if [ -n "$worker_mode" ]; then
     [ -z "$only" ] || die "--worker and --only exclude each other"
     [ -z "$push_branch" ] || die "--worker never pushes"
-    only="build,test,clippy${worker:+,$worker}"
+    only="ratchets,build,test,clippy${worker:+,$worker}"
 fi
 
 if [ -n "$only" ]; then
@@ -591,7 +594,7 @@ wait_step() {
     fi
 }
 
-serial_steps=",red-first,identity,pre-commit,gate-lib,build,test,clippy,2d-guard,"
+serial_steps=",red-first,identity,ratchets,pre-commit,gate-lib,build,test,clippy,2d-guard,"
 for i in "${!step_names[@]}"; do
     selected "${step_names[$i]}" || continue
     if [ "$jobs_max" = 1 ] || [[ $serial_steps == *",${step_names[$i]},"* ]]; then
