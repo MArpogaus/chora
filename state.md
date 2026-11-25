@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-25 12:47 UTC)
+## Now (2026-11-25 12:53 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 11:44 PM 3.0 % (11-25), week about 38 % vs 61 % pace: under-spending, fill 6 lanes
+budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 12:53 PM 3.2 % (11-25), week about 38 % vs 62 % pace: under-spending, fill 6 lanes
 session branch: d86be5d0 (t138 11:10: xp-minor r1, mc-minor r1); 86 greens. TRAIN139 tiling-doors r3 35e31662, tiling-minor r1 31af60c5 (gate running)
 burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open, 3 regr)
 
@@ -26,7 +26,9 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 | co-minor-r2.md (rc 2) | done 466fcd11, PM review r2 MERGE-OK | train140 after t139 |
 | xp-minor-r3.md (rc 1) | done cb5fcb7f, PM review MERGE-OK | train140 after t139 |
 | mc-minor-r2.md (rc 1) | done 0f68810c, review r2 MERGE-OK (0 MAJOR, 5 MINOR) | train140 after t139 |
-| mc-minor-r3.md (rc 1; rmm2-1..6; 0.8 %) | sonnet medium, claude/mc-minor-r3 0f68810c | starting |
+| mc-minor-r3.md (rc 1; rmm2-1..6; 0.8 %) | sonnet medium, claude/mc-minor-r3 0f68810c | running session_016iS3kNMXoJFbpfCZT9oZsw |
+| co-polish-r1.md (rc 1; co-44, co-45; 0.8 %) | sonnet medium, claude/co-polish-r1 d86be5d0 | starting |
+| xp-minor-r4.md (rc 1; rxm3-1, -2; 0.3 %) | haiku medium, claude/xp-minor-r4 cb5fcb7f | starting |
 ## Queue (% week; 5 % reserve)
 1. (rc 1, 2) t138 green d86be5d0 (xp-9, -19, -28, -29 closed). TRAIN139 running: tiling-doors r3 35e31662, tiling-minor r1 31af60c5.
 2. (rc 2) construct: CO-MINOR r2 466fcd11 PM review MERGE-OK (rcm1-1 closed); train140 with xp-minor r3, mc-minor r2; co-77 by design D106; persona recheck co-75/76/79 in P2-R10.
