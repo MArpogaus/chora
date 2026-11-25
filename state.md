@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-24 23:23 UTC)
+## Now (2026-11-25 00:16 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 21:59 PM 5.2 % (11-23) + 5.1 % (11-24) + 1.1 % (11-25), week about 32 % vs 53 % pace: under-spending, fill 6 lanes
+budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 00:16 PM 5.1 % (11-24) + 1.3 % (11-25), week about 33 % vs 54 % pace: under-spending, fill 6 lanes after t133
 session branch: c3c37c2e (t132 19:20); 80 greens; t132: tiling-honest r1 (ti-52, ti-53), co-pull r2 (co-70, co-71).
 burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open, 3 regr)
 
