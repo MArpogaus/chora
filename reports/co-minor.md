@@ -58,3 +58,7 @@ EXIT 0
 ### Not done / open
 - co-77 owner stays xp by design (above); the r12 stood-back FAIL is not reproduced and not explained (the xp start menu click path of Max was not replayed exactly).
 - Stood back, Super+t with the key sheet open still starts a pane (K-mode navigate, unchanged by design: the fix is for a face only).
+
+## PM decision r1 (2026-11-25 10:20 UTC)
+- co-77: no fault. D106 and WM7b hosted (owner 11-19 10:52) hold: a Programs window in a face is held by xp; C3 pin cell passes 5/5. Closed as by design after the review confirms the pin cell.
+- Diff 227 lines, construct focus path: seeded opus review (briefs/review-co-minor-r1.md).
