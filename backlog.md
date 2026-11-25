@@ -425,3 +425,4 @@ rr9-1 | MINOR | review-record-v9 r4 (reports/record-v9.md "## Review r4") | open
 - xp Large Fonts option for dialogs and icon labels (14 px), after the RC (PM 11-25, reports/xp-minor.md PM decisions r2).
 - xp rxm2-3 (greeting retries scene.query every 500 ms while covered), rxm2-7 (Turn Off caption floor 6-8 px), rxm2-8 (unit for window_under_the_balloon): MINOR/NIT after the RC (review r2, reports/xp-minor.md).
 - tiling rtd3-1 (launch name test on real connects), rtd3-2, rtd3-3 nits (after RC)
+- construct rcm1-3 NIT: co-77 pin cell checks C3's single holder (after RC)
