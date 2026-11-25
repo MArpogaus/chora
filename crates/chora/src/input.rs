@@ -31,12 +31,12 @@ use smithay::{
     },
     output::Output,
     reexports::wayland_server::{Resource, protocol::wl_surface::WlSurface},
-    utils::{Logical, Point, SERIAL_COUNTER, Serial},
+    utils::{Logical, Point, Rectangle, SERIAL_COUNTER, Serial},
     wayland::pointer_constraints::{PointerConstraint, with_pointer_constraint},
 };
 
 use crate::{
-    output::{Spot, output_area},
+    output::{Spot, output_area, scene_rect},
     render,
     state::{ButtonGrab, ClientState, HeldGrab, NodeGrab, Repeat, State, Suppressed},
 };
@@ -1017,25 +1017,63 @@ fn hover(state: &mut State, spot: &Spot, moved: bool) {
 }
 
 /// A press on a layer surface that is a bar or a panel of a flavor is a
-/// command to the window manager whose claim holds the point, or, where
-/// the bar lies outside every claim, to the first one: that manager gets
-/// the act, so that the keyboard goes to the panel which the
-/// click opens, as it does for a key that the manager grabbed (ti-52).
-/// Only a real press counts (see [`State::note_act`]).
+/// command to the window manager whose claim holds the point. Where the
+/// bar lies outside every claim, the managers whose claim lies on the
+/// output of the bar get the act, else every live manager: the keyboard
+/// goes to the panel which the click opens, as it does for a key that the
+/// manager grabbed (ti-52). Only a real press counts (see
+/// [`State::note_act`]).
 fn press_layer(state: &mut State) {
     let Some(spot) = state.spot(state.pointer_layout) else {
         return;
     };
-    let on_layer = render::surface_under(state, &spot)
-        .is_some_and(|under| state.is_layer_surface(&under.surface));
-    if !on_layer {
+    let Some(under) = render::surface_under(state, &spot) else {
+        return;
+    };
+    if !state.is_layer_surface(&under.surface) {
         return;
     }
     let point = [spot.scene.x, spot.scene.y];
-    let manager = chora_scene::claimant_at(state.scene.nodes(), point, |n| state.ipc.live(n))
-        .map(String::from)
-        .or_else(|| state.first_manager());
-    state.note_act(state.owner_conns(manager.as_deref()));
+    let claimant = chora_scene::claimant_at(state.scene.nodes(), point, |n| state.ipc.live(n));
+    let managers = claimant.map_or_else(
+        || {
+            let output = state.output_of_layer(&under.surface).unwrap_or(spot.output);
+            managers_on(state, &output)
+        },
+        |owner| vec![owner.to_owned()],
+    );
+    let conns = (managers.iter())
+        .flat_map(|owner| state.owner_conns(Some(owner)))
+        .collect();
+    state.note_act(conns);
+}
+
+/// The live window managers with a claim on an output; where none has,
+/// all of them.
+fn managers_on(state: &State, output: &Output) -> Vec<String> {
+    let screen = Rectangle::from_size(output_area(output).size);
+    let shown = scene_rect(&state.camera(output), screen);
+    let claims = || {
+        (state.scene.nodes())
+            .filter(|n| n.owner.as_deref().is_some_and(|o| state.ipc.live(o)))
+            .filter_map(|n| Some((n.owner.as_deref()?, n.props.claim?)))
+    };
+    let on_output = |[x, y, w, h]: &[f64; 4]| {
+        shown.overlaps(Rectangle::<f64, Logical>::new(
+            (*x, *y).into(),
+            (*w, *h).into(),
+        ))
+    };
+    let mut owners: Vec<String> = claims()
+        .filter(|(_, claim)| on_output(claim))
+        .map(|(owner, _)| owner.to_owned())
+        .collect();
+    if owners.is_empty() {
+        owners = claims().map(|(owner, _)| owner.to_owned()).collect();
+    }
+    owners.sort_unstable();
+    owners.dedup();
+    owners
 }
 
 /// Tells plugins about a press over a node. Over a rect or an image, the
