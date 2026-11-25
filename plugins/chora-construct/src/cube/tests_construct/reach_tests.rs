@@ -86,7 +86,7 @@ fn super_x_while_flying_out_of_a_pane_into_a_face_closes_nothing() {
 #[test]
 fn stood_back_out_of_a_pane_the_bar_names_the_way_into_the_face() {
     let (mut construct, core, _lines) = super::with_hint_bar("reach-put");
-    construct.cube.as_mut().unwrap().program = "chora-xp".into();
+    construct.cube.as_mut().unwrap().program = "xp".into();
     construct.core_focus = Some("s1".into());
     construct.draw_hints().unwrap();
     assert_eq!(
