@@ -2068,6 +2068,41 @@ mod tests {
         assert!(tiling.chip_until.is_some(), "the chip has a time to go");
     }
 
+    /// rtd1-3: the hint names the help key that the person bound.
+    #[test]
+    fn the_hint_names_a_rebound_help_key_rtd1_3() {
+        let (mut tiling, methods) = tiling_with_grabs("stray-rebound");
+        let keys = Action::System(System::Keys);
+        let config = &mut tiling.wm.config.common;
+        config
+            .bindings
+            .retain(|text, action| *action != keys || text == "MOD+slash");
+        tiling.act("Super+q").unwrap();
+        let hints = hints_shown(&methods);
+        assert_eq!(hints.len(), 1, "{hints:?}");
+        assert!(hints[0].contains("Super+/ shows all keys."), "{hints:?}");
+    }
+
+    /// rtd1-3: with no key bound to the key list the hint does not name
+    /// Super+F1, which would be a swallowed chord itself.
+    #[test]
+    fn the_hint_names_no_help_key_when_none_is_bound_rtd1_3() {
+        let (mut tiling, methods) = tiling_with_grabs("stray-no-help");
+        let keys = Action::System(System::Keys);
+        tiling
+            .wm
+            .config
+            .common
+            .bindings
+            .retain(|_, action| *action != keys);
+        tiling.act("Super+q").unwrap();
+        let hints = hints_shown(&methods);
+        assert_eq!(hints.len(), 1, "{hints:?}");
+        assert!(hints[0].contains("Super+Q does nothing here."), "{hints:?}");
+        assert!(!hints[0].contains("Super+F1"), "{hints:?}");
+        assert!(!hints[0].contains("shows all keys"), "{hints:?}");
+    }
+
     #[test]
     fn a_second_unbound_chord_within_ten_seconds_shows_no_hint_ti_56() {
         let (mut tiling, methods) = tiling_with_grabs("stray-twice");
