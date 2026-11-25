@@ -500,6 +500,24 @@ cell_page_end() {
     ctl call mc notify.clear '{}' >/dev/null
 }
 
+cell_pill_clock() {
+    local clock word
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    emit voice.state '{"state": "listening", "task": "", "said": "", "muted": {"mic": false, "speaker": false}}'
+    until_ok 'ctl query id:hud-word | jq -e "length > 0" >/dev/null' 20 || fail "the host draws no state word"
+    key Super+n
+    until_ok '! has_text "Back one step"' 20 || fail "Super+n does not hide the column"
+    sleep 1.5
+    clock=$(ctl query "owner:mc kind:text" | jq -c "[.[] | $shown | select(.text | test(\"^[A-Z]+ [0-9]+ [A-Z]+ +[0-9]+:[0-9]+\$\"))][0].rects | to_entries[0].value")
+    word=$(node_rect hud-word)
+    shot pill-clock
+    key Super+n
+    until_ok 'has_text "Back one step"' 20 || fail "Super+n does not bring the column back"
+    jq -ne --argjson c "$clock" --argjson w "$word" '$c[0] + $c[2] <= $w[0] - 8 or $c[1] + $c[3] <= $w[1] or $w[1] + $w[3] <= $c[1]' >/dev/null ||
+        fail "the state pill $word lies over the clock $clock when the column is hidden (rpx1-13)"
+}
+
 failed=()
 skipped=()
 ran=0
@@ -518,7 +536,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist page-end remote-back launcher-click-row)
+cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist page-end pill-clock remote-back launcher-click-row)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done
