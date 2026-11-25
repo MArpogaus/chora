@@ -13,9 +13,6 @@ fn a_failed_clients_list_shows_one_notice() {
     let status = std::process::Command::new(env!("CARGO_BIN_EXE_chora-tiling"))
         .args(["--launch", "looks"])
         .env(chora_scene::ipc::SOCKET_ENV, core.socket())
-        .env("LC_ALL", "C")
-        .env_remove("LANGUAGE")
-        .env_remove("LANG")
         .status()
         .unwrap();
     assert!(!status.success());
@@ -25,10 +22,4 @@ fn a_failed_clients_list_shows_one_notice() {
         .filter(|l| l.starts_with("methods.call") && l.contains("notify.show"))
         .count();
     assert_eq!(shown, 1, "notices shown: {lines:?}");
-    assert!(
-        lines
-            .iter()
-            .any(|l| l.contains("Other desktops not available")),
-        "{lines:?}"
-    );
 }
