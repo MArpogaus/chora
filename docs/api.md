@@ -704,8 +704,10 @@ everything;
 
 `choractl wait SELECTOR` polls the query every 100 ms until something
 matches, then prints the matches as one JSON line and exits 0. `--gone`
-waits until nothing matches. `--timeout SECS` limits the wait, 10 seconds
-by default; a timeout exits 1 with the reason on stderr.
+waits until nothing matches. `--visible` counts only the nodes that show
+on some output, as the `visible` filter of `scene.query` does. `--timeout
+SECS` limits the wait, 10 seconds by default; a timeout exits 1 with the
+reason on stderr.
 
 ## Boxes
 

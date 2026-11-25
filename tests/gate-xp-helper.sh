@@ -126,7 +126,7 @@ xp30-once)
     greets xp-30
     stop_assistant
     start_assistant second
-    if ctl wait --timeout 6 'id:hud-line visible:true' >/dev/null 2>&1; then
+    if ctl wait --timeout 6 --visible 'id:hud-line' >/dev/null 2>&1; then
         t=$(balloon)
         [ -z "$t" ] || fail "xp-30: the second start of the same state greets again: $t"
     fi
@@ -136,7 +136,7 @@ xp30-click)
     start_assistant clicked
     greets xp-30
     click_at 400 300
-    ctl wait --gone --timeout 4 'id:hud-line visible:true' >/dev/null 2>&1 || true
+    ctl wait --gone --visible --timeout 4 'id:hud-line' >/dev/null 2>&1 || true
     t=$(balloon)
     [ -z "$t" ] || fail "xp-30: a click elsewhere leaves the greeting in the balloon: $t"
     ok "xp-30: a click on the desktop takes the greeting away"
@@ -146,12 +146,12 @@ xp30-window)
     foot --window-size-pixels=1180x640 -T cover sleep 600 >"$shots/foot.log" 2>&1 &
     fpid=$!
     pids+=("$fpid")
-    ctl wait --timeout 15 'kind:surface visible:true' >/dev/null || fail "xp-30: no window to cover the balloon"
+    ctl wait --timeout 15 --visible 'kind:surface' >/dev/null || fail "xp-30: no window to cover the balloon"
     read -r wx wy ww wh < <(ctl query 'kind:surface' | jq -r '.[0].rects | to_entries[0].value | map(floor) | join(" ")')
     { [ "$wx" -lt 1184 ] && [ $((wx + ww)) -gt 900 ] && [ "$wy" -lt 700 ] && [ $((wy + wh)) -gt 400 ]; } ||
         fail "xp-30: the window $wx,$wy ${ww}x$wh does not lie under the place of the balloon"
     start_assistant covered
-    if ctl wait --timeout 5 'id:hud-line visible:true' >/dev/null 2>&1; then
+    if ctl wait --timeout 5 --visible 'id:hud-line' >/dev/null 2>&1; then
         t=$(balloon)
         [ -z "$t" ] || fail "xp-30: the paperclip greets over a window: $t"
     fi

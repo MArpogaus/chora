@@ -66,6 +66,9 @@ enum Cmd {
         /// Wait until nothing matches the selector.
         #[arg(long)]
         gone: bool,
+        /// Count only the nodes that show on some output.
+        #[arg(long)]
+        visible: bool,
     },
     /// Apply a transaction: a JSON list of commands from a file or stdin.
     Apply {
@@ -845,6 +848,7 @@ fn wait(client: &mut Client, command: &Cmd) -> Result<(), String> {
         selector,
         timeout,
         gone,
+        visible,
     } = &command
     else {
         unreachable!("wait runs for the wait command only")
@@ -852,7 +856,16 @@ fn wait(client: &mut Client, command: &Cmd) -> Result<(), String> {
     let nodes = wait_loop(
         || {
             client
-                .call::<_, Vec<Value>>("scene.query", Query::new(selector.clone()))
+                .call::<_, Vec<Value>>(
+                    "scene.query",
+                    Query {
+                        selector: selector.clone(),
+                        filter: visible.then(|| chora_scene::ipc::Filter {
+                            visible: true,
+                            ..Default::default()
+                        }),
+                    },
+                )
                 .map_err(|e| e.to_string())
         },
         selector,
@@ -1280,7 +1293,7 @@ mod tests {
         let args = Args::try_parse_from("choractl wait kind:surface --timeout 3 --gone".split(' '))
             .unwrap();
         assert!(
-            matches!(args.command, Cmd::Wait { ref selector, timeout, gone } if selector == "kind:surface" && timeout == 3 && gone)
+            matches!(args.command, Cmd::Wait { ref selector, timeout, gone, .. } if selector == "kind:surface" && timeout == 3 && gone)
         );
     }
 
