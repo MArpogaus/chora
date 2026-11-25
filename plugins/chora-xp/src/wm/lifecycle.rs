@@ -152,6 +152,59 @@ mod tests {
         assert!(!state.to_string().contains("t1"), "no token: {state}");
     }
 
+    /// D119, ti-57: a window given to xp while a window of another look
+    /// holds the keyboard (tiling kept it on the output where the person
+    /// is) comes without the keyboard: xp does not focus it and holds
+    /// none. Without another holder the next window given in takes the
+    /// keyboard, as before.
+    #[test]
+    fn a_window_given_in_leaves_the_keyboard_with_another_holder() {
+        let core = FakeCore::start();
+        let mut xp = wm_on_kit_core(&core, "given-keys");
+        let model = core.model();
+        surface(&model, "s9");
+        xp.event(Event::FocusChanged {
+            surface: Some("s9".into()),
+        })
+        .unwrap();
+        surface(&model, "s1");
+        model.lock().unwrap().scene.reserve("s1", Some(NAME));
+        xp.event(Event::SurfaceDetached {
+            surface: "s1".into(),
+        })
+        .unwrap();
+        assert!(xp.has("s1"), "xp took the window");
+        assert_eq!(origin(&xp, "s1"), "given");
+        let focused = model
+            .lock()
+            .unwrap()
+            .scene
+            .focused_surface()
+            .map(String::from);
+        assert_ne!(
+            focused.as_deref(),
+            Some("s1"),
+            "xp focused the window given in"
+        );
+        let state = xp.state().unwrap();
+        assert_eq!(state["focus"]["holder"], Value::Null, "{}", state["focus"]);
+
+        xp.event(Event::FocusChanged { surface: None }).unwrap();
+        surface(&model, "s2");
+        model.lock().unwrap().scene.reserve("s2", Some(NAME));
+        xp.event(Event::SurfaceDetached {
+            surface: "s2".into(),
+        })
+        .unwrap();
+        let focused = model
+            .lock()
+            .unwrap()
+            .scene
+            .focused_surface()
+            .map(String::from);
+        assert_eq!(focused.as_deref(), Some("s2"));
+    }
+
     /// A surface of the core with a size, as a client that mapped it.
     fn mapped(model: &Model, id: &str) {
         let info = SurfaceInfo {
