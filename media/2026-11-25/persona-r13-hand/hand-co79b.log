@@ -1,0 +1,65 @@
+run 1 foot started (cube stood back):
+mode navigate front 0, panes ['foot'], construct , xp , core focus: ['s1']
+    surface s1 owner construct visible True rect [0.0, 0.0, 1280.0, 800.0]
+  bar [Super F1 All keys Alt Esc Step back]
+ after Alt+Escape:
+mode navigate front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [17.04323619070525, 283.2577286532011, 382.5296363669059, 233.4845426935978]
+  bar [Click Fly in Return Ctrl Alt ← Ctrl Alt → Super F1 All keys]
+  told: NO
+ after Super+Alt+4:
+mode navigate front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [17.04323619070525, 283.2577286532011, 382.5296363669059, 233.4845426935978]
+  bar [Click Fly in Return Ctrl Alt ← Ctrl Alt → Super F1 All keys]
+run 2 foot started (cube stood back):
+mode navigate front 0, panes ['foot'], construct , xp , core focus: ['s1']
+    surface s1 owner construct visible True rect [0.0, 0.0, 1280.0, 800.0]
+  bar [Super F1 All keys Alt Esc Step back]
+ after Alt+Escape:
+mode navigate front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [17.04323619070525, 283.2577286532011, 382.5296363669059, 233.4845426935978]
+  bar [Click Fly in Return Ctrl Alt ← Ctrl Alt → Super F1 All keys]
+  told: NO
+ after Super+Alt+4:
+mode navigate front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [17.04323619070525, 283.2577286532011, 382.5296363669059, 233.4845426935978]
+  bar [Click Fly in Return Ctrl Alt ← Ctrl Alt → Super F1 All keys]
+run 3 foot started (cube stood back):
+mode navigate front 0, panes ['foot'], construct , xp , core focus: ['s1']
+    surface s1 owner construct visible True rect [0.0, 0.0, 1280.0, 800.0]
+  bar [Super F1 All keys Alt Esc Step back]
+ after Alt+Escape:
+mode navigate front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [17.04323619070525, 283.2577286532011, 382.5296363669059, 233.4845426935978]
+  bar [Click Fly in Return Ctrl Alt ← Ctrl Alt → Super F1 All keys]
+  told: NO
+ after Super+Alt+4:
+mode navigate front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [17.04323619070525, 283.2577286532011, 382.5296363669059, 233.4845426935978]
+  bar [Click Fly in Return Ctrl Alt ← Ctrl Alt → Super F1 All keys]
+run 4 foot started (cube stood back):
+mode navigate front 0, panes ['foot'], construct , xp , core focus: ['s1']
+    surface s1 owner construct visible True rect [0.0, 0.0, 1280.0, 800.0]
+  bar [Super F1 All keys Alt Esc Step back]
+ after Alt+Escape:
+mode navigate front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [17.04323619070525, 283.2577286532011, 382.5296363669059, 233.4845426935978]
+  bar [Click Fly in Return Ctrl Alt ← Ctrl Alt → Super F1 All keys]
+  told: NO
+ after Super+Alt+4:
+mode navigate front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [17.04323619070525, 283.2577286532011, 382.5296363669059, 233.4845426935978]
+  bar [Click Fly in Return Ctrl Alt ← Ctrl Alt → Super F1 All keys]
+run 5 foot started (cube stood back):
+mode navigate front 0, panes ['foot'], construct , xp , core focus: ['s1']
+    surface s1 owner construct visible True rect [0.0, 0.0, 1280.0, 800.0]
+  bar [Super F1 All keys Alt Esc Step back]
+ after Alt+Escape:
+mode navigate front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [17.04323619070525, 283.2577286532011, 382.5296363669059, 233.4845426935978]
+  bar [Click Fly in Return Ctrl Alt ← Ctrl Alt → Super F1 All keys]
+  told: NO
+ after Super+Alt+4:
+mode navigate front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [17.04323619070525, 283.2577286532011, 382.5296363669059, 233.4845426935978]
+  bar [Click Fly in Return Ctrl Alt ← Ctrl Alt → Super F1 All keys]
