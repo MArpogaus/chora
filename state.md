@@ -3,7 +3,7 @@
 ## Now (2026-11-25 05:04 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 03:50 PM 1.7 % (11-25), week about 34 % vs 55 % pace: under-spending, fill 6 lanes
-session branch: 721be592 (t134 03:50, tour-base r7); 82 greens. Lane gates miss the sleep ratchet: harness backlog
+session branch: 721be592 (t134 03:50, tour-base r7); 82 greens. Lane gates miss ratchets: GATE-RATCHETS r1
 burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open, 3 regr)
 
 ## RC
@@ -23,7 +23,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 | Lane | Model, branch | State |
 |---|---|---|
 | tour-base-r8.md (F7, rc 11; rtb7-1..5; 0.8 %) | sonnet medium, claude/tour-base-r8 721be592 | session_016iS3kPb7eVDhLpTwJfZ2Mc |
-| stray-super-minor-r1.md (rc 1, 9; 0.8 %) | sonnet high, 8c3ac745 | MERGE-OK (PM review), train136 |
+| gate-ratchets-r1.md (harness, rc 3; 0.5 %) | sonnet medium, claude/gate-ratchets-r1 721be592 | starting |
 | tiling-minor-r1.md (rc 1; rth-1..8, rtd1-2..5; 1.0 %) | sonnet high, claude/tiling-minor-r1 84f66d43 | session_016iS3kNuX9zyEYHgoVk9R8Y |
 | train135 (rc 1; sh-42) | PM, 8e63e0ed (sh42-fix-r2 88035ec0) | gate running |
 | co-close-waits-r1.md (rc 1; t134 sleeps; 0.5 %) | sonnet medium, claude/co-close-waits-r1 7f519bc8 | session_016iS3kPi6qRiSRUWdnKxSmS |
