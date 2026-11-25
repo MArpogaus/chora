@@ -87,7 +87,9 @@ change it there, not here.
     the other panels wrap into new rows in reading order. A row is never
     lower than `min_panel`, except a row of only empty panels with their
     words: it is as high as the words, so that each message shows. When the page is longer than the output, it
-    scrolls with the wheel.
+    scrolls with the wheel, and a small arrow in `muted` beside the foot
+    of the text block says that more follows below; it hides when the
+    page is at its end.
 14. **Columns follow the content.** The agents scene has as many
     columns as agents: one agent takes the whole width, two take half
     each. A new scene with a varying number of items does the same.
@@ -120,7 +122,12 @@ change it there, not here.
     their content.
     Two lines of doors stand under the key list: `Programs`, `Lock`,
     `Power`, `Screenshot` and the volume, each in `text` and clickable.
-    They stay while the chat is open.
+    They stay while the chat is open. A wheel over the volume door
+    raises or lowers the level by one step per notch; a touchpad swipe
+    adds up to one step per 40 pixels.
+    The menus that the doors open, the program list and the power menu,
+    wear the colors of the theme: `text` on the box, `accent` for the
+    selected row.
     On a page the row of the page names the plain arrows, `← →`, and
     the full list has a row `Home`, the first page: there Right, Left
     and Home turn the page without `Super`, and `Esc` goes back one
