@@ -30,3 +30,10 @@ Its first run left one headless session behind; stopped by its env file.
 
 Gate: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2`, no step filter, no
 red cell: `e2e PASS 266s` ... `all steps passed; no --push, nothing is pushed`.
+
+## PM review r1 (2026-11-25 18:30 UTC; diff 62a04be0..691f0c8e, 3 files, +31 -7)
+- Red d08aa02a (self test: tiling/xp claims must not overlap) before fix 691f0c8e: holds.
+- session.sh: two flavors give two outputs side by side (`$size,$size+W+0`), first look `--output HEADLESS-1`, joining look `--output HEADLESS-2` (D55). Single looks unchanged (`look_output` empty).
+- Gate EXIT 0 (worker). round.sh smoke ends at T7 on tiling: that is the open ti-55, not this change.
+- rsl1-1 (MINOR, harness): construct as the joining flavor gets no `--output` (startup_of has no look_output for it); no persona round uses it. Backlog.
+- Verdict: MERGE-OK 691f0c8e. P2-R11-tiling runs on 79ed970f (t143 candidate + this).
