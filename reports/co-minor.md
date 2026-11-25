@@ -82,3 +82,11 @@ Findings:
 
 Counts: 0 BLOCK, 1 MAJOR, 1 MINOR, 1 NIT.
 Verdict (computed): FIX (rcm1-1 MAJOR open).
+
+## r2
+
+Branch claude/co-minor-r2, head 466fcd11 (merged 6b89b56f first). Full gate `tests/merge-gate.sh --jobs 2`: EXIT 0, all steps PASS (cube 141s). No chora process left.
+
+- rcm1-1 MAJOR: red 87963e9d, fix fbbd8e31 (`focus_heard` filters with `!self.owns(s)`). Red line: `face_start_tests.rs:64: the sheet takes the keyboard back from the launcher: [None]`. Green: face_start 3 of 3 (the co-78 face-window test still passes).
+- rcm1-2 MINOR: test commits f7b3707a and 466fcd11 (gate-construct-cube.sh). The cell types `a` with the sheet open and asserts the window's `key 30` count stays (bounded `until_ok`, no new sleep), then Escape (first Escape clears the search the sheet took from `a`, so a second closes it), then `a` reaches the window. The product leaks no key, so the new assert passes at once (no red). First attempt failed at the Escape step because the typed `a` is the sheet's search text; fixed in the test, not the product.
+- Not done: rcm1-3 (NIT, backlog).
