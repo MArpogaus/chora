@@ -705,3 +705,65 @@ Not one uninterrupted `merge-gate.sh` run: the split is the cost of the restarts
 - rtb7-5 MINOR, demo/tour/intended.toml (pixel rows of x5d, x6d, x8; from r6) and tests/test_tour_diff.py (`cites_a_capture`): the causes cite `captures/x5d.Q.png`, `x6d.Q.png`, `x8.Q.png`, but the captures of the pair are `x5d.Q+1.png`, `x6d.Q+1.png`, `x8.Q+0.5.png`; the test accepts any text with `captures/`. Fix: correct the three names and make the test check each cited `captures/<act>.<capture>.png` against the act's capture names.
 
 Not findings: rv9j-1..5 (MINOR), the 93 open (F7 rest, v9 take after merge), rtb6-2 and rtb6-3 (MINOR, out of scope of r7).
+
+## r8 (F7, rc 11: rtb7-1..5)
+
+Branch claude/tour-base-r8, base 721be592 (r7 head); head **27fb2599** (pushed). Step 0 green: `cargo check --workspace`, `pytest tests/test_tour.py -q` (93 passed), `python3 -I tests/test_tour_diff.py` (Ran 93 OK). Only `tests/tour-diff.py`, `tests/test_tour_diff.py`, `demo/tour/intended.toml`; no product code.
+
+### Red, then fix
+
+| id | red | fix | red lines |
+|---|---|---|---|
+| rtb7-1, -2, -3, -4, -5 | ab2817fe (tests only) | 27fb2599 | `FAIL: test_a_check_row_without_a_name_proves_nothing_and_leaves_the_act_open (...) (kind='check')` and `(kind='*')`, each `AssertionError: 'change' != 'open'`; `FAIL: test_a_cited_capture_is_a_capture_the_act_has`, `Lists differ: [('x5d', 'pixel', 'x5d.Q', 'has Q+1'), ('x...`; `FAIL: test_the_rows_of_m1_and_m1c_name_the_open_design_question`, `Lists differ: ['m1', 'm1c'] != []`; `FAIL: test_a_rect_row_of_a_card_the_take_shows_as_added_is_open`, `Lists differ: [('h2', 'meta'), ('h2', 'rect'), ('x2', 'r...`; `FAIL: test_the_notify_card_of_x2_x2b_x8_is_an_open_added_row`, `AssertionError: 0 != 1 : x2`; `Ran 97 tests ... FAILED (failures=6)` |
+
+After 27fb2599: `Ran 97 tests ... OK`, `pytest tests/test_tour.py -q` 93 passed. The old test `test_a_check_row_without_a_name_still_absorbs_the_flips` pinned the bug rtb7-2 names; ab2817fe turns it round, and `test_a_new_red_check_with_a_check_row_is_a_change` now gives its row `check = "I9"` (a row that names its check is still `change`).
+
+### The five findings
+
+- **rtb7-2** (tests/tour-diff.py `absorbed`): a `check` or `*` row without `check =` still absorbs the flip's cause, but the act is `open` and the result has `unproven ['check']`; a row that names the check is preferred for that check. Table-driven over `check` and `*`.
+- **rtb7-5**: the pixel rows of x5d, x6d cite `captures/x5d.Q+1.png`, `x6d.Q+1.png`, `x8.Q+0.5.png` (the r6-take names). New test `test_a_cited_capture_is_a_capture_the_act_has`: each `captures/<act>.<capture>.png` of a cause is checked against the `capture=` of that act in demo/tour/chapters (act ids as `act_id`: the scene and a letter for a later act; default `Q`); it finds the three wrong names in red and none in green.
+- **rtb7-1**: the `missing` rows of m1, m1c end "; rv9j-2: the design decision is open, mc-v2 section 3 asks for 'Nothing new.' in the column"; test over their rows.
+- **rtb7-3**: `rect notify-card-body/-close` of x2, x2b, x8 and `meta`, `rect` `xp-ctx-1-0` of h2 are `open = true` (their causes say what is open); test over the toml.
+- **rtb7-4** (PM decision, done): an `open = true` `added` row `notify-card`, `notify-card-body`, `notify-card-close` for x2, x2b, x8 citing 675ebd55 (rv9j-3) and the timing (both builds in the judge's pair, neither in r6, v9 only in r7); the pixel row of x2b gets the box [1213,593,39,20] (the eyes of the paperclip, a blink) and is `open`.
+
+### tour-diff counts
+
+The stills of the pair are not on claude/session-log, as in r7; the verdicts are recomputed from the committed scene diff and blobs of the r7 pair (`media/2026-11-24/tour-base-r7/tour-diff-r7.json`, 110 captures) with the code and toml of 721be592 (before) and 27fb2599 (after): `media/2026-11-25/tour-base-r8/recount.py` and `tour-diff-r8-counts.txt` (no take, so no new pixel diff; check flips are not in the json, so rtb7-2 shows in the unit test, not here).
+
+| tour-diff, the r7 pair, 110 captures | same | change | open | regression | none |
+|---|---|---|---|---|---|
+| before (721be592) | 1 | 2 | 93 | 3 | 11 |
+| after (27fb2599) | 1 | 2 | 96 | 0 | 11 |
+
+Acts that moved (3): **x2 (`Q`), x2b (`Q`), x8 (`Q+0.5`): `regression` to `open`**, by the row `added notify-card*` of rtb7-4 (and for x2b the box of the paperclip's eyes). Nothing went to `change`; m1, m1c stay `change`; m4, m4b stay `open`. More open, honest: the three regressions were the timing of the card, not a defect, and are now said so in a row; the F7 count (open acts) is 96 of 110.
+
+### Ratchets
+
+`tools/sleep-ratchet` ok (sleep 778, sleep-all 929; the list says 779 and 930, lower, not raised, not updated here), `tools/size-ratchet` ok (0 files over 1500), `tools/lint-ratchet` ok (allow 360, no-reason 0, eprintln 46).
+
+### Gate
+
+Full gate `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` on 27fb2599, one unbroken run: **green, `EXIT 0`**, no red cell. `pgrep -fa 'chora --headless'` empty. Last 20 lines:
+
+```
+voice-acp  PASS    12s /tmp/merge-gate.6oGg1x/voice-acp.log
+voice-events PASS     2s /tmp/merge-gate.6oGg1x/voice-events.log
+agent      PASS    39s /tmp/merge-gate.6oGg1x/agent.log
+tiling-keys-more PASS    42s /tmp/merge-gate.6oGg1x/tiling-keys-more.log
+tiling-windows PASS   170s /tmp/merge-gate.6oGg1x/tiling-windows.log
+acts       PASS  1919s /tmp/merge-gate.6oGg1x/acts.log
+tiling-system PASS    14s /tmp/merge-gate.6oGg1x/tiling-system.log
+mc-scale   PASS    13s /tmp/merge-gate.6oGg1x/mc-scale.log
+handover   PASS    25s /tmp/merge-gate.6oGg1x/handover.log
+watchdog-starved PASS    51s /tmp/merge-gate.6oGg1x/watchdog-starved.log
+xp-run     PASS    13s /tmp/merge-gate.6oGg1x/xp-run.log
+demo       PASS   241s /tmp/merge-gate.6oGg1x/demo.log
+tiling-bar PASS   181s /tmp/merge-gate.6oGg1x/tiling-bar.log
+leak       PASS   482s /tmp/merge-gate.6oGg1x/leak.log
+tiling-theme PASS    19s /tmp/merge-gate.6oGg1x/tiling-theme.log
+mc-host    PASS    20s /tmp/merge-gate.6oGg1x/mc-host.log
+tiling-disc PASS    72s /tmp/merge-gate.6oGg1x/tiling-disc.log
+e2e        PASS   279s /tmp/merge-gate.6oGg1x/e2e.log
+all steps passed; no --push, nothing is pushed
+EXIT 0
+```
