@@ -92,3 +92,26 @@ Red-then-fix pairs: rpx1-9 2efb203a/edbb70d3, rpx1-11/-12 d38c6ae1/db20c304, rpx
 - rmm1-3 MINOR: the full key list drops the doors (rows clickable); no cell clicks a row of the full list. Accepted for POLS (the same keys, one path), test gap stays.
 - rmm1-4 MINOR (lane note): a stacked page that does not fit at 1280x720 (tour "sauce") still scrolls; "parsley." not visible at rest.
 Verdict (computed): 0 BLOCK, 0 MAJOR -> MERGE-OK 5cb288e2; joins train138 with xp-minor r1 d2a048d5.
+
+## r2 (lane mc-minor-r2)
+Branch claude/mc-minor-r2, 5cb288e2..0f68810c. Full gate: `all steps passed`, EXIT 0 (last lines: e2e PASS 266s, all steps passed; no --push, nothing is pushed, EXIT 0). `pgrep -fa 'chora --headless'` empty.
+
+| item | red | fix | red line |
+|---|---|---|---|
+| 1 rmm1-1 | b52aa74a | 269c4a9f | unit: `overview: panel scenes at [160.0, 168.0, 672.0, 512.0] is not inside the text block` (test back at 0.5 px). The ink cells `page-edges` (1280x720 sofa, 1280x800 paths, every scene, every panel full) were green on the base: no ink in the last two rows of any page. |
+| 2 rmm1-2 | dc195fea | 798fdc33, 761c0b29 | `the page [0.0,56.0,1280.0,503.0] reaches under the card [160,501,291,79] that stands higher: the page end is a constant` and `the header [509.85,28.0,325.0,28.0] reaches the state pill [701.0,29.0,85.0,26.0] that stands further left: the header end is a constant` |
+| 3 rmm1-3 | 8ae6d99d (test only, green at once) | none | a click on the row Show overview of the full list shows the overview |
+| 4 rmm1-4 | bb94ec31 | 4c288e3f | `the page that does not fit shows no mark that more follows (rmm1-4)` |
+| 5 rpx1-10 | 1d9e1f65 | cd277ee4, 3e11520e | `the launcher has the box 253 246 227, not the page background 28 28 28 of the dark theme`; same for the power menu. Green after in dark and light (box 247 245 237), contrast at least 4.5 |
+| 6 rpx1-15 | e199f2fb | 3073ad45 | `a wheel up over the volume door does not raise the volume (rpx1-15): get-volume @DEFAULT_AUDIO_SINK@|...` |
+
+Decisions
+- 1: the overview had `cell [0,0,2,3]`; the least row height pushed it 31 px past the block. `grid: [4,2]` and `cell [0,0,2,2]` give the same list height with no clamp. The cell `page-edges` stays as the guard (helper tests/mc-edges.sh).
+- 2: mc reads `hud-word` and `hud-figure` (scene.query) and `state.get` of chora-notify, at its build and every second volume tick (new module rooms.rs). A moved pill redraws header and footer; a moved card also builds the pages anew. Limit, said plainly: chora-notify reports a rect only while a card shows, so until the first card the page keeps the room of the mc folder (135 px, `CARD_ROOM_AT_START`); a card that stands elsewhere moves the page when it shows, and the last one seen stays. The header ends one baseline before the pill (was 200 px from the edge).
+- 4: a small arrow beside the text block at the foot of the page when a panel's text reaches under the page edge (read from the text rects; text wholly under the edge has no rect, so its panel counts when its lines start at or under the edge). It goes at the end of the scroll.
+- 5: mc writes fuzzel.ini (page for the box, text for rows, faint for the chosen row and border, accent for the match) to its runtime dir; launcher is `chora-mc --launch fuzzel --config FILE`, power key and door start power.sh with `CHORA_MENU`. Font and size are unchanged (rows are still monospace, about 13 px): not asked in this item.
+- 6: the wheel over the volume door steps the level one step per event; the click still mutes; the remote stays. A touchpad sends many events, each one step.
+- Foreign or earlier race, fixed in the test: the r1 cell `door` asserted the hit areas under the chat once and failed on the base binary too (`a hit area of mc lies under the open chat (mc-56): [888.0,196.0,336.0,28.0] ...`), which left the chat open and failed ten later cells; it polls now (79dac3fc). The strike assert of `keylist` polls now. The first gate runs also had `chat-click-close` and `terminal-chat` of mc-paths red once each; they were green in four repeats after the pill change (761c0b29) and in the final gate.
+
+Captures: `media/2026-11-25/mc-minor-r2/` 1-rmm1-1-overview-page-edge, 2a-rmm1-2-card-moved, 2b-rmm1-2-pill-moved, 3-rmm1-3-keylist-click-overview, 4-rmm1-4-more-mark, 5a-rpx1-10-launcher, 5b-rpx1-10-power, 6-rpx1-15-volume-wheel (dark, 1280x720 sofa; item 1 the overview page).
+Out of scope, untouched: rpx1-16, -17, rv9j-2, chora-notify code, ratchet lists (sleep 778, lint 360 unchanged).
