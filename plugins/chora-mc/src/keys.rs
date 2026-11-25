@@ -276,4 +276,14 @@ mod tests {
         assert_eq!(rows[2].words, "First page");
         assert_eq!(rows[2].binding.as_deref(), Some("Super+Home"));
     }
+
+    #[test]
+    fn a_page_names_the_scroll_keys_beside_home() {
+        let rows = all(&config(), true);
+        assert_eq!(rows[3].key, "↑\u{2009}↓", "{rows:?}");
+        assert_eq!(rows[3].words, "Scroll the page");
+        assert_eq!(rows[3].binding, None);
+        let rows = all(&config(), false);
+        assert!(rows.iter().all(|r| r.words != "Scroll the page"));
+    }
 }
