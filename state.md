@@ -22,7 +22,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| tour-base-r8.md (F7, rc 11; rtb7-1..5; 0.8 %) | sonnet medium, claude/tour-base-r8 721be592 | starting |
+| tour-base-r8.md (F7, rc 11; rtb7-1..5; 0.8 %) | sonnet medium, claude/tour-base-r8 721be592 | session_016iS3kPb7eVDhLpTwJfZ2Mc |
 | stray-super-minor-r1.md (rc 1, 9; rss-12, rss-13; 0.8 %) | sonnet high, claude/stray-super-minor-r1 84f66d43 | session_016iS3kLMiAHZnqw4HmY1kpE |
 | tiling-minor-r1.md (rc 1; rth-1..8, rtd1-2..5; 1.0 %) | sonnet high, claude/tiling-minor-r1 84f66d43 | session_016iS3kNuX9zyEYHgoVk9R8Y |
 | sh42-fix-r2.md (rc 1; sh-42; t134 sleep-ratchet; 0.6 %) | sonnet medium, claude/sh42-fix-r2 b92de049+84f66d43 | session_016iS3kPqhV59i3btC3QEanV |
