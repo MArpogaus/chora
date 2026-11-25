@@ -1,11 +1,11 @@
 # State
 
-## Now (2026-11-25 14:34 UTC)
+## Now (2026-11-25 15:03 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 14:02 PM 3.5 % (11-25); week about 38 % vs 63 % time; need (100-38-5)/62 h = 0.9 %/h; 6 build lanes
-lanes-short: P2-R10-co, t141 after t140
-session branch: e39448ad (t139 12:55: tiling-doors r3, tiling-minor r1; ti-55, ti-56 fixed, recheck P2-R10); 87 greens. TRAIN140 62a04be0: xp-minor r3, mc-minor r2, co-minor r2 (gate running)
-burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head (mc-sofa keylist red in lane boxes); F7 open (v9 take r1: 82 open, 3 regr; take r2 now)
+budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 15:02 PM 3.8 % (11-25); week about 39 % vs 64 % time; need (100-39-5)/61 h = 0.9 %/h; 6 build lanes
+lanes-short: 5 of 6; FLAKE-SERIES r10 after t141 (final head)
+session branch: 62a04be0 (t140 14:49: xp-minor r3, mc-minor r2, co-minor r2); 88 greens. TRAIN141 e6a17d59: xp-minor r4, tiling-minor r2, co-polish r1 (gate)
+burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head (mc-sofa keylist red in lane boxes); F7 open (take r2: 88 open, 10 regr; judges r2)
 
 ## RC
 | # | Criterion | State |
@@ -23,17 +23,18 @@ burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head (mc-sofa k
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| train140 | PM, 62a04be0 on e39448ad | gate |
-| mc-minor-r3.md (rc 1; rmm2-1..6; 0.8 %) | sonnet medium, mc-minor-r3 0f68810c | running s..NMXoJFbpfCZT9oZsw |
-| co-polish-r1.md (rc 1; co-44, co-45; 0.8 %) | sonnet medium, co-polish-r1 d86be5d0 | running s..LQizNrD4V4G9kNF4m |
-| tour-v9-take-r2.md (F7, rc 11; 1 %) | sonnet medium, tour-v9-take-r2 e39448ad | running s..NYLg6VoKk9VmtWivs |
-| tiling-doors-r4.md (rc 2; ti-55 design; 1.5 %) | opus high, tiling-doors-r4 e39448ad | starting |
+| train141 | PM, e6a17d59 on 62a04be0 (xp-minor r4, tiling-minor r2, co-polish r1) | gate |
+| review-mc-minor-r3.md (rc 1; 42418379; 0.5 %) | opus high, mc-minor-r3 | starting |
+| p2-r13-co.md (rc 2; co-75/76/79; 0.8 %) | sonnet medium, haiku personas, 62a04be0 | starting |
+| tour-v9-judge-r2a.md (F7; mc, handover; 1 %) | opus high, e39448ad | starting |
+| tour-v9-judge-r2b.md (F7; xp, tiling, co; 1 %) | opus high, e39448ad | starting |
+| tiling-doors-r4.md (rc 2; ti-55 design; 1.5 %) | opus high, tiling-doors-r4 e39448ad | running s..Pm5veLHCLdY1xzMcC |
 ## Queue (% week; 5 % reserve)
-1. (rc 1, 2) t139 green e39448ad. TRAIN140 running: xp-minor r3, mc-minor r2, co-minor r2.
-2. (rc 2) construct: co-minor r2 in t140; co-77 by design D106; co-polish r1 (co-44, co-45) running; persona recheck co-75/76/79 in P2-R10.
-3. (rc 2) P2-R10-tiling: not met (ti-55 T7 5th red: persona ties 'xp look' to tag 2). TILING-DOORS r4 (opus high: product door or goal order; 1.5 %). P2-R10-co after t140 (co-75/76/79; 0.8 %); t141: xp-minor r4 0a0850e4, tiling-minor r2 7987897c (MERGE-OK).
-4. (F7, rc 11) TOUR-V9 take r2 on e39448ad running; then 4 fresh-eyes judges, one per look (opus high, 2 %); no tooling round before take r2 (critic 11-25).
-5. (F5, rc 3, 4, 5) after t140: FLAKE-SERIES r10 on the final head (haiku); CI-PR dry run (sonnet); rtd-5, rtd-7 MINOR backlog; harness: act.py waits 9.7 s on an unbound key > 8 s chip.
+1. (rc 1, 2) t140 green 62a04be0. TRAIN141 running. review-mc-minor-r3 (opus) then mc-minor r3 to t142.
+2. (rc 2) construct: co-45 fixed (co-polish r1, t141); co-44 open (trace lane after P2-R13-co); P2-R13-co running (co-75/76/79).
+3. (rc 2) P2-R10-tiling: not met (ti-55 T7 5th red: persona ties 'xp look' to tag 2). TILING-DOORS r4 (opus high: product door or goal order; 1.5 %).
+4. (F7, rc 11) take r2: 1 same, 88 open, 10 regr (mc 6, handover 4). Two fresh-eyes judges running (opus high, 2 %; one per look group to keep 6 lanes); then one fix lane per look and an intended.toml round.
+5. (F5, rc 3, 4, 5) after t141: FLAKE-SERIES r10 on the final head (haiku); CI-PR dry run (sonnet); rtd-5, rtd-7 MINOR backlog; harness: act.py waits 9.7 s on an unbound key > 8 s chip.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
