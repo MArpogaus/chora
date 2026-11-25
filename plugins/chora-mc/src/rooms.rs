@@ -111,3 +111,106 @@ impl Mc {
         <[f64; 4]>::try_from(rect).ok()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use chora_kit::runtime::Plugin as _;
+
+    /// The recipe pages of the tour (demo/tour/chapters/mc.py), as
+    /// `scene.save` takes them.
+    const PAGES: &str = r#"[
+      {"name": "ingredients", "chapter": {"title": "Spaghetti"}, "panels": [
+        {"id": "lead", "cell": [0, 0, 2, 2], "style": {"base": "lead"}, "empty": "No recipe yet."},
+        {"id": "list", "cell": [2, 0, 2, 2], "rule": "faint", "empty": "No list yet."},
+        {"id": "tip", "cell": [0, 2, 4, 1], "empty": "No tip yet."}]},
+      {"name": "boil", "chapter": {"title": "Step 1: the water"}, "panels": [
+        {"id": "lead", "cell": [0, 0, 3, 2], "style": {"base": "lead"}, "empty": "Nothing yet."},
+        {"id": "side", "cell": [3, 0, 1, 2], "rule": "faint", "empty": "Nothing yet."}]},
+      {"name": "sauce", "chapter": {"title": "Step 2: the sauce"}, "panels": [
+        {"id": "lead", "cell": [0, 0, 3, 2], "style": {"base": "lead"}, "empty": "Nothing yet."},
+        {"id": "side", "cell": [3, 0, 1, 2], "rule": "faint", "empty": "Nothing yet."}]}
+    ]"#;
+
+    /// The lines of the tour, and of the morning page, as `panel.set`
+    /// takes them.
+    const LINES: &str = r#"[
+      {"scene": "ingredients", "panel": "lead", "lines": ["Spaghetti with garlic and oil",
+        "Serves two. Twenty minutes from the first pot to the plate."]},
+      {"scene": "ingredients", "panel": "list", "lines": ["For two", "200 g spaghetti",
+        "4 cloves of garlic", "6 tbsp olive oil"]},
+      {"scene": "ingredients", "panel": "tip", "lines": ["Tip",
+        "Keep a cup of the pasta water for the sauce."]},
+      {"scene": "boil", "panel": "lead", "lines": ["Boil the water",
+        "Fill the large pot with two litres of water, add a spoon of salt and bring it to a rolling boil. Then add the spaghetti and cook it for nine minutes."]},
+      {"scene": "boil", "panel": "side", "lines": ["Timer", "9 minutes once the spaghetti is in."]},
+      {"scene": "sauce", "panel": "lead", "lines": ["Warm the oil",
+        "Take the oil on low heat. Add the sliced garlic and the chili for two minutes, until golden. Do not let the garlic turn brown."]},
+      {"scene": "sauce", "panel": "side", "lines": ["Then",
+        "Toss the drained spaghetti in the pan with a splash of the pasta water and the parsley."]},
+      {"scene": "morning", "panel": "lead", "lines": ["A quiet day", "Two meetings and a walk."]},
+      {"scene": "morning", "panel": "reading", "lines": ["Reading", "The long read", "A short one"]}
+    ]"#;
+
+    /// Saves the recipe pages and fills them and the morning page; gives
+    /// the panel of the last row of each and the lines it holds at
+    /// 1280x720 with the right column: the list 4, the Timer 3 (its second
+    /// line wraps), "Then" 5, the reading 3.
+    fn recipe(mc: &mut crate::Mc) -> [(&'static str, &'static str, usize); 4] {
+        let pages: Vec<serde_json::Value> = serde_json::from_str(PAGES).unwrap();
+        for page in pages {
+            mc.method("scene.save", page).unwrap();
+        }
+        let lines: Vec<serde_json::Value> = serde_json::from_str(LINES).unwrap();
+        for set in lines {
+            mc.method("panel.set", set).unwrap();
+        }
+        [
+            ("ingredients", "list", 4),
+            ("boil", "side", 3),
+            ("sauce", "side", 5),
+            ("morning", "reading", 3),
+        ]
+    }
+
+    /// How many lines of a panel show on the page as it stands, unscrolled:
+    /// the whole lines of its box above the end of the page.
+    fn lines_shown(mc: &crate::Mc, scene: &str, panel: &str) -> usize {
+        let panel = (mc.scenes[scene].panels.iter())
+            .find(|p| p.id == panel)
+            .unwrap()
+            .clone();
+        let [_, y, _, h] = mc.place(scene, &panel).unwrap();
+        let geo = mc.geometry(scene).unwrap();
+        let end = geo.text[1] + geo.text[3];
+        let line = mc.ty("body", panel.style.as_ref()).line;
+        let top = mc.lines_top(&panel);
+        let seen = mc.whole_lines(&panel, h.min(end - y).max(0.0));
+        #[allow(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "a few lines"
+        )]
+        let shown = ((seen - top) / line).round().max(0.0) as usize;
+        shown
+    }
+
+    /// With no card on screen the last row of the recipe pages shows every
+    /// line at 1280x720 (rv9ka-1): the page reaches the footer, not the
+    /// top of a card that is not there.
+    #[test]
+    fn with_no_card_the_last_row_of_a_recipe_shows_every_line() {
+        let core = chora_kit::testing::FakeCore::start().selecting();
+        core.answer_with("state.get", json!({"shown": []}));
+        let mut mc = crate::testing::mc_on(&core, "page-end-none", [1280, 720]);
+        let want = recipe(&mut mc);
+        mc.learn_rooms().unwrap();
+        let cut: Vec<String> = (want.iter())
+            .map(|&(scene, panel, n)| (scene, panel, n, lines_shown(&mc, scene, panel)))
+            .filter(|&(_, _, n, shown)| shown < n)
+            .map(|(scene, panel, n, shown)| format!("{scene}/{panel} {shown} of {n}"))
+            .collect();
+        assert!(cut.is_empty(), "lines cut with no card: {}", cut.join(", "));
+    }
+}
