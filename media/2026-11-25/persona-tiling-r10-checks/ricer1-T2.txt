@@ -1,0 +1,12 @@
+task T2 pass
+breach I6 in look: on HEADLESS-1 '1:22 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in click: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 4.14:1 ((207, 208, 209) on (11, 97, 167)), the guide wants 4.5:1
+breach I6 in click: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 4.14:1 ((207, 208, 209) on (11, 97, 167)), the guide wants 4.5:1
+breach I6 in click: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.95:1 ((199, 204, 207) on (11, 97, 167)), the guide wants 4.5:1
+breach I6 in click: on HEADLESS-1 '1:22 PM' (xp-tray-HEADLESS-1) has the contrast 2.96:1 ((207, 208, 209) on (13, 122, 195)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 '2' (xp-pager-1-HEADLESS-1) has the contrast 4.14:1 ((207, 208, 209) on (11, 97, 167)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 '3' (xp-pager-2-HEADLESS-1) has the contrast 4.14:1 ((207, 208, 209) on (11, 97, 167)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 '4' (xp-pager-3-HEADLESS-1) has the contrast 3.95:1 ((199, 204, 207) on (11, 97, 167)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 '1:22 PM' (xp-tray-HEADLESS-1) has the contrast 2.96:1 ((207, 208, 209) on (13, 122, 195)), the guide wants 4.5:1
+breach I6 in key: on HEADLESS-1 '1:22 PM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breaches 10
