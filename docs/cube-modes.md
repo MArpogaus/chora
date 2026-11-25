@@ -48,6 +48,7 @@ in a construct without a cube and in xp (principle 1).
 | step in, from navigate mode | a click on a face, or on `STEP IN` for the front face | `fly_in`: `Return` | "step in"; `view.step_in` |
 | fly into a pane beside the cube, in navigate mode | a click on the pane, or on the hint `Click Fly in` | `Tab`, then `Return` on its row | `window.show` |
 | pull a window out of a face into a pane | a title drag off the face; a click on the hint `Super Alt 4 Pull out`, which shows only while a window of a face is there to pull | `Super+Alt+4`, the give key of the construct | `window.give` |
+| put the window of a pane into the face at the front, in navigate mode | a drag of the pane onto a face; a click on the hint `Super Alt 2 Into face`, which shows only while the window of a pane has the keyboard | the give key of the face manager, `Super+Alt+2` for xp | `window.give` |
 | turn the cube by one face | a click on `TURN LEFT` or `TURN RIGHT`; in navigate mode also a drag on the cube | `Ctrl+Alt+Left` and `Ctrl+Alt+Right`, in both modes | "turn left", "turn right"; `cube.turn` |
 | walk and look, in navigate mode | a drag on the empty space, the wheel | the walk keys of the construct | the methods of the walk |
 | show the keys, in navigate mode | none | `F1`, and `Super+F1` | none |
@@ -133,7 +134,11 @@ a face that has the keyboard (or had it at the step back) out into a
 pane. The key gives a window to the construct, and the window of a pane
 is its own already, so with the keyboard in a pane, or in no window,
 the hint is not told (co-68); the same rule decides the hint and the key
-(co-70); and the face label
+(co-70). Stood back out of a pane, the bar names the way into a face
+instead, `Super Alt 2 Into face`, the give key of the face manager: while
+the window of a pane has the keyboard, it puts that window on the face at
+the front, steps in and gives it the keyboard there, so every key that the
+bar names then works (co-79); and the face label
 under the cube names the window manager and the face, with a dot per
 face. A refusal, for example while another client `xp` runs, shows in
 the HUD.
@@ -147,6 +152,7 @@ the HUD.
 | turn left | Turn left | Nach links drehen |
 | turn right | Turn right | Nach rechts drehen |
 | open a cube (hint) | Cube | Würfel |
+| put a pane into the face (hint) | Into face | In die Seite |
 
 The voice agent says what happened in the same words: "I stepped back",
 "I turned the cube to the left".
