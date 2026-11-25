@@ -72,3 +72,8 @@ rtd1-3 | MINOR | review tiling-doors r1 | open | hint falls back to Super+F1 whe
 rtd1-4 | MINOR | review tiling-doors r1 | open | a failed clients.list is silent on a Looks click
 rtd1-5 | COSMETIC | review tiling-doors r1 | open | docs/configuration.md:1757 "The looks set look.theme"
 rp9-1 | MAJOR (harness) | p2-r9-tiling ricer 2 L2 (reports/p2-r9-tiling.md "## r9") | open; TILING-DOORS r2 | check.py verify_reloaded passes on a file digest change alone: L2 false green when the persona changed nothing
+rtm1-1 | MINOR | review tiling-minor r1 (reports/tiling-minor.md "## Review r1") | open | gate-tiling-reload-notice.sh:67 waits 8 s, card expires at 12 s: step can pass without the fix
+rtm1-2 | MINOR | review tiling-minor r1 | open | launch_looks notice path untested (plugins/chora-tiling main.rs:375)
+rtm1-3 | NIT | review tiling-minor r1 | open | lock test pins the hit test, not the note_act guard
+rtm1-4 | NIT | review tiling-minor r1 | open | a good settings.reload call leaves the card up
+rtm1-5 | NIT | review tiling-minor r1 | open | "Other desktops" vs ti-55 "look" word (TILING-DOORS r2)
