@@ -2807,6 +2807,41 @@ mod tests {
         );
     }
 
+    /// mc on a fake core whose notice server shows a card at `rect`.
+    fn with_card(dir: &str, rect: &serde_json::Value) -> (crate::Mc, chora_kit::testing::FakeCore) {
+        let core = chora_kit::testing::FakeCore::start().selecting();
+        core.answer_with("state.get", serde_json::json!({"shown": [{"rect": rect}]}));
+        let mc = crate::testing::mc_on(&core, dir, [1280, 720]);
+        (mc, core)
+    }
+
+    /// A card at the top or in the middle of the output is not under the
+    /// page: the page stays whole (rmm2-1).
+    #[test]
+    fn a_card_at_the_top_or_the_middle_leaves_the_page_whole() {
+        for (name, rect) in [("top", [160, 20, 291, 79]), ("mid", [160, 300, 291, 79])] {
+            let (mut mc, _core) = with_card(&format!("rooms-{name}"), &serde_json::json!(rect));
+            mc.learn_rooms().unwrap();
+            assert_eq!(
+                mc.card_room(),
+                135.0,
+                "a {name} card takes no room at the foot"
+            );
+        }
+    }
+
+    /// A card on another output is no room of this one (rmm2-1).
+    #[test]
+    fn a_card_on_another_output_leaves_the_page_whole() {
+        let (mut mc, _core) = with_card("rooms-far", &serde_json::json!([160, 1400, 291, 79]));
+        mc.learn_rooms().unwrap();
+        assert_eq!(
+            mc.card_room(),
+            135.0,
+            "below the output is not under the page"
+        );
+    }
+
     /// A page with a text of a panel that reaches under the edge of the
     /// page shows the mark that more follows; a page that shows whole shows
     /// none (rmm1-4).
