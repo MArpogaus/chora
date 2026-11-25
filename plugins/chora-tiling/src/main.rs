@@ -1207,9 +1207,12 @@ impl Tiling {
             Some(Effect::Relayout) => self.relayout(),
             // The same path as the method `settings.reload`.
             Some(Effect::Reload) => {
-                if let Err(err) = runtime::reload_settings(self) {
-                    eprintln!("chora-tiling: {}", err.message);
-                    self.tell_reload_failed(&err.message);
+                match runtime::reload_settings(self) {
+                    Ok(_) => self.dismiss_reload_notice(),
+                    Err(err) => {
+                        eprintln!("chora-tiling: {}", err.message);
+                        self.tell_reload_failed(&err.message);
+                    }
                 }
                 Ok(())
             }

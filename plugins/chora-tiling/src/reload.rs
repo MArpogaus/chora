@@ -46,6 +46,14 @@ fn reason(message: &str) -> String {
 }
 
 impl Tiling {
+    /// Takes the card of a failed reload down after a good one: the
+    /// settings that did apply must not show next to "not applied".
+    pub(crate) fn dismiss_reload_notice(&mut self) {
+        if let Some(earlier) = self.reload_notice.take() {
+            let _ = notice::dismiss(&mut self.rt.conn, earlier);
+        }
+    }
+
     /// Tells the person that a reload failed and why; the notice of an
     /// earlier failure goes first. Without the server the reason shows on
     /// the chip of tiling, and the line on stderr stays.
@@ -65,9 +73,7 @@ impl Tiling {
             expire_ms: SHOWN_MS,
             urgency: Urgency::Normal,
         };
-        if let Some(earlier) = self.reload_notice.take() {
-            let _ = notice::dismiss(&mut self.rt.conn, earlier);
-        }
+        self.dismiss_reload_notice();
         self.reload_notice = notice::show_or_log(&mut self.rt.conn, None, &notice);
         if self.reload_notice.is_none() {
             let word = format!("{title}: {}", cut(&reason(message), MOST_ON_CHIP));
