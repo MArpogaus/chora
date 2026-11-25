@@ -41,3 +41,43 @@ The brief asks for `media/tour-v9.mp4` and `media/tour-v9-sheet.png` on claude/t
 ## PM note r1
 
 - Run-only round, nothing to merge. Done when met except the media place: the brief (PM) named a place the hooks refuse (media/ and 500 KB on product branches); the lane was right not to bypass. Brief fault, not the lane's; the next take brief names media/<date>/ on claude/session-log. Published on the status page as status/video/tour-v9.mp4. Next: tour-v9-judge r1.
+
+## r2 (F7, RC 1b, 11)
+
+Head claude/tour-v9-take-r2 e39448ad (session head, t139 green, tour-base r8 in). Step 0 green: unshallow, cargo check and build, foot ffmpeg waybar swaybg dbus-daemon, PIL. No code, tool or intended.toml change. The baseline 733967aa was built in a worktree and replayed with `TOUR_BASELINE=1` as in r1.
+
+### 1 `run.py --check` (all chapters)
+`tour: check: 14 red, 0 broken`. xp, tiling, mc, handover: no red act. construct: 14 red (acts 4..12, 14..18; act 13 is green with 1..3), same set as r1: every one `I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-left/-right are 9 apart, no whole number of 8` (rv9-2); act 11 also ten `I6` (the CONSTRUCT · CUBE key overlay: heads 11 px, the guide wants 14 px). Also `known act 2 is green: drop known` (xp, I3 ca-3) and in the take xp act 31 is the one `known`. Not fixed.
+
+### 2 Full take
+All five chapters: `tour: record: 14 red, 0 broken`, the same 14 construct acts. xp 31 acts 30 green 1 known; tiling 28 green; mc 22 green; construct 4 green 14 red; handover 11 green. Joined MP4 `tour-all.mp4` 6.3 MB (limit 19 MB: no re-encode, no crf). 106 stills.
+
+### 3 v8 comparison (tests/tour-diff.py, baseline 733967aa replay, `--intended demo/tour/intended.toml`)
+Baseline take: xp, tiling, mc taken (81 red rows on the old build, expected); construct stops at `construct.cube.list` (no exported method), 4 captures `baseline: none`; handover BROKE at the same place as r1 (the old build has no `id:xp-ctx-1-0`); the captures it reached count below.
+
+| chapter | acts | same | change | open | regression | none |
+|---|---|---|---|---|---|---|
+| xp | 31 | 0 | 0 | 31 | 0 | 0 |
+| tiling | 28 | 1 | 0 | 27 | 0 | 0 |
+| mc | 22 | 0 | 0 | 16 | 6 | 0 |
+| construct | 18 | 0 | 0 | 14 | 0 | 4 |
+| handover | 11 | 0 | 0 | 0 | 4 | 7 |
+| total | 110 | 1 | 0 | 88 | 10 | 11 |
+
+r1 (take on d40142e4): 1 same, 13 change, 82 open, 3 regression, 11 none (xp 0/7/23/1, tiling 1/3/24/0, mc 0/3/18/1, construct 0/0/13/1 +4 none, handover 0/0/4/0 +7 none). Now: 1 same, 0 change, 88 open, 10 regression, 11 none. tour-base r5..r8 changed the verdict logic (every scene row lists its nodes, every pixel row its boxes; a row that does not name the diff absorbs nothing), so the 13 `change` of r1 are all `open` or `regression` now: the rows no longer absorb what they did not list. xp 0 regression (r1: x6b), construct 0 regression (r1: c4). I did not re-judge or edit any row. tour-diff exits 1.
+
+Regression acts (10), each with its check line. No check flipped in any of them (the old build measures none of I2 I5 I6 I9 I12 I13: "not measured"); each is an unnamed scene or pixel diff:
+- h1, h1b (handover, Q): unnamed `rect`; `construct-hud*` (5 nodes) missing in the baseline only; `construct-start-help-0` 54 -> 29 wide and moved (694 -> 752), `construct-start-help-1` missing in the baseline only; pixel blobs at the bottom-right pager (1052..1100, 694..716), 0.5 % and 0.7 % of the pixels.
+- h1c, h1d (handover, Q): same scene rows; pixel 15.2 % and 15.4 % (blob 22,22 95x532 and 100x532: the left column).
+- m1, m1c (mc, Q): unnamed `rect`; `mc-r0-right-chat-door*`/`-key`/`-state`/`-title` 84 px higher (194 -> 110), `-chat-key` 58 -> 60 wide; m1c also `mc-r0-right-notify`, `-notify-title` missing in the baseline only. Pixel 0.0.
+- m7b (mc, Q): `added`; the notify nodes missing in the baseline only, `mc-r1-header-head` 101 -> 223 wide, chat rows 84 px higher. Pixel 0.0.
+- m7c, m8, m8b (mc, Q): `added`; `mc-r0-footer-*`, `mc-r0-header-*`, `-right-chat-*` have no rect on the baseline (`None -> ...`), the baseline page is another one at those acts. Pixel 0.2 %, 1.9 %, 0.1 %; blobs at (201,98) and (204,98) 1x33, (888,378) 336x1, (505,305) 18x15.
+Cause not found by me for any (r1 named: the mc page divergence fa7faabd and the notify card 675ebd55; the same rows are the likeliest, not proven). The 88 open acts (cause row present, not proven) are in `tour-diff-r2.txt`, one line each.
+
+### 4 Contact sheet
+`tour-v9-sheet.png`, 1920 x 1890, all 106 stills, 8 columns of 240 x 135 with the still name on each, made with PIL. `demo/tour/sheet.sh` lays out 2 columns: 106 stills would be 19 000 px high.
+
+### 5 Where the files are (deviation, say plainly)
+The brief asks for `media/tour-v9.mp4` and `media/tour-v9-sheet.png` on claude/tour-v9-take-r2. The commit was refused by the hooks again, as in r1: `no-session-files` (no media in the repository) and `check-added-large-files`. I did not bypass them and pushed nothing to claude/tour-v9-take-r2 (it stays at e39448ad). The files are on claude/session-log in `media/2026-11-25/tour-v9-r2/`: `tour-v9.mp4` (6.3 MB), `tour-v9-sheet.png`, `tour-diff-r2.txt` and `.json`, `timeline-table.md`.
+
+`pgrep -fa 'chora --headless'` empty at the end.
