@@ -317,9 +317,9 @@ fn a_kept_keyboard_goes_to_the_next_window_or_the_desktop() {
     );
 }
 
-/// D119: a window given in takes the keyboard when nobody holds it or the
-/// look itself does, and not while a window or a node of another client
-/// holds it.
+/// D119: a window given in takes the keyboard when nobody holds it, the
+/// look itself does or a passing node of another look does, and not while
+/// a window or the desktop of another look holds it.
 #[test]
 fn a_window_given_in_takes_the_keyboard_only_when_no_other_client_holds_it() {
     let mut xp = Look::new("xp", &["s5"]);
@@ -340,5 +340,13 @@ fn a_window_given_in_takes_the_keyboard_only_when_no_other_client_holds_it() {
     assert!(
         !xp.focus.takes_given("xp", own),
         "the desktop of tiling holds it"
+    );
+    xp.focus.hear(&Event::FocusNode {
+        node: Some("construct-walk".into()),
+        owner: Some("construct".into()),
+    });
+    assert!(
+        xp.focus.takes_given("xp", own),
+        "the walk of the construct holds it only for a moment"
     );
 }

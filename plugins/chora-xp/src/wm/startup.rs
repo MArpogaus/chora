@@ -64,6 +64,7 @@ impl Wm {
             front: 0,
             core_focus: None,
             key_node: None,
+            key_node_id: None,
             arrival: super::Arrival::Settled,
             bars: Vec::new(),
             menu,

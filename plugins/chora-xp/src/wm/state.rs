@@ -97,6 +97,11 @@ impl Wm {
         (self.key_node.as_deref()).is_some_and(|owner| owner != NAME)
     }
 
+    /// The desktop of another look, its root node, has the keyboard (D119).
+    pub(super) fn desk_away(&self) -> bool {
+        self.node_away() && self.key_node_id == self.key_node
+    }
+
     /// A node of xp, such as its Start menu, has the keyboard.
     pub(super) fn own_node(&self) -> bool {
         self.key_node.as_deref() == Some(NAME)
@@ -113,6 +118,7 @@ impl Wm {
         owner: Option<&str>,
     ) -> Vec<chora_scene::Command> {
         self.key_node = owner.map(String::from);
+        self.key_node_id = node.map(String::from);
         if owner == Some(NAME) {
             self.arrival = super::Arrival::Settled;
         }

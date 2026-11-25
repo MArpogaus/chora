@@ -74,11 +74,12 @@ impl Wm {
     }
 
     /// Whether a window that comes from `origin` takes the keyboard: a
-    /// window given in does not while a window or a node of another
-    /// client holds it, as tiling keeps it on the output where the person
-    /// is when it sends a window to xp on another output (D119).
+    /// window given in does not while a window or the desktop of another
+    /// look holds it, as tiling keeps it on the output where the person
+    /// is when it sends a window to xp on another output (D119). Another
+    /// node, as the walk of the construct, holds it only for a moment.
     fn takes_keys(&self, origin: &Origin) -> bool {
-        *origin != Origin::Given || !(self.focus_away() || self.node_away())
+        *origin != Origin::Given || !(self.focus_away() || self.desk_away())
     }
 
     /// Emits `xp.window` for a phase, with the frame of the window while

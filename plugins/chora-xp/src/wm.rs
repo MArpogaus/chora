@@ -302,6 +302,10 @@ pub struct Wm {
     core_focus: Option<String>,
     /// The owner of the node with the keyboard, as `focus.node` told.
     key_node: Option<String>,
+    /// The id of that node: when it is named as its owner, it is the
+    /// desktop of that look, which holds the keyboard in place of a
+    /// window (D119).
+    key_node_id: Option<String>,
     /// The focused window that the core stopped focusing without another
     /// window taking the keys, as before the window closes: when it closes,
     /// the next window gets the keys as if xp had still held them (co-51).
