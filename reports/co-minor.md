@@ -90,3 +90,9 @@ Branch claude/co-minor-r2, head 466fcd11 (merged 6b89b56f first). Full gate `tes
 - rcm1-1 MAJOR: red 87963e9d, fix fbbd8e31 (`focus_heard` filters with `!self.owns(s)`). Red line: `face_start_tests.rs:64: the sheet takes the keyboard back from the launcher: [None]`. Green: face_start 3 of 3 (the co-78 face-window test still passes).
 - rcm1-2 MINOR: test commits f7b3707a and 466fcd11 (gate-construct-cube.sh). The cell types `a` with the sheet open and asserts the window's `key 30` count stays (bounded `until_ok`, no new sleep), then Escape (first Escape clears the search the sheet took from `a`, so a second closes it), then `a` reaches the window. The product leaks no key, so the new assert passes at once (no red). First attempt failed at the Escape step because the typed `a` is the sheet's search text; fixed in the test, not the product.
 - Not done: rcm1-3 (NIT, backlog).
+
+## PM review r2 (dd1ac7e4..466fcd11, own commits +34 -1 plus merge 6b89b56f; PM not the builder)
+- Red first: 87963e9d (face_start_tests: sheet takes keyboard back from the launcher, red `[None]` per lane) before fbbd8e31 (`!self.own_window(s)` to `!self.owns(s)`). rcm1-1 closed: `owns` (lifecycle.rs:138) covers panes, hidden windows and launcher_window, so the sheet no longer pulls focus from the launcher.
+- rcm1-2: f7b3707a, 466fcd11 test only; the product leaked no key, so no red is expected; bounded `until_ok ... 8`, no sleep. Closed.
+- rcm2-1 NIT: `owns` also spares hidden windows from the sheet's retake; a hidden window cannot take focus in a face, so no fault today; name it in the fn doc if that changes.
+- Full gate EXIT 0 on 466fcd11 (lane). Verdict computed: 0 BLOCK, 0 MAJOR: MERGE-OK 466fcd11.
