@@ -26,7 +26,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 | co-minor-r1.md (rc 2; co-77, -78, rcr1-1; 1 %) | sonnet high, claude/co-minor-r1 6f37120b | session_016iS3kPtWQpHRWp48U6q5Xm |
 | xp-minor-r2.md (rc 1; xp-10, -13, -30, rxm1-1; 1 %) | sonnet high, claude/xp-minor-r2 d2a048d5 | session_016iS3kQRG6ST7x32pFZswCM |
 | mc-minor-r2.md (rc 1; rmm1-1..4, rpx1-10, -15; 1 %) | sonnet high, claude/mc-minor-r2 5cb288e2 | session_016iS3kNyhRbv8jD3qsSnufr |
-| review-tiling-doors-r2.md (rc 2; ti-55, ti-56; 0.5 %) | opus high, claude/tiling-doors-r2 fa676de8 | starting |
+| review-tiling-doors-r2.md (rc 2; ti-55, ti-56; 0.5 %) | opus high, claude/tiling-doors-r2 fa676de8 | session_016iS3kPDrDxyKjmsTWqmLwH |
 ## Queue (% week; 5 % reserve)
 1. (rc 1, 2) t136 green 6f37120b (co-75, -76, -79 fixed). TRAIN137 gate-ratchets r1 e25848d6 (harness, alone). TRAIN138: xp-minor r1 d2a048d5, mc-minor r1 5cb288e2 (both MERGE-OK).
 2. (rc 2) construct: CO-MINOR r1 (co-77, co-78, rcr1-1; 1 %); persona recheck of co-75/76/79 in P2-R10.
