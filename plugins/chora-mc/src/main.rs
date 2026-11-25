@@ -2879,6 +2879,25 @@ mod tests {
         );
     }
 
+    /// A pill that moves redraws the header and sends no page rebuild
+    /// (rmm2-5; the pill read at 1000 and no node says so now): the flake of the chat click returns when it does.
+    #[test]
+    fn a_moved_pill_sends_no_page_rebuild() {
+        let core = chora_kit::testing::FakeCore::start().selecting();
+        let mut mc = crate::testing::mc_on(&core, "rooms-pill", [1280, 720]);
+        mc.rooms.pill_left = Some(1000.0);
+        let log = core.record(|method, params| {
+            (method == "scene.apply"
+                && params
+                    .to_string()
+                    .contains(r#"{"remove":{"id":"mc-s-agenda-page""#))
+            .then(|| "rebuilt".to_owned())
+        });
+        mc.learn_rooms().unwrap();
+        assert_eq!(mc.rooms.pill_left, None, "the pill moved");
+        assert!(log.lock().unwrap().is_empty(), "the pages stay");
+    }
+
     /// A page with a text of a panel that reaches under the edge of the
     /// page shows the mark that more follows; a page that shows whole shows
     /// none (rmm1-4).
