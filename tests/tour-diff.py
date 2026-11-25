@@ -13,7 +13,7 @@ so is a capture in BASE that CAND lacks. No capture at all (an empty or missing 
 
 Two diffs per capture:
 - scene diff (every capture, also H50): nodes matched by id, windows by app_id and title; visible,
-  rect (more than 2 px), meta text, owner, the z-order of the top layers, a node that is gone or new.
+  rect (more than 2 px), cut (a text shorter than its lines times its line height, rv9ka-3: only a row that names the node absorbs it), meta text, owner, the z-order of the top layers, a node that is gone or new.
 - pixel diff (not H50): clock and text nodes and the listed masks are ignored; a pixel differs when
   a channel differs by more than 24; same = at most 0.1 % of the unmasked pixels differ and no
   8-connected blob of them has a box over 12x12.
@@ -92,6 +92,22 @@ def label(k):
     return k[1] if k[0] == "node" else f"{k[1]}:{k[2]}"
 
 
+CUT_SLACK = 2
+
+
+def cut_of(node):
+    """The detail of a text node whose rect is shorter than its lines times its line height (rv9ka-3), else None:
+    a text that loses lines shows in the pixel diff as nothing (every text box is masked), only as a shorter rect."""
+    text = node.get("text") or (node.get("meta") or {}).get("text")
+    if node.get("kind") != "text" or not text or not node.get("font_size") or not node.get("line_height"):
+        return None
+    need = (str(text).count("\n") + 1) * node["font_size"] * node["line_height"]
+    for output, rect in sorted((node.get("rects") or {}).items()):
+        if rect[3] < need - CUT_SLACK - node["font_size"] * node["line_height"] / 2:
+            return f"{output} {rect[3]:g} px high for {need:g} px of {str(text).count(chr(10)) + 1} lines"
+    return None
+
+
 def scene_diff(a, b):
     """The differences of two scene.query answers, as dicts with kind, id and detail."""
     ka, kb = keyed(a), keyed(b)
@@ -116,6 +132,8 @@ def scene_diff(a, b):
     for k in kb:
         if k not in ka:
             found.append({"kind": "added", "id": label(k), "detail": "in the candidate only"})
+        if cut_of(kb[k]) and not (k in ka and cut_of(ka[k])):
+            found.append({"kind": "cut", "id": label(k), "detail": cut_of(kb[k])})
     common = [k for k in ka if k in kb]
     top_a = [k for k in common][-TOP_LAYERS:]
     top_b = [k for k in kb if k in ka][-TOP_LAYERS:]
