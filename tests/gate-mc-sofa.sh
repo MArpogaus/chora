@@ -52,6 +52,9 @@
 #               as the body of the page, and its ink is no grey: 7 to 1
 #               (mc-40)
 #
+#   keylist-click  a click on the row Show overview of the full key list
+#               (Super+F1) runs its action: the overview shows (rmm1-3)
+#
 #   page-edges  no line of any built-in scene, every panel full, is cut at the
 #               edge of its page at 1280x720 (rmm1-1)
 #
@@ -488,6 +491,21 @@ cell_keylist() {
     until_ok '! has_text "Show overview"' 20 || fail "Super+F1 does not close the list"
 }
 
+cell_keylist_click() {
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    key Super+F1
+    until_ok 'has_text "Show overview"' 20 || fail "Super+F1 does not open the full list"
+    until_ok 'jq -e ".[1] > 100" <<<"$(text_rect "Show overview")" >/dev/null' 20 || fail "the full list places no row Show overview"
+    click_rect "$(text_rect "Show overview")"
+    until_ok '[ "$(current)" = overview ]' 20 || fail "a click on the row Show overview of the full list does not show the overview: $(current)"
+    shot keylist-click
+    key Super+F1
+    until_ok '! has_text "Show overview"' 20 || fail "Super+F1 does not close the full list"
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda after the click: $(current)"
+}
+
 cell_page_end() {
     local card page foot
     key Super+Home
@@ -638,7 +656,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist page-end page-edges pill-clock helpers-empty remote-back launcher-click-row rooms-card rooms-pill)
+cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist keylist-click page-end page-edges pill-clock helpers-empty remote-back launcher-click-row rooms-card rooms-pill)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done
