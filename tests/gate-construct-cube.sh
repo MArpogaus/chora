@@ -347,6 +347,9 @@ read -r second owner out wx wy ww wh <<<"$(others)"
 until_ok 'xp_shows "$second"' 20 || fail "rcr1-1: the face manager does not show the window $second"
 ok "rcr1-1: Super+t with the key sheet open over a face starts a window of the face (xp, $out)"
 help_shown || fail "co-78: the key sheet closed by itself when the window opened"
+before=$(keys_in "$work/term.log")
+plain a
+! until_ok 'test "$(keys_in "$work/term.log")" -gt "$before"' 8 || fail "rcm1-2: a key reached the window while the key sheet was open"
 plain Escape
 until_ok '! help_shown' 20 || fail "co-78: Escape keeps the key sheet after Super+t started a window in the face"
 before=$(keys_in "$work/term.log")
