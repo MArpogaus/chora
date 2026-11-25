@@ -1171,6 +1171,19 @@ mod tests {
         assert!(agent.greeting.is_none(), "the greeting is over");
     }
 
+    /// rxm2-2: a press hushes the greeting only, not a later sentence of the
+    /// voice or of a state.
+    #[test]
+    fn a_press_leaves_a_later_sentence_in_the_balloon_rxm2_2() {
+        let (mut agent, _dirs) = xp_agent("greet-later");
+        let now = Instant::now();
+        agent.greet_with(now, false).unwrap();
+        let later = ("A later sentence.".to_owned(), now + Duration::from_secs(8));
+        agent.said = Some(later.clone());
+        agent.event(pressed("s1", false)).unwrap();
+        assert_eq!(agent.said, Some(later), "the press hushed a later sentence");
+    }
+
     /// rxm2-1: a greeting of a test never writes the file of the real
     /// state home of the person who runs the tests.
     #[test]
