@@ -588,6 +588,7 @@ cell_volume_wheel() {
     until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
     until_ok 'has_text "Volume 50%"' 60 || fail "the volume door does not show the level 50%: $(texts | tr '\n' '|')"
     door=$(text_rect "Volume 50%")
+    door=$(jq -c "[0, 0, .[2], .[3]]" <<<"$door")
     move_to "$(jq -n --argjson r "$door" '$r[0] + 20 | floor')" "$(jq -n --argjson r "$door" '$r[1] + $r[3] / 2 | floor')"
     echo '[{"scroll": {"dy": -60}}]' | ctl inject >/dev/null || fail "inject scroll"
     until_ok 'grep -Eq "set-volume .*%\+" "$calls"' 20 || fail "a wheel up over the volume door does not raise the volume (rpx1-15): $(tr '\n' '|' <"$calls")"
