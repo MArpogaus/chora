@@ -1413,4 +1413,6 @@ fn a_window_that_opens_while_the_cube_stands_back_shows_beside_it() {
 #[cfg(test)]
 mod close_tests;
 #[cfg(test)]
+mod face_start_tests;
+#[cfg(test)]
 mod reach_tests;
