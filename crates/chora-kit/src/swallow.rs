@@ -557,9 +557,11 @@ mod tests {
         );
         core.refuse_next("events.emit");
         rt.start_grabs();
+        rt.grab("Super+d".parse().unwrap(), "drag").unwrap();
         rt.end_grabs().unwrap();
         assert_eq!(said(&core), [json!(true)], "the core refused `off`");
         rt.start_grabs();
+        rt.grab("Super+d".parse().unwrap(), "drag").unwrap();
         rt.end_grabs().unwrap();
         assert_eq!(
             said(&core),
