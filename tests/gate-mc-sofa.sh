@@ -467,7 +467,7 @@ cell_keylist() {
     until_ok 'has_text "Mute"' 20 || fail "no Mute: $(texts | tr '\n' '|')"
     key Super+F1
     until_ok 'has_text "Show overview"' 20 || fail "Super+F1 does not open the full list"
-    sleep 1.5
+    until_ok 'jq -e ".[1] > 500" <<<"$(text_rect "Back one step")" >/dev/null' 20 || fail "the full list places no last row"
     shot keylist
     [ -z "$(struck_texts)" ] || fail "a rule of the key list strikes a text (rpx1-9): $(struck_texts)"
     for t in "Take a screenshot" "Back one step" "Power menu" "Lock the screen"; do
@@ -488,7 +488,6 @@ cell_page_end() {
     ctl call mc notify.clear '{}' >/dev/null
     ctl call mc notify.push '{"title": "Timer: spaghetti, 9 minutes", "body": "Started by voice"}' >/dev/null || fail "notify.push"
     until_ok '[ "$(ctl call notify state.get "{}" | jq "[.shown[].summary] | length")" -ge 1 ]' 20 || fail "no card"
-    sleep 2
     shot page-end
     card=$(ctl call notify state.get '{}' | jq -c '.shown[0].rect')
     page=$(node_rect mc-s-morning-page)
@@ -498,11 +497,15 @@ cell_page_end() {
     jq -ne --argjson f "$foot" --argjson p "$page" '$p[1] + $p[3] <= $f[1]' >/dev/null ||
         fail "the page $page reaches under the footer line $foot (rpx1-12)"
     ctl call mc notify.clear '{}' >/dev/null
-    sleep 1.5
-    ctl capture "$work/page-end.png" >/dev/null || fail "capture page-end"
-    # shellcheck disable=SC2046 # four words, one for each number of the rect
-    cut=$(python3 -I "$repo/tests/png-ink.py" "$work/page-end.png" \
-        $(jq -r '"160 \(.[1] + .[3] - 2 | floor) 664 2"' <<<"$page"))
+    page_cut() {
+        ctl capture "$work/page-end.png" >/dev/null || fail "capture page-end"
+        # shellcheck disable=SC2046 # four words, one for each number of the rect
+        python3 -I "$repo/tests/png-ink.py" "$work/page-end.png" \
+            $(jq -r '"160 \(.[1] + .[3] - 2 | floor) 664 2"' <<<"$page")
+    }
+    until_ok '[ -z "$(ctl call notify state.get "{}" | jq -r ".shown[].summary")" ]' 20 || fail "notify.clear leaves the card"
+    until_ok '[ -z "$(page_cut)" ]' 8
+    cut=$(page_cut)
     [ -z "$cut" ] || fail "a line of the page is cut at the edge of the page $page: ink $cut in its last two rows (rpx1-12)"
 }
 
@@ -514,8 +517,11 @@ cell_pill_clock() {
     until_ok 'ctl query id:hud-word | jq -e "length > 0" >/dev/null' 20 || fail "the host draws no state word"
     key Super+n
     until_ok '! has_text "Back one step"' 20 || fail "Super+n does not hide the column"
-    sleep 1.5
-    clock=$(ctl query "owner:mc kind:text" | jq -c "[.[] | $shown | select(.text | test(\"^[A-Z]+ [0-9]+ [A-Z]+ +[0-9]+:[0-9]+\$\"))][0].rects | to_entries[0].value")
+    clock_rect() {
+        ctl query "owner:mc kind:text" | jq -c "[.[] | $shown | select(.text | test(\"^[A-Z]+ [0-9]+ [A-Z]+ +[0-9]+:[0-9]+\$\"))][0].rects | to_entries[0].value"
+    }
+    until_ok 'jq -e ".[0] + .[2] > 900" <<<"$(clock_rect)" >/dev/null' 20 || fail "the header does not widen without the column"
+    clock=$(clock_rect)
     word=$(node_rect hud-word)
     shot pill-clock
     key Super+n
@@ -531,9 +537,12 @@ cell_helpers_empty() {
     done
     ctl call mc scene.show '{"name": "agents"}' >/dev/null || fail "scene.show agents"
     until_ok '[ "$(current)" = agents ]' 20 || fail "no helpers page: $(current)"
-    sleep 1.5
+    empty_words() {
+        ctl query "owner:mc kind:text" | jq -r "[.[] | $shown | select((.rects | to_entries[0].value | .[0] < 860 and .[1] > 150) and (.text | test(\"helper\"; \"i\"))) | \"\\(.family)|\\(.text)\"] | join(\"; \")"
+    }
+    until_ok '[ -n "$(empty_words)" ]' 12
     shot helpers-empty
-    words=$(ctl query "owner:mc kind:text" | jq -r "[.[] | $shown | select((.rects | to_entries[0].value | .[0] < 860 and .[1] > 150) and (.text | test(\"helper\"; \"i\"))) | \"\\(.family)|\\(.text)\"] | join(\"; \")")
+    words=$(empty_words)
     [ -n "$words" ] || fail "the helpers page without a helper says nothing in words (rpx1-14): $(texts | tr '\n' '|')"
     case "$words" in *Pagella* | *Serif*) ;; *) fail "the words of the empty helpers page are not in the page type: $words" ;; esac
 }
