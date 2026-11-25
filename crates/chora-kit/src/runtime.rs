@@ -1372,6 +1372,37 @@ mod tests {
         assert_eq!(held_by_other(), 2);
     }
 
+    /// A joiner is refused the keys that the earlier look swallows and
+    /// gets them a moment later: the journal holds one line per set of
+    /// grabs, not one per key (rss-13).
+    #[test]
+    fn the_refusals_of_a_set_of_grabs_log_one_line() {
+        use crate::testing::{FakeCore, in_child, stderr_of};
+
+        if in_child() {
+            let core = FakeCore::start();
+            let keys: Vec<String> = (1..=9).map(|n| format!("Super+{n}")).collect();
+            for key in &keys {
+                core.hold(key);
+            }
+            let mut rt = core.runtime::<&str>("tiling");
+            rt.start_grabs();
+            for key in &keys {
+                assert!(!rt.grab(key.parse::<Binding>().unwrap(), "tag").unwrap());
+            }
+            rt.end_grabs().unwrap();
+            return;
+        }
+        let log = stderr_of("runtime::tests::the_refusals_of_a_set_of_grabs_log_one_line");
+        let lines: Vec<_> = log.lines().filter(|l| l.contains("Super+")).collect();
+        assert_eq!(lines.len(), 1, "rss-13: {log}");
+        assert!(lines[0].contains('9'), "the line counts the keys: {log}");
+        assert!(
+            lines[0].contains("again"),
+            "the line says that it asks again: {log}"
+        );
+    }
+
     #[test]
     fn a_new_set_of_grabs_lets_go_the_others_but_keeps_the_give_keys() {
         use crate::conn::fake_core::{self, Answer};
