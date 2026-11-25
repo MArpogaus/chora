@@ -524,6 +524,46 @@ mod tests {
         );
     }
 
+    /// The core refuses more than 32 emits per second per client: a lost
+    /// `on` leaves the joiner's keys dead (rss-1), a lost `off` leaves
+    /// nobody swallowing (rss-7). The plugin says it again at the next
+    /// set of grabs.
+    #[test]
+    fn a_refused_say_is_said_again_at_the_next_set_of_grabs() {
+        let said = |core: &FakeCore| -> Vec<Value> {
+            (core.model().lock().unwrap().emits.iter())
+                .filter(|e| e["event"] == "construct.swallow")
+                .map(|e| e["data"]["on"].clone())
+                .collect()
+        };
+        let core = FakeCore::start();
+        let mut rt = core.runtime::<&str>("construct");
+        core.refuse_next("events.emit");
+        rt.start_grabs();
+        rt.grab_swallowed("Super", &"swallow").unwrap();
+        rt.end_grabs().unwrap();
+        assert_eq!(said(&core), Vec::<Value>::new(), "the core refused `on`");
+        rt.start_grabs();
+        rt.grab_swallowed("Super", &"swallow").unwrap();
+        rt.end_grabs().unwrap();
+        assert_eq!(
+            said(&core),
+            [json!(true)],
+            "rss-12: the refused `on` is lost for good"
+        );
+        core.refuse_next("events.emit");
+        rt.start_grabs();
+        rt.end_grabs().unwrap();
+        assert_eq!(said(&core), [json!(true)], "the core refused `off`");
+        rt.start_grabs();
+        rt.end_grabs().unwrap();
+        assert_eq!(
+            said(&core),
+            [json!(true), json!(false)],
+            "rss-12: the refused `off` is lost for good"
+        );
+    }
+
     /// A chord that another client holds is no error of the swallow: it
     /// logs nothing (rss-4).
     #[test]
