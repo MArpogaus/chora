@@ -1,0 +1,14 @@
+# xp-tail r1 (F7, rc 1 known issues; xp has no open BLOCK or MAJOR): rv9kb-2, the balloon tail ends 39 px left of the paperclip
+
+Model: sonnet, effort medium (a small drawing fix in the xp helper balloon with a pixel assert; routine)
+Lane: cloud, branch claude/xp-tail-r1 at 62a04be0 (session head, t140 green). Area: the xp helper balloon (hud-line, hud-chat) and its tests, docs/xp-style.md only. Stop at 250 k. Cost at most 0.6 %.
+Why: reports/tour-v9-judge.md "## r2b" rv9kb-2: since 62708d35 the balloon stands 96 px from the right edge, but its tail still points down from the balloon's right corner: the tip ends at about (1174, 577), 39 px left of the paperclip (x 1213..1256), not over it (v8: tip at about 1231). Breaks docs/xp-style.md row 11 and the xp checklist 3 ("Balloon tail touches the paperclip's head"). Stills media/2026-11-25/tour-v9-judge-r2b/x5-tail.jpg, x1.Q.jpg.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, then `cargo build --workspace`. A failure: send_message the PM "xp-tail-r1 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1. Red test first, its own commit (message names rv9kb-2): a gate-cell or unit assert that the tail tip of the greeting and the chat balloon lies over the paperclip head (x within the clip's head box, y just above it) at 1280x800 and 1280x720; paste the red line on 62a04be0.
+2. The fix, KISS: the tail runs from the balloon to the clip's head (anchored at the clip, not at the balloon corner); the balloon keeps its 62708d35 place. No other xp change.
+3. Captures of x1 and x5 before and after (media/2026-11-25/xp-tail-r1/, each under 500 KB).
+Out of scope: rv9j-1 pager, other looks, demo/tour files, ratchet counts; no new sleep (sleep-ratchet).
+Run: the full gate, no step filter: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` (no --push) detached with setsid nohup, poll in the same turn; paste the last 20 lines. A red cell you did not cause: name it with its log line. Never end a turn to wait. Before ending: `pgrep -fa 'chora --headless'` empty.
+Done when: red commit before fix commit with the pasted red line; the captures; full gate EXIT 0 (or foreign reds named); reports/xp-tail.md "## r1" on claude/session-log (base, head, diffstat, gate line).
+Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 5 lines): head sha, red and fix commits, gate result.
+Rules: push claude/xp-tail-r1 and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report and media folder); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).
