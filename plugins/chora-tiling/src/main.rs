@@ -284,9 +284,11 @@ fn launch_conn() -> Result<Conn, chora_scene::ipc::ClientError> {
     Conn::connect(&launch_name(std::process::id()))
 }
 
-/// The client name of a launch.
-fn launch_name(_pid: u32) -> String {
-    "chora-tiling.launch".to_string()
+/// The client name of a launch. It carries the process id: the word of the
+/// bar asks every 2 seconds, and a click must not meet the name of a launch
+/// that is still open.
+fn launch_name(pid: u32) -> String {
+    format!("chora-tiling.launch-{pid}")
 }
 
 /// Asks tiling to close the key list before the launcher or the power menu
@@ -1285,6 +1287,13 @@ mod tests {
     use std::path::Path;
 
     use chora_kit::testing::{FakeCore, Log};
+
+    #[test]
+    fn two_launches_of_one_machine_connect_under_different_names() {
+        let (a, b) = (crate::launch_name(1), crate::launch_name(2));
+        assert_ne!(a, b);
+        assert!(a.starts_with("chora-tiling.launch") && b.starts_with("chora-tiling.launch"));
+    }
 
     use super::*;
 
