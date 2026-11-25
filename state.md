@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-25 07:10 UTC)
+## Now (2026-11-25 07:12 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 05:33 PM 2.1 % (11-25), week about 34 % vs 55 % pace: under-spending, fill 6 lanes
 session branch: 8e63e0ed (t135 05:44, sh42-fix r2); 83 greens. Lane gates miss ratchets: GATE-RATCHETS r1
@@ -24,7 +24,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 |---|---|---|
 | gate-ratchets-r1.md (harness; 0.5 %) | sonnet medium, claude/gate-ratchets-r1 721be592 | session_016iS3kMbhowiyWohG5DiPcG |
 | train136 (rc 1, F7) | PM, 6f37120b on 8e63e0ed | gate running |
-| xp-minor-r2.md (rc 1; xp-10, -13, -30, rxm1-1; 1 %) | sonnet high, claude/xp-minor-r2 d2a048d5 | starting |
+| xp-minor-r2.md (rc 1; xp-10, -13, -30, rxm1-1; 1 %) | sonnet high, claude/xp-minor-r2 d2a048d5 | session_016iS3kQRG6ST7x32pFZswCM |
 | mc-minor-r1.md (rc 1; mc-56, rpx1-9..14; 1 %) | sonnet high, claude/mc-minor-r1 721be592 | session_016iS3kMCPqruUf56LphN2U8 |
 | tiling-doors-r2.md (rc 2; 1.0 %) | sonnet high, claude/tiling-doors-r2 721be592 | session_016iS3kPKrsTv7tRKpcW3uAv |
 ## Queue (% week; 5 % reserve)
