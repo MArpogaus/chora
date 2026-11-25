@@ -2866,7 +2866,7 @@ mod tests {
         );
         core.answer_with(
             "state.get",
-            serde_json::json!({"shown": [{"rect": [160, 400, 291, 320]}]}),
+            serde_json::json!({"shown": [{"rect": [160, 500, 291, 220]}]}),
         );
         mc.learn_rooms().unwrap();
         assert!(mc.card_room() > 135.0, "a tall card takes more");
