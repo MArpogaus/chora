@@ -2073,6 +2073,22 @@ mod tests {
         assert_eq!(hints_shown(&methods), Vec::<String>::new());
     }
 
+    /// rth-4: with no notification server a failed reload still shows its
+    /// reason, on the chip of tiling.
+    #[test]
+    fn a_failed_reload_without_a_notice_server_shows_the_reason_on_the_chip() {
+        let (mut tiling, methods) = tiling_with_grabs("reload-chip");
+        tiling.tell_reload_failed("/x/chora-tiling.yaml: simple key expected ':' at line 24");
+        let chips: Vec<String> = sent_commands(&methods)
+            .iter()
+            .map(ToString::to_string)
+            .filter(|c| c.contains("tiling-chip-word") && c.contains("chora-tiling.yaml"))
+            .collect();
+        assert_eq!(chips.len(), 1, "{chips:?}");
+        assert!(chips[0].contains("Settings not applied"), "{chips:?}");
+        assert!(tiling.chip_until.is_some(), "the chip has a time to go");
+    }
+
     #[test]
     fn an_injected_button_grab_drags_no_window_in_tiling() {
         let (mut tiling, _methods) = on_fake_core("injected-grab");
