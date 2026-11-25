@@ -187,6 +187,24 @@ class Verdict(unittest.TestCase):
             self.assertEqual([(r["act"], r["capture"], r["verdict"]) for r in rows], [("x1", "Q", "regression")])
 
 
+class PaperclipBlink(unittest.TestCase):
+    """rv9kb-1: the blink of the paperclip runs on the wall clock, so a still catches shut eyes at random."""
+
+    figure = {"id": "hud-figure", "kind": "image", "owner": "xp", "meta": {}, "rects": {"HEADLESS-1": [1192, 578, 80, 104]}}
+
+    def test_the_eyes_of_the_figure_are_masked(self):
+        masks = diff.masks_of({"nodes": [self.figure]})
+        self.assertTrue(any(m[0] <= 1213 and m[1] <= 593 and m[0] + m[2] >= 1252 and m[1] + m[3] >= 613 for m in masks), masks)
+
+    def test_a_blink_is_no_pixel_diff_and_the_body_still_is(self):
+        side = {"nodes": [self.figure]}
+        masks = diff.masks_of(side, side)
+        shut = diff.pixel_diff(png(1280, 720), png(1280, 720, box(1213, 593, 19, 20)), masks)
+        self.assertTrue(shut["same"], shut)
+        moved = diff.pixel_diff(png(1280, 720), png(1280, 720, box(1200, 640, 40, 30)), masks)
+        self.assertFalse(moved["same"])
+
+
 class BarClock(unittest.TestCase):
     """RV9-1: the bar of the tiling look is a foreign surface (waybar): `scene.query` has no node and no
     text for its clock, so the pixel diff of two takes minutes apart saw the clock. The one node every
