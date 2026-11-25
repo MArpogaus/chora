@@ -1088,4 +1088,100 @@ mod tests {
         agent.event(entered("hud-chat-close", false)).unwrap();
         assert_eq!(agent.hovered.as_deref(), Some("hud-chat-close"));
     }
+
+    /// An agent whose look is the XP folder: the paperclip, with its balloon
+    /// chat, as the greeting needs it.
+    fn xp_agent(tag: &str) -> (Agent, [chora_kit::testing::TempDir; 2]) {
+        let (mut agent, dirs) = on_fake_core(tag, true);
+        let xp = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/assets/assistant");
+        agent.source.assets = Some(xp);
+        let (theme, values, _) = agent
+            .source
+            .load(NEUTRAL, &Context::default())
+            .expect("the XP folder loads");
+        agent.theme = theme;
+        agent.values = values;
+        agent.sync_assistant(Instant::now()).unwrap();
+        assert!(agent.assistant.is_some(), "the paperclip shows");
+        assert!(agent.balloon_chat(), "the chat of xp is the balloon");
+        (agent, dirs)
+    }
+
+    /// What greets at `GREET_AFTER` of a start without a voice agent: what
+    /// `greet_step` keeps in `said`, without its file of the session.
+    fn greeted_without_helper(agent: &mut Agent, now: Instant) {
+        let text = chora_kit::words::Word::GreetingNoHelper
+            .text(agent.language)
+            .to_owned();
+        agent.said = Some((text, now + Duration::from_secs(12)));
+    }
+
+    fn transcript_text(agent: &mut Agent) -> String {
+        let measure = chora_kit::chat::Measure {
+            max: 1.0e9,
+            font: 0,
+            width: &|_| 0.0,
+        };
+        let lines = agent.chat.lines(agent.language, &measure);
+        lines
+            .into_iter()
+            .map(|l| l.text)
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    /// xp-47: the agent tells its first state after the greeting.
+    #[test]
+    fn the_greeting_without_a_helper_is_gone_when_the_voice_agent_connects() {
+        let (mut agent, _dirs) = xp_agent("greet-connects");
+        let now = Instant::now();
+        greeted_without_helper(&mut agent, now);
+        let no_helper = chora_kit::words::Word::GreetingNoHelper.text(agent.language);
+        agent
+            .voice_event(
+                "voice.state",
+                "voice",
+                &serde_json::json!({"state": "idle"}),
+            )
+            .unwrap();
+        let said = agent.said.as_ref().map(|(text, _)| text.as_str());
+        assert_ne!(said, Some(no_helper), "still says that no helper is set up");
+        agent
+            .voice_event(
+                "voice.state",
+                "voice",
+                &serde_json::json!({"name": "Atlas", "state": "working", "task": "notes"}),
+            )
+            .unwrap();
+        let said = agent.said.as_ref().map(|(text, _)| text.as_str());
+        assert_ne!(said, Some(no_helper), "still says it with a helper working");
+    }
+
+    #[test]
+    fn an_open_chat_after_a_helper_connected_does_not_get_the_no_helper_sentence() {
+        let (mut agent, _dirs) = xp_agent("greet-chat");
+        let now = Instant::now();
+        greeted_without_helper(&mut agent, now);
+        agent
+            .voice_event(
+                "voice.state",
+                "voice",
+                &serde_json::json!({"name": "Atlas", "state": "idle"}),
+            )
+            .unwrap();
+        agent.chat_toggled(true, now);
+        let text = transcript_text(&mut agent);
+        assert!(!text.contains("no helper"), "the chat holds: {text}");
+    }
+
+    #[test]
+    fn a_balloon_sentence_older_than_its_close_time_never_enters_the_chat() {
+        let (mut agent, _dirs) = xp_agent("greet-old");
+        let now = Instant::now();
+        let closed = now.checked_sub(Duration::from_secs(5)).unwrap();
+        agent.said = Some(("An old sentence.".to_owned(), closed));
+        agent.chat_toggled(true, now);
+        let text = transcript_text(&mut agent);
+        assert!(!text.contains("old sentence"), "the chat holds: {text}");
+    }
 }

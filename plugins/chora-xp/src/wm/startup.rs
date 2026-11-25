@@ -115,8 +115,8 @@ impl Wm {
         let old_root = wm.take_kept()?;
         wm.mixer.refresh();
         wm.create_scene(old_root)?;
-        wm.grab()?;
         wm.rt.announce(&EVENTS, methods)?;
+        wm.grab()?;
         wm.refresh_looks();
         wm.adopt_all()?;
         wm.catch_up_outputs()?;
@@ -425,6 +425,29 @@ mod tests {
             .unwrap();
         wm.event(Event::ClientDisconnected { name: "mc".into() })
             .unwrap();
+    }
+
+    /// xp subscribes before its first grab (rss-8): the core sends no
+    /// event to a connection without a subscription, so a grab refused
+    /// before it would never hear `input.ungrabbed`, and a window manager
+    /// that joined then would never be heard.
+    #[test]
+    fn xp_subscribes_before_it_grabs() {
+        let core = core_with_look(false);
+        let calls = core.record(|method, _| {
+            let subscribe = method.starts_with("events.") && method.ends_with("subscribe");
+            (subscribe || method == "input.grab").then(|| method.to_owned())
+        });
+        let _wm = wm_on_kit_core(&core, "subscribes-first");
+        let calls = calls.lock().unwrap().clone();
+        let subscribe = calls.iter().position(|m| m.starts_with("events."));
+        let grab = calls.iter().position(|m| m == "input.grab");
+        assert!(grab.is_some(), "xp grabs: {calls:?}");
+        assert!(
+            subscribe.is_some() && subscribe < grab,
+            "rss-8: xp grabs before it subscribes: {:?}",
+            &calls[..calls.len().min(3)]
+        );
     }
 
     #[test]

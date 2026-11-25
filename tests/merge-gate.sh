@@ -47,6 +47,7 @@
 # with SKIP=cargo-clippy,lychee,vale as CI does, and fails when
 # pre-commit is not installed.
 # `ci-check` also runs tools/lint-ratchet (the allow, no-reason and eprintln counts may not grow),
+# tools/sleep-ratchet (the count of waits in tests/*.sh may not grow),
 # tools/size-ratchet (a file over 1,500 production lines may not grow) and
 # tools/cut-check (blocking: a plugin depending on a plugin or an extra workspace crate, an asset or
 # link that leaves its crate, a name of another plugin beyond tools/cut-known.toml; it reports the
@@ -62,6 +63,10 @@
 # starts with `FAIL:` or `MISMATCH`, or when it has the line
 # `test result: FAILED`. One line per step: name, PASS or FAIL, seconds,
 # log path. A failed step prints the last 30 lines of its log.
+# Every step runs with CHORA_GATE_RUN (the pid of the gate) and CHORA_GATE_STEP in its
+# environment. A step that ends with a live chora* process of its tag, also one that left
+# the group of the step with setsid, is FAIL: its log lists the pids, and they are ended.
+# The stop of a red or interrupted gate ends the ones of the whole run. Never by name alone.
 # With --jobs N, the steps after 2d-guard run up to N at once: each gate
 # script has its own sockets and runtime directory and judges its
 # programs by pid (the hook no-foreign-kill), and the steps mostly wait,
@@ -251,7 +256,7 @@ red-first|tests/merge-gate.sh --red-first-check --base "$base"
 identity|tests/merge-gate.sh --identity-check --base "$base"
 pre-commit|command -v pre-commit >/dev/null || { echo "FAIL: pre-commit is not installed"; exit 1; }; SKIP=cargo-clippy,lychee,vale pre-commit run --all-files
 gate-lib|{ tests/gate-lib-selftest.sh && tests/under-load-selftest.sh && tests/cells-for-selftest.sh && tests/nested-diag-selftest.sh && tests/matrix-cap-selftest.sh; } & a=\$!; [ x\${MERGE_GATE_NESTED:-} != x ] || tests/merge-gate-selftest.sh; b=\$?; wait \$a && [ \$b = 0 ]
-ci-check|tools/cut-check --base "$(git merge-base "$base" HEAD)" && tests/cut-check-selftest.sh && tests/grab-gap-check.py && tests/grab-gap-check-selftest.sh && tests/agent-sandbox.sh && tests/gate-0.7-9.sh && tests/gate-0.8-5.sh && tests/gate-0.8-8.sh && tests/gate-0.8-plugin-runtime.sh && tests/packaging-files.py && tests/flavor-notify.py && tests/screenshot-notice.sh && tests/tiling-scripts-selftest.sh && tests/runtime-dir-selftest.sh && tests/packaging-files-selftest.sh && tools/size-ratchet --base "$(git merge-base "$base" HEAD)" && tests/size-ratchet-selftest.sh && tools/lint-ratchet && tests/lint-ratchet-selftest.sh && tests/ratchet-raise-selftest.sh
+ci-check|tools/cut-check --base "$(git merge-base "$base" HEAD)" && tests/cut-check-selftest.sh && tests/grab-gap-check.py && tests/grab-gap-check-selftest.sh && tests/agent-sandbox.sh && tests/gate-0.7-9.sh && tests/gate-0.8-5.sh && tests/gate-0.8-8.sh && tests/gate-0.8-plugin-runtime.sh && tests/packaging-files.py && tests/flavor-notify.py && tests/screenshot-notice.sh && tests/tiling-scripts-selftest.sh && tests/runtime-dir-selftest.sh && tests/packaging-files-selftest.sh && tools/size-ratchet --base "$(git merge-base "$base" HEAD)" && tests/size-ratchet-selftest.sh && tools/lint-ratchet && tests/lint-ratchet-selftest.sh && tools/sleep-ratchet && tests/sleep-ratchet-selftest.sh && tests/ratchet-raise-selftest.sh
 build|cargo build --workspace --locked
 test|cargo test --workspace --locked
 clippy|cargo clippy --workspace --all-targets --locked -- -D warnings
@@ -300,15 +305,16 @@ voice-events|BIN=$repo/target/debug tests/voice-events.sh
 agent|out=\$(mktemp -d /tmp/chora-agent-gate.XXXXXX) && tests/agent.sh "$repo/target/debug" "\$out" && rm -rf "\$out"
 tiling-keys-more|BIN=$repo/target/debug tests/gate-tiling-keys.sh && BIN=$repo/target/debug tests/gate-tiling-keycaps.sh && BIN=$repo/target/debug tests/gate-tiling-bar-keys.sh && BIN=$repo/target/debug tests/gate-tiling-chip.sh && BIN=$repo/target/debug tests/gate-tiling-programs.sh
 tiling-windows|BIN=$repo/target/debug tests/gate-tiling-focus.sh && BIN=$repo/target/debug tests/gate-tiling-follow.sh && BIN=$repo/target/debug tests/gate-tiling-doors.sh && BIN=$repo/target/debug tests/gate-tiling-swallow.sh && BIN=$repo/target/debug tests/gate-tiling-gaps.sh && BIN=$repo/target/debug tests/gate-tiling-motion.sh
-tiling-system|BIN=$repo/target/debug tests/gate-tiling-reload.sh && BIN=$repo/target/debug tests/gate-tiling-system.sh
+tiling-system|BIN=$repo/target/debug tests/gate-tiling-reload.sh && BIN=$repo/target/debug tests/gate-tiling-reload-notice.sh && BIN=$repo/target/debug tests/gate-tiling-system.sh
 handover|BIN=$repo/target/debug tests/gate-handover.sh
 mc-scale|BIN=$repo/target/debug tests/gate-mc-scale.sh
 watchdog-starved|BIN=$repo/target/debug tests/gate-watchdog-starved.sh
 leak|tests/leak-verdict-selftest.sh && BIN=$repo/target/debug tests/gate-leak.sh
 xp-run|BIN=$repo/target/debug tests/gate-xp-run.sh
 demo|BIN=$repo/target/debug tests/gate-demo.sh
-tiling-bar|BIN=$repo/target/debug tests/gate-tiling-bar.sh && BIN=$repo/target/debug tests/gate-tiling-spacing.sh && BIN=$repo/target/debug tests/gate-tiling-notice.sh
+tiling-bar|BIN=$repo/target/debug tests/gate-tiling-bar.sh && BIN=$repo/target/debug tests/gate-tiling-spacing.sh && BIN=$repo/target/debug tests/gate-tiling-notice.sh && BIN=$repo/target/debug tests/gate-tiling-one-bar.sh
 tiling-theme|BIN=$repo/target/debug tests/gate-tiling-theme.sh
+tiling-disc|BIN=$repo/target/debug tests/gate-tiling-focus-key.sh && BIN=$repo/target/debug tests/gate-tiling-settings.sh && BIN=$repo/target/debug tests/gate-persona-keep.sh
 mc-host|BIN=$repo/target/debug tests/gate-mc-host.sh
 e2e|tests/e2e-sequence.sh "$repo/target/debug"
 STEPS
@@ -473,19 +479,51 @@ skipped_reasons=()
 group_alive() {
     kill -0 -- "-$1" 2>/dev/null
 }
+export CHORA_GATE_RUN=$$
+stray_pids() {
+    local dir pid comm state env
+    for dir in /proc/[0-9]*; do
+        pid=${dir#/proc/}
+        [ "$pid" != "$$" ] || continue
+        comm=$(cat "$dir/comm" 2>/dev/null) || continue
+        case $comm in chora*) ;; *) continue ;; esac
+        state=$(sed -n 's/^State:[[:space:]]*\(.\).*/\1/p' "$dir/status" 2>/dev/null)
+        [ -n "$state" ] && [ "$state" != Z ] || continue
+        env=$(tr '\0' '\n' <"$dir/environ" 2>/dev/null) || continue
+        grep -qx "CHORA_GATE_RUN=$$" <<<"$env" || continue
+        [ -z "${1:-}" ] || grep -qx "CHORA_GATE_STEP=$1" <<<"$env" || continue
+        echo "$pid $comm"
+    done
+}
+poll() {
+    local tries=$1 n
+    shift
+    for ((n = 0; n < tries; n++)); do
+        "$@" && return 0
+        sleep 0.1
+    done
+    return 1
+}
+no_strays() { [ -z "$(stray_pids "$@")" ]; }
+none_alive() {
+    local pid
+    for pid in "${!running[@]}"; do
+        ! group_alive "$pid" || return 1
+    done
+}
+end_strays() {
+    local pids
+    mapfile -t pids < <(stray_pids "$@" | cut -d' ' -f1)
+    [ "${#pids[@]}" -gt 0 ] || return 0
+    kill -TERM "${pids[@]}" 2>/dev/null
+    poll 30 no_strays "$@" || kill -KILL "${pids[@]}" 2>/dev/null
+}
 stop_children() {
-    local pid tries alive
+    local pid
     for pid in "${!running[@]}"; do
         kill -TERM -- "-$pid" 2>/dev/null
     done
-    for ((tries = 0; tries < 50; tries++)); do
-        alive=0
-        for pid in "${!running[@]}"; do
-            ! group_alive "$pid" || alive=1
-        done
-        [ "$alive" = 1 ] || break
-        sleep 0.1
-    done
+    poll 50 none_alive
     for pid in "${!running[@]}"; do
         ! group_alive "$pid" || kill -KILL -- "-$pid" 2>/dev/null
     done
@@ -493,6 +531,7 @@ stop_children() {
         wait "$pid" 2>/dev/null
     done
     running=()
+    end_strays
 }
 on_signal() {
     stop_children
@@ -512,13 +551,13 @@ log_failed() {
 
 start_step() {
     local log=$run_dir/${step_names[$1]}.log
-    (cd "$repo" && exec setsid bash -c "${step_commands[$1]}") >"$log" 2>&1 &
+    (cd "$repo" && CHORA_GATE_STEP=${step_names[$1]} exec setsid bash -c "${step_commands[$1]}") >"$log" 2>&1 &
     running[$!]=$1
     started[$!]=$SECONDS
 }
 
 wait_step() {
-    local pid code i name log result=PASS
+    local pid code i name log left result=PASS
     wait -n -p pid "${!running[@]}"
     code=$?
     i=${running[$pid]}
@@ -526,6 +565,16 @@ wait_step() {
     name=${step_names[$i]}
     log=$run_dir/$name.log
     if [ "$code" != 0 ] || log_failed "$log"; then
+        result=FAIL
+    fi
+    poll 30 no_strays "$name"
+    left=$(stray_pids "$name")
+    if [ -n "$left" ]; then
+        {
+            echo "FAIL: the step left chora processes behind (pid, name):"
+            echo "$left"
+        } >>"$log"
+        end_strays "$name"
         result=FAIL
     fi
     if [ "$result" = PASS ] && grep -q '^SKIP: ' "$log"; then

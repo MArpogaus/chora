@@ -144,7 +144,8 @@ $ tests/persona/round.sh stop erika
   the reload; T7, C2 and L3 print `not reached (no event since begin)`, neither pass nor
   FAIL, when the persona's actions left no observation since the begin; a known-red row
   hides only the breaches its capture and match name, not the whole look and invariant; L3 does not
-  count a holder of a window that a later goal gave to another look; T7 passes
+  count a holder of a window that a later goal gave to another look; T7 fails
+  unless a window changed look (a tag move inside one look is none) and passes
   a given window that is shown but drawn under another one and prints a
   separate `minor T7 covered: SID under SID` line (root order, known MINOR).
   C2 fails only for a window that was open at the begin, or came while the

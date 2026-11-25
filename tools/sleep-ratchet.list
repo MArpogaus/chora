@@ -1,0 +1,3 @@
+# Sleep lines of tests (tools/sleep-ratchet). The counts only fall.
+sleep 779
+sleep-all 930

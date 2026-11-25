@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use crate::windows::Named;
+use crate::{Look, windows::Named};
 
 use super::{
     Action, CLOCK, ClientError, Command, EVENTS, ExportMethod, HUD, Mc, NAME, PARKED, PropsUpdate,
@@ -180,6 +180,7 @@ impl Mc {
         self.grab_all()?;
         self.build()?;
         self.grab_claimed()?;
+        self.grab_swallowed()?;
         let first = self.order().into_iter().next();
         let default = Some(self.settings.value.default_scene.clone())
             .filter(|v| self.scenes.contains_key(v))
@@ -227,7 +228,19 @@ impl Mc {
         }));
         self.rt
             .accept_injected(self.settings.value.common.test_accept_injected_keys);
-        self.rt.grab_give_keys()
+        self.rt.grab_give_keys()?;
+        if self.built {
+            self.grab_swallowed()?;
+        }
+        Ok(())
+    }
+
+    /// Swallows the Super chords that no binding holds, so that no window
+    /// page gets them (mc-60). It comes after the claimed grabs, which
+    /// keep a Super key of their own.
+    pub(crate) fn grab_swallowed(&mut self) -> Result<(), ClientError> {
+        self.rt
+            .grab_swallowed("Super", &Action::Look(Look::Swallow))
     }
 
     /// Grabs the bindings whose action `wanted` accepts.

@@ -56,7 +56,7 @@ round() {
         [ "$(px 640 24)" != "$(px 640 300)" ] && near "$(px 130 50)" "$accent" 12 &&
             near "$(px 30 52)" "$accent" 14 && near "$(px 616 786)" "$accent_2" 14 && break
     done
-    pill=$(px 113 16)
+    pill=$(px 173 16)
     near "$pill" "$accent" 2 || fail "$tag: the current tag is $pill, not the accent $accent"
     left_edge=$(px 30 8)
     near "$left_edge" "$line" 2 || fail "$tag: the left island edge is $left_edge, not the line $line"

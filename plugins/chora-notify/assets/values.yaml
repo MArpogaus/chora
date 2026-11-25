@@ -5,4 +5,5 @@ card:
   border: [140, 140, 140]
   text: [32, 32, 32]
   radius: 8
+  size: 14
   tail: 0

@@ -607,7 +607,7 @@ impl Session {
     ) -> Vec<String> {
         let empty = matches!(&self.mode, Mode::List(picks, _) if picks.is_empty());
         (self.hint(language))
-            .filter(|_| !(margin && self.card == Some(crate::chat::Where::Chat)))
+            .filter(|_| self.card != Some(crate::chat::Where::Chat))
             .or_else(|| (margin && empty).then(|| self.header(language)))
             .map(|hint| hint_lines(theme, &hint, width))
             .unwrap_or_default()
@@ -629,12 +629,14 @@ impl Session {
     #[must_use]
     pub fn hint_room(&self, theme: &Theme, frame: &Frame, language: Language) -> i32 {
         let width = frame.rect()[2] - 2 * PAD;
-        self.hint(language).map_or(0, |hint| {
-            hint_room(
-                &hint_lines(theme, &hint, width),
-                hint_lines_of(in_margin(frame)),
-            )
-        })
+        let hint = self.hint(language);
+        hint.filter(|_| self.card != Some(crate::chat::Where::Chat))
+            .map_or(0, |hint| {
+                hint_room(
+                    &hint_lines(theme, &hint, width),
+                    hint_lines_of(in_margin(frame)),
+                )
+            })
     }
 
     fn parts(&mut self, theme: &Theme, frame: &Frame, language: Language) -> Parts {
@@ -1305,6 +1307,35 @@ mod tests {
         assert!(session.hint(Language::En).is_some(), "the model has it");
         let hint = session.parts(&theme, &frame, Language::En).hint;
         assert!(hint.is_empty(), "outside the card: {hint:?}");
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    /// xp-14: the capture of the question in xp showed "Typing does not
+    /// answer." below the card and above the field. The test above reads the
+    /// margin; this one reads what the balloon of xp draws: no hint of those
+    /// words stands outside the card (the card holds them, see card.rs).
+    #[test]
+    fn no_hint_of_the_typing_line_stands_under_the_card_of_the_xp_balloon() {
+        let (theme, _, cache) = crate::tests::loaded("xp-typing");
+        let frame = xp_frame(36);
+        let mut session = Session::new();
+        session.mode = Mode::Chat("atlas".into());
+        session.status.state = "question".into();
+        session.question_asked();
+        let size = [336, 170];
+        let origin = card_origin(
+            &frame,
+            size,
+            session.hint_room(&theme, &frame, Language::En),
+        );
+        session.card_shown(origin[1], size[1]);
+        assert_eq!(session.card, Some(crate::chat::Where::Chat));
+        let parts = session.parts(&theme, &frame, Language::En);
+        let drawn = parts.hint.join(" ");
+        assert!(
+            !drawn.contains("Typing does not answer"),
+            "the line stands below the card: {drawn:?}"
+        );
         let _ = std::fs::remove_dir_all(cache);
     }
 

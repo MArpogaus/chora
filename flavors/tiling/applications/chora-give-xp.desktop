@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Move window to the xp desktop
+Name[de]=Fenster auf den xp-Desktop verschieben
+Comment=Hand the focused window to the xp desktop
+Comment[de]=Das Fenster mit dem Fokus an den xp-Desktop geben
+Exec=chora-tiling --launch give xp
+Icon=preferences-desktop
+Terminal=false
+Categories=Settings;
+Keywords=window;move;give;send;desktop;look;xp;

@@ -370,6 +370,29 @@ mod keys {
         assert!(!wm.menu.is_open(), "no tap after a swallowed chord");
     }
 
+    /// xp-46 (rpx1-1): on a screen of its own xp swallows the Super chords
+    /// it binds nothing for, as on a face; the chord is a combination, so
+    /// the release of Super after it opens no Start menu, and Super alone
+    /// still does.
+    #[test]
+    fn a_swallowed_chord_on_a_screen_of_xp_opens_no_start_menu() {
+        let (mut wm, _methods) = wm_on_fake_core("keys-tap-own-swallowed");
+        let bindings = crate::config::defaults().common.bindings;
+        super::super::change_keys(&mut wm.rt, &bindings, CubeKeys::Own).unwrap();
+        assert!(
+            wm.rt.action("Super+q").is_some(),
+            "xp-46: the unbound chord is free on a screen of xp"
+        );
+        wm.key("Super+Super_L");
+        wm.key("Super+q");
+        assert_eq!(wm.tap, Some(true), "the swallowed chord went with Super");
+        let _ = wm.key_released("Super+Super_L");
+        assert!(!wm.menu.is_open(), "no tap after a swallowed chord");
+        wm.key("Super+Super_L");
+        let _ = wm.key_released("Super+Super_L");
+        assert!(wm.menu.is_open(), "Super alone still opens Start");
+    }
+
     /// ca-4: Super held and a drag with the left button on the desktop
     /// turns the cube; the release of Super after it opens no Start menu.
     #[test]
@@ -1125,6 +1148,43 @@ mod press {
             wm.press_node("unknown-surface", LEFT_BUTTON, [0.0, 0.0])
                 .len(),
             0
+        );
+    }
+
+    /// xp-17: Display Properties has a task button as Help has, and the
+    /// button goes with the dialog; a press on it takes the dialog to the top.
+    #[test]
+    fn display_properties_has_a_task_button_that_raises_it() {
+        let (mut wm, _methods) = wm_on_fake_core("display-task");
+        let created = |commands: &[Command]| {
+            commands.iter().any(|c| {
+                matches!(c, Command::Create { id, .. } if id == &format!("xp-task-{DISPLAY_TASK}-X"))
+            })
+        };
+        let commands = wm.open_display_dialog([0, 0, 1280, 770]);
+        let ids: Vec<&str> = commands
+            .iter()
+            .filter_map(|c| match c {
+                Command::Create { id, .. } => Some(id.as_str()),
+                _ => None,
+            })
+            .filter(|id| id.starts_with("xp-task-"))
+            .collect();
+        assert!(created(&commands), "no task button for Display: {ids:?}");
+        wm.open_help(0);
+        assert!(
+            !matches!(wm.panels.last(), Some(Panel::Display(_))),
+            "Help is on top"
+        );
+        let _ = wm.press_taskbar(taskbar::Part::Task(DISPLAY_TASK.into()));
+        assert!(
+            matches!(wm.panels.last(), Some(Panel::Display(_))),
+            "the button raised Display"
+        );
+        let closed = wm.close_panel(wm.panels.len() - 1);
+        assert!(
+            closed.iter().any(|c| matches!(c, Command::Remove { id, .. } if id == &format!("xp-task-{DISPLAY_TASK}-X"))),
+            "the button goes with the dialog"
         );
     }
 

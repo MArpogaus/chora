@@ -46,6 +46,10 @@ pub enum Look {
         content: String,
         region: Region,
     },
+    /// Does nothing and keeps the key from the window: the action of
+    /// every Super chord that no binding uses. It is not a setting.
+    #[serde(skip)]
+    Swallow,
 }
 
 /// What a binding does: an action of every look, or one of mc.

@@ -50,6 +50,7 @@ SETTLE = 0.4
 QUIET_GAP = 0.2
 TERM_WAIT = 8
 CAPTURE_SIDE = 320
+SNAPSHOT_TRIES = 5
 
 
 def load_png_rows():
@@ -275,6 +276,11 @@ def exempted(breach, exempt):
 def scene_texts(nodes):
     """{id: text} of the nodes that carry a text."""
     return {n.get("id"): n.get("text") for n in nodes if n.get("text")}
+
+
+def box_nodes(boxes):
+    """{(output, node)} of the boxes of `scene.boxes`: which nodes show, not where (a held cube moves)."""
+    return {(o, b.get("node")) for o, shown in (boxes or {}).items() for b in shown.get("boxes") or []}
 
 
 def fault(breach):
@@ -805,14 +811,24 @@ class Session:
         are read last, after the answers of the clients: a held cube read
         straight after its nodes showed one face alone in 2 of 5 runs."""
         outputs = self.outputs()
-        nodes, _, shots = self.settled_scene(outputs)
+        nodes, settled, shots = self.settled_scene(outputs)
         wallpaper = self.wallpaper
         if wallpaper is None:
             wallpaper = {o["name"] for o in outputs} if self.looks[0] in WALLPAPER else set()
         colours = {o["name"]: self.colours(o) for o in outputs if o["name"] in wallpaper}
         clients = self.clients()
+        states = self.states() if states is None else states
+        cube, blocks = self.cube(), self.blocks(clients)
+        boxes = self.core.call("scene.boxes")
+        for _ in range(SNAPSHOT_TRIES):
+            if box_nodes(boxes) == box_nodes(settled):
+                break
+            nodes, settled, shots = self.settled_scene(outputs)
+            boxes = self.core.call("scene.boxes")
+        if box_nodes(boxes) != box_nodes(settled):
+            print(f"harness: the boxes of {self.label} changed while the snapshot was read: the nodes, the pixels and the boxes may be of two moments", file=sys.stderr, flush=True)
         return Snapshot(
-            states=self.states() if states is None else states,
+            states=states,
             nodes=nodes,
             toplevels={n["id"] for n in nodes if n.get("kind") == "surface"},
             colours=colours,
@@ -821,9 +837,9 @@ class Session:
             events=list(events),
             logs=self.new_log_text(),
             outputs=outputs,
-            cube=self.cube(),
-            blocks=self.blocks(clients),
-            boxes=self.core.call("scene.boxes"),
+            cube=cube,
+            blocks=blocks,
+            boxes=boxes,
             shots=shots,
             exits=self.exits(),
         )

@@ -10,6 +10,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import re
 import shutil
 import struct
 import subprocess
@@ -301,6 +302,93 @@ class CompareDirs(unittest.TestCase):
         self.assertEqual(self.verdicts(), [("x1", "Q", "same")])
 
 
+class OpenAndNamedChecks(unittest.TestCase):
+    """TOUR-BASE r2: an act whose cause is not found is `open`, never `change`; a check row names its check;
+    a check that the baseline could not measure and the candidate reads red is said so."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.base, self.cand = pathlib.Path(self.tmp.name, "b"), pathlib.Path(self.tmp.name, "c")
+        self.addCleanup(self.tmp.cleanup)
+
+    def test_an_open_row_gives_the_verdict_open_not_change(self):
+        rows = [{"act": "m1", "kind": "rect", "cause": "mc-59", "open": True}]
+        v = diff.verdict("m1", [{"kind": "rect", "id": "n"}], True, rows)
+        self.assertEqual(v["verdict"], "open", v)
+        self.assertEqual(v["cause"], "mc-59")
+
+    def test_an_open_row_does_not_hide_an_unnamed_kind(self):
+        rows = [{"act": "m1", "kind": "rect", "cause": "mc-59", "open": True}]
+        v = diff.verdict("m1", [{"kind": "rect", "id": "n"}, {"kind": "missing", "id": "k"}], True, rows)
+        self.assertEqual((v["verdict"], v["unnamed"]), ("regression", ["missing"]), v)
+
+    def test_the_f7_count_fails_on_an_open_act(self):
+        write_capture(self.base, "m1.Q", data='{"nodes": [{"id": "n", "kind": "node", "rects": {"O": [0, 0, 9, 9]}}]}')
+        write_capture(self.cand, "m1.Q", data='{"nodes": [{"id": "n", "kind": "node", "rects": {"O": [50, 0, 9, 9]}}]}')
+        toml = pathlib.Path(self.tmp.name, "i.toml")
+        toml.write_text('[[change]]\nact = "m1"\nkind = "rect"\ncause = "mc-59"\nopen = true\n')
+        code, out, _ = run_tool("tour-diff.py", self.base, self.cand, "--intended", toml)
+        self.assertIn("1 open", out)
+        self.assertNotIn("1 change", out)
+        self.assertEqual(code, 1, out)
+
+    def test_a_check_row_with_a_name_does_not_absorb_another_check(self):
+        rows = [{"act": "c2", "kind": "check", "check": "I2", "cause": "co-44"}]
+        both = ({"I2": "green", "I6": "green"}, {"I2": "red", "I6": "red"})
+        v = diff.verdict("c2", [], True, rows, checks=both)
+        self.assertEqual((v["verdict"], v["flipped"]), ("regression", ["I6"]), v)
+        v = diff.verdict("c2", [], True, rows, checks=({"I2": "green"}, {"I2": "red"}))
+        self.assertEqual(v["verdict"], "change", v)
+
+    def test_a_check_row_without_a_name_still_absorbs_the_flips(self):
+        rows = [{"act": "c2", "kind": "check", "cause": "co-44"}]
+        v = diff.verdict("c2", [], True, rows, checks=({"I2": "green"}, {"I2": "red"}))
+        self.assertEqual(v["verdict"], "change", v)
+
+    def test_base_not_measured_and_cand_red_is_a_regression_unless_a_check_row_names_it(self):
+        """rtb2-2: a check the base marks "not measured" and the candidate reads red is a flip."""
+        write_capture(self.base, "x1.Q", data='{"nodes": [], "checks": {"I6": "not measured", "I2": "green"}}')
+        write_capture(self.cand, "x1.Q", data='{"nodes": [], "checks": {"I6": "red", "I2": "green"}}')
+        code, out, _ = run_tool("tour-diff.py", self.base, self.cand)
+        self.assertIn("I6 not measured (cand red)", out)
+        self.assertEqual(code, 1, out)
+        [row] = diff.compare(self.base, self.cand, [])
+        self.assertEqual((row["verdict"], row["flipped"], row["unmeasured"]), ("regression", ["I6"], ["I6"]), row)
+        other = [{"act": "x1", "kind": "check", "check": "I2", "cause": "co-44"}]
+        [row] = diff.compare(self.base, self.cand, other)
+        self.assertEqual((row["verdict"], row["flipped"]), ("regression", ["I6"]), row)
+        named = [{"act": "x1", "kind": "check", "check": "I6", "cause": "xp-39"}]
+        [row] = diff.compare(self.base, self.cand, named)
+        self.assertEqual((row["verdict"], row["cause"]), ("change", "xp-39"), row)
+
+    def test_a_kind_with_a_found_row_and_an_open_row_gives_open_in_either_order(self):
+        """rtb2-4: the open row is not dropped for the found one."""
+        found = {"act": "m1", "kind": "rect", "cause": "675ebd55 the mc column"}
+        opened = {"act": "m1", "kind": "rect", "cause": "mc-59 open", "open": True}
+        scene = [{"kind": "rect", "id": "n"}]
+        for rows in ([found, opened], [opened, found]):
+            v = diff.verdict("m1", scene, True, rows)
+            self.assertEqual(v["verdict"], "open", v)
+
+    def test_a_check_the_candidate_stops_measuring_is_not_same(self):
+        """rtb3-1: base green or red, candidate "not measured": a flip, absorbed only by a check row naming it."""
+        for was in ("green", "red"):
+            v = diff.verdict("a", [], True, [], ({"I6": was}, {"I6": "not measured"}))
+            self.assertEqual((v["verdict"], v.get("flipped")), ("regression", ["I6"]), v)
+        row = [{"act": "a", "kind": "check", "check": "I6", "cause": "xp-39"}]
+        v = diff.verdict("a", [], True, row, ({"I6": "green"}, {"I6": "not measured"}))
+        self.assertEqual(v["verdict"], "change", v)
+        v = diff.verdict("a", [], True, [], ({"I6": "not measured"}, {"I6": "not measured"}))
+        self.assertEqual(v["verdict"], "same", v)
+
+    def test_base_not_measured_and_cand_green_has_no_red_note(self):
+        write_capture(self.base, "x1.Q", data='{"nodes": [], "checks": {"I6": "not measured"}}')
+        write_capture(self.cand, "x1.Q", data='{"nodes": [], "checks": {"I6": "green"}}')
+        code, out, _ = run_tool("tour-diff.py", self.base, self.cand)
+        self.assertIn("I6 not measured", out)
+        self.assertNotIn("cand red", out)
+
+
 class IntendedRows(unittest.TestCase):
     def test_h2_lists_kinds_and_no_wildcard(self):
         import tomllib
@@ -308,6 +396,48 @@ class IntendedRows(unittest.TestCase):
         rows = tomllib.loads((HERE.parent / "demo/tour/intended.toml").read_text())["change"]
         h2 = sorted(r["kind"] for r in rows if r["act"] == "h2")
         self.assertEqual(h2, ["added", "meta", "rect"])
+
+
+class IntendedCauses(unittest.TestCase):
+    """TOUR-BASE r2 (rtb-2, rtb-5, rtb-6, rtb-7): what a row of intended.toml may claim."""
+
+    @classmethod
+    def rows(cls):
+        import tomllib
+
+        return tomllib.loads((HERE.parent / "demo/tour/intended.toml").read_text())["change"]
+
+    TOKEN = re.compile(r"\b(?=[0-9a-f]*\d)[0-9a-f]{8}\b|\b[a-z]{2,3}\d?-\d+\b")
+    """A cause is a commit (8 hex digits with a digit) or a finding id (`co-44`, `rv9-2`)."""
+
+    def test_a_row_names_at_most_three_causes_or_is_open(self):
+        """rtb2-3: the shas and finding ids of the cause text are counted, not its `; ` units; no row is grandfathered."""
+        wide = [(r["act"], r["kind"], len(set(self.TOKEN.findall(r["cause"])))) for r in self.rows() if len(set(self.TOKEN.findall(r["cause"]))) > 3 and not r.get("open")]
+        self.assertEqual(wide, [])
+
+    def test_no_row_cites_co_61_the_ledger_id_of_another_finding(self):
+        self.assertEqual([(r["act"], r["kind"]) for r in self.rows() if "co-61" in r["cause"]], [])
+
+    def test_a_check_row_names_its_check(self):
+        self.assertEqual([r["act"] for r in self.rows() if r["kind"] == "check" and not r.get("check")], [])
+
+    def test_xp_43_is_cited_only_on_the_acts_that_finding_names(self):
+        named = {"x10b", "x5e", "x5g", "x7", "x8", "x9b"}
+        self.assertEqual(sorted({r["act"] for r in self.rows() if "xp-43" in r["cause"]} - named), [])
+
+    UNPROVEN = ("cause not found", "(open)", "(proposed)")
+    UNPROVEN_FINDINGS = ("mc-59", "co-63", "xp-43")
+    """The findings whose ledger state is open with the cause not found (findings/mc.md:50, construct.md:65, xp.md:44)."""
+
+    def test_an_open_row_says_what_is_open(self):
+        self.assertEqual([(r["act"], r["kind"]) for r in self.rows() if r.get("open") and "open" not in r["cause"]], [])
+
+    def test_a_row_whose_cause_is_unproven_is_open(self):
+        """rtb2-1, two-way: a cause that says it is not found, open or proposed, or cites a finding that is open with
+        no cause found, is `open = true`; else tour-diff prints `change` and a later unrelated diff passes."""
+        marks = self.UNPROVEN + self.UNPROVEN_FINDINGS
+        unproven = [(r["act"], r["kind"]) for r in self.rows() if any(m in r["cause"] for m in marks) and not r.get("open")]
+        self.assertEqual(unproven, [])
 
 
 @unittest.skipUnless(shutil.which("ffmpeg"), "no ffmpeg")

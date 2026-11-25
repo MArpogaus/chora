@@ -70,6 +70,7 @@ impl Mc {
             Look::NextScene => names[(at + 1) % names.len()].clone(),
             Look::PreviousScene => names[(at + names.len() - 1) % names.len()].clone(),
             Look::Back => return self.step_back(),
+            Look::Swallow => return,
             Look::Scene(name) => name,
             Look::Toggle(region) => {
                 if let Err(err) = self.toggle(region, None, true) {

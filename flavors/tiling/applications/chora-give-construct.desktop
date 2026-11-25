@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Move window to the construct desktop
+Name[de]=Fenster auf den Construct-Desktop verschieben
+Comment=Hand the focused window to the construct desktop
+Comment[de]=Das Fenster mit dem Fokus an den construct-Desktop geben
+Exec=chora-tiling --launch give construct
+Icon=preferences-desktop
+Terminal=false
+Categories=Settings;
+Keywords=window;move;give;send;desktop;look;construct;

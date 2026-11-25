@@ -1,10 +1,10 @@
 //! The windows of the look: adopting, focusing, minimizing, forgetting, requests, tasks and hover.
 
 use super::{
-    Bar, ClientError, Command, DESKTOPS, Decoration, Dialog, HELP_TASK, Instant, MENUS, Menu, NAME,
-    Panel, Part, PropsUpdate, Rect, RpcError, SurfaceRequest, Task, Value, Window, Wm, change_keys,
-    close, context, decoration, desk_id, dropped_at, help, home_bar, restart, taskbar, window,
-    window_icon,
+    Bar, ClientError, Command, DESKTOPS, DISPLAY_TASK, Decoration, Dialog, HELP_TASK, Instant,
+    MENUS, Menu, NAME, Panel, Part, PropsUpdate, Rect, RpcError, SurfaceRequest, Task, Value,
+    Window, Wm, change_keys, close, context, decoration, desk_id, dropped_at, help, home_bar,
+    restart, taskbar, window, window_icon,
 };
 use chora_kit::wm::focus;
 
@@ -149,6 +149,9 @@ impl Wm {
     pub(super) fn activate(&mut self, surface: &str) -> Vec<Command> {
         if surface == HELP_TASK {
             return self.focus_help();
+        }
+        if surface == DISPLAY_TASK {
+            return self.focus_display();
         }
         let Some(i) = self.index(surface) else {
             return Vec::new();
@@ -486,6 +489,16 @@ impl Wm {
             .collect();
         drop(tasks);
         let mut lists = lists;
+        if let (Some(list), true) = (lists.first_mut(), self.has_display()) {
+            list.push(Task {
+                surface: DISPLAY_TASK,
+                title: crate::display::WINDOW_TITLE,
+                icon: self.icons.find("preferences-desktop-display"),
+                active: self.display_active(),
+                minimized: false,
+                hovered: hovered.as_deref() == Some(DISPLAY_TASK),
+            });
+        }
         if let (Some(list), true) = (lists.first_mut(), self.has_help()) {
             list.push(Task {
                 surface: HELP_TASK,
@@ -500,6 +513,40 @@ impl Wm {
         for (bar, list) in self.bars.iter_mut().zip(&lists) {
             commands.extend(bar.tasks(&mut self.theme, list));
         }
+        commands
+    }
+
+    /// Whether Display Properties is open.
+    pub(super) fn has_display(&self) -> bool {
+        self.panels.iter().any(|p| matches!(p, Panel::Display(_)))
+    }
+
+    /// Whether Display Properties has the focus: it, or its Effects, is the
+    /// topmost panel and no window has the focus.
+    pub(super) fn display_active(&self) -> bool {
+        self.focused.is_none()
+            && matches!(
+                self.panels.last(),
+                Some(Panel::Display(_) | Panel::Effects(_))
+            )
+    }
+
+    /// Takes Display Properties to the top, its Effects above it.
+    pub(super) fn focus_display(&mut self) -> Vec<Command> {
+        let mut commands = self
+            .raise_panel(|p| matches!(p, Panel::Display(_)))
+            .unwrap_or_default();
+        commands.extend(
+            self.raise_panel(|p| matches!(p, Panel::Effects(_)))
+                .unwrap_or_default(),
+        );
+        commands.extend(self.focus(None));
+        if let Some(panel) = self.panels.last() {
+            commands.push(Command::FocusNode {
+                node: Some(panel.window_ref().group()),
+            });
+        }
+        commands.extend(self.sync_tasks());
         commands
     }
 
@@ -595,6 +642,12 @@ impl Wm {
     pub(super) fn rest_tip(&mut self, node: &str, on: bool) -> Vec<Command> {
         if !on {
             return self.tip.cancel(Some(node));
+        }
+        if Menu::owns(node) {
+            if let Some((full, row)) = self.menu.cut_title(&self.theme, node) {
+                self.tip.rest(node, full, row, Instant::now());
+            }
+            return Vec::new();
         }
         let Some(output) = self.output_of(node) else {
             return Vec::new();

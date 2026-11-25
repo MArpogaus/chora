@@ -51,7 +51,7 @@ check() {
 
 run_gate() {
     : >"$work/git.log"
-    env -u CHORA_GATE_LOCK_HELD CHORA_GATE_LOCK="$work/gate.lock" \
+    env -u CHORA_GATE_LOCK_HELD MERGE_GATE_NESTED=1 CHORA_GATE_LOCK="$work/gate.lock" \
         PATH="$work/bin:$PATH" FAKE_GIT_LOG="$work/git.log" MERGE_GATE_STEPS="$work/steps" \
         MERGE_GATE_RUNS="$work/runs" "$gate" "$@" >"$work/out" 2>&1
     rc=$?
@@ -125,6 +125,16 @@ check "--only with an unknown step is a usage error" "$rc" 2
 run_gate --help
 check "--help exits 0" "$rc" 0
 
+poll_for() {
+    local tries=$1 n
+    shift
+    for ((n = 0; n < tries; n++)); do
+        "$@" && return 0
+        sleep 0.1
+    done
+    return 1
+}
+
 hold_lock() {
     rm -f "$work/held" "$work/released"
     (
@@ -134,10 +144,7 @@ hold_lock() {
         date +%s.%N >"$work/released"
     ) 9>"$work/gate.lock" &
     holder=$!
-    for _ in $(seq 50); do
-        [ -e "$work/held" ] && break
-        sleep 0.1
-    done
+    poll_for 50 test -e "$work/held"
 }
 after_release() {
     awk -v a="$(cat "$work/$1" 2>/dev/null || echo 0)" -v b="$(cat "$work/released" 2>/dev/null || echo 9e99)" \
@@ -811,11 +818,54 @@ rm -f "$work/orphan.pids"
 printf 'fail|sleep 1; exit 1\nsib|bash -c "echo \\$\\$ >>%s; sleep 60; : %s" & wait\n' "$work/orphan.pids" "$mark" >"$work/steps"
 run_gate --jobs 2
 check "orphan: a red step fails the gate" "$rc" 1
-sleep 0.5
+# shellcheck disable=SC2009
+orphans_gone() { [ "$(ps -eo args= | grep -c -e "${mark/mark/mar[k]}" | tr -d " ")" = 0 ]; }
+poll_for 50 orphans_gone
 # shellcheck disable=SC2009
 check "orphan: no process of a sibling step is alive after the gate exits" \
     "$(ps -eo args= | grep -c -e "${mark/mark/mar[k]}" | tr -d " ")" 0
 while read -r orphan_pid; do kill -KILL "$orphan_pid" 2>/dev/null; done <"$work/orphan.pids"
+
+cp "$(command -v sleep)" "$work/chora-leaky"
+printf '#!/bin/sh\necho $$ >>%s\nexec %s 61\n' "$work/leaky.pids" "$work/chora-leaky" >"$work/leaky.sh"
+chmod +x "$work/leaky.sh"
+leaky_start="setsid $work/leaky.sh </dev/null >/dev/null 2>&1 &"
+leaky_alive() {
+    local pid state n=0
+    while read -r pid; do
+        state=$(ps -o stat= -p "$pid" | cut -c1)
+        [ -z "$state" ] || [ "$state" = Z ] || n=$((n + 1))
+    done <"$work/leaky.pids" 2>/dev/null
+    echo "$n"
+}
+leaky_started() { [ "$(leaky_alive)" != 0 ]; }
+leaky_gone() { [ "$(leaky_alive)" = 0 ]; }
+leaky_end() {
+    local pid
+    while read -r pid; do kill -KILL "$pid" 2>/dev/null; done <"$work/leaky.pids" 2>/dev/null
+    rm -f "$work/leaky.pids"
+}
+rm -f "$work/leaky.pids"
+printf 'leaks|%s\nclean|true\n' "$leaky_start" >"$work/steps"
+run_gate --jobs 1
+check "stray: a step that leaves a chora process is FAIL" "$(grep -c '^leaks *FAIL ' "$work/out")" 1
+check "stray: the log names the left process" "$(grep -c 'left chora processes' "$work/out")" 1
+check "stray: the gate is red" "$rc" 1
+poll_for 50 leaky_gone
+check "stray: no left process is alive after the gate" "$(leaky_alive)" 0
+leaky_end
+
+printf 'hang|%s timeout 60 tail -f /dev/null\n' "$leaky_start" >"$work/steps"
+env -u CHORA_GATE_LOCK_HELD MERGE_GATE_NESTED=1 CHORA_GATE_LOCK="$work/gate.lock" PATH="$work/bin:$PATH" \
+    FAKE_GIT_LOG="$work/git.log" MERGE_GATE_STEPS="$work/steps" MERGE_GATE_RUNS="$work/runs" \
+    "$gate" --jobs 1 >"$work/out" 2>&1 &
+stray_gate=$!
+poll_for 50 leaky_started
+kill -TERM "$stray_gate"
+wait "$stray_gate"
+poll_for 50 leaky_gone
+check "stray: an interrupted gate leaves no chora process of its steps" "$(leaky_alive)" 0
+leaky_end
 
 [ "$failures" = 0 ] || {
     echo "FAIL: $failures checks of merge-gate-selftest"

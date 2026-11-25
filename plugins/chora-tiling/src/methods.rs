@@ -43,6 +43,18 @@ pub(super) fn layout_methods() -> Vec<ExportMethod> {
             json!({}),
             &[],
         ),
+        runtime::privileged(runtime::method(
+            "show_helper",
+            "Opens the chat with the helper, as MOD+a does: the click on the helper word of the bar calls it, so that the field gets the keyboard.",
+            json!({}),
+            &[],
+        )),
+        runtime::method(
+            "hide_keys",
+            "Hides the list of all keys when it shows; nothing otherwise. The launcher and the power menu call it before they open.",
+            json!({}),
+            &[],
+        ),
         runtime::method(
             "next_layout",
             "Goes to the next layout of the current tag, as the binding does.",

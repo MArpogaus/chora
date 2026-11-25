@@ -39,7 +39,7 @@ pub const ICON: Rect = [EDGE, 4, 16, 16];
 
 /// The shadow of the title text, active or not, one pixel to the bottom
 /// right: the inactive title, light on light blue, is 2.2:1 without it.
-pub const TITLE_SHADOW: [u8; 4] = [10, 30, 80, 255];
+pub const TITLE_SHADOW: [u8; 4] = [0x04, 0x10, 0x38, 255];
 
 /// A button of the title bar.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -358,7 +358,7 @@ fn frame(theme: &mut Theme, surface: &str, look: &Look<'_>) -> Command {
 
 /// The title bar left of the buttons: the text, and the handle to drag
 /// the window.
-fn title(theme: &mut Theme, surface: &str, look: &Look<'_>) -> Command {
+fn title_picture(look: &Look<'_>) -> Picture {
     let [w, _] = look.outer();
     let width = (Button::Minimize.x(w) - 2 * EDGE).max(1);
     let color = if look.active {
@@ -380,7 +380,11 @@ fn title(theme: &mut Theme, surface: &str, look: &Look<'_>) -> Command {
         [left, 0, width - left, TITLE],
     )
     .shadow(TITLE_SHADOW);
-    let picture = picture.text(text);
+    picture.text(text)
+}
+
+fn title(theme: &mut Theme, surface: &str, look: &Look<'_>) -> Command {
+    let picture = title_picture(look);
     Command::Update {
         id: title_id(surface),
         props: PropsUpdate {
@@ -509,7 +513,7 @@ mod tests {
 
     #[test]
     fn the_title_is_14_pixel_bold_with_the_dark_blue_shadow() {
-        assert_eq!(TITLE_SHADOW, [0x0A, 0x1E, 0x50, 255]);
+        assert_eq!(TITLE_SHADOW, [0x04, 0x10, 0x38, 255]);
         assert_eq!(chora_draw::text::BODY_SIZE, 14);
     }
 
@@ -567,6 +571,75 @@ mod tests {
             i32::from(r) - i32::from(g.max(b)) >= 60,
             "the inactive close button is {r},{g},{b}"
         );
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    fn luminance([r, g, b]: [u8; 3]) -> f64 {
+        let lin = |c: u8| {
+            let c = f64::from(c) / 255.0;
+            if c <= 0.03928 {
+                c / 12.92
+            } else {
+                ((c + 0.055) / 1.055).powf(2.4)
+            }
+        };
+        0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+    }
+
+    /// The contrast the act checks measure (tests/png-contrast.py): the
+    /// commonest colour of the box is the back, the colour farthest from it
+    /// the text.
+    fn contrast(image: &resvg::tiny_skia::Pixmap, [left, top, width, height]: [i32; 4]) -> f64 {
+        let pixels: Vec<[u8; 3]> = (top..top + height)
+            .flat_map(|y| (left..left + width).map(move |x| (x, y)))
+            .map(|(x, y)| crate::sheets::tests::rgb(image, x, y))
+            .collect();
+        let mut count = std::collections::HashMap::new();
+        for p in &pixels {
+            *count.entry(*p).or_insert(0_u32) += 1;
+        }
+        let back = *count.iter().max_by_key(|(_, n)| **n).expect("pixels").0;
+        let far = |p: &[u8; 3]| -> i32 {
+            (0..3)
+                .map(|i| (i32::from(p[i]) - i32::from(back[i])).pow(2))
+                .sum()
+        };
+        let fore = *pixels.iter().max_by_key(|p| far(p)).expect("pixels");
+        let (back, fore) = (luminance(back), luminance(fore));
+        (back.max(fore) + 0.05) / (back.min(fore) + 0.05)
+    }
+
+    /// The capture of a face of the cube scales the title and takes 5 %
+    /// off (4.55 on the frame is 4.31 there): 10 % to spare.
+    #[test]
+    fn an_inactive_title_reads_at_4_5_to_1_on_its_bar() {
+        let (mut theme, cache) = crate::sheets::tests::theme("title-contrast");
+        for title in ["Notepad", "chart", "Help and Support"] {
+            let look = Look {
+                title,
+                icon: None,
+                size: [300, 200],
+                active: false,
+                maximized: false,
+                pressed: None,
+                hovered: None,
+                framed: true,
+            };
+            let [w, _] = look.outer();
+            let bar = Picture::new(w, TITLE)
+                .frame(
+                    sheets::DECORATION,
+                    "decoration-inactive",
+                    [-SHADOW, -SHADOW, w + 2 * SHADOW, 60 + 2 * SHADOW],
+                )
+                .layers_of(title_picture(&look), [EDGE, 0]);
+            let image = crate::sheets::tests::draw(&mut theme, &bar);
+            let ratio = contrast(&image, [EDGE + 2, 4, 60, 20]);
+            assert!(
+                ratio >= 4.5 * 1.1,
+                "the inactive title {title:?} has {ratio:.2}:1, I6 wants 4.5:1 and a margin"
+            );
+        }
         let _ = std::fs::remove_dir_all(cache);
     }
 }

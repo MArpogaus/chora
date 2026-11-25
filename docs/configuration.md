@@ -287,9 +287,10 @@ its rows and 24 px more, centred on the current output, with the heading "Keys",
 "Super+F1 shows this list again. Esc closes it.", a line **Mouse** with the
 basics of the pointer (the Apps button starts a program, a click on a tag shows it,
 `Super+drag` moves a window, the power icon locks or ends the session) and the rows of every
-binding of the file in the groups Windows, Layouts, Tags, Programs and
-System: the keys on a keycap in JetBrains Mono, then the words of the
-action in Inter ("Next window"; the actions that every look has are named as in the other looks, `run` shows its command unless a label names it). Each group is
+binding of the file in the groups Windows (the first row is Move focus:
+`Super+J`, `Super+K` and `Alt+Tab`), Other desktops (titled "Other desktops: xp, media center, construct"; the give keys in one row, `Super+Alt+2-4` Move window to another desktop), Layouts, Tags,
+Programs and System: the keys on a keycap in JetBrains Mono, then the words of the
+action in Inter ("Move focus"; the actions that every look has are named as in the other looks, `run` shows its command unless a label names it). Each group is
 whole in one of two columns, and the columns are as even as they can be.
 The rows of a group go in the order of a person, not of the keys, rows
 are 24 px apart with caps of 20 px, or 22 px with caps of 18 px, or 20 px
@@ -344,7 +345,11 @@ With `modifier: Super`, no `Super` chord that no binding uses reaches a
 program: `chora-tiling` grabs `Super+KEY`, `Super+Shift+KEY` and
 `Super+Ctrl+KEY` for the letters, the digits, the punctuation, `F1` to
 `F12`, the navigation keys and `Print`, and swallows the ones that the
-file does not bind, so `Super+q` types no `q` in a terminal. A key that
+file does not bind, so `Super+q` types no `q` in a terminal. A swallowed
+chord shows the hint "Super+Q does nothing here. Super+F1 shows all
+keys." on the chip for 3 seconds, at most once in 10 seconds and not while
+the key list shows; `Super+q` stays unbound, as in the awesome keymap, and
+closes nothing (`MOD+q: close` in the file binds it). A key that
 the file binds keeps its action. With `modifier: Alt` nothing is
 swallowed: programs keep `Alt+b` of readline and `Alt+Left` of a browser.
 
@@ -361,12 +366,14 @@ later `settings.set` or `settings.reload` leaves it as it is.
 | `set_layout`, `get_layout` | see [API](api.md#plugin-methods) | the layout of the current tag |
 | `next_layout` | none | `next_layout` of the bindings: the next layout of the current tag, and shows the layout chip |
 | `show_keys` | none | `MOD+F1` and `MOD+slash`: shows the key list, or hides it |
+| `show_helper` | none | `MOD+a`: opens the chat with the helper and gives its field the keyboard; the helper word of the bar calls it, and the click that did so counts as the act of the person |
+| `hide_keys` | none | hides the key list when it shows, else nothing; the Apps list (`chora-tiling --launch fuzzel`) and the power menu call it before they open, so one overlay shows at a time |
 | `get_tags` | none, see [API](api.md#plugin-methods) | the tags of each output, for a panel |
 | `window.give` | `surface`, and `to`: a client name | `MOD+BTN_LEFT` with a drop on another window manager: hands the window to `to` (D55), and answers with its id |
 | `view_tag` | `tag`: a tag number | `MOD+1` to `MOD+9` |
 | `move_to_tag` | `surface`, `tag` | `MOD+Shift+1` to `MOD+Shift+9`, for this window |
 | `focus` | `surface` | a click: focuses and raises the window, and its output; a window that shows nowhere only gets the urgent mark |
-| `focus_next`, `focus_prev` | none | `MOD+j` and `MOD+k` |
+| `focus_next`, `focus_prev` | none | `MOD+j` and `MOD+k`; `focus_next` also `Alt+Tab` |
 | `swap_master` | `surface` | `MOD+Ctrl+Return`, for this window |
 | `settings.get`, `settings.set`, `settings.reload` | see [API](api.md#plugin-methods) | an edit of the file and `MOD+Ctrl+r` |
 
@@ -1613,7 +1620,9 @@ The package installs the tiling flavor (D51):
 ├── foot.ini                          # the terminal: JetBrains Mono, padding, the palette
 ├── fuzzel.ini                        # the launcher: opaque, the palette
 ├── swaylock.conf                     # the lock screen in the palette
-├── look.sh                           # Light look, Dark look and System look: look.theme at once
+├── look.sh                           # Light theme, Dark theme and System theme: look.theme at once
+├── give.sh                           # Move window to the xp desktop (and mc, construct): choractl give
+├── settings.sh                       # Edit settings: chora-tiling.yaml in $EDITOR (else vi) in foot
 ├── wallpaper.sh                      # swaybg again after a new theme, where no unit runs it
 ├── applications/                     # the entries of the three looks
 └── waybar/
@@ -1669,11 +1678,17 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   of 80 px, so the left island keeps its width through the layouts.
   The icons of **Apps**, **Keys** and the power sign are pictures in `waybar/icons/`, drawn as backgrounds, in the
   colours of the theme; **Apps** and **Keys** are drawn alike, in the colour
-  of the text. The doors (**Apps**, the helper word, **Keys** and the power
+  of the text. The doors (**Apps**, **Looks**, the helper word, **Keys** and the power
   icon) have no tooltip: a click shows what they open, and a tooltip under a
   pointer at rest would stand over a tile when the launcher or a new window
   takes the focus; the key list names their keys. The month of the clock
   marks today in bold and underlined.
+  **Looks**, after **Apps**, opens a menu with the prompt `Move this window to `
+  and one row for each other look that runs (a client of the core: xp, mc or
+  construct), in the words of the key list: `Move window to the xp desktop`.
+  A row hands the focused window over with `give.sh`, as `Super+Alt+2` to `4`
+  do. While no other look runs the menu has the one row `No other look is
+  running`, and Enter or Escape closes it (`chora-tiling --launch looks`).
   Digits are tabular, so a number sits in the middle of its pill.
   `waybar.sh` copies the style, the colours and the icons into the runtime
   directory, from `chora-tiling/theme/` when `chora-tiling` wrote it; a
@@ -1748,7 +1763,7 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   session without the variable finds it. The launcher lists the entries of
   `applications/` of the flavor and of the shared folder too: **Chat with a
   helper**, **Screenshot**, **Screenshot of an
-  area**, **Light look**, **Dark look** and **System look** are the way for the mouse. `chora-tiling --launch fuzzel` without arguments gives fuzzel the list itself, as rows of `fuzzel --dmenu`: the installed programs, sorted by name, so Enter alone starts the first program by name and takes no screenshot. An entry whose program is not installed is no row. Text that matches no row finds programs by their keywords, their generic name or their command. Text whose first word is an installed program runs as a command. After any other text the list shows again under the row `Nothing found for "TEXT"`. The looks set `look.theme` to `paper`, `ink` or `system` with `settings.set` and apply it at once; `system`, the default, follows the colour scheme of the system. The terminal is JetBrains Mono at 10.5 pt with 16 px of
+  area**, **Light theme**, **Dark theme**, **System theme** and **Move window to the xp desktop** (also the media center and the construct desktop; `give.sh` hands the focused window over like `Super+Alt+2` to `4`, with a notice when it cannot) are the way for the mouse. `chora-tiling --launch fuzzel` without arguments gives fuzzel the list itself, as rows of `fuzzel --dmenu`: the row **Chat with a helper** first (Enter on the preselected row opens the chat, and Escape closes it), then the installed programs, sorted by name, then the rows of the flavor (the theme rows, **Edit settings** and the rows that move a window), so that the nine rows that fuzzel shows always hold the helper, and no Enter takes a screenshot or changes the theme. An entry whose program is not installed is no row. Text that matches no row finds programs by their keywords, their generic name or their command. Text whose first word is an installed program runs as a command. After any other text the list shows again under the row `Nothing found for "TEXT"`. The looks set `look.theme` to `paper`, `ink` or `system` with `settings.set` and apply it at once; `system`, the default, follows the colour scheme of the system. The terminal is JetBrains Mono at 10.5 pt with 16 px of
   padding, so no text touches the rounded corner. `MOD+a` starts `chora-chat`, which opens the chat
   with a helper.
 - **The power menu and screenshots**: `MOD+Shift+e` and the power icon of

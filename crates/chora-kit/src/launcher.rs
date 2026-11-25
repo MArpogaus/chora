@@ -11,7 +11,10 @@ use std::{
     process::{Command, Stdio},
 };
 
-use crate::desktop_entry::{self, Entry};
+use crate::{
+    desktop_entry::{self, Entry},
+    words::{Language, Word},
+};
 
 /// How often the list shows again after text that found nothing.
 const ROUNDS: usize = 8;
@@ -57,14 +60,94 @@ pub fn apps(
     apps
 }
 
-/// The program of the row that opens the chat with a helper.
-const HELPER_PROGRAM: &str = "chora-chat";
+/// The program of the row that opens the chat with a helper, and of the
+/// helper word of the bar.
+pub const HELPER_PROGRAM: &str = "chora-chat";
 
-/// The programs with the row of the chat with a helper after the others,
-/// each group sorted as before. The program is the last of the words.
+/// The programs of the rows that the flavor of tiling adds to its Apps
+/// list: its theme rows, its settings row and its rows that move a window.
+const FLAVOR_ROWS: [&str; 3] = ["look", "settings", "give"];
+
+/// Whether the program is a row of the flavor of tiling: `chora-tiling
+/// --launch look|settings|give`. The screenshot rows of the shared folder
+/// are programs.
+fn flavor_row(app: &App) -> bool {
+    let mut words = app.command.split_whitespace();
+    words.next() == Some("chora-tiling")
+        && words.next() == Some("--launch")
+        && words.next().is_some_and(|w| FLAVOR_ROWS.contains(&w))
+}
+
+/// The Apps list of tiling: the row of the chat with a helper first, so
+/// that the nine rows that fuzzel shows always hold it and Enter on the
+/// preselected row opens a chat; then the programs; then the rows of the
+/// flavor. Each group stays sorted as it was. The program of the helper row
+/// is the last of the words.
 #[must_use]
-pub fn helper_last(mut apps: Vec<App>) -> Vec<App> {
-    apps.sort_by_cached_key(|a| a.words.last().is_some_and(|w| w == HELPER_PROGRAM));
+pub fn tiling_order(mut apps: Vec<App>) -> Vec<App> {
+    let group = |a: &App| {
+        if a.words.last().is_some_and(|w| w == HELPER_PROGRAM) {
+            0
+        } else if flavor_row(a) {
+            2
+        } else {
+            1
+        }
+    };
+    apps.sort_by_cached_key(group);
+    apps
+}
+
+/// The name of the helper in the words of a door (`atlas · idle`, from
+/// `chora-chat --door`); none for the door without a helper (`No helper`)
+/// and for an empty one.
+#[must_use]
+pub fn helper_of_door(door: &str) -> Option<String> {
+    let door = door.trim();
+    let none = [Language::En, Language::De].map(|l| Word::NoHelperDoor.text(l));
+    if door.is_empty() || none.contains(&door) {
+        return None;
+    }
+    door.split(" · ")
+        .next()
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .map(str::to_owned)
+}
+
+/// The name of the helper that its door says, from `chora-chat --door`;
+/// none without a helper, without the program, or when it does not answer
+/// within two seconds.
+#[must_use]
+pub fn helper_name() -> Option<String> {
+    let (send, receive) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let out = Command::new(HELPER_PROGRAM)
+            .arg("--door")
+            .stderr(Stdio::null())
+            .output()
+            .ok()
+            .filter(|out| out.status.success());
+        let _ = send.send(out.map(|out| String::from_utf8_lossy(&out.stdout).into_owned()));
+    });
+    let door = receive
+        .recv_timeout(std::time::Duration::from_secs(2))
+        .ok()??;
+    helper_of_door(&door)
+}
+
+/// The row of the chat with a helper names the helper: `Chat with a
+/// helper (atlas)`, so that its name finds it as the word helper does. The
+/// name stands in plain ASCII: fuzzel in the C locale matches no row that has
+/// a multibyte character such as the middle dot of a door word.
+#[must_use]
+pub fn helper_named(mut apps: Vec<App>, name: &str) -> Vec<App> {
+    for app in apps
+        .iter_mut()
+        .filter(|a| a.words.last().is_some_and(|w| w == HELPER_PROGRAM))
+    {
+        app.name = format!("{} ({name})", app.name);
+    }
     apps
 }
 
@@ -279,17 +362,27 @@ fn entry_dirs(first: Option<PathBuf>, shared: &[PathBuf], xdg: Vec<PathBuf>) -> 
 /// directory in front of the folder that every look shares and the XDG
 /// ones, for the entries of a flavor.
 pub fn run(fuzzel: &[String], terminal: &str, first: Option<PathBuf>) {
-    run_ordered(fuzzel, terminal, first, false);
+    run_ordered(fuzzel, terminal, first, false, None);
 }
 
-/// Like [`run`], and with `helper_last` the row of the chat with a helper
-/// stands after the programs.
-pub fn run_ordered(fuzzel: &[String], terminal: &str, first: Option<PathBuf>, helper_last: bool) {
+/// Like [`run`], and with `ordered` the list is in the order of
+/// [`tiling_order`]; with a `helper` name the row of the chat names that
+/// helper.
+pub fn run_ordered(
+    fuzzel: &[String],
+    terminal: &str,
+    first: Option<PathBuf>,
+    ordered: bool,
+    helper: Option<&str>,
+) {
     let dirs = entry_dirs(first, &crate::shared::dirs(), crate::xdg::data_dirs());
     let entries = desktop_entry::applications_in(&dirs);
     let mut apps = apps(entries, terminal, desktop_entry::on_path);
-    if helper_last {
-        apps = self::helper_last(apps);
+    if ordered {
+        apps = tiling_order(apps);
+    }
+    if let Some(name) = helper {
+        apps = helper_named(apps, name);
     }
     if let Some(command) = choose_reporting(fuzzel, &apps, &mut tell) {
         crate::launch::run(&command, None);
@@ -330,7 +423,12 @@ mod tests {
     }
 
     #[test]
-    fn the_helper_row_can_stand_after_the_programs() {
+    fn the_helper_row_names_the_helper_that_the_door_names() {
+        assert_eq!(helper_of_door("atlas · idle").as_deref(), Some("atlas"));
+        assert_eq!(helper_of_door("coder").as_deref(), Some("coder"));
+        assert_eq!(helper_of_door("No helper"), None);
+        assert_eq!(helper_of_door("Kein Helfer"), None);
+        assert_eq!(helper_of_door("  "), None);
         let list = apps(
             [
                 entry("Chat with a helper", "chora-chat"),
@@ -339,9 +437,39 @@ mod tests {
             "foot",
             |_| true,
         );
-        assert_eq!(list[0].name, "Chat with a helper");
-        let names: Vec<String> = helper_last(list).into_iter().map(|a| a.name).collect();
-        assert_eq!(names, ["Zed", "Chat with a helper"]);
+        let names: Vec<String> = helper_named(list, "atlas")
+            .into_iter()
+            .map(|a| a.name)
+            .collect();
+        assert_eq!(names, ["Chat with a helper (atlas)", "Zed"]);
+    }
+
+    #[test]
+    fn the_helper_row_stands_first_and_the_flavor_rows_last() {
+        let list = apps(
+            [
+                entry("Dark theme", "chora-tiling --launch look dark"),
+                entry("Chat with a helper", "chora-chat"),
+                entry("Zed", "foot"),
+                entry("Edit settings", "chora-tiling --launch settings"),
+                entry("Alpha", "foot --alpha"),
+                entry("Shot", "chora-tiling --launch screenshot"),
+            ],
+            "foot",
+            |_| true,
+        );
+        let names: Vec<String> = tiling_order(list).into_iter().map(|a| a.name).collect();
+        assert_eq!(
+            names,
+            [
+                "Chat with a helper",
+                "Alpha",
+                "Shot",
+                "Zed",
+                "Dark theme",
+                "Edit settings"
+            ]
+        );
     }
 
     fn on_path(program: &str) -> bool {
@@ -355,11 +483,11 @@ mod tests {
                 entry("terminal", "foot"),
                 Entry {
                     keywords: vec!["Theme".into(), "colour".into()],
-                    ..entry("Dark look", "look dark")
+                    ..entry("Dark theme", "look dark")
                 },
                 Entry {
                     keywords: vec!["theme".into()],
-                    ..entry("Light look", "look light")
+                    ..entry("Light theme", "look light")
                 },
                 Entry {
                     generic: "Text Editor".into(),
@@ -392,8 +520,8 @@ mod tests {
         assert_eq!(
             names,
             [
-                "Dark look",
-                "Light look",
+                "Dark theme",
+                "Light theme",
                 "Monitor",
                 "Notes",
                 "Screenshot",
@@ -426,7 +554,7 @@ mod tests {
             panic!("two programs")
         };
         let names: Vec<&str> = found.iter().map(|a| a.name.as_str()).collect();
-        assert_eq!(names, ["Dark look", "Light look"]);
+        assert_eq!(names, ["Dark theme", "Light theme"]);
     }
 
     #[test]

@@ -245,3 +245,37 @@ fn the_renderer_sizes_the_chip_word_and_names_no_missing_word() {
     assert_eq!(tiling.measured("tiling-chip-word"), Some([64.0, 24.0]));
     assert_eq!(tiling.measured("tiling-chip-missing"), None);
 }
+
+/// One tiling overlay at a time (ti-27): the helper panel that opens takes
+/// the place of the key list, and a closed one does not touch it.
+#[test]
+fn an_opening_helper_panel_closes_the_key_list() {
+    use chora_scene::Event;
+    let (mut tiling, _) = on_fake_core("overlay-helper");
+    one_window(&mut tiling);
+    tiling.toggle_keys().unwrap();
+    assert!(tiling.keys_open());
+    let chat = |open: bool| Event::Emitted {
+        event: "assistant.chat".into(),
+        client: "assistant".into(),
+        data: json!({"output": "X", "open": open, "rect": [300, 0, 100, 300]}),
+    };
+    tiling.handle(chat(false)).unwrap();
+    assert!(tiling.keys_open(), "a closed panel leaves the key list");
+    tiling.handle(chat(true)).unwrap();
+    assert!(!tiling.keys_open(), "an open panel closes the key list");
+}
+
+/// The launcher and the power menu ask tiling to close the key list
+/// before they open (`hide_keys`); with none open it does nothing.
+#[test]
+fn the_method_hide_keys_closes_the_key_list_and_is_idempotent() {
+    let (mut tiling, _) = on_fake_core("overlay-hide-keys");
+    one_window(&mut tiling);
+    tiling.toggle_keys().unwrap();
+    assert!(tiling.keys_open());
+    tiling.tune("hide_keys", json!({})).unwrap();
+    assert!(!tiling.keys_open(), "hide_keys closes the list");
+    tiling.tune("hide_keys", json!({})).unwrap();
+    assert!(!tiling.keys_open(), "and again nothing happens");
+}

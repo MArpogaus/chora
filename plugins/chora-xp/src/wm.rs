@@ -105,6 +105,9 @@ const SWITCHER: &str = "xp-alttab";
 /// buttons and Alt+Tab, in the place of a surface. It has no dash, which
 /// the ids of task buttons split at.
 const HELP_TASK: &str = "helppanel";
+/// The name that the open Display Properties has for the task buttons, as
+/// [`HELP_TASK`] has for Help.
+const DISPLAY_TASK: &str = "displaypanel";
 /// How long a taskbar that hides itself waits after the pointer left it.
 const HIDE_DELAY: Duration = Duration::from_millis(500);
 /// The left mouse button.
@@ -831,9 +834,9 @@ fn of_the_cube(action: &KeyAction) -> bool {
 
 /// Grabs the bindings of the settings with those of the cube that `cube`
 /// names; a binding of the cube that another client holds falls back to
-/// its stand-in. On a face of a cube (no cube of its own) xp is the
-/// window manager of the face, so it then swallows the Super chords that
-/// it binds no action for: no window gets them.
+/// its stand-in. Xp is the window manager of its screen or face, so it
+/// swallows the Super chords that it binds no action for: no window gets
+/// them (xp-46).
 #[allow(clippy::expect_used, reason = "the settings check their bindings")]
 fn grab_keys(
     rt: &mut Runtime<KeyAction>,
@@ -851,10 +854,7 @@ fn grab_keys(
             }
         }
     }
-    if matches!(cube, CubeKeys::Flat | CubeKeys::Hosted) {
-        rt.grab_swallowed("Super", &KeyAction::Look(Look::Swallow))?;
-    }
-    Ok(())
+    rt.grab_swallowed("Super", &KeyAction::Look(Look::Swallow))
 }
 
 /// Changes the grabs to the keys with or without those of the cube. A
@@ -994,11 +994,19 @@ mod tests {
     ///
     /// The windows of these cells are not in the scene: the fake core takes
     /// the commands as they come, and the test reads them.
+    pub(super) fn wm_on_fake_core(tag: &str) -> (Wm, Log) {
+        wm_on_fake_core_logging(tag, |method, _| Some(method.to_owned()))
+    }
+
+    /// As [`wm_on_fake_core`], the log holding what `line` makes of each request.
     #[allow(
         clippy::disallowed_methods,
         reason = "the test answers the requests of its fake core"
     )]
-    pub(super) fn wm_on_fake_core(tag: &str) -> (Wm, Log) {
+    pub(super) fn wm_on_fake_core_logging(
+        tag: &str,
+        line: impl Fn(&str, &Value) -> Option<String> + Send + Sync + 'static,
+    ) -> (Wm, Log) {
         let dir = chora_kit::testing::TempDir::new(&format!("chora-xp-wm-{tag}")).keep();
         std::fs::create_dir_all(&dir).unwrap();
         let output = chora_scene::OutputInfo {
@@ -1018,7 +1026,7 @@ mod tests {
             "scene.apply" => Some(Value::Null),
             _ => None,
         });
-        let methods = core.record(|method, _| Some(method.to_owned()));
+        let methods = core.record(line);
         (wm_on(core.runtime(NAME), &dir), methods)
     }
 
@@ -1107,8 +1115,7 @@ mod tests {
 
     /// On a face of a cube, xp is the window manager: a Super chord that
     /// it binds no action for is its own, so no window gets it. A chord
-    /// it binds keeps its action, and on a screen of its own xp swallows
-    /// nothing.
+    /// it binds keeps its action; the same holds on a screen of its own.
     #[test]
     fn on_a_face_xp_swallows_the_super_chords_it_binds_nothing_for() {
         for cube in [CubeKeys::Flat, CubeKeys::Hosted] {
@@ -1137,13 +1144,21 @@ mod tests {
                 "{cube:?}"
             );
         }
-        let (mut rt, _calls) = on_fake_core("own-no-swallow");
+    }
+
+    /// xp-46 (rpx1-1): on a screen of its own xp swallows them too.
+    #[test]
+    fn on_a_screen_xp_swallows_the_super_chords_it_binds_nothing_for() {
+        let (mut rt, _calls) = on_fake_core("own-swallow");
         let bindings = crate::config::defaults().common.bindings;
         grab_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
-        assert!(
-            rt.action("Super+q").is_none(),
-            "a screen of xp swallows none"
-        );
+        for chord in ["Super+x", "Super+k", "Super+m", "Super+q"] {
+            assert!(
+                rt.action(chord).is_some(),
+                "xp-46: {chord} is free on a screen of xp, so it types into a window"
+            );
+        }
+        assert!(rt.action("Alt+q").is_none(), "another modifier is left");
     }
 
     /// A press of the binding `Super+BTN_RIGHT` that the user moved to
@@ -1187,12 +1202,18 @@ mod tests {
         let mut bindings = crate::config::defaults().common.bindings;
         bindings.insert("Ctrl+Alt+Left".into(), KeyAction::System(System::Close));
         grab_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
-        let calls = calls.lock().unwrap().clone();
-        assert!(
-            !calls.iter().any(|c| c.contains("Ctrl+Super+Left")),
-            "{calls:?}"
+        let grabs = (calls.lock().unwrap().iter())
+            .filter(|c| *c == "input.grab Ctrl+Super+Left")
+            .count();
+        assert_eq!(
+            grabs, 1,
+            "only the swallow grabs Ctrl+Super+Left, no stand-in"
         );
-        assert!(rt.action("Ctrl+Super+Left").is_none());
+        assert_eq!(
+            rt.action("Ctrl+Super+Left"),
+            Some(&KeyAction::Look(Look::Swallow)),
+            "no turn of the cube, only the swallow of the free chord"
+        );
         let (mut rt, _calls) = on_fake_core_refusing("stand-in", &["Ctrl+Alt+Left"]);
         let bindings = crate::config::defaults().common.bindings;
         grab_keys(&mut rt, &bindings, CubeKeys::Own).unwrap();
@@ -1214,8 +1235,8 @@ mod tests {
         change_keys(&mut rt, &bindings, CubeKeys::Hosted).unwrap();
         let sent = std::mem::take(&mut *calls.lock().unwrap());
         assert!(
-            sent.iter().any(|c| c == "input.grab Super+q"),
-            "on a face the unbound chords are swallowed: {sent:?}"
+            !sent.iter().any(|c| c.ends_with(" Super+q")),
+            "the swallowed chords stay grabbed in between: {sent:?}"
         );
         let mut gone: Vec<String> = sent
             .into_iter()
@@ -1250,7 +1271,6 @@ mod tests {
                 "{kept} is free in between: {back:?}"
             );
         }
-        assert!(rt.action("Super+q").is_none(), "no swallow on a screen");
     }
 
     /// A key does what its binding says, whatever the spelling: Super+F1

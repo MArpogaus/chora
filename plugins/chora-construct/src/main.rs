@@ -744,7 +744,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// The events of the plugin.
-const EVENTS: [&str; 24] = [
+const EVENTS: [&str; 25] = [
     "voice.*",
     "assistant.ready",
     "assistant.chat",
@@ -752,6 +752,7 @@ const EVENTS: [&str; 24] = [
     modes::FLOATING,
     "client.connected",
     "client.disconnected",
+    "input.ungrabbed",
     "effects.dropped",
     "layers.dropped",
     "surface.created",

@@ -73,17 +73,17 @@ ok "the theme follows a change of the system without a reload"
 export CHORA_FLAVOR_DIR=$repo/flavors/tiling
 "$bin/chora-tiling" --launch look dark || fail "launch look dark"
 sleep 1
-[ "$(cat "$theme/scheme")" = ink ] || fail "Dark look does not give Ink while the system says light: $(cat "$theme/scheme")"
-grep -q '^  theme: ink' "$XDG_CONFIG_HOME/chora/chora-tiling.yaml" || fail "Dark look is not in the file"
+[ "$(cat "$theme/scheme")" = ink ] || fail "Dark theme does not give Ink while the system says light: $(cat "$theme/scheme")"
+grep -q '^  theme: ink' "$XDG_CONFIG_HOME/chora/chora-tiling.yaml" || fail "Dark theme is not in the file"
 "$bin/chora-tiling" --launch look light || fail "launch look light"
 sleep 1
-[ "$(cat "$theme/scheme")" = paper ] || fail "Light look does not give Paper"
+[ "$(cat "$theme/scheme")" = paper ] || fail "Light theme does not give Paper"
 echo "v u 1" >"$fake/scheme"
 "$bin/chora-tiling" --launch look system || fail "launch look system"
 sleep 1
-[ "$(cat "$theme/scheme")" = ink ] || fail "System look does not follow the system again"
-! grep -qE '^  theme: (ink|paper)' "$XDG_CONFIG_HOME/chora/chora-tiling.yaml" || fail "System look leaves a fixed theme in the file"
-ok "Light look, Dark look and System look set the theme at once and go back to the default"
+[ "$(cat "$theme/scheme")" = ink ] || fail "System theme does not follow the system again"
+! grep -qE '^  theme: (ink|paper)' "$XDG_CONFIG_HOME/chora/chora-tiling.yaml" || fail "System theme leaves a fixed theme in the file"
+ok "Light theme, Dark theme and System theme set the theme at once and go back to the default"
 echo "v u 2" >"$fake/scheme"
 
 rm -rf "$fake/out"

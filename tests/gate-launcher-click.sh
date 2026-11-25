@@ -10,9 +10,14 @@
 # with one move therefore finds the first row highlighted and starts it (the
 # helper chat, in the rounds of 2026-11-20), where a hand, which moves the
 # pointer many times, starts the row under it. The cell uses the harness only:
-# act.py look, click Apps or Programs, click the Mid row. Mid, the second row
-# of the list in tiling (the helper row stands last) and the third in the
-# construct (the helper row stands first), must start, and
+# act.py look, click Apps or Programs, click the Mid row. The test rows are
+# named Aa, Ab and Ac so that they stand before every row the flavor ships
+# (Edit settings, the themes, Screenshot): the Mid row is the second program,
+# the third row of the tiling list, where the helper row stands first
+# (ti-50), and the second of the construct, but the list is centred, so its y
+# follows the number of rows up to the 9 that fuzzel.ini shows (lines=9), and
+# the click takes the y of a list that is full. Mid, the second row
+# of the list in both looks, must start, and
 # Alpha, the highlighted first row, must not.
 #
 # 1. tests/test_act_pointer.py (judged at the end): act.py click, drag, move and scroll without
@@ -73,7 +78,7 @@ row() {
     dir=$(mktemp -d /tmp/launcher-click.XXXXXX)
     tmp_dirs+=("$dir")
     mkdir -p "$dir/data/applications"
-    for p in alpha:Alpha mid:Mid zebra:Zebra; do
+    for p in alpha:'Aa Alpha' mid:'Ab Mid' zebra:'Ac Zebra'; do
         printf '[Desktop Entry]\nType=Application\nName=%s\nExec=foot -a %s sh -c "sleep 600"\n' "${p#*:}" "${p%%:*}" \
             >"$dir/data/applications/${p%%:*}.desktop"
     done
@@ -120,8 +125,8 @@ row() {
     stop_session
 }
 
-row tiling 35 15 400 259
-row construct 96 32 400 196
+row tiling 35 15 400 230
+row construct 96 32 400 184
 if [ -n "$unit_failed" ]; then
     cat "$unit_log" >&2
     fail "act.py click or drag does not move the pointer as a hand does (tests/test_act_pointer.py)"
