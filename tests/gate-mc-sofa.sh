@@ -478,6 +478,28 @@ cell_keylist() {
     until_ok '! has_text "Show overview"' 20 || fail "Super+F1 does not close the list"
 }
 
+cell_page_end() {
+    local card page foot
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    key Super+Right
+    until_ok '[ "$(current)" = morning ]' 20 || fail "no morning: $(current)"
+    panel morning overnight '["Then", "Toss the drained spaghetti in the pan with a splash of the pasta water and the parsley, then serve it at once with a little grated cheese on top."]'
+    ctl call mc notify.clear '{}' >/dev/null
+    ctl call mc notify.push '{"title": "Timer: spaghetti, 9 minutes", "body": "Started by voice"}' >/dev/null || fail "notify.push"
+    until_ok '[ "$(ctl call notify state.get "{}" | jq "[.shown[].summary] | length")" -ge 1 ]' 20 || fail "no card"
+    sleep 2
+    shot page-end
+    card=$(ctl call notify state.get '{}' | jq -c '.shown[0].rect')
+    page=$(node_rect mc-s-morning-page)
+    foot=$(text_rect "→ 3  Helpers")
+    jq -ne --argjson c "$card" --argjson p "$page" '$p[1] + $p[3] <= $c[1]' >/dev/null ||
+        fail "the page $page reaches under the timer card $card (rpx1-11): the page does not reserve its height"
+    jq -ne --argjson f "$foot" --argjson p "$page" '$p[1] + $p[3] <= $f[1]' >/dev/null ||
+        fail "the page $page reaches under the footer line $foot (rpx1-12)"
+    ctl call mc notify.clear '{}' >/dev/null
+}
+
 failed=()
 skipped=()
 ran=0
@@ -496,7 +518,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist remote-back launcher-click-row)
+cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist page-end remote-back launcher-click-row)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done
