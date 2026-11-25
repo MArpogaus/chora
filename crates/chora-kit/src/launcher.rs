@@ -256,6 +256,30 @@ fn ask(fuzzel: &[String], rows: &[&str]) -> Asked {
     }
 }
 
+/// [`ask`], and when a fuzzel with a `--config FILE` fails (a fuzzel that
+/// does not know a key of the file, as 1.9.2 does not know `prompt`, exits
+/// at once), once more without the config: the launcher in the plain look
+/// is a way to start a program, a launcher that shows nothing is none.
+fn ask_or_plain(fuzzel: &[String], rows: &[&str]) -> Asked {
+    let asked = ask(fuzzel, rows);
+    match (&asked, without_config(fuzzel)) {
+        (Asked::Failed(_), Some(plain)) => ask(&plain, rows),
+        _ => asked,
+    }
+}
+
+/// The command without its `--config FILE` (or `--config=FILE`), or
+/// none when it has no config.
+fn without_config(fuzzel: &[String]) -> Option<Vec<String>> {
+    let at = fuzzel
+        .iter()
+        .position(|arg| arg == "--config" || arg.starts_with("--config="))?;
+    let width = if fuzzel[at] == "--config" { 2 } else { 1 };
+    let mut plain = fuzzel.to_vec();
+    plain.drain(at..(at + width).min(fuzzel.len()));
+    Some(plain)
+}
+
 /// The reason without the "<file>.c:<line>: " that fuzzel puts in front
 /// of it: a person has no use for its source position.
 fn without_position(why: &str) -> &str {
@@ -299,7 +323,7 @@ pub fn choose_reporting(
             .into_iter()
             .chain(rows.iter().copied())
             .collect();
-        let line = match ask(fuzzel, &shown) {
+        let line = match ask_or_plain(fuzzel, &shown) {
             Asked::Line(line) => line,
             Asked::Closed => return None,
             Asked::Failed(why) => {
