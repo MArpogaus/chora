@@ -191,3 +191,26 @@ Three earlier gate runs stopped on: lint-ratchet (allow 361 > 360, fixed in 4591
 - The persona round (r10) has not run: whether a persona now reads "Looks: xp" as the door is not measured here.
 - The T7 goal wording lives in the README only; the driver brief must copy it.
 - Out of scope and untouched: rth-*, rtd-*, rv9j-*, ti-31, ti-49, Super+q binding, I6, the L1 contract. rtd1-4 (a click on Looks with a failing `clients.list` shows nothing) still stands.
+
+## Review r2
+
+Reviewer lane (cloud, read-only on code): claude/tiling-doors-r2 head fa676de8, base 721be592. Step 0 green (`git fetch --unshallow`, `cargo check --workspace`). Ran: `cargo test -p chora-tiling` (205 ok, the 4 `ti_56` and the `ti_55` word test ok), `python3 -I tests/persona/test_check.py` (61 OK), `python3 -I tests/test_acts.py` (OK). No merge gate (the lane ran it, EXIT 0).
+
+Checks:
+1) Red first: b0ec5f10 (tests only) precedes 9d416c21, 2ae1e3ff, 3142aea3. 45914b6b changes no behaviour (println -> writeln, lint). a8d2ce57 (launch name with pid) brings its only test, `looks-word-parallel`, in the same commit: rtd2-1.
+2) ti-55: `Looks` / `Looks: xp` / `Looks: xp, mc` from `looks::word`, `interval: 2`, no core -> `Looks` (connect error -> Null, and the `|| echo` of looks.sh). Bar with xp at 1280: the left island ends at the clock island (capture), no overlap; two or three looks not captured (rtd2-6). The click leads to "Move this window to"; whether a beginner reads "Looks: xp" as the door is the r10 persona's to measure.
+3) `chora-tiling.launch` is named nowhere else (core, tests, docs, chora-kit). The core's per-name maps (graces, emits) do not grow: emits are pruned per window, graces only with resume. The leak gate starts chora-tiling without waybar, so its asserts are unchanged and the poll is not in it (rtd2-5). No core log line per connect.
+4) ti-56: HINT_TIME 8 s; `hint_unbound` unchanged apart from its comment (once per 10 s, not while the key list shows); the new test passes `key + 7 s` / `key + 9 s` to `end_chip`, no sleep.
+5) L2: FAIL when disk value == begin value, or running (`get_layout` gap_inner) != disk; digest gone; a comment-only change is red (test). In a real tiling session `Session.looks` holds tiling, so a missing file is measured (red), not "not measured"; that branch has no test (rtd2-2).
+6) tests/gate-doors.sh only adds names; test_acts.py's L2 test is stricter (a third case); doors/tiling.sh adds cells, no new sleep (`until_ok`). docs/configuration.md matches (8 s; 2 s read); tests/persona/README.md line 141 does not (rtd2-3).
+
+Findings:
+- rtd2-1 | MAJOR | plugins/chora-tiling/src/main.rs:286 (a8d2ce57) | the launch-name fix lands with its only test (`looks-word-parallel`) in the same commit, no red before it; and the cell is no reliable red (the lane saw it pass 3x standalone with the old name) | add a red commit with a deterministic test (e.g. a unit test that two `launch_conn` names differ, or a doors cell that holds a launch connection open while the word is read), then the fix on top.
+- rtd2-2 | MINOR | tests/persona/test_check.py:322 | FakeSession has no `looks`, so the branch of `has_config` that makes a tiling session measured is untested, and `test_a_missing_config_is_not_measured` models a run labelled tiling as "not measured", exit 0 | give NoConfig's run `looks = ["tiling"]` and add: tiling session, no file -> L2 FAIL "gap_inner is still 12".
+- rtd2-3 | MINOR | tests/persona/README.md:141 | says L2 is not measured when the session has no non-empty config; now it is: no tiling look and no non-empty chora-tiling.yaml, and an xp-only session (xp.yaml) is never measured | say that in the README.
+- rtd2-4 | MINOR | tests/persona/check.py:847 | GAP_LINE misses `gap_inner: 20  # wider` and `gap_inner: "20"` and reads the default 12: a real change is a false red | allow a trailing comment and quotes (or read look.gap_inner with a YAML parse).
+- rtd2-5 | MINOR | flavors/tiling/waybar/config.jsonc:105 | every 2 s a launch connects under a new name, so the core sends client.connected and client.disconnected to every subscriber (the swallow runtime of each plugin, chora-assistant) for the whole session; no gate runs the module for long | drive the word from tiling on a look's client events (waybar signal), or let the leak gate run looks.sh beside its rounds.
+- rtd2-6 | MINOR | flavors/tiling/waybar/config.jsonc:21 | `Looks: xp, mc` at 1280 is not captured; with xp alone the left island already meets the clock island, so two looks push the clock off center (waybar fixed-center pushes; overlap not expected but not measured) | capture tiling+xp+mc at 1280.
+- rtd2-7 | NIT | plugins/chora-tiling/src/overlay.rs:185 | doc comment line of 131 chars | rewrap.
+
+Counts: BLOCK 0, MAJOR 1, MINOR 5, NIT 1. Verdict: **FIX** (rtd2-1).
