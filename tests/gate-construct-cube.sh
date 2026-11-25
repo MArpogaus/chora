@@ -46,7 +46,10 @@
 #    construct (rcr1-1); Escape closes the sheet and that window has the
 #    keyboard again (co-78). A program of the launcher in a face that
 #    holds a window is a window of xp, shown on that face, and takes
-#    keys, in 5 of 5 runs (co-77).
+#    keys, in 5 of 5 runs (co-77). After the windows of the programs end, a
+#    click on the first window gives it the keyboard, also when xp answers
+#    1.5 s late (rfs2-2): a key typed before the focus comes is lost, so the
+#    gate waits for the focus.
 # 3. A slow cube.turn forwards nothing while it runs; at a third of it
 #    the screen shows two faces; the gate prints the frame time of the
 #    turn; then the next face
@@ -317,6 +320,13 @@ for n in json.load(sys.stdin):
         print(n["id"], n.get("owner"), next(iter(n["rects"]), "-"), round(r[0]), round(r[1]), round(r[2]), round(r[3]))' "$surface"
 }
 end_others() {
+    local xp_pid
+    if [ "${1:-}" = stalled ]; then
+        xp_pid=$(pid_of chora-xp)
+        kill -STOP "$xp_pid"
+        (sleep 1.5 && kill -CONT "$xp_pid") &
+        pids+=($!)
+    fi
     python3 -I - "$CHORA_SOCKET" "$(pid_of chora-probe)" <<'PY'
 import os, signal, sys
 for pid in sorted(filter(str.isdigit, os.listdir("/proc")), key=int):
@@ -357,7 +367,7 @@ before=$(keys_in "$work/term.log")
 plain a
 until_ok 'test "$(keys_in "$work/term.log")" -gt "$before"' 20 || fail "co-78: after Escape the window that Super+t started has no keyboard"
 ok "co-78: Escape closes the key sheet after Super+t opened a window of the face, and that window has the keyboard"
-end_others
+end_others stalled
 
 for run in 1 2 3 4 5; do
     key Super+space
