@@ -587,6 +587,10 @@ cell_volume_wheel() {
     key Super+Home
     until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
     until_ok 'has_text "Volume 50%"' 60 || fail "the volume door does not show the level 50%: $(texts | tr '\n' '|')"
+    hit_rect() { ctl query "owner:mc kind:rect" | jq -c "[.[] | $shown | select(.id | endswith(\"-doors-volume-hit\")) | .rects | to_entries[0].value][0]"; }
+    # shellcheck disable=SC2329 # until_ok evaluates its first argument
+    door_placed() { [ "$(text_rect "Volume 50%")" = "$(hit_rect)" ] && jq -e ".[0] > 0 and .[1] > 0" <<<"$(hit_rect)" >/dev/null; }
+    until_ok 'door_placed' 60 || fail "the volume door is not placed: text $(text_rect "Volume 50%") hit $(hit_rect)"
     door=$(text_rect "Volume 50%")
     move_to "$(jq -n --argjson r "$door" '$r[0] + 20 | floor')" "$(jq -n --argjson r "$door" '$r[1] + $r[3] / 2 | floor')"
     echo '[{"scroll": {"dy": -60}}]' | ctl inject >/dev/null || fail "inject scroll"
