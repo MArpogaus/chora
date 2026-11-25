@@ -100,9 +100,9 @@
     "on-click": "choractl run -- chora-tiling --launch fuzzel"
   },
   "custom/looks": {
-    "exec": "echo '{\"text\": \"Looks\"}'",
+    "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/looks.sh\"",
     "return-type": "json",
-    "interval": "once",
+    "interval": 2,
     "tooltip": false,
     "on-click": "choractl run -- chora-tiling --launch looks"
   },

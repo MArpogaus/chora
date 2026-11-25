@@ -43,6 +43,15 @@ pub fn chosen<'a>(running: &[&'a str], language: Language, line: &str) -> Option
         .find(|look| give::move_words(look, language) == line)
 }
 
+/// The word of the bar: "Looks" when no other look runs, else "Looks: " and
+/// the names of the running ones, so that the word says where it leads.
+pub fn word(running: &[&str]) -> String {
+    if running.is_empty() {
+        return "Looks".to_owned();
+    }
+    format!("Looks: {}", running.join(", "))
+}
+
 /// The prompt of the menu.
 pub fn prompt(language: Language) -> &'static str {
     Word::MoveThisWindowTo.text(language)
@@ -59,6 +68,13 @@ mod tests {
         assert_eq!(running(&clients), ["xp", "construct"]);
         assert_eq!(running(&json!([{"name": "tiling"}])), Vec::<&str>::new());
         assert_eq!(running(&Value::Null), Vec::<&str>::new());
+    }
+
+    #[test]
+    fn the_bar_word_names_the_looks_it_leads_to_ti_55() {
+        assert_eq!(word(&[]), "Looks");
+        assert_eq!(word(&["xp"]), "Looks: xp");
+        assert_eq!(word(&["xp", "mc"]), "Looks: xp, mc");
     }
 
     #[test]

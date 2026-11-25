@@ -305,6 +305,9 @@ fn launch(argv: &[String]) -> ExitCode {
         eprintln!("usage: chora-tiling --launch PROGRAM [ARGS]");
         return ExitCode::from(2);
     };
+    if program == "looks-word" {
+        return launch_looks_word();
+    }
     let dirs = theme::config_dirs();
     let line = match theme::launch_line(program, rest, &dirs, theme::written_scheme(&dirs)) {
         Ok(line) => line,
@@ -352,6 +355,28 @@ fn launch(argv: &[String]) -> ExitCode {
 fn cannot_start(program: &str, err: &dyn std::fmt::Display) -> ExitCode {
     eprintln!("chora-tiling: cannot start {program}: {err}");
     ExitCode::FAILURE
+}
+
+/// `--launch looks-word`: prints the word of the Looks door as the JSON of
+/// a custom module of waybar: "Looks" and the names of the other looks that
+/// run, or "Looks" alone (also when the core does not answer).
+#[allow(
+    clippy::print_stdout,
+    reason = "waybar reads the word of the module on stdout"
+)]
+fn launch_looks_word() -> ExitCode {
+    let clients = launch_conn()
+        .and_then(|mut conn| {
+            conn.call_within::<_, Value>(
+                "clients.list",
+                Value::Null,
+                std::time::Duration::from_secs(1),
+            )
+        })
+        .unwrap_or(Value::Null);
+    let text = looks::word(&looks::running(&clients));
+    println!("{}", json!({ "text": text }));
+    ExitCode::SUCCESS
 }
 
 /// `--launch looks`: the menu of the Looks word of the bar. It lists the

@@ -1674,7 +1674,10 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   pointer at rest would stand over a tile when the launcher or a new window
   takes the focus; the key list names their keys. The month of the clock
   marks today in bold and underlined.
-  **Looks**, after **Apps**, opens a menu with the prompt `Move this window to `
+  **Looks**, after **Apps**, names where it leads: the word is `Looks` while no
+  other look runs, `Looks: xp` while xp runs and `Looks: xp, mc` for several
+  (`waybar/looks.sh`, read every 2 seconds, so a look that joins or leaves
+  shows within 2 seconds). It opens a menu with the prompt `Move this window to `
   and one row for each other look that runs (a client of the core: xp, mc or
   construct), in the words of the key list: `Move window to the xp desktop`.
   A row hands the focused window over with `give.sh`, as `Super+Alt+2` to `4`
