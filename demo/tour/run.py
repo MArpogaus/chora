@@ -57,6 +57,16 @@ def rows_of(out, files):
     return rows
 
 
+def clear_captures(out, names):
+    """Empties `<out>/captures` of what an earlier take left (an act that was renamed, a failed snapshot), except
+    the stills of a chapter that this run does not take: `run.py mc` then `run.py handover` in one TOUR_OUT keeps both."""
+    keep = {n for other in CHAPTERS if other not in names for n in tour.planned(other)}
+    folder = os.path.join(out, tour.CAPTURES)
+    for name in os.listdir(folder) if os.path.isdir(folder) else []:
+        if name.rpartition(".")[0] not in keep:
+            os.remove(os.path.join(folder, name))
+
+
 def main(argv):
     """With TOUR_BASELINE set (the replay on 733967aa) a chapter that stops at an act the old build
     cannot do, a RuntimeError that says the method is missing (`tour.NO_METHOD`), is `baseline: none`
@@ -76,7 +86,7 @@ def main(argv):
     else:
         out = os.environ.get("TOUR_OUT", "/tmp/claude-0/tour-v9")
         os.makedirs(out, exist_ok=True)
-        shutil.rmtree(os.path.join(out, tour.CAPTURES), ignore_errors=True)
+        clear_captures(out, names)
     os.environ["TOUR_OUT"] = out
     baseline = bool(os.environ.get("TOUR_BASELINE"))
     tour.TAKEN.clear()
