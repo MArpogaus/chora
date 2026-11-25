@@ -230,3 +230,15 @@ Head 35e31662 on claude/tiling-doors-r3 (history kept, no force push).
 - NIT rtd3-3: the new test sits above `use super::*;` in mod tests.
 - Branch lacks 6b89b56f (ratchets); the train runs them.
 Verdict (computed): 0 open MAJOR -> MERGE-OK 35e31662. Next: train139 with tiling-minor r1 31af60c5, then P2-R10 (persona recheck ti-55, ti-56, co-75/76/79).
+
+## r4 design (ti-55, T7 red five rounds; decided before any code)
+
+Question: a tiling user sees `Looks: xp` and an xp taskbar on tag 2 and takes the xp look for workspace 2. Product or harness?
+Product side, evidence: in the persona session an empty tiling tag shows the whole xp desktop under the tiling bar (Bliss, My Computer, Recycle Bin, Clippy, the xp taskbar with start and its pager 1-4: media/2026-11-25/persona-tiling-r10-ricer1/shots/004.png, tag 2 after Super+2); on tag 1 the xp taskbar shows below the terminal (shots/003.png); r9 run 1: "every picture shows a start button".
+Harness side, evidence:
+- The xp desktop is on a tiling tag only because tests/persona/session.sh `tiling+xp` starts chora-xp without `--output` on the one output of tiling, so the two claims overlap.
+- The documented start puts each look on its own output or pane: D55 step 2 ("two window managers sit on two outputs, or at two places in the scene"), docs/configuration.md chora-tiling ("So each window manager takes its own outputs"), waybar.sh (leaves out "chora-xp beside tiling"). gate-tiling-empty-output.sh `outputs` and `panes` show an empty tiling output with the tiling wallpaper and bar, not the xp desktop.
+- The personas name the goal before T7 as their source: r8 "the second screenshot of the previous goal (004), which showed workspace 2 with the start button"; r10 run 1 "Workspace 2 is the XP-look desktop I visited before ... I took 'the other desktop that is running' to mean workspace 2" (reports/p2-r10-tiling.md, Fix check, T7 row). In r8, r9 and r10, L3 ("Go to a second workspace and then come back to the first one") ran just before T7, so the last tag 2 the persona saw was the xp desktop.
+- Wording and doors changed three times (r7-r10: goal words, bar word `Looks: xp`, Looks menu); the reading did not move, the L3 prime did not change.
+Decision: **harness, goal order.** A real user in the documented start never sees the xp desktop on a tiling tag, and nobody sends a real user to a second workspace just before asking for the xp look; both come from the harness. Change: the ricer runs T7 before L3 (T1, T7, L3, T2, L2), T7's words stay verbatim, what T7 checks stays; a test in test_check.py pins the order and the words. No product change for this cause.
+Left for the PM (outside this brief): the one-output session layout still shows the xp taskbar under tag 1. If T7 is red in P2-R11 with T7 first, the next step is that layout (xp on an output of its own, as documented), not another door.
