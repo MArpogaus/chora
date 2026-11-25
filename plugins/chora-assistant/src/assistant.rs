@@ -1690,6 +1690,25 @@ mod tests {
         );
     }
 
+    /// rv9kb-2: the tail of the greeting ends over the paperclip head
+    /// (x 1213..1256) although the balloon stops 96 px short of the edge.
+    #[test]
+    fn the_tail_of_the_greeting_ends_over_the_paperclip_head() {
+        let style = Style {
+            tail: 18,
+            ..Style::default()
+        };
+        for height in [770, 690] {
+            let area = ([0, 0, 1184, height], height - 40);
+            let (origin, tail, _) = place((&style, false), [300, 40], [1234, height - 112], area);
+            let tip = origin[0] + tail;
+            assert!(
+                (1213..=1256).contains(&tip),
+                "{height}: the tail tip {tip} is not over the paperclip head"
+            );
+        }
+    }
+
     #[test]
     fn a_tail_at_the_left_lets_the_bubble_grow_to_the_right() {
         let style = Style {
