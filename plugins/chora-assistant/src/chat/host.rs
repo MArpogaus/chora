@@ -305,12 +305,13 @@ impl Agent {
         commands.extend(self.card_clears(panel)?);
         self.apply(commands)?;
         self.chat.restyle(&frame);
-        self.switcher.set_chat(self.chat.is_open(), Instant::now());
+        self.switcher
+            .set_chat(self.chat.is_open(), chora_kit::clock::now());
         let was_open = self.announced.as_ref().is_some_and(|(open, ..)| *open);
         self.chat_announce(&frame)?;
         if self.chat.is_open() != was_open {
             let mut commands = self.sync_row()?;
-            commands.extend(self.chat_toggled(self.chat.is_open(), Instant::now()));
+            commands.extend(self.chat_toggled(self.chat.is_open(), chora_kit::clock::now()));
             self.apply(commands)?;
         }
         Ok(())
@@ -345,7 +346,7 @@ impl Agent {
             client: voice_client(self.voice.as_ref()),
         };
         self.chat.show(&mut bridge, name, token, &frame)?;
-        self.chat_pulled = Instant::now();
+        self.chat_pulled = chora_kit::clock::now();
         self.chat_draw().map_err(|err| err.to_string())
     }
 
@@ -677,7 +678,7 @@ impl Agent {
         {
             eprintln!("chora-assistant: chat: {err}");
         }
-        self.chat_pulled = Instant::now();
+        self.chat_pulled = chora_kit::clock::now();
         self.chat_draw()
     }
 
@@ -686,7 +687,7 @@ impl Agent {
     pub fn watch_slot(&mut self) -> Result<(), ClientError> {
         let wanted = chat_look(&self.values).slot;
         self.switcher
-            .set_look_client(wanted.clone(), Instant::now());
+            .set_look_client(wanted.clone(), chora_kit::clock::now());
         if wanted.is_none() || wanted == self.slot_client {
             return Ok(());
         }
