@@ -844,7 +844,7 @@ def scene_line(snap, look):
 
 TILING_CONFIG = pathlib.Path("config") / "chora" / "chora-tiling.yaml"
 GAP_DEFAULT = "12"
-GAP_LINE = re.compile(r"""^\s*gap_inner:\s*["']?(\d+)["']?\s*(?:#.*)?$""", re.MULTILINE)
+GAP_LINE = re.compile(r"""^\s*gap_inner:\s*(?P<q>["']?)(?P<n>\d+)(?P=q)\s*(?:#.*)?$""", re.MULTILINE)
 
 
 def config_value(folder):
@@ -852,7 +852,7 @@ def config_value(folder):
     as text; the default 12 while the file does not exist or does not say."""
     path = pathlib.Path(folder) / TILING_CONFIG
     found = GAP_LINE.search(path.read_text()) if path.is_file() else None
-    return found.group(1) if found else GAP_DEFAULT
+    return found.group('n') if found else GAP_DEFAULT
 
 
 def has_config(run):
