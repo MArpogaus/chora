@@ -199,6 +199,9 @@ struct Agent {
     /// Until when the greeting shows in the balloon; a press or a window
     /// under the balloon takes it away before.
     greeting: Option<Instant>,
+    /// The state home that the greeting is remembered in; tests set a
+    /// temporary one.
+    state_home: Option<PathBuf>,
     /// The camera of the construct is in a pane: the island dims.
     in_pane: bool,
     /// The client name of the voice agent and its state, while it is
@@ -393,9 +396,8 @@ impl Agent {
     ) -> Result<Self, String> {
         let card_theme = card::theme(&source.cache, HOST_FAMILY)?;
         source.loads = source.loads.max(1);
-        let mut methods = chat::exported();
-        methods.extend(settings::File::<Config>::methods());
-        methods.push(chora_kit::runtime::state_method());
+        let own = [chat::exported(), settings::File::<Config>::methods()];
+        let methods = [own.concat(), vec![chora_kit::runtime::state_method()]].concat();
         let rt = Runtime::start(NAME, Vec::new(), EVENTS, methods).map_err(|e| e.to_string())?;
         let mut agent = Self {
             rt,
@@ -420,6 +422,7 @@ impl Agent {
             assistant: None,
             greet: voice::greeting_pending().then(|| Instant::now() + voice::GREET_AFTER),
             greeting: None,
+            state_home: chora_scene::paths::state_home(),
             in_pane: false,
             voice: None,
             muted: false,
@@ -447,8 +450,8 @@ impl Agent {
         agent.look_context = agent.switcher.applied().clone();
         agent.evaluate(Instant::now()).map_err(|e| e.to_string())?;
         agent.watch_slot().map_err(|e| e.to_string())?;
-        let row = agent.sync_row().map_err(|e| e.to_string())?;
-        agent.apply(row).map_err(|e| e.to_string())?;
+        let row = agent.sync_row().and_then(|row| agent.apply(row));
+        row.map_err(|e| e.to_string())?;
         agent.ask_voice().map_err(|e| e.to_string())?;
         Ok(agent)
     }
@@ -1017,6 +1020,7 @@ mod tests {
             assistant: None,
             greet: None,
             greeting: None,
+            state_home: Some(dir.join("state")),
             in_pane: false,
             voice: None,
             muted: false,

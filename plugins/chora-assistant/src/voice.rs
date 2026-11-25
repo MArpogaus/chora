@@ -69,23 +69,19 @@ pub fn window_meets(nodes: &[Value], [x, y, w, h]: [i32; 4]) -> bool {
 }
 
 /// The file whose presence says that the paperclip greeted.
-fn greeted_file() -> Option<std::path::PathBuf> {
-    Some(
-        chora_scene::paths::state_home()?
-            .join("chora")
-            .join("assistant-greeted"),
-    )
+fn greeted_file(home: Option<std::path::PathBuf>) -> Option<std::path::PathBuf> {
+    Some(home?.join("chora").join("assistant-greeted"))
 }
 
 /// Whether the paperclip has not greeted yet in this state of the session.
 pub fn greeting_pending() -> bool {
-    greeted_file().is_some_and(|file| !file.exists())
+    greeted_file(chora_scene::paths::state_home()).is_some_and(|file| !file.exists())
 }
 
 /// Remembers the greeting; when that fails the paperclip greets again at
 /// the next start.
-fn remember_greeting() {
-    let Some(file) = greeted_file() else {
+fn remember_greeting(home: Option<std::path::PathBuf>) {
+    let Some(file) = greeted_file(home) else {
         return;
     };
     let dir = file.parent().map(chora_scene::paths::private_dir);
@@ -136,7 +132,7 @@ impl Agent {
             Word::GreetingNoHelper
         };
         let text = word.text(self.language);
-        remember_greeting();
+        remember_greeting(self.state_home.clone());
         self.greeting = Some(now + GREET_FOR);
         self.said = Some((text.to_owned(), now + GREET_FOR));
         let commands = self.say(text, GREET_FOR, now);
