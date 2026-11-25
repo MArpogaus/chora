@@ -2300,6 +2300,32 @@ mod tests {
     }
 
     #[test]
+    fn a_finished_answer_leaves_working_and_its_step_and_stop_goes_off_xp_28() {
+        let (mut session, mut out, _log) = setup();
+        let frame = frame(Look::default());
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        let working = json!({"name": "Atlas", "state": "working", "task": "Write file",
+            "step": 1, "steps": 1, "seq": 1, "epoch": 1});
+        session.voice_event(&mut out, "voice.state", &working);
+        assert!(session.running());
+        let done = json!({"name": "Atlas", "state": "done", "task": "Write file",
+            "step": 1, "steps": 1, "seq": 2, "epoch": 1});
+        session.voice_event(&mut out, "voice.state", &done);
+        assert_eq!(
+            session.header_xp(Language::En),
+            ("Atlas \u{2014} Idle".into(), String::new())
+        );
+        assert!(!session.running(), "Stop is off after the answer");
+        let idle_with_steps = json!({"name": "Atlas", "state": "idle", "task": "Write file",
+            "step": 1, "steps": 1, "seq": 3, "epoch": 1});
+        session.voice_event(&mut out, "voice.state", &idle_with_steps);
+        assert_eq!(
+            session.header_xp(Language::En),
+            ("Atlas \u{2014} Idle".into(), String::new())
+        );
+    }
+
+    #[test]
     fn a_helper_that_ends_leaves_no_state() {
         let (mut session, mut out, _log) = setup();
         let frame = frame(Look::default());
