@@ -168,6 +168,7 @@ class FakeRun(check.Run):
         self.calls = self.dir / "calls.log"
         self.calls.write_text("")
         self.scene = scene
+        self.running = None
         env = {"PERSONA_LOG": str(self.dir / "actions.jsonl"), "PERSONA_VOICE": str(self.dir)}
         self.s = FakeSession(env)
 
@@ -176,6 +177,9 @@ class FakeRun(check.Run):
 
     def marks(self):
         return {}
+
+    def running_gap(self):
+        return self.running
 
 
 def one_window(sid="s1"):
@@ -295,16 +299,29 @@ class Closed(unittest.TestCase):
 
 
 class NoConfig(unittest.TestCase):
-    """L2 measures a reload of the config; with no config it is "not
-    measured (no config)", neither red nor green."""
+    """L2 measures a reload of the config of tiling: the value of gap_inner on
+    disk differs from its value at the begin and the running config reports
+    the new value after the reload. A changed digest alone is no pass (the
+    editor opened, nothing changed: r9 ricer run 2, false green)."""
 
     def after(self):
-        state = look_state("s1", [win("s1", "xp")], holder="xp")
-        return snap(states={"xp": state}, nodes=[surface("s1", "xp", True)], toplevels={"s1"})
+        state = look_state("s1", [win("s1", "tiling")], holder="tiling")
+        return snap(states={"tiling": state}, nodes=[surface("s1", "tiling", True)], toplevels={"s1"})
+
+    def run_in(self, folder):
+        run = FakeRun(folder, snap())
+        run.s.label = "tiling"
+        return run
+
+    def config(self, folder, gap=None, extra=""):
+        path = pathlib.Path(folder) / "config" / "chora"
+        path.mkdir(parents=True, exist_ok=True)
+        text = f"look:\n  gap_inner: {gap}\n" if gap is not None else ""
+        (path / "chora-tiling.yaml").write_text(text + extra)
 
     def test_a_missing_config_is_not_measured(self):
         with tempfile.TemporaryDirectory() as folder:
-            run = FakeRun(folder, snap())
+            run = self.run_in(folder)
             status, out = goal(run, snap(), snap(), "L2")
             self.assertEqual(status, 0, out)
             self.assertIn("task L2 not measured (no config)", out)
@@ -312,39 +329,66 @@ class NoConfig(unittest.TestCase):
 
     def test_an_empty_config_is_not_measured(self):
         with tempfile.TemporaryDirectory() as folder:
-            run = FakeRun(folder, snap())
-            (pathlib.Path(folder) / "config").mkdir()
-            (pathlib.Path(folder) / "config" / "chora.yaml").write_text("")
+            run = self.run_in(folder)
+            self.config(folder)
             status, out = goal(run, snap(), snap(), "L2")
             self.assertEqual(status, 0, out)
             self.assertIn("not measured (no config)", out)
 
-    def test_a_config_is_measured(self):
+    def test_a_gap_changed_and_reloaded_passes(self):
         with tempfile.TemporaryDirectory() as folder:
-            run = FakeRun(folder, snap())
-            (pathlib.Path(folder) / "xp.yaml").write_text("editor: mousepad\n")
+            run = self.run_in(folder)
+            self.config(folder, 12)
             run.save("begin", snap(), {})
-            (pathlib.Path(folder) / "xp.yaml").write_text("editor: notepad\n")
+            self.config(folder, 20)
+            run.running = 20
             run.scene = self.after()
             status, out = run_end(run, "L2")
             self.assertEqual(status, 0, out)
             self.assertIn("task L2 pass", out)
-            status, out = goal(run, snap(), snap(), "L2")
-            self.assertEqual(status, 1, out)
 
-    def test_a_run_that_changed_nothing_is_red(self):
+    def test_the_editor_opened_without_a_change_is_red(self):
         with tempfile.TemporaryDirectory() as folder:
-            run = FakeRun(folder, snap())
-            (pathlib.Path(folder) / "xp.yaml").write_text("editor: mousepad\n")
-            status, out = goal(run, snap(), self.after(), "L2")
+            run = self.run_in(folder)
+            run.save("begin", snap(), {})
+            self.config(folder, 12)
+            run.running = 12
+            run.scene = self.after()
+            status, out = run_end(run, "L2")
             self.assertEqual(status, 1, out)
-            self.assertIn("the config value did not change", task_line(out, "L2"))
+            self.assertIn("gap_inner is still 12", task_line(out, "L2"))
+
+    def test_a_changed_file_with_the_same_gap_is_red(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = self.run_in(folder)
+            self.config(folder, 12)
+            run.save("begin", snap(), {})
+            self.config(folder, 12, "# a comment\n")
+            run.running = 12
+            run.scene = self.after()
+            status, out = run_end(run, "L2")
+            self.assertEqual(status, 1, out)
+            self.assertIn("gap_inner is still 12", task_line(out, "L2"))
+
+    def test_a_gap_written_but_not_reloaded_is_red(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = self.run_in(folder)
+            self.config(folder, 12)
+            run.save("begin", snap(), {})
+            self.config(folder, 20)
+            run.running = 12
+            run.scene = self.after()
+            status, out = run_end(run, "L2")
+            self.assertEqual(status, 1, out)
+            self.assertIn("running config reports gap_inner 12", task_line(out, "L2"))
 
     def test_a_change_the_look_did_not_take_is_red(self):
         with tempfile.TemporaryDirectory() as folder:
-            run = FakeRun(folder, snap())
+            run = self.run_in(folder)
+            self.config(folder, 12)
             run.save("begin", snap(), {})
-            (pathlib.Path(folder) / "xp.yaml").write_text("editor: notepad\n")
+            self.config(folder, 20)
+            run.running = 20
             run.scene = snap()
             status, out = run_end(run, "L2")
             self.assertEqual(status, 1, out)

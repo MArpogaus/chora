@@ -2057,6 +2057,27 @@ mod tests {
     }
 
     #[test]
+    fn the_hint_shows_7_seconds_after_the_key_and_is_gone_at_9_ti_56() {
+        let (mut tiling, _methods) = tiling_with_grabs("stray-long");
+        let key = std::time::Instant::now();
+        tiling.act("Super+q").unwrap();
+        tiling
+            .end_chip(key + std::time::Duration::from_secs(7))
+            .unwrap();
+        assert!(
+            tiling.chip_until.is_some(),
+            "the hint is gone 7 s after the key"
+        );
+        tiling
+            .end_chip(key + std::time::Duration::from_secs(9))
+            .unwrap();
+        assert!(
+            tiling.chip_until.is_none(),
+            "the hint still shows 9 s after the key"
+        );
+    }
+
+    #[test]
     fn a_second_unbound_chord_within_ten_seconds_shows_no_hint_ti_56() {
         let (mut tiling, methods) = tiling_with_grabs("stray-twice");
         tiling.act("Super+q").unwrap();
