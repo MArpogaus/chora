@@ -19,7 +19,9 @@ arguments, ok, result. Exit status 0 on success, 1 on a failed action,
 
 With PERSONA_CHECK=1 each action is followed by tests/persona/check.py, which
 runs the invariants of the acts and writes $PERSONA_DIR/breaches.jsonl; the
-persona sees nothing of it.
+persona sees nothing of it and does not wait for it: the check runs in a
+process of its own, and only the next input (not a look) and `check.py end`
+wait for the checks before them.
 
 A click, and the press of a drag, come after four small moves that end on
 the target, each sent alone, as a hand moves: a launcher (fuzzel) selects the
@@ -35,6 +37,7 @@ is never scaled.
 
 import argparse
 import contextlib
+import fcntl
 import json
 import os
 import subprocess
@@ -45,6 +48,8 @@ BUTTONS = {"left": 272, "right": 273}
 TIMEOUT = 20
 CHECK_TIMEOUT = 60
 LAST_LOOK = "last_look.json"
+PENDING = "checks.pending"
+CHAIN = "checks.chain"
 APPROACH_STEPS = 3
 APPROACH_PAUSE = 0.05
 
@@ -225,24 +230,65 @@ def run(env, args):
     return ok, text or "ok"
 
 
-def check(env_path, action):
-    """Run tests/persona/check.py on what the action changed. Its answer
+def lock_file(env, name):
+    """Open (create) the lock file `name` in the session folder."""
+    return open(os.path.join(env["PERSONA_DIR"], name), "a", encoding="utf-8")  # noqa: SIM115
+
+
+def wait_for_checks(env):
+    """Return when no check of an earlier action is still running: an input
+    changes the scene a check of the action before it has not read yet."""
+    with lock_file(env, PENDING) as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+
+
+def check(env, env_path, action):
+    """Start tests/persona/check.py on what the action changed, as a process
+    of its own: the checker waits for a quiet scene (the hint chip of tiling
+    keeps it busy for 8 s) and the persona must not wait with it. Its answer
     goes to $PERSONA_DIR/breaches.jsonl and never to the persona; a checker
-    that fails changes nothing for the persona."""
-    here = os.path.dirname(os.path.abspath(__file__))
-    with contextlib.suppress(OSError, subprocess.TimeoutExpired):
-        subprocess.run(
-            [sys.executable, "-I", os.path.join(here, "check.py"), "after", action],
+    that fails changes nothing for the persona. The shared lock on PENDING
+    that the process inherits ends with it: the next input and `check.py
+    end` wait for it, so no check is lost or run against a later scene."""
+    pending = lock_file(env, PENDING)
+    with contextlib.suppress(OSError):
+        fcntl.flock(pending, fcntl.LOCK_SH)
+        subprocess.Popen(  # noqa: S603
+            [sys.executable, "-I", os.path.abspath(__file__), "--check", action],
             env={**os.environ, "PERSONA_ENV": env_path},
+            stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            timeout=CHECK_TIMEOUT,
-            check=False,
+            pass_fds=[pending.fileno()],
+            start_new_session=True,
         )
+    pending.close()
+
+
+def run_check(action):
+    """The process of one check: one at a time, each against the snapshot
+    the check before it saved."""
+    env_path = os.environ["PERSONA_ENV"]
+    env = load_env(env_path)
+    here = os.path.dirname(os.path.abspath(__file__))
+    with lock_file(env, CHAIN) as chain:
+        fcntl.flock(chain, fcntl.LOCK_EX)
+        with contextlib.suppress(OSError, subprocess.TimeoutExpired):
+            subprocess.run(
+                [sys.executable, "-I", os.path.join(here, "check.py"), "after", action],
+                env={**os.environ, "PERSONA_ENV": env_path},
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=CHECK_TIMEOUT,
+                check=False,
+            )
 
 
 def main():
     """Parse, run, log, report."""
+    if sys.argv[1:2] == ["--check"]:
+        run_check(sys.argv[2])
+        return
     args = parser().parse_args(type_takes_the_rest(sys.argv[1:]))
     if args.action == "type":
         args.text = " ".join(args.text)
@@ -251,6 +297,9 @@ def main():
         sys.exit("act.py: PERSONA_ENV is not set")
     env = load_env(path)
     arguments = {k: v for k, v in vars(args).items() if k != "action"}
+    checking = (env.get("PERSONA_CHECK") or os.environ.get("PERSONA_CHECK")) == "1"
+    if checking and args.action != "look":
+        wait_for_checks(env)
     started = time.time()
     try:
         ok, result = run(env, args)
@@ -266,8 +315,8 @@ def main():
     }
     with open(env["PERSONA_LOG"], "a", encoding="utf-8") as f:
         f.write(json.dumps(entry) + "\n")
-    if (env.get("PERSONA_CHECK") or os.environ.get("PERSONA_CHECK")) == "1":
-        check(path, args.action)
+    if checking:
+        check(env, path, args.action)
     if not ok:
         print(f"failed: {result}", file=sys.stderr)
         sys.exit(1)

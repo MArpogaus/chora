@@ -41,6 +41,7 @@ L is the look the task runs on (default: the first flavor); FILE is the
 
 import contextlib
 import dataclasses
+import fcntl
 import json
 import os
 import pathlib
@@ -932,6 +933,12 @@ def end(run, args):
     return 1 if bad or breaches else 0
 
 
+def wait_for_checks(folder):
+    """Return when the checks that act.py started in the background are done."""
+    with open(folder / "checks.pending", "a", encoding="utf-8") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+
+
 def main():
     """Dispatch the command."""
     path = os.environ.get("PERSONA_ENV")
@@ -940,6 +947,8 @@ def main():
     command, args = sys.argv[1], sys.argv[2:]
     run = Run(path)
     try:
+        if command != "after":
+            wait_for_checks(run.dir)
         if command in ("start", "begin"):
             now = run.snapshot()
             run.save(command, now, run.marks())
