@@ -732,7 +732,7 @@ impl LaunchError {
                 "The file look.sh of the tiling flavor was not found.",
             ),
             ("look", true) => (
-                "Theme-Umschalter nicht installiert",
+                "Design-Umschalter nicht installiert",
                 "Die Datei look.sh des Tiling-Flavors fehlt.",
             ),
             ("settings", false) => (
