@@ -78,9 +78,7 @@ impl Tiling {
         if self.reload_notice.is_none() {
             let word = format!("{title}: {}", cut(&reason(message), MOST_ON_CHIP));
             let time = std::time::Duration::from_millis(CHIP_MS);
-            if let Err(err) = self.show_words(&word, time) {
-                eprintln!("{NAME}: chip {title:?}: {err}");
-            }
+            let _ = self.show_words(&word, time);
         }
     }
 }
