@@ -728,11 +728,11 @@ impl LaunchError {
                 "Die Datei power.sh des gemeinsamen Ordners fehlt.",
             ),
             ("look", false) => (
-                "Look switch not installed",
+                "Theme switch not installed",
                 "The file look.sh of the tiling flavor was not found.",
             ),
             ("look", true) => (
-                "Look-Umschalter nicht installiert",
+                "Theme-Umschalter nicht installiert",
                 "Die Datei look.sh des Tiling-Flavors fehlt.",
             ),
             ("settings", false) => (
@@ -1051,9 +1051,9 @@ mod tests {
         assert!(shot.contains("\nName=Screenshot\n"));
         assert!(shot.contains("\nExec=chora-tiling --launch screenshot\n"));
         for (file, name, word) in [
-            ("chora-look-light.desktop", "Light look", "light"),
-            ("chora-look-dark.desktop", "Dark look", "dark"),
-            ("chora-look-system.desktop", "System look", "system"),
+            ("chora-look-light.desktop", "Light theme", "light"),
+            ("chora-look-dark.desktop", "Dark theme", "dark"),
+            ("chora-look-system.desktop", "System theme", "system"),
         ] {
             let apps = flavors.join("tiling/applications");
             let entry = std::fs::read_to_string(apps.join(file)).unwrap();

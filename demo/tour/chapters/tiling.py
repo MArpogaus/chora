@@ -163,7 +163,7 @@ def run(ctx):
         t.flush("probe")
         pid_file = f"{L.dir}/probe.pid"
         S.ctl("run", "setsid", "sh", "-c", f"echo $$ >{pid_file}; exec chora-probe window 40 120 200 --report >>{report} 2>&1")
-        t.act("keys", "Super+d and two more Super chords while a window of a program listens", "A second window listens beside the editor; no key of a chord reaches it", scene="t2", still="02-02d-stray", settle=0.6, contract="T5", cells=["gate-injected-presses.sh"], capture="Q", expect=Expect(verify=probe_heard_no_key(report, (32, 45, 50))))
+        t.act("keys", "Super+d and two more Super chords while a window of a program listens", "A second window listens beside the editor; no key of a chord reaches it, and the chip says Super+F1 shows all keys", scene="t2", still="02-02d-stray", settle=0.6, contract="T5", cells=["gate-injected-presses.sh"], capture="Q", expect=Expect(verify=probe_heard_no_key(report, (32, 45, 50))))
         t.wait(0.8)
         for chord in ("Super+d", "Super+x", "Super+m"):
             t.key(chord); t.wait(0.3)

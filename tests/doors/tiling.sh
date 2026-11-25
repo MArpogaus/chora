@@ -8,6 +8,13 @@
 # the keyboard in one step; an Escape before that step goes to the
 # window and the list stays. waybar, jq and the binaries are needed.
 #
+# Checks beside the cells: launcher-order (ti-50: the helper row is the first
+# row, the rows of the flavor stand last), stray-hint (ti-56: Super+q is
+# bound to nothing, is swallowed and the chip names Super+F1, and the window
+# hears no key), looks-none and looks-door (ti-55: the bar word Looks lists
+# the other looks that run as move rows, or says that none runs; in a session
+# of tiling and xp the row moves the window to xp).
+#
 # Usage: tests/doors/tiling.sh   BIN: directory with the binaries
 #   ONLY  a regular expression of cell names; the others do not run
 # shellcheck disable=SC2329 # doors_run calls the cells by name
@@ -41,6 +48,7 @@ until_ok bar_shows 80 ||
 
 bar_y=24
 apps_x=55
+looks_x=116
 helper_x=929
 clock_x=640
 volume_x=1018
@@ -218,11 +226,16 @@ rows_of() { sed -n 's/^row //p' "$marks"; }
 check_launcher_order() {
     unmark
     key Super+space
-    until_ok 'rows_of | grep -qx "Chat with a helper"' 20 || why "no helper row in $(rows_of | tr "\n" "|")" || return 1
+    until_ok 'rows_of | grep -Eq "^Chat with a helper( \\([^)]+\\))?$"' 20 || why "no helper row in $(rows_of | tr "\n" "|")" || return 1
     local first
     first=$(rows_of | head -n 1)
     [ -z "${CAPTURE_DIR:-}" ] || rows_of >"$CAPTURE_DIR/launcher-rows-${CAPTURE_SHA:-x}.txt"
-    { [ "$first" != "Chat with a helper" ] && [ -n "$first" ]; } || why "the first row is \"$first\"" || return 1
+    [[ $first =~ ^Chat\ with\ a\ helper ]] || why "the first row is \"$first\", not the helper" || return 1
+    local flavor='(Dark theme|Edit settings|Light theme|Move window to .*|System theme)' first_flavor
+    first_flavor=$(rows_of | grep -nxE "$flavor" | head -n 1 | cut -d: -f1)
+    [ -n "$first_flavor" ] || why "no flavor row in $(rows_of | tr "\n" "|")" || return 1
+    [ "$(rows_of | tail -n +"$first_flavor" | grep -cvxE "$flavor")" = 0 ] ||
+        why "a program stands after a flavor row: $(rows_of | tr "\n" "|")" || return 1
 }
 tile_rects() { ctl query kind:surface | jq -c '[.[] | select(.owner == null or .owner == "tiling") | .rects | to_entries[0].value]'; }
 panel_rect() { ctl query id:hud-chat | jq -c '.[0].rects | to_entries[0].value'; }
@@ -252,5 +265,41 @@ check_helper_beside_tiles() {
 check launcher-order check_launcher_order
 check helper-beside-tiles check_helper_beside_tiles
 layout_audit "tiling doors" >/dev/null
+
+check_stray_hint() {
+    keys_close
+    local keys_before
+    keys_before=$(grep -c '^key ' "$work/window")
+    key Super+q
+    until_ok 'has_text "Super+Q does nothing here. Super+F1 shows all keys."' 20 ||
+        why "Super+q gave no hint on the chip" || return 1
+    [ "$(grep -c '^key ' "$work/window")" = "$keys_before" ] || why "the window heard a key of Super+q" || return 1
+}
+window_owners() { ctl query kind:surface | jq -r '[.[].owner // "none"] | unique | join(",")'; }
+check_looks_none() {
+    unmark
+    ink_at "$looks_x" || why "no word in the bar at $looks_x (the word Looks)" || return 1
+    click "$looks_x" "$bar_y"
+    marked '^row No other look is running$' || why "Looks has no row \"No other look is running\": $(rows_of | tr '\n' '|')" || return 1
+    [ "$(rows_of | wc -l)" = 1 ] || why "Looks has more than the one row: $(rows_of | tr '\n' '|')" || return 1
+    [ "$(window_owners)" = tiling ] || why "a window left tiling: $(window_owners)" || return 1
+}
+owner_is_xp() { [[ ,$(window_owners), == *,xp,* ]]; }
+check_looks_door() {
+    "$bin/chora-xp" --theme "$repo/flavors/xp/theme" >"$fakes/xp.log" 2>&1 &
+    pids+=($!)
+    ctl wait id:xp-icons --timeout 20 >/dev/null || why "xp does not start: $(tail -n 3 "$fakes/xp.log")" || return 1
+    unmark
+    click "$looks_x" "$bar_y"
+    marked '^row Move window to the xp desktop$' || why "Looks has no row \"Move window to the xp desktop\": $(rows_of | tr '\n' '|')" || return 1
+    echo "Move window to the xp desktop" >"$fakes/choice"
+    unmark
+    click "$looks_x" "$bar_y"
+    until_ok owner_is_xp 40 || why "the row did not give the window to xp: owners $(window_owners), marks $(grep -v wpctl "$marks" | tr "\n" "|")" || return 1
+    rm -f "$fakes/choice"
+}
+check stray-hint check_stray_hint
+check looks-none check_looks_none
+check looks-door check_looks_door
 [ "$(ctl query kind:surface | jq length)" -ge 1 ] || fail "the window of the gate is lost"
 exit "$status"

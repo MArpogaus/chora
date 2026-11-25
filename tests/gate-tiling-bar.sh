@@ -78,22 +78,22 @@ isbar 20 39 || fail "the island does not reach 39"
 isbar 20 40 && fail "the island is higher than 32"
 isbar 12 8 && fail "no rounded corner at 12,8"
 isbar 640 24 || fail "no centre island"
-isbar 480 24 && isbar 520 24 && fail "the gap between the left and the centre island is filled"
+isbar 545 24 && isbar 557 24 && fail "the gap between the left and the centre island is filled"
 ok "three islands, 32 high, 8 from the top, 12 from the sides, corner radius"
 
-sep=$(for x in $(seq 60 140); do [ "$(pixel "$shot" "$x" 24)" = "46 51 68 255" ] && { echo "$x"; break; }; done)
+sep=$(for x in $(seq 60 170); do [ "$(pixel "$shot" "$x" 24)" = "46 51 68 255" ] && { echo "$x"; break; }; done)
 [ -n "$sep" ] || fail "no separator after Apps"
 [ "$(pixel "$shot" "$sep" 15)" != "46 51 68 255" ] || fail "the separator touches the top hairline"
 [ "$(pixel "$shot" "$sep" 16)" = "46 51 68 255" ] && [ "$(pixel "$shot" "$sep" 31)" = "46 51 68 255" ] || fail "the separator is not 16 high from y 16"
 [ "$(pixel "$shot" "$sep" 32)" != "46 51 68 255" ] || fail "the separator is higher than 16"
 ok "the separator is 16 px high and clear of the island hairline"
 
-isend=$(for x in $(seq 100 600); do [ "$(pixel "$shot" "$x" 24)" = "$bg" ] && { echo "$x"; break; }; done)
+isend=$(for x in $(seq 160 600); do [ "$(pixel "$shot" "$x" 24)" = "$bg" ] && { echo "$x"; break; }; done)
 for layout in tile_left fair spiral max; do
     ctl call tiling set_layout "{\"layout\": \"$layout\"}" >/dev/null || fail "set_layout $layout"
     sleep 2.5
     ctl capture --output HEADLESS-1 "$shot" >/dev/null || fail "the capture"
-    now=$(for x in $(seq 100 600); do [ "$(pixel "$shot" "$x" 24)" = "$bg" ] && { echo "$x"; break; }; done)
+    now=$(for x in $(seq 160 600); do [ "$(pixel "$shot" "$x" 24)" = "$bg" ] && { echo "$x"; break; }; done)
     [ "$now" = "$isend" ] || fail "the left island ends at $now with $layout, at $isend with tile"
 done
 ok "the left island keeps its width through four layout words"

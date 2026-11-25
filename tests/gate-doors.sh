@@ -54,7 +54,7 @@ for look in $looks; do
     [ "$look" != construct ] || small=layout
     [ "$look" != mc ] || small=header
     if [ "$look" = tiling ]; then
-        for name in launcher-order helper-beside-tiles; do
+        for name in launcher-order helper-beside-tiles stray-hint looks-none looks-door; do
             grep -q "^check tiling $name pass\$" "$out/tiling.log" || {
                 echo "check tiling $name missing"
                 bad=$((bad + 1))

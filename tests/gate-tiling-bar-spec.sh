@@ -167,7 +167,7 @@ for word, found, (w_lo, w_hi, i_lo, i_hi) in (("Apps", apps, (32, 36, 122, 144))
     if not (w_lo <= width <= w_hi and i_lo <= ink <= i_hi):
         die("bar-font", f"{word} is {width:.1f} wide with {ink:.0f} of ink, not Inter 14 px weight 500 "
             f"({w_lo}-{w_hi} wide, {i_lo}-{i_hi} of ink)")
-c_left = next(x for x in range(520 * s, 640 * s) if bar(x, y_mid))
+c_left = next(x for x in range(545 * s, 640 * s) if bar(x, y_mid))
 c_right = next(x for x in range(760 * s, 640 * s, -1) if bar(x, y_mid))
 clock = ink_box(c_left // s + 4, c_right // s - 3, 14, 34)
 if clock is None:

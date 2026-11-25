@@ -168,6 +168,13 @@ pub enum Word {
     /// A typed key that does nothing in the construct; `{key}` shows the
     /// keys.
     KeysWalk,
+    /// A chord that tiling swallows because nothing is bound to it: `{chord}`
+    /// does nothing, `{key}` shows the keys.
+    KeyUnbound,
+    /// The prompt of the Looks menu of the tiling bar; the rows follow.
+    MoveThisWindowTo,
+    /// The one row of the Looks menu while no other look runs.
+    NoOtherLook,
     /// A line typed before a helper was picked from the list.
     PickFirst,
     /// The entry of the list that starts a helper for a project.
@@ -219,7 +226,7 @@ pub enum Word {
 }
 
 /// Every word, for the checks of the tests.
-pub const ALL: [Word; 84] = [
+pub const ALL: [Word; 87] = [
     Word::Asleep,
     Word::Listening,
     Word::Thinking,
@@ -280,6 +287,9 @@ pub const ALL: [Word; 84] = [
     Word::NoOutputDevice,
     Word::ChangeFailed,
     Word::KeysWalk,
+    Word::KeyUnbound,
+    Word::MoveThisWindowTo,
+    Word::NoOtherLook,
     Word::PickFirst,
     Word::NewHelper,
     Word::NoWindowToGive,
@@ -387,6 +397,9 @@ impl Word {
             Self::NoOutputDevice => "No output device",
             Self::ChangeFailed => "Change failed",
             Self::KeysWalk => "The keys walk here. {key} shows them all.",
+            Self::KeyUnbound => "{chord} does nothing here. {key} shows all keys.",
+            Self::MoveThisWindowTo => "Move this window to ",
+            Self::NoOtherLook => "No other look is running",
             Self::PickFirst => "Pick a helper first: type its number and press Enter, or click it.",
             Self::NewHelper => "New helper for {project}",
             Self::NoWindowToGive => "No window to give.",
@@ -487,6 +500,9 @@ impl Word {
             Self::NoOutputDevice => "Kein Ausgabegerät",
             Self::ChangeFailed => "Änderung fehlgeschlagen",
             Self::KeysWalk => "Hier bewegen die Tasten die Ansicht. {key} zeigt alle.",
+            Self::KeyUnbound => "{chord} ist hier nicht belegt. {key} zeigt alle Tasten.",
+            Self::MoveThisWindowTo => "Dieses Fenster verschieben nach ",
+            Self::NoOtherLook => "Kein anderer Look läuft",
             Self::PickFirst => {
                 "Wählen Sie zuerst einen Helfer: Nummer eingeben und Enter drücken, oder anklicken."
             }
@@ -574,10 +590,14 @@ mod tests {
             .collect()
     }
 
-    fn avoids_jargon(text: &str) -> bool {
-        ["chora-", "Look", "HUD", "ACP"]
+    /// The word Look is the name of a desktop where the Looks door of the
+    /// tiling bar says so; no other word of the screen has it.
+    fn avoids_jargon(word: Word, text: &str) -> bool {
+        let says_look = matches!(word, Word::NoOtherLook);
+        ["chora-", "HUD", "ACP"]
             .iter()
-            .all(|word| !text.contains(word))
+            .all(|jargon| !text.contains(jargon))
+            && (says_look || !text.contains("Look"))
             && !text.to_lowercase().contains("agent")
     }
 
@@ -608,7 +628,10 @@ mod tests {
             let (en, de) = (word.text(Language::En), word.text(Language::De));
             assert!(!en.is_empty() && !de.is_empty(), "{word:?}");
             assert_eq!(fields(en), fields(de), "{word:?}: fields differ");
-            assert!(avoids_jargon(en) && avoids_jargon(de), "{word:?}");
+            assert!(
+                avoids_jargon(word, en) && avoids_jargon(word, de),
+                "{word:?}"
+            );
             assert!(!has_command(en) && !has_command(de), "{word:?}: a command");
         }
     }

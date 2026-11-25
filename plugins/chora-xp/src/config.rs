@@ -114,8 +114,7 @@ pub enum Look {
     /// With a pointer button: the pointer turns the cube.
     Cube,
     /// Does nothing and keeps the key from the window: the action of
-    /// every Super chord that no binding uses, on a face of a cube. It is
-    /// not a setting.
+    /// every Super chord that no binding uses. It is not a setting.
     #[serde(skip)]
     Swallow,
 }

@@ -115,3 +115,46 @@ fn a_start_after_a_restart_shows_a_scene_of_its_own() {
         "the shown scene is one that mc built"
     );
 }
+
+/// mc-60 (rpx1-8): a Super chord that mc binds to nothing is grabbed, so
+/// no window page gets it; the chords that mc binds keep their action and
+/// another modifier is left to the programs.
+#[test]
+fn an_unbound_super_chord_is_grabbed_and_a_bound_one_keeps_its_action() {
+    let (mut mc, _model) = testing::mc("lifecycle-swallow", [1280, 800]);
+    mc.rt.start_grabs();
+    mc.grab_all().unwrap();
+    mc.rt.end_grabs().unwrap();
+    for chord in ["Super+x", "Super+k", "Super+m", "Super+q", "Shift+Super+x"] {
+        assert!(
+            mc.rt.action(chord).is_some(),
+            "mc-60: {chord} is free, so it types into a window page"
+        );
+    }
+    assert!(
+        matches!(
+            mc.rt.action("Super+space"),
+            Some(chora_kit::actions::Action::System(
+                chora_kit::actions::System::Run(_)
+            ))
+        ),
+        "Super+space keeps its action"
+    );
+    assert_eq!(
+        mc.rt.action("Super+Right"),
+        Some(&chora_kit::actions::Action::Look(
+            crate::config::Look::NextScene
+        )),
+        "Super+Right keeps its action"
+    );
+    assert!(
+        matches!(
+            mc.rt.action("Super+n"),
+            Some(chora_kit::actions::Action::Look(
+                crate::config::Look::Toggle(_)
+            ))
+        ),
+        "Super+n keeps its action"
+    );
+    assert!(mc.rt.action("Alt+q").is_none(), "another modifier is left");
+}

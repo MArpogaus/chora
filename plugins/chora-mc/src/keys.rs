@@ -93,6 +93,7 @@ fn sheet(config: &Config) -> Vec<keysheet::Row<Look>> {
             Look::Toggle(crate::region::Region::Right) => "Hide this column".to_owned(),
             Look::Toggle(region) => format!("Show or hide the {}", region.name()),
             Look::Solo { content, .. } => format!("Show the {content}"),
+            Look::Swallow => return None,
         })
     })
 }
@@ -158,7 +159,7 @@ pub fn all(config: &Config, plain: bool) -> Vec<Row> {
             Action::System(System::Power) => (9, 1),
             Action::System(System::Screenshot) => (9, 2),
             Action::System(System::Volume(_)) => (9, 3 + place),
-            Action::Look(Look::PreviousScene | Look::Back)
+            Action::Look(Look::PreviousScene | Look::Back | Look::Swallow)
             | Action::System(
                 System::Drag
                 | System::Terminal

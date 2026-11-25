@@ -16,6 +16,12 @@
 # stand-in for chora-chat --door says "atlas · idle" or "No helper" (the file
 # door holds the word).
 #
+# The helper stands first (ti-50, rpt1-6): the nine rows that fuzzel shows
+# always hold it, and Enter on the preselected row opens a chat, which Escape
+# closes. The programs follow, and the rows of the flavor (its theme,
+# settings and move rows, whose program is chora-tiling) stand last. Look
+# means one of the four looks (ti-55), so the rows of the colours say theme.
+#
 # Usage: tests/gate-tiling-apps.sh   BIN: directory with the binaries
 #   SHOTS  a directory that keeps the capture tiling-apps-nothing.png
 set -u
@@ -76,6 +82,24 @@ ok "text that finds nothing shows the list again under the row Nothing found"
 grep -qxF "Chat with a helper (atlas)" "$rows" ||
     fail "no launcher row \"Chat with a helper (atlas)\" for the helper that the door names: $(tr '\n' '|' <"$rows")"
 [ "$(grep -ci 'helper' "$rows")" = 1 ] || fail "more than one launcher row for the helper: $(tr '\n' '|' <"$rows")"
+[ "$(head -n 1 "$rows")" = "Chat with a helper (atlas)" ] ||
+    fail "the first row is not the helper row \"Chat with a helper (atlas)\": $(tr '\n' '|' <"$rows")"
+last_program=0 first_flavor=999
+n=0
+while IFS= read -r row; do
+    n=$((n + 1))
+    case $row in
+    "Dark theme" | "Light theme" | "System theme" | "Edit settings" | "Move window to "*) [ "$first_flavor" -le "$n" ] || first_flavor=$n ;;
+    "Chat with a helper"*) ;;
+    *) last_program=$n ;;
+    esac
+done <"$rows"
+[ "$last_program" -lt "$first_flavor" ] || fail "a flavor row stands before a program: $(tr '\n' '|' <"$rows")"
+if grep -iwq look "$rows"; then fail "a row of the flavor has the word look: $(tr '\n' '|' <"$rows")"; fi
+for row in "Dark theme" "Light theme" "System theme"; do
+    grep -qxF "$row" "$rows" || fail "no launcher row \"$row\": $(tr '\n' '|' <"$rows")"
+done
+ok "the helper row stands first, the rows of the flavor last, and none says look"
 echo "No helper" >"$work/fake/door"
 PATH=$work/fake:$real_path timeout 20 "$bin/chora-tiling" --launch fuzzel >/dev/null 2>&1
 grep -qxF "Chat with a helper" "$work/fake/rows.3" ||
@@ -109,11 +133,13 @@ key() { echo "[{\"shortcut\": {\"keys\": \"$1\"}}]" | ctl inject >/dev/null || f
 
 launcher
 sleep 1
+key Down
+sleep 0.5
 key Return
-ctl wait --timeout 15 'app_id:alpha kind:surface' >/dev/null || fail "Enter in the new list did not start alpha, its first row"
+ctl wait --timeout 15 'app_id:alpha kind:surface' >/dev/null || fail "Down and Enter in the new list did not start alpha, its first program"
 sleep 1
 [ -z "$(find "$XDG_PICTURES_DIR" -name '*.png' 2>/dev/null)" ] || fail "Enter in the new list took a screenshot"
-ok "Enter in the new list starts the first program by name, and takes no screenshot"
+ok "Down and Enter in the new list start the first program by name, and take no screenshot"
 
 launcher
 sleep 1

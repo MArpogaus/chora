@@ -64,11 +64,37 @@ pub fn apps(
 /// helper word of the bar.
 pub const HELPER_PROGRAM: &str = "chora-chat";
 
-/// The programs with the row of the chat with a helper after the others,
-/// each group sorted as before. The program is the last of the words.
+/// The programs of the rows that the flavor of tiling adds to its Apps
+/// list: its theme rows, its settings row and its rows that move a window.
+const FLAVOR_ROWS: [&str; 3] = ["look", "settings", "give"];
+
+/// Whether the program is a row of the flavor of tiling: `chora-tiling
+/// --launch look|settings|give`. The screenshot rows of the shared folder
+/// are programs.
+fn flavor_row(app: &App) -> bool {
+    let mut words = app.command.split_whitespace();
+    words.next() == Some("chora-tiling")
+        && words.next() == Some("--launch")
+        && words.next().is_some_and(|w| FLAVOR_ROWS.contains(&w))
+}
+
+/// The Apps list of tiling: the row of the chat with a helper first, so
+/// that the nine rows that fuzzel shows always hold it and Enter on the
+/// preselected row opens a chat; then the programs; then the rows of the
+/// flavor. Each group stays sorted as it was. The program of the helper row
+/// is the last of the words.
 #[must_use]
-pub fn helper_last(mut apps: Vec<App>) -> Vec<App> {
-    apps.sort_by_cached_key(|a| a.words.last().is_some_and(|w| w == HELPER_PROGRAM));
+pub fn tiling_order(mut apps: Vec<App>) -> Vec<App> {
+    let group = |a: &App| {
+        if a.words.last().is_some_and(|w| w == HELPER_PROGRAM) {
+            0
+        } else if flavor_row(a) {
+            2
+        } else {
+            1
+        }
+    };
+    apps.sort_by_cached_key(group);
     apps
 }
 
@@ -339,20 +365,21 @@ pub fn run(fuzzel: &[String], terminal: &str, first: Option<PathBuf>) {
     run_ordered(fuzzel, terminal, first, false, None);
 }
 
-/// Like [`run`], and with `helper_last` the row of the chat with a helper
-/// stands after the programs; with a `helper` name it names that helper.
+/// Like [`run`], and with `ordered` the list is in the order of
+/// [`tiling_order`]; with a `helper` name the row of the chat names that
+/// helper.
 pub fn run_ordered(
     fuzzel: &[String],
     terminal: &str,
     first: Option<PathBuf>,
-    helper_last: bool,
+    ordered: bool,
     helper: Option<&str>,
 ) {
     let dirs = entry_dirs(first, &crate::shared::dirs(), crate::xdg::data_dirs());
     let entries = desktop_entry::applications_in(&dirs);
     let mut apps = apps(entries, terminal, desktop_entry::on_path);
-    if helper_last {
-        apps = self::helper_last(apps);
+    if ordered {
+        apps = tiling_order(apps);
     }
     if let Some(name) = helper {
         apps = helper_named(apps, name);
@@ -418,18 +445,31 @@ mod tests {
     }
 
     #[test]
-    fn the_helper_row_can_stand_after_the_programs() {
+    fn the_helper_row_stands_first_and_the_flavor_rows_last() {
         let list = apps(
             [
+                entry("Dark theme", "chora-tiling --launch look dark"),
                 entry("Chat with a helper", "chora-chat"),
                 entry("Zed", "foot"),
+                entry("Edit settings", "chora-tiling --launch settings"),
+                entry("Alpha", "foot --alpha"),
+                entry("Shot", "chora-tiling --launch screenshot"),
             ],
             "foot",
             |_| true,
         );
-        assert_eq!(list[0].name, "Chat with a helper");
-        let names: Vec<String> = helper_last(list).into_iter().map(|a| a.name).collect();
-        assert_eq!(names, ["Zed", "Chat with a helper"]);
+        let names: Vec<String> = tiling_order(list).into_iter().map(|a| a.name).collect();
+        assert_eq!(
+            names,
+            [
+                "Chat with a helper",
+                "Alpha",
+                "Shot",
+                "Zed",
+                "Dark theme",
+                "Edit settings"
+            ]
+        );
     }
 
     fn on_path(program: &str) -> bool {
@@ -443,11 +483,11 @@ mod tests {
                 entry("terminal", "foot"),
                 Entry {
                     keywords: vec!["Theme".into(), "colour".into()],
-                    ..entry("Dark look", "look dark")
+                    ..entry("Dark theme", "look dark")
                 },
                 Entry {
                     keywords: vec!["theme".into()],
-                    ..entry("Light look", "look light")
+                    ..entry("Light theme", "look light")
                 },
                 Entry {
                     generic: "Text Editor".into(),
@@ -480,8 +520,8 @@ mod tests {
         assert_eq!(
             names,
             [
-                "Dark look",
-                "Light look",
+                "Dark theme",
+                "Light theme",
                 "Monitor",
                 "Notes",
                 "Screenshot",
@@ -514,7 +554,7 @@ mod tests {
             panic!("two programs")
         };
         let names: Vec<&str> = found.iter().map(|a| a.name.as_str()).collect();
-        assert_eq!(names, ["Dark look", "Light look"]);
+        assert_eq!(names, ["Dark theme", "Light theme"]);
     }
 
     #[test]

@@ -4,8 +4,8 @@
 # chora-tiling.yaml and applies it at once. German with a German locale.
 # Usage: sh look.sh light|dark|system
 case ${LC_ALL:-${LC_MESSAGES:-${LANG:-}}} in
-de*) failed="Aussehen nicht geändert" ;;
-*) failed="Look not changed" ;;
+de*) failed="Design nicht geändert" ;;
+*) failed="Theme not changed" ;;
 esac
 case ${1:-} in
 light) theme=paper ;;
