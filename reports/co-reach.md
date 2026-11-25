@@ -199,3 +199,69 @@ Base 909bc57b..f1457035, 4 files +88 -2. Red first: 624c85cc (test) before f1457
 Checks: adopt.rs:149 now calls show_new_pane; a pane that overlaps the stood-back cube goes beside it via place_beside (same path as make_way); no home, so step in leaves it (unit test asserts). Lane gate 65 PASS on f1457035+ce866b0d; gate-construct-i3 10/10 per report.
 - rco4-1 MINOR aside.rs:216-221: the side-load loop repeats make_way's taken sum (aside.rs:160-168); fold into one helper at the next construct round.
 Verdict (computed): 0 BLOCK, 0 MAJOR -> MERGE-OK; co-67 fixed on merge (train127, includes r3b 909bc57b).
+
+## r1 (co-79 round, 2026-11-25; the earlier "## r1" above is the 2026-11-23 series)
+
+Lane: cloud, claude/co-reach-r1 from fbdcd6e2 (co-close r2 head). Step 0: unshallow, `cargo check --workspace`, `cargo build --workspace` green. Area: overlay.rs, cube/tests_construct (new reach_tests.rs), tests/gate-construct-cube.sh, docs/cube-modes.md. 6 files +123 -25.
+
+**Head: 7f519bc8** (red 43433ce7, fix 7f519bc8). Pushed to claude/co-reach-r1.
+
+### 1. Hand repro (fresh compositor each, snapshot fbdcd6e2, scratchpad hand2.sh)
+- **The brief's path as written** (row Terminal, Super+c (pane beside), click the pane, Alt+Escape) does **not** land in the face. It lands stood back: `mode navigate front 0, panes [foot], focus construct holder construct s1, xp holder none`. The bar there is `Click Fly in | Return | Ctrl Alt ← | Ctrl Alt → | Super F1 All keys`. Pull out is not named, and correctly so (co-68): the keyboard is in the pane window and the faces are empty. Same 5/5 after the fix (row "keys in pane beside" below).
+- **The demo's r12 C2 steps** (row "A cube of desktops", Return, Super+F1, Super+t, Escape, Close click, Alt+Escape) reproduce its dump **5/5**: `mode use front 0, camera [0,0], panes [foot @0,2000], focus construct holder construct s1, xp holder none`. Bar: `Super F1 All keys | Alt Esc Step back`. Told 0/5. Super+Alt+4 acts 0/5 (s1:construct before and after).
+- **Cause of the demo's miss (new, upstream of the bar):** with the key sheet open over a face, Super+t starts the construct's own terminal (`terminal_beside`). It opens as a pane, flown in, instead of a window of the face. After Close and Alt+Escape the person is in an **empty** face, and the only window is a pane, the construct's own. No key can pull anything there: `pull_acts()` is false, so naming the pull key would break POLS (co-68). This is the co-78 family (the sheet and Super+T), not in scope here. Without the sheet, Return then Super+t opens the window in the face (xp s1) 5/5.
+- **The gap the fix closes** (row "face": row cube, Return, Super+t): the keyboard is in face window s1 (xp) and Super+Alt+4 pulls it **5/5**, but the bar names it **0/5** (co-74). On the demo's straight path the key acted and nobody was told. Before co-70 the person had to step back to learn of it.
+
+### 2. Red 43433ce7 (tests only)
+`reach_tests::the_pull_key_is_named_in_a_face_where_it_acts` on fbdcd6e2:
+```
+reach_tests.rs:44:9: the keyboard is in a window of the face: the key pulls it out, so the face names it (timed true)
+```
+The same test also pins the demo's state (use mode, keyboard in the pane in front of the face): pull not named, `pull_acts()` false, Step back named. That part is green before and after.
+
+### 3. Fix 7f519bc8: one rule
+Option chosen: **the bar names the pull key wherever `pull_acts()` holds**. It now holds in the face set (Step back, All keys; timed and resting) as well as stood back. One helper, `pull_out_hint`, serves both sets, and `pane_hints` uses it, so hint and key stay one predicate (`give_key`). Why this option over "Alt+Escape from a pane lands stood back": on both paths above the face is empty, and a pane's window is the construct's own. A landing stood back would tell nothing new there (co-68 keeps it silent). Where a face window has the keyboard, the person is told in the face they are looking at, one step sooner than co-70. co-68 holds: the predicate is false with the keyboard in a pane, beside or in front. co-70 is unchanged. Gate cell (gate-construct-cube, the probe window on the front face holds the keyboard): `co-79: in a face with the keyboard in its window the hint bar names the pull key`. docs/cube-modes.md gives the rule and the reason. Unit tests: chora-construct 285 passed; clippy clean.
+
+### 4. rcc2-2: Super+x while flying back out of a pane
+**No, it closes nothing.** `fly_out` takes `flown` at the key, so `in_pane()` is false for the whole glide back. The premise "in_pane() still true until the flight ends" does not hold. In a face, close_focused takes the face branch, which never closes a pane (co-75). That is the same as after the glide ends. Unit test `reach_tests::super_x_while_flying_out_of_a_pane_into_a_face_closes_nothing` (glide running, `!in_pane()`, closed = []) is green before and after. No fix needed.
+
+### 5. Hand runs, 5x each from a fresh compositor (snapshot 7f519bc8; checker off for speed: told = bar text, acts = surface owner change)
+| Row | Steps | told | acts | state at the read |
+|---|---|---|---|---|
+| step 1, demo r12 path | cube row, Return, Super+F1, Super+t, Esc, Close, Alt+Escape | 0/5 (before 0/5) | 0/5 (before 0/5) | use, panes [foot], holder construct s1, xp none: nothing to pull, not told by design (co-68); cause above |
+| face (co-79 fix) | cube row, Return, Super+t | **5/5** (before **0/5**) | **5/5** (before 5/5) | use, holder xp s1; bar `Super F1 All keys \| Super Alt 4 Pull out \| Alt Esc Step back`; after: s1:construct |
+| co-70 (no pane beside) | cube row, Return, Super+t, Alt+Escape | 5/5 | 5/5 | navigate, construct holder (noted s1) |
+| co-68 (keys in the pane beside; the brief's step 1 path) | row Terminal, Super+c, click pane, Alt+Escape | not named 5/5 | key does nothing 5/5 | navigate, holder construct s1, bar `Click Fly in ...` |
+| co-68 (pane beside, keys on the look) | row Terminal, Super+c | not named 5/5 | nothing 5/5 | navigate, holder construct (no surface) |
+
+A told key acts: 10/10 told runs pulled (face, co-70). No untold run pulled anything except the face row before the fix (the co-79 gap itself).
+
+### Open for the PM
+(`tools/sleep-ratchet` is not on this branch; the diff adds 0 `sleep` lines to tests/ and tools/.)
+1. **Demo C2 path still needs a face window.** Super+t with the key sheet over a face starts a construct pane, not a face window (co-78 family). After that no pull can be told honestly. Route it with co-78. Proposed: Super+t with the sheet open does what it does with the sheet closed.
+2. The old-binary run of the gate cell is not shown red: my run with BIN=snapshot mixed a new core with old clients and failed earlier (`xp shows 0 taskbars`). The red is the unit test above.
+
+### 6. Gate
+Ran `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` (no --only), detached, on 7f519bc8: **64 PASS, EXIT 0**, no foreign red. The first run was killed when the worker restarted (no EXIT line), so it was rerun once in full. Cube cell: `ok: co-79: in a face with the keyboard in its window the hint bar names the pull key`. `pgrep -fa 'chora --headless'` empty after. Last 20 lines:
+```
+launcher-click PASS    16s /tmp/merge-gate.xFW2z0/launcher-click.log
+voice-acp  PASS    12s /tmp/merge-gate.xFW2z0/voice-acp.log
+voice-events PASS     1s /tmp/merge-gate.xFW2z0/voice-events.log
+agent      PASS    40s /tmp/merge-gate.xFW2z0/agent.log
+tiling-keys-more PASS    41s /tmp/merge-gate.xFW2z0/tiling-keys-more.log
+tiling-windows PASS   160s /tmp/merge-gate.xFW2z0/tiling-windows.log
+tiling-system PASS    11s /tmp/merge-gate.xFW2z0/tiling-system.log
+handover   PASS    26s /tmp/merge-gate.xFW2z0/handover.log
+acts       PASS  1969s /tmp/merge-gate.xFW2z0/acts.log
+mc-scale   PASS    12s /tmp/merge-gate.xFW2z0/mc-scale.log
+watchdog-starved PASS    54s /tmp/merge-gate.xFW2z0/watchdog-starved.log
+xp-run     PASS    13s /tmp/merge-gate.xFW2z0/xp-run.log
+demo       PASS   255s /tmp/merge-gate.xFW2z0/demo.log
+leak       PASS   329s /tmp/merge-gate.xFW2z0/leak.log
+tiling-theme PASS    18s /tmp/merge-gate.xFW2z0/tiling-theme.log
+mc-host    PASS    19s /tmp/merge-gate.xFW2z0/mc-host.log
+tiling-bar PASS   133s /tmp/merge-gate.xFW2z0/tiling-bar.log
+e2e        PASS   265s /tmp/merge-gate.xFW2z0/e2e.log
+all steps passed; no --push, nothing is pushed
+EXIT 0
+```
