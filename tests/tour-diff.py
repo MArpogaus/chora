@@ -102,16 +102,32 @@ def label(k):
 CUT_SLACK = 2
 
 
+LINE_HEIGHT = 1.2
+"""The core default of a text without `line_height` (crates/chora/src/text.rs); the json skips the field when None (rtr1-4)."""
+
+
 def cut_of(node):
-    """The detail of a text node whose rect is shorter than its lines times its line height (rv9ka-3), else None:
+    """The detail and the shortfall in px of a text node whose rect is shorter than its lines times its line height (rv9ka-3), else None:
     a text that loses lines shows in the pixel diff as nothing (every text box is masked), only as a shorter rect."""
     text = node.get("text") or (node.get("meta") or {}).get("text")
-    if node.get("kind") != "text" or not text or not node.get("font_size") or not node.get("line_height"):
+    if node.get("kind") != "text" or not text or not node.get("font_size"):
         return None
-    need = (str(text).count("\n") + 1) * node["font_size"] * node["line_height"]
+    line = node["font_size"] * (node.get("line_height") or LINE_HEIGHT)
+    need = (str(text).count("\n") + 1) * line
     for output, rect in sorted((node.get("rects") or {}).items()):
-        if rect[3] < need - CUT_SLACK - node["font_size"] * node["line_height"] / 2:
-            return f"{output} {rect[3]:g} px high for {need:g} px of {str(text).count(chr(10)) + 1} lines"
+        if rect[3] < need - CUT_SLACK - line / 2:
+            return f"{output} {rect[3]:g} px high for {need:g} px of {str(text).count(chr(10)) + 1} lines", line, rect[3]
+    return None
+
+
+def cut_more(na, nb):
+    """The detail when v9 cuts a text (nb) that v8 (na) did not cut, or cut by less than a line (rtr1-4)."""
+    cb = cut_of(nb)
+    if not cb:
+        return None
+    ca = cut_of(na) if na else None
+    if not ca or cb[2] <= ca[2] - cb[1] + CUT_SLACK:
+        return cb[0]
     return None
 
 
@@ -139,8 +155,9 @@ def scene_diff(a, b):
     for k in kb:
         if k not in ka:
             found.append({"kind": "added", "id": label(k), "detail": "in the candidate only"})
-        if cut_of(kb[k]) and not (k in ka and cut_of(ka[k])):
-            found.append({"kind": "cut", "id": label(k), "detail": cut_of(kb[k])})
+        detail = cut_more(ka.get(k), kb[k])
+        if detail:
+            found.append({"kind": "cut", "id": label(k), "detail": detail})
     common = [k for k in ka if k in kb]
     top_a = [k for k in common][-TOP_LAYERS:]
     top_b = [k for k in kb if k in ka][-TOP_LAYERS:]
