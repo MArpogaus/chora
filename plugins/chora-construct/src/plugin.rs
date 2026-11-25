@@ -213,7 +213,7 @@ impl Construct {
         if surface.is_some_and(|s| self.own_window(s)) {
             self.walk_keys = false;
         }
-        match surface.filter(|s| self.help && self.in_a_face() && !self.own_window(s)) {
+        match surface.filter(|s| self.help && self.in_a_face() && !self.owns(s)) {
             Some(window) => self.help_retakes_keyboard(window),
             None => Ok(()),
         }
