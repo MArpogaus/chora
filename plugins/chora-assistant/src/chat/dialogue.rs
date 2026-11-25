@@ -57,11 +57,19 @@ impl Session {
 
     pub(super) fn helper_state(&mut self, out: &mut dyn Outside, data: &Value) -> bool {
         let text = |key: &str| data[key].as_str().unwrap_or_default();
-        let steps = data["step"].as_u64().zip(data["steps"].as_u64());
+        let finished = matches!(text("state"), "idle" | "done");
+        let steps = data["step"]
+            .as_u64()
+            .zip(data["steps"].as_u64())
+            .filter(|_| !finished);
         let status = Status {
             name: sanitize(text("name")),
-            state: text("state").to_owned(),
-            task: sanitize(text("task")),
+            state: if finished { "idle" } else { text("state") }.to_owned(),
+            task: if finished {
+                String::new()
+            } else {
+                sanitize(text("task"))
+            },
             steps,
         };
         let mut changed = status.state != self.status.state
