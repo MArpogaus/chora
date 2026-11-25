@@ -1161,6 +1161,62 @@ mod press {
         );
     }
 
+    /// xp-10: one click on the clock of the tray opens Date and Time, and a
+    /// second one in quick succession raises the same dialog.
+    #[test]
+    fn one_click_on_the_tray_clock_opens_date_and_time_xp_10() {
+        let (mut wm, _methods) = wm_on_fake_core("clock-click");
+        let [x, y, w, h] = wm
+            .bars
+            .first()
+            .and_then(Bar::clock_rect)
+            .expect("the taskbar shows its clock");
+        let at = [f64::from(x + w / 2), f64::from(y + h / 2)];
+        let _ = wm.press_tray(at);
+        let opened = |wm: &Wm| {
+            wm.panels
+                .iter()
+                .filter(|p| matches!(p, Panel::Clock(_)))
+                .count()
+        };
+        assert_eq!(opened(&wm), 1, "one click opens Date and Time");
+        let _ = wm.press_tray(at);
+        assert_eq!(opened(&wm), 1, "a double click raises the open dialog");
+    }
+
+    /// xp-10: Date and Time has a task button as Display Properties has, and
+    /// the button goes with the dialog; a press on it takes the dialog to the
+    /// top.
+    #[test]
+    fn date_and_time_has_a_task_button_that_raises_it_xp_10() {
+        let (mut wm, _methods) = wm_on_fake_core("clock-task");
+        let id = "xp-task-datetimepanel-X";
+        let commands = wm.open_date_dialog([0, 0, 1280, 770]);
+        assert!(
+            commands
+                .iter()
+                .any(|c| matches!(c, Command::Create { id: i, .. } if i == id)),
+            "no task button for Date and Time"
+        );
+        wm.open_help(0);
+        assert!(
+            !matches!(wm.panels.last(), Some(Panel::Clock(_))),
+            "Help is on top"
+        );
+        let _ = wm.press_taskbar(taskbar::Part::Task("datetimepanel".into()));
+        assert!(
+            matches!(wm.panels.last(), Some(Panel::Clock(_))),
+            "the button raised Date and Time"
+        );
+        let closed = wm.close_panel(wm.panels.len() - 1);
+        assert!(
+            closed
+                .iter()
+                .any(|c| matches!(c, Command::Remove { id: i, .. } if i == id)),
+            "the button goes with the dialog"
+        );
+    }
+
     /// A pager button of the taskbar turns the cube to its desktop.
     #[test]
     fn the_pager_turns_the_cube_to_its_desktop() {

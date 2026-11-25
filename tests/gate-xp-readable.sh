@@ -20,6 +20,7 @@
 #   inactive-title     the title of a window that is not active has 4.5:1
 #   bin-clear          the Recycle Bin stands at the bottom right, above the paperclip, and
 #                      no balloon (greeting, empty chat) and no notice (one, three) lies on it
+#   datetime-click     one click on the clock of the tray opens Date and Time, which shows a taskbar button (xp-10)
 #   datetime-metrics   the push buttons of Date and Time are the 75 x 23 of XP
 #
 # Every cell runs and prints; the gate fails when one is red.
@@ -177,8 +178,12 @@ fi
 kill "$foot1" "$foot2" 2>/dev/null
 sleep 1
 
-inj '[{"pointer_move": {"position": [1250, 788]}}, {"click": {}}, {"click": {}}]'
+inj '[{"pointer_move": {"position": [1250, 788]}}, {"click": {}}]'
 sleep 1.5
+[ "$(ctl query 'id:xp-dlg-datetime-content-c-ok' | jq length)" = 1 ] ||
+    red "datetime-click: one click on the clock of the tray opens no Date and Time (xp-10)"
+[ "$(ctl query kind:image | jq '[.[] | select(.id | startswith("xp-task-datetimepanel-"))] | length')" -ge 1 ] ||
+    red "datetime-click: Date and Time shows no taskbar button (xp-10)"
 for b in ok cancel apply; do
     read -r x y w h <<<"$(rect "xp-dlg-datetime-content-c-$b")"
     { [ "${w:-0}" = 75 ] && [ "${h:-0}" = 23 ]; } || red "datetime-metrics: $b is ${w:-?} x ${h:-?}, XP has 75 x 23"
