@@ -62,3 +62,23 @@ EXIT 0
 ## PM decision r1 (2026-11-25 10:20 UTC)
 - co-77: no fault. D106 and WM7b hosted (owner 11-19 10:52) hold: a Programs window in a face is held by xp; C3 pin cell passes 5/5. Closed as by design after the review confirms the pin cell.
 - Diff 227 lines, construct focus path: seeded opus review (briefs/review-co-minor-r1.md).
+
+## Review r1
+
+Reviewer: seeded review (briefs/review-co-minor-r1.md), cloud, read-only on code. Head dd1ac7e4, base 6f37120b (8 files +227 -10). Step 0: `git fetch --unshallow`, `cargo check --workspace` green. No merge gate run (the lane ran it, EXIT 0).
+
+Checks:
+1. Red first: yes. 6c040c09 has tests only, 7becf38f has the fix. At 6c040c09, `cargo test -p chora-construct face_start` fails both new tests by their own asserts (`face_start_tests.rs:19: ... 1 waits for a pane`; `face_start_tests.rs:37: the keyboard goes back to the sheet: []`, 2 failed). The cell's red lines are pasted in r1.
+2. rcr1-1: in a face, `terminal_beside` makes no pane and `created` hands the window to the face manager (Attach, then Remove to xp). `face_tokens` keeps at most 8 tokens (`drain(..len-8)`). Each token is unique, so a token that never gets a window steals no later one and is pushed out after 8 more. When `free` is false the token is dropped and the window stays with its holder, which is correct. Outside a face (`in_a_face` false), Super+t takes the old path and makes a pane.
+3. co-78: `focus_heard` takes the keyboard back for a face window while the sheet is open. Escape closes the sheet, and `give_the_keyboard_back` then activates the noted window through xp. No loop: xp does not refocus on release (`keys.rs focus_moved`), and the sheet sets `help = false` before it gives the keyboard back. The filter is too wide, see rcm1-1.
+4. Gate: no weakened assert. Every wait is a bounded `until_ok`. `tools/sleep-ratchet` gives `ok (sleep 778, sleep-all 929)`. Each launcher probe is daemonised, then `end_others` ends it and waits until it is gone; on a fail, `gate_cleanup` ends it through `gate_probes`.
+5. co-77: D106 is the contract and C3 (`focus_with_flavor`) accepts xp with a shown window. The pin checks owner xp, `shown`, the window inside the face and that keys reach it, 5 of 5. It does not check C3's single holder; see rcm1-3.
+6. Beyond: dropping the `Mode` import leaves no dead path (`in_a_face` names it in full). No doc says Super+t in a face makes a pane.
+
+Findings:
+- rcm1-1 MAJOR plugins/chora-construct/src/plugin.rs:216: `focus_heard` takes the keyboard back from any window that is not a pane (`own_window` covers only panes). The window of the launcher is not a pane. With the sheet open in a face, Super+space (the sheet lists it as "Start a program", among the keys that work now) shows the launcher with `focus::give`, and the sheet takes the keyboard back at once. A unit probe on dd1ac7e4 (`show_launcher("s9")`, then `focus_changed(s9)`) gives `focuses [None]`. Escape then calls `activate_in_face(s9)` on xp, which does not hold s9, so the launcher has no keyboard. This is a regression from 6f37120b. Fix: filter with `!self.owns(s)` (panes, hidden, launcher window) and add a red unit test for the launcher.
+- rcm1-2 MINOR tests/gate-construct-cube.sh:350: the co-78 cell types no key while the sheet is open, so "no key reaches the window while the sheet is open" has no assert (Escape closing the sheet only shows that Escape does not reach the window). Fix: before Escape, type `a` and assert that the `key 30` count of term.log does not change.
+- rcm1-3 NIT tests/gate-construct-cube.sh:358: the co-77 pin does not assert C3's single holder (no node focus of the construct). It covers only the in-face case, with a stand-in launcher that has no window of its own. Fix: assert after each run that the construct holds no focus (or run `check.py` C3), and keep the stood-back r12 case named as open in findings.
+
+Counts: 0 BLOCK, 1 MAJOR, 1 MINOR, 1 NIT.
+Verdict (computed): FIX (rcm1-1 MAJOR open).
