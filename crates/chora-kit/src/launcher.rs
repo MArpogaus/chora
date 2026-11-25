@@ -633,6 +633,32 @@ mod tests {
         assert!(said[0].starts_with("Run could not start: "), "{said:?}");
     }
 
+    /// A fuzzel that rejects the config file of the look (1.9.2 has no
+    /// `prompt`) exits at once with an err line; the launcher then asks
+    /// again without the config instead of showing nothing (rtr1-3).
+    #[test]
+    fn a_config_that_fuzzel_rejects_is_left_out() {
+        let (_dir, mut fuzzel) = stand_in(
+            "chora-launcher-config",
+            "case \" $* \" in *\" --config \"*) echo ' err: config.c:866: x.ini:5: [colors].prompt: not a valid option: prompt' >&2; exit 1;; esac; echo Screenshot",
+        );
+        fuzzel.extend(["--config".to_owned(), "/run/chora-mc/fuzzel.ini".to_owned()]);
+        assert_eq!(reports(&fuzzel), (Some("shot".to_owned()), vec![]));
+    }
+
+    /// Without a config the failure is the failure: it is said once.
+    #[test]
+    fn a_failure_without_a_config_is_still_said() {
+        let (_dir, mut fuzzel) = stand_in(
+            "chora-launcher-no-config",
+            "echo ' err: no display' >&2; exit 1",
+        );
+        fuzzel.extend(["--config".to_owned(), "/run/chora-mc/fuzzel.ini".to_owned()]);
+        let (got, said) = reports(&fuzzel);
+        assert_eq!(got, None);
+        assert_eq!(said, ["Run could not start: no display"]);
+    }
+
     #[test]
     fn a_cancel_stays_silent() {
         let (_dir, fuzzel) = stand_in("chora-launcher-cancel", "exit 1");
