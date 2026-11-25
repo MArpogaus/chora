@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-25 09:26 UTC)
+## Now (2026-11-25 09:33 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 09:23 PM 2.7 % (11-25), week about 34 % vs 55 % pace: under-spending, fill 6 lanes
 session branch: 6b89b56f (t137 09:25: gate-ratchets r1 + PM fix e25848d6); 85 greens. TRAIN138 xp-minor r1 d2a048d5, mc-minor r1 5cb288e2 (gate running)
@@ -24,7 +24,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 |---|---|---|
 | train138 (Queue 1) | PM, d86be5d0 on 6b89b56f | gate running |
 | co-minor-r1.md (rc 2; co-77, -78, rcr1-1; 1 %) | sonnet high, claude/co-minor-r1 6f37120b | session_016iS3kPtWQpHRWp48U6q5Xm |
-| review-xp-minor-r2.md (rc 1; r2 8109e08b, gate EXIT 0; 0.5 %) | opus high, read-only | session_016iS3kNsmyadrcwkvNLgabT |
+| xp-minor-r3.md (rc 1; rxm2-1 MAJOR, -2, -4, -5, -6; 1 %) | sonnet medium, claude/xp-minor-r3 8109e08b | starting |
 | mc-minor-r2.md (rc 1; rmm1-1..4, rpx1-10, -15; 1 %) | sonnet high, claude/mc-minor-r2 5cb288e2 | session_016iS3kNyhRbv8jD3qsSnufr |
 | tiling-doors-r3.md (rc 2; rtd2-1 MAJOR, rtd2-4; 0.5 %) | sonnet medium, claude/tiling-doors-r3 fa676de8 | session_016iS3kLs1XfS7H3odnwsmpY |
 ## Queue (% week; 5 % reserve)
