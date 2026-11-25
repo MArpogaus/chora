@@ -57,7 +57,7 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-25T12:56:00Z",
+  updated: "2026-11-25T14:03:00Z",
   start: "2026-11-21T04:00:00Z",   // budget reset (owner)
   end: "2026-11-28T03:59:00Z",     // next reset; F5, F7 carried over
   budget: 38,                       // % of the new week used (reset 04:00)
@@ -72,10 +72,10 @@ const S = {
     ["F8", "Docs and decision records", "done", "met by audit r6 (01:40 UTC, 08:40 Bangkok): the kit log module is documented and decision record D120 exists; every decision named in a commit has its record"]
   ],
   now: [
-    "Train 139 is green (19:55 Bangkok): tiling fixes the two reopened faults (ti-55, ti-56) with the test written first; a persona recheck confirms them next.",
-    "Train 140 runs: xp round 3, mc round 2 and construct round 2 small fixes, all reviewed MERGE-OK.",
-    "Lanes: mc round 3, construct polish of chip gaps and key-sheet text size, tiling test hardening, a new tour v9 take (sonnet) and an xp test fix (haiku).",
-    "Spending is under pace (38 % vs 62 %): five lanes run now, including a fresh tour v9 take; the persona recheck becomes the sixth after train 140."
+    "Tiling persona round 10 did not pass: for the fifth round the test user reads the 'Looks: xp' word but takes 'the xp look' to mean workspace 2. Next: a design round (strongest model) for a look switch on the bar that is not a workspace tag.",
+    "Train 140 runs its last checks: xp round 3, mc round 2 and construct round 2 small fixes, all reviewed MERGE-OK.",
+    "Lanes: mc round 3, construct polish, tiling test hardening and a new tour v9 take.",
+    "Spending is under pace (38 % vs 63 %): the construct persona recheck and train 141 start when train 140 ends."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
 };
