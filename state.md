@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-25 11:10 UTC)
+## Now (2026-11-25 11:44 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 09:23 PM 2.7 % (11-25), week about 34 % vs 55 % pace: under-spending, fill 6 lanes
+budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 11:44 PM 3.0 % (11-25), week about 38 % vs 61 % pace: under-spending, fill 6 lanes
 session branch: d86be5d0 (t138 11:10: xp-minor r1, mc-minor r1); 86 greens. TRAIN139 tiling-doors r3 35e31662, tiling-minor r1 31af60c5 (gate running)
 burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open, 3 regr)
 
@@ -24,7 +24,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 |---|---|---|
 | train139 (Queue 1) | PM, e39448ad on d86be5d0 | gate running |
 | co-minor-r2.md (rc 2; rcm1-1 MAJOR, rcm1-2; 0.8 %) | sonnet medium, claude/co-minor-r2 dd1ac7e4 | session_016iS3kLnDojojNnm3geEcDz |
-| xp-minor-r3.md (rc 1; rxm2-1 MAJOR, -2, -4, -5, -6; 1 %) | sonnet medium, claude/xp-minor-r3 8109e08b | session_016iS3kQhioE1jyaqTZiQMvt |
+| xp-minor-r3.md (rc 1) | done cb5fcb7f, PM review MERGE-OK | train140 after t139 |
 | mc-minor-r2.md (rc 1; rmm1-1..4, rpx1-10, -15; 1 %) | sonnet high, claude/mc-minor-r2 5cb288e2 | session_016iS3kNyhRbv8jD3qsSnufr |
 ## Queue (% week; 5 % reserve)
 1. (rc 1, 2) t138 green d86be5d0 (xp-9, -19, -28, -29 closed). TRAIN139 running: tiling-doors r3 35e31662, tiling-minor r1 31af60c5.

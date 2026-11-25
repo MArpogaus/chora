@@ -153,3 +153,13 @@ Branch claude/xp-minor-r3, head cb5fcb7f, merged gate-ratchets (254b07ba). Full 
 - rxm2-4: red 94cc8ff8 (`a_click_on_the_clock_takes_the_focus_from_the_window_behind_rxm2_4`: "open: the window keeps the focus"), fix 7f5d090a: open_date_dialog ends with focus(None), FocusNode, sync_tasks on both paths; `a_second_open_raises_the_dialog` now expects Move first for Date and Time.
 - Extra: a0056c3b xp30-once waits (`ctl wait --timeout 6`) instead of `sleep 6`, to bring the sleep-ratchet to the list after the merge.
 - Not done: rxm2-3, rxm2-7, rxm2-8 (backlog), as briefed.
+
+## PM review r3
+Diff 254b07ba..cb5fcb7f (9 files, +137 -40; under 200 lines). Red first: d49c2dae, c91f284d, 94cc8ff8, 97d5218b each before its fix; lane gate EXIT 0.
+- rxm2-1 closed (9c3131f6): the greeting writes under Agent.state_home; tests set a temp dir.
+- rxm2-2 closed (a5a00302): hush clears `said` only when it holds the greeting text.
+- rxm2-4 closed (7f5d090a): open and raise both drop the window focus and focus the dialog group (raise_panel pushes it last).
+- rxm2-5, -6 closed (3a5d65a0, cb5fcb7f): helper cells wait on `choractl wait --visible` (docs/api.md updated); xp30-once sleep gone (a0056c3b).
+- rxm3-1 MINOR (assistant/src/main.rs, rxm2_1 test): before == after passes vacuously when the real assistant-greeted file already exists; assert on the temp dir file instead. Backlog.
+- rxm3-2 NIT (assistant/src/main.rs:399, :453): unrelated rewrites of the methods list and sync_row/apply in Agent::new; harmless.
+Verdict (computed): MERGE-OK cb5fcb7f.
