@@ -73,6 +73,7 @@ wait_dump 'step 1 of 1'
 echo 'voice.state {"name": "Atlas", "state": "done", "task": "Write file", "step": 1, "steps": 1, "seq": 4, "epoch": 1}' >&5
 wait_header_idle
 finished=$dumped
+ctl capture "$shots/xp-28-idle.png" >/dev/null || fail "xp-28: the capture failed"
 exec 5>&-
 echo "$finished" | grep -q 'step 1 of 1' && fail "xp-28: the header keeps step 1 of 1 after the finished answer: $finished"
 echo "$finished" | grep -q 'Idle' || fail "xp-28: the header does not say Idle after the finished answer: $finished"
