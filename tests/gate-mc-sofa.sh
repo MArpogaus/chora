@@ -58,6 +58,10 @@
 #   more        a page that does not fit shows a mark at its foot that more
 #               follows, and none at its end or when it fits (rmm1-4)
 #
+#   launcher-theme  the launcher (Super+Space) and the power menu
+#               (Super+Shift+E) take the theme of mc: the box has the colour
+#               of the page and its text at least 4.5 to 1 on it (rpx1-10)
+#
 #   page-edges  no line of any built-in scene, every panel full, is cut at the
 #               edge of its page at 1280x720 (rmm1-1)
 #
@@ -536,6 +540,36 @@ node_rect_of_more() {
     ctl query "id:$1" | jq -c "[.[] | select(.visible and (.rects | length) > 0)][0].rects // empty | to_entries[0].value"
 }
 
+
+menu_theme() {
+    local name=$1 x=$2 y=$3 w=$4 h=$5 want ratio red green blue
+    case $theme in
+    dark) want="28 28 28" ;;
+    *) want="247 245 237" ;;
+    esac
+    ctl capture "$work/menu-$name.png" >/dev/null || fail "capture $name"
+    read -r ratio _ _ _ _ _ red green blue < <(python3 -I "$repo/tests/png-contrast.py" "$work/menu-$name.png" "$x" "$y" "$w" "$h" | tr -d '(),')
+    [ "$red $green $blue" = "$want" ] || fail "the $name has the box $red $green $blue, not the page background $want of the $theme theme (rpx1-10)"
+    jq -ne --arg r "$ratio" '($r | tonumber) >= 4.5' >/dev/null || fail "the text of the $name has the contrast $ratio to its box, under 4.5 (rpx1-10)"
+}
+cell_launcher_theme() {
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    : >"$work/fake/real"
+    key Super+space
+    sleep 3
+    shot launcher-theme
+    menu_theme "launcher" 500 246 200 18
+    key Escape
+    sleep 1
+    key Super+Shift+e
+    sleep 3
+    shot power-theme
+    menu_theme "power menu" 570 300 140 100
+    key Escape
+    rm -f "$work/fake/real"
+}
+
 cell_page_end() {
     local card page foot
     key Super+Home
@@ -686,7 +720,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist keylist-click more page-end page-edges pill-clock helpers-empty remote-back launcher-click-row rooms-card rooms-pill)
+cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist keylist-click more launcher-theme page-end page-edges pill-clock helpers-empty remote-back launcher-click-row rooms-card rooms-pill)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done
