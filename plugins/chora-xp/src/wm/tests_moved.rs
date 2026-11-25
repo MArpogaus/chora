@@ -1211,6 +1211,26 @@ mod press {
         assert_eq!(opened(&wm), 1, "a double click raises the open dialog");
     }
 
+    /// rxm2-4: a click on the clock, on the open and on the raise path, takes
+    /// the keys from the window behind and gives them to the dialog.
+    #[test]
+    fn a_click_on_the_clock_takes_the_focus_from_the_window_behind_rxm2_4() {
+        let (mut wm, _methods) = wm_on_fake_core("clock-focus");
+        let [x, y, w, h] = wm.bars.first().and_then(Bar::clock_rect).expect("clock");
+        let at = [f64::from(x + w / 2), f64::from(y + h / 2)];
+        for path in ["open", "raise"] {
+            wm.focused = Some("s0".into());
+            let commands = wm.press_tray(at);
+            assert!(wm.focused.is_none(), "{path}: the window keeps the focus");
+            assert!(
+                commands
+                    .iter()
+                    .any(|c| matches!(c, Command::FocusNode { node: Some(_) })),
+                "{path}: the dialog does not take the keys"
+            );
+        }
+    }
+
     /// xp-10: Date and Time has a task button as Display Properties has, and
     /// the button goes with the dialog; a press on it takes the dialog to the
     /// top.
