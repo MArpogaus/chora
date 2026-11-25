@@ -1151,20 +1151,20 @@ impl Assistant {
             }),
             ..PropsUpdate::default()
         };
-        if std::mem::replace(&mut self.speech, true) {
-            leaning.push(Command::Update {
+        let balloon = if std::mem::replace(&mut self.speech, true) {
+            Command::Update {
                 id: SPEECH.into(),
                 props,
-            });
-            return leaning;
-        }
-        leaning.push(Command::Create {
-            id: SPEECH.into(),
-            kind: NodeKind::Image,
-            parent: GROUP.into(),
-            props,
-        });
-        leaning
+            }
+        } else {
+            Command::Create {
+                id: SPEECH.into(),
+                kind: NodeKind::Image,
+                parent: GROUP.into(),
+                props,
+            }
+        };
+        [vec![balloon], leaning].concat()
     }
 
     /// When the next move, blink or fade is due.
