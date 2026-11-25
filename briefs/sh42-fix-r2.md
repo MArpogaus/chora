@@ -1,8 +1,8 @@
 # sh42-fix r2 (rc 1: sh-42 MAJOR; train134 sleep-ratchet breach): replace the two fixed sleeps of r1 with waits
 
 Model: sonnet, effort medium (routine test edit)
-Lane: cloud, claude/sh42-fix-r2 at 84f66d43 (session head, t133), merge b92de049 (claude/sh42-fix-r1) first. One round.
-Step 0: `git fetch --unshallow`; `git merge --no-ff b92de049`; `cargo check --workspace`. A failure: send_message the PM "sh42-fix-r2 BLOCKED: <line>" and stop.
+Lane: cloud, claude/sh42-fix-r2 at b92de049 (r1 head); merge 84f66d43 (session head, t133) first. One round.
+Step 0: `git fetch --unshallow`; `git merge --no-ff 84f66d43`; `cargo check --workspace`. A failure: send_message the PM "sh42-fix-r2 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore.
 Stop at 120 k context; cost at most 0.6 %.
 Why: train134 (84f66d43 + b92de049 + fbdcd6e2) fails tools/sleep-ratchet (sleep 783 vs list 779). r1 adds two fixed `sleep 2` in tests/gate-handover-shared.sh (review rsf1-1 join_tiling, rsf1-2 join-mc before Return).
 Steps:
