@@ -144,3 +144,12 @@ Seeded review (opus, not the builder) of claude/xp-minor-r2, base d2a048d5, head
 - rxm2-7 NIT plugins/chora-xp/src/session.rs:118: 4 px is one word space at 14 px, so the unbacked captions still read "Stand By Turn Off" as one phrase (capture 4). Fix: a floor of 6 to 8 px (pitch 60 fits: 12 + 4 x 60 + 60 = 312 of 314).
 - rxm2-8 NIT plugins/chora-assistant/src/main.rs:1173: `the_greeting_waits_while_a_window_lies_under_the_balloon_xp_30` passes covered=true itself; `window_under_the_balloon` has no unit, only the gate cell. Fix: restore the FakeCore `answer_with("scene.query", ...)` unit through `greet_step`.
 Verdict (computed): open MAJOR rxm2-1 -> FIX. Counts: 0 BLOCK, 1 MAJOR, 5 MINOR, 2 NIT.
+
+## r3 (2026-11-25)
+Branch claude/xp-minor-r3, head cb5fcb7f, merged gate-ratchets (254b07ba). Full gate EXIT 0 (all steps PASS, no foreign reds; the merge was red on the sleep-ratchet, 779 over the list 778, fixed by the xp30-once wait below). `pgrep -fa 'chora --headless'` empty at the end.
+- rxm2-1 MAJOR: red d49c2dae (`a_greeting_in_a_test_leaves_the_real_state_home_alone_rxm2_1`: "assertion left == right failed: the test wrote .../chora/assistant-greeted"), fix 9c3131f6: `state_home` is a field of Agent, tests set a temp dir. `ls ~/.local/state/chora` absent after the suite.
+- rxm2-6 + rxm2-5: red 97d5218b (tests/gate-xp-helper-waits.sh: "FAIL: a cell still calls pause (a fixed wait): 152: pause 2 157: pause 5"), fix cb5fcb7f and 3a5d65a0: xp30-click `ctl wait --gone --visible --timeout 4`, xp30-window waits on the surface instead of `pause 2`, negative case `ctl wait --visible --timeout 5` fails when the balloon shows; `pause` removed. One red covers both (same file). selectors cannot see `visible`, so `choractl wait --visible` was added (docs/api.md, a flag over the existing scene.query filter).
+- rxm2-2: red c91f284d (`a_press_leaves_a_later_sentence_in_the_balloon_rxm2_2`: "the press hushed a later sentence"), fix a5a00302: greeting_gone hushes only while `said` is a greeting text.
+- rxm2-4: red 94cc8ff8 (`a_click_on_the_clock_takes_the_focus_from_the_window_behind_rxm2_4`: "open: the window keeps the focus"), fix 7f5d090a: open_date_dialog ends with focus(None), FocusNode, sync_tasks on both paths; `a_second_open_raises_the_dialog` now expects Move first for Date and Time.
+- Extra: a0056c3b xp30-once waits (`ctl wait --timeout 6`) instead of `sleep 6`, to bring the sleep-ratchet to the list after the merge.
+- Not done: rxm2-3, rxm2-7, rxm2-8 (backlog), as briefed.
