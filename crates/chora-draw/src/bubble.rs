@@ -111,7 +111,8 @@ impl Style {
     }
 
     /// The rounded rectangle of a size with the tail at the x of its tip
-    /// as one outline, so that the border runs around both; SVG elements
+    /// as one outline, so that the border runs around both; a tip right of
+    /// the box leans out of it, so the picture must reach the tip; SVG elements
     /// for [`crate::theme::Picture::svg`].
     #[must_use]
     pub fn shape(&self, [width, height]: [i32; 2], tail_x: i32) -> String {
@@ -126,8 +127,12 @@ impl Style {
         if self.tail > 0 {
             let tip_x = f64::from(tail_x) - 0.5;
             let tip_y = bottom + f64::from(self.tail);
-            let base_x = tip_x - f64::from(self.tail_base);
-            let _ = write!(path, "H{tip_x} V{tip_y} L{base_x},{bottom} ");
+            let base_right = tip_x.min(right - radius);
+            let base_left = base_right - f64::from(self.tail_base);
+            let _ = write!(
+                path,
+                "H{base_right} L{tip_x},{tip_y} L{base_left},{bottom} "
+            );
         }
         let _ = write!(
             path,
@@ -174,7 +179,7 @@ mod tests {
         }
         .shape([100, 40], 60);
         assert!(
-            !plain.contains('L') && tailed.contains("V57.5 L43.5,39.5"),
+            !plain.contains('L') && tailed.contains("L59.5,57.5 L43.5,39.5"),
             "{tailed}"
         );
     }

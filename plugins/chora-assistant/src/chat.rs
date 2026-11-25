@@ -178,10 +178,10 @@ impl Frame {
     #[must_use]
     pub fn tail(&self) -> Option<i32> {
         let [tip_x, _] = self.balloon_tip()?;
-        let [x, _, w, _] = self.rect();
+        let x = self.rect()[0];
         let style = Style::default();
         let lowest = BALLOON_RADIUS + style.tail_base;
-        Some((tip_x - x).clamp(lowest, (w - BALLOON_RADIUS).max(lowest)))
+        Some((tip_x - x).max(lowest))
     }
 
     /// The part of a slot box inside the work area, no wider than a chat

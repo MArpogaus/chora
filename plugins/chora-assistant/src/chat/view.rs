@@ -1033,7 +1033,8 @@ fn panel(theme: &mut Theme, frame: &Frame, parts: &Parts, colours: Colours) -> V
         .filter(|_| is_glass)
         .map(|colour| glow(theme, [w, h], colour));
     let below = tail.map_or(0, |_| crate::config::TAIL);
-    let mut picture = Picture::new(w, h + below).svg(shape);
+    let reach = tail.map_or(w, |t| w.max(t + 1));
+    let mut picture = Picture::new(reach, h + below).svg(shape);
     if let Some(xp) = &parts.xp {
         picture = xp_header(theme, picture, xp, (w, colours));
     } else {

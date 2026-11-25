@@ -340,7 +340,7 @@ fn place(
         let right = (tip_x + style.tail_inset).min(ax + aw - 2);
         (right - w).max(ax)
     };
-    let tail = (tip_x - left).clamp(style.radius + style.tail_base, w - style.radius);
+    let tail = (tip_x - left).max(style.radius + style.tail_base);
     let above = tip_y - style.tail - h;
     if above >= ay {
         ([left, above], tail, false)
@@ -368,7 +368,7 @@ fn speech(
         tail: if below { 0 } else { style.tail },
         ..style.clone()
     };
-    let mut picture = Picture::new(w, h + style.tail).svg(style.shape([w, h], tail));
+    let mut picture = Picture::new(w.max(tail + 1), h + style.tail).svg(style.shape([w, h], tail));
     for (line, y) in lines.iter().zip((PAD..).step_by(LINE as usize)) {
         picture = picture.text(Text::new(
             line,
