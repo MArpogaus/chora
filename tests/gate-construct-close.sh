@@ -32,6 +32,7 @@ mode() { ctl call construct cube.list | python3 -I -c 'import json, sys; print(j
 pane_sources() { ctl query kind:surface | python3 -I -c 'import json, sys; print(" ".join(n["id"] for n in json.load(sys.stdin) if n.get("owner") == "construct"))'; }
 panes_n() { ctl call construct construct.list | python3 -I -c 'import json, sys; print(len(json.load(sys.stdin)["panes"]))'; }
 rect_of() { ctl query "id:$1" | jq -r '.[0].rects | to_entries[0].value | @tsv' 2>/dev/null; }
+handled() { ctl query '*' >/dev/null && ctl call construct state.get '{}' >/dev/null && until_ok quiet 40 && ctl call construct state.get '{}' >/dev/null; }
 alive() { kill -0 "$1" 2>/dev/null; }
 dump() { echo "core: $(core_focus | tr '\n' ' ') xp: $(xp_focus) panes: $(panes_n) cube: $(ctl call construct cube.list | tr -d ' \n' | cut -c1-200)"; }
 
@@ -48,7 +49,7 @@ until_ok quiet 80 || fail "the construct is still busy after the pane"
 read -r pane < <(pane_sources)
 until_ok 'core_focus | grep -qx "$pane"' 8 || key Return
 until_ok 'core_focus | grep -qx "$pane"' 40 || fail "the camera is in no pane: $(dump)"
-sleep 5
+until_ok 'ctl query id:construct-hints-glass | jq -e ".[0].color[3] > 0.9" >/dev/null' 40 || fail "co-76: the hints did not come to rest after their 3 s: $(dump)"
 read -r x y w h < <(rect_of construct-hint-step-back)
 [ -n "${h:-}" ] || fail "co-76: after the 3 s of the hints nothing in the pane leads out: no hint Step back ($(dump))"
 read -r _ _ _ kh < <(rect_of construct-hint-keys)
@@ -77,14 +78,14 @@ read -r _ face < <(xp_focus)
 until_ok 'core_focus | grep -qx "$face"' 40 || fail "the core does not focus $face of face 0: $(dump)"
 key Super+x
 until_ok '! alive "$face_pid"' 40 || fail "co-75: Super+x left the focused face window $face open: $(dump)"
-sleep 1
+handled
 alive "$pane_pid" || fail "co-75: Super+x in a face closed the pane out of view: $(dump)"
 test "$(panes_n)" = 1 || fail "co-75: Super+x in a face took the pane out of view: $(dump)"
 ok "Super+x in a face closed the focused face window $face and kept the pane out of view ($(dump))"
 
 until_ok '! core_focus | grep -qx "$face" && ! xp_focus | grep -q "^xp s"' 40 || fail "co-75: a face window still has the keys after its close, the test of no window focused does not hold: $(dump)"
 key Super+x
-sleep 2
+handled
 alive "$pane_pid" || fail "co-75: Super+x with no window focused in the face closed the pane out of view: $(dump)"
 test "$(panes_n)" = 1 || fail "co-75: Super+x with no window focused in the face took the pane: $(dump)"
 ok "Super+x with no window focused in the face closed nothing out of view ($(dump))"
