@@ -498,6 +498,12 @@ cell_page_end() {
     jq -ne --argjson f "$foot" --argjson p "$page" '$p[1] + $p[3] <= $f[1]' >/dev/null ||
         fail "the page $page reaches under the footer line $foot (rpx1-12)"
     ctl call mc notify.clear '{}' >/dev/null
+    sleep 1.5
+    ctl capture "$work/page-end.png" >/dev/null || fail "capture page-end"
+    # shellcheck disable=SC2046 # four words, one for each number of the rect
+    cut=$(python3 -I "$repo/tests/png-ink.py" "$work/page-end.png" \
+        $(jq -r '"160 \(.[1] + .[3] - 2 | floor) 664 2"' <<<"$page"))
+    [ -z "$cut" ] || fail "a line of the page is cut at the edge of the page $page: ink $cut in its last two rows (rpx1-12)"
 }
 
 cell_pill_clock() {
