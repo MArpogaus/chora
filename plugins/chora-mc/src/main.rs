@@ -2215,8 +2215,7 @@ mod tests {
             for panel in &scene.panels {
                 let [x, y, w, h] = mc.place(name, panel).expect("a box");
                 assert!(w > 0.0 && h > 0.0, "{name}: panel {} has no size", panel.id);
-                let line = mc.settings.value.scale.baseline;
-                let inside = x >= tx && x + w <= tx + tw + 0.5 && y + h <= ty + th + 2.0 * line;
+                let inside = x >= tx && x + w <= tx + tw + 0.5 && y + h <= ty + th + 0.5;
                 assert!(
                     inside || name == "mission",
                     "{name}: panel {} at {:?} is not inside the text block",

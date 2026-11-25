@@ -61,6 +61,9 @@
 #   all-keys       the full key list stays in the column and on the
 #                  screen, and its rule crosses no text
 #
+#   page-edges     no line of any built-in scene, every panel full, is cut at
+#                  the edge of its page at 1280x800 (rmm1-1)
+#
 # The gate ends with the window audit: the terminal of the terminal page
 # is still there.
 #
@@ -597,6 +600,9 @@ cell_stray_super() {
     until_ok '! has_text "Show overview"' 20 || fail "Super+F1 does not close the key list"
 }
 
+. "$repo/tests/mc-edges.sh"
+cell_page_edges() { page_edges 1280x800; }
+
 failed=()
 run_cell() {
     local name=$1
@@ -608,7 +614,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-for name in first-page first-turn arrows terminal-keys terminal-back terminal-turn mouse-back mute terminal-chat window-chat chat-click-turn chat-focus all-keys stray-super; do
+for name in first-page first-turn arrows terminal-keys terminal-back terminal-turn mouse-back mute terminal-chat window-chat chat-click-turn chat-focus all-keys stray-super page-edges; do
     run_cell "$name"
 done
 if [[ chat-click-close =~ ${CELLS:-.} ]]; then

@@ -52,6 +52,9 @@
 #               as the body of the page, and its ink is no grey: 7 to 1
 #               (mc-40)
 #
+#   page-edges  no line of any built-in scene, every panel full, is cut at the
+#               edge of its page at 1280x720 (rmm1-1)
+#
 #   remote-back a remote without Super leaves a window that has the keys:
 #               a program that the launcher started, then one press of
 #               XF86Back after the Escape that the shell got shows the
@@ -547,6 +550,9 @@ cell_helpers_empty() {
     case "$words" in *Pagella* | *Serif*) ;; *) fail "the words of the empty helpers page are not in the page type: $words" ;; esac
 }
 
+. "$repo/tests/mc-edges.sh"
+cell_page_edges() { page_edges 1280x720; }
+
 failed=()
 skipped=()
 ran=0
@@ -565,7 +571,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist page-end pill-clock helpers-empty remote-back launcher-click-row)
+cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist page-end page-edges pill-clock helpers-empty remote-back launcher-click-row)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done
