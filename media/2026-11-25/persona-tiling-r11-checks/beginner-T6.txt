@@ -1,0 +1,2 @@
+task T6 pass
+breaches 0
