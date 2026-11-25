@@ -188,6 +188,7 @@ sleep 1.5
     red "datetime-click: one click on the clock of the tray opens no Date and Time (xp-10)"
 [ "$(ctl query kind:image | jq '[.[] | select(.id | startswith("xp-task-datetimepanel-"))] | length')" -ge 1 ] ||
     red "datetime-click: Date and Time shows no taskbar button (xp-10)"
+ctl capture "$shots/datetime.png" >/dev/null || fail "no capture of Date and Time"
 for b in ok cancel apply; do
     read -r x y w h <<<"$(rect "xp-dlg-datetime-content-c-$b")"
     { [ "${w:-0}" = 75 ] && [ "${h:-0}" = 23 ]; } || red "datetime-metrics: $b is ${w:-?} x ${h:-?}, XP has 75 x 23"

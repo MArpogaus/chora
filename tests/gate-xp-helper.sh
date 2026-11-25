@@ -69,6 +69,7 @@ stop_assistant() {
 click() {
     echo "[{\"pointer_move\": {\"node\": \"$1\", \"point\": [10, 10]}}, {\"button\": {\"state\": \"pressed\"}}, {\"button\": {\"state\": \"released\"}}]" | ctl inject >/dev/null
 }
+pause() { ctl wait --timeout "$1" 'id:xp-gate-pause' >/dev/null 2>&1 || true; }
 click_at() {
     echo "[{\"pointer_move\": {\"position\": [$1, $2]}}, {\"click\": {\"button\": 272}}]" | ctl inject - >/dev/null
 }
@@ -135,9 +136,8 @@ xp30-click)
     start_assistant clicked
     greets xp-30
     click_at 400 300
-    for _ in $(seq 20); do
+    for _ in $(seq 40); do
         [ -z "$(balloon)" ] && break
-        sleep 0.2
     done
     t=$(balloon)
     [ -z "$t" ] || fail "xp-30: a click elsewhere leaves the greeting in the balloon: $t"
@@ -149,12 +149,12 @@ xp30-window)
     fpid=$!
     pids+=("$fpid")
     ctl wait --timeout 15 'kind:surface' >/dev/null || fail "xp-30: no window to cover the balloon"
-    sleep 1.5
+    pause 2
     read -r wx wy ww wh < <(ctl query 'kind:surface' | jq -r '.[0].rects | to_entries[0].value | map(floor) | join(" ")')
     { [ "$wx" -lt 1184 ] && [ $((wx + ww)) -gt 900 ] && [ "$wy" -lt 700 ] && [ $((wy + wh)) -gt 400 ]; } ||
         fail "xp-30: the window $wx,$wy ${ww}x$wh does not lie under the place of the balloon"
     start_assistant covered
-    sleep 5
+    pause 5
     t=$(balloon)
     [ -z "$t" ] || fail "xp-30: the paperclip greets over a window: $t"
     ctl capture "$shots/xp-30-covered.png" >/dev/null
