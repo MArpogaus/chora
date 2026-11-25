@@ -27,7 +27,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 | tiling-minor-r1.md (rc 1; rth-1..8, rtd1-2..5; 1.0 %) | sonnet high, claude/tiling-minor-r1 84f66d43 | session_016iS3kNuX9zyEYHgoVk9R8Y |
 | train135 (rc 1; sh-42) | PM, 8e63e0ed (sh42-fix-r2 88035ec0) | gate running |
 | co-close-waits-r1.md (rc 1; t134 sleeps; 0.5 %) | sonnet medium, claude/co-close-waits-r1 7f519bc8 | session_016iS3kPi6qRiSRUWdnKxSmS |
-| tiling-doors-r2.md (rc 2; 1.0 %) | sonnet high, claude/tiling-doors-r2 721be592 | starting |
+| tiling-doors-r2.md (rc 2; 1.0 %) | sonnet high, claude/tiling-doors-r2 721be592 | session_016iS3kPKrsTv7tRKpcW3uAv |
 ## Queue (% week; 5 % reserve)
 1. (rc 1, 2) TRAIN135 sh42-fix r2 running; TRAIN136: CO-CLOSE-WAITS r1 (+co-reach r1, co-close r2) after review.
 2. (rc 1, 2) construct: CO-REACH r1 7f519bc8 MERGE-OK (holds co-close r2); CO-CLOSE-WAITS r1 then train; co-77, co-78, rcr1-1 MINOR after.
