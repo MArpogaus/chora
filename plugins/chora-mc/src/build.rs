@@ -271,8 +271,8 @@ impl Mc {
     /// own that the next call replaces.
     /// A page between the header and the footer that clips the panels
     /// and takes the wheel; the panels move up in it as it scrolls. It ends
-    /// five lines over the foot of the output, above the card of
-    /// chora-notify and the footer line (rpx1-11, rpx1-12).
+    /// on a line of the grid over the card of chora-notify and the footer
+    /// line (rpx1-11, rpx1-12).
     /// Other plugins find the page by this tag and show it
     /// through its node texture, as chora-construct does.
     pub(crate) fn panels(&self, name: &str) -> Vec<Command> {
@@ -283,6 +283,9 @@ impl Mc {
         let b = self.settings.value.scale.baseline;
         let page = page_id(name);
         let scroll = self.scroll.get(name).copied().unwrap_or_default();
+        let bottom = self
+            .geometry(name)
+            .map_or(h - 5.0 * b, |g| g.text[1] + g.text[3]);
         let mut commands = vec![
             create(
                 &page,
@@ -290,7 +293,7 @@ impl Mc {
                 &scene_id(name),
                 PropsUpdate {
                     transform: Some(translate(0.0, 2.0 * b)),
-                    size: Some([w, (h - 7.0 * b).max(b)]),
+                    size: Some([w, (bottom - 2.0 * b).max(b)]),
                     clip: Some(Some(chora_scene::Clip { radius: 0.0 })),
                     meta: Some(BTreeMap::from([("pane".into(), name.into())])),
                     ..PropsUpdate::default()

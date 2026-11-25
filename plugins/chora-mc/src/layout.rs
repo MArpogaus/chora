@@ -5,6 +5,12 @@ use super::{
     title_of, translate, wheel_id,
 };
 
+/// The height that the card of chora-notify takes at the foot of the
+/// output: its margin of 56 pixels and its two lines.
+const CARD_ROOM: f64 = 135.0;
+/// The room under a baseline for the descenders of a line.
+const DESCENT: f64 = 8.0;
+
 impl Mc {
     /// Builds the pages of all scenes anew, after a side took or gave back
     /// its room, so that the text takes the room that is free.
@@ -23,6 +29,16 @@ impl Mc {
             self.align(&name)?;
         }
         self.take_free_keyboard()
+    }
+
+    /// Where the page ends: over the card of chora-notify with its margin
+    /// and the footer line, on the line of the grid whose letters keep
+    /// their descenders, so that the edge never cuts through a line
+    /// (rpx1-11, rpx1-12).
+    fn page_bottom(&self, h: f64) -> f64 {
+        let (b, phase) = (self.settings.value.scale.baseline, self.phase());
+        let room = h - CARD_ROOM - DESCENT;
+        phase + b * ((room - phase) / b).floor() + DESCENT
     }
 
     /// Where the parts of the page of a scene go on the output.
@@ -65,7 +81,7 @@ impl Mc {
         } else {
             HEAD * b
         };
-        let bottom = h - 5.0 * b;
+        let bottom = self.page_bottom(h);
         Some(Geometry {
             text: [x, top, width, (bottom - top).max(b)],
             note,
