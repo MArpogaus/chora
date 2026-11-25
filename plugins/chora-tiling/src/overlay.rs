@@ -197,15 +197,21 @@ impl Tiling {
         let help = (config.common.bindings.iter())
             .find(|(_, action)| **action == Action::System(System::Keys))
             .and_then(|(text, _)| config.binding(text).ok())
-            .map_or_else(|| "Super+F1".to_owned(), |b| b.to_string());
-        let words = chora_kit::words::say(
-            chora_kit::words::Language::of_session(),
-            chora_kit::words::Word::KeyUnbound,
-            &[
-                ("chord", &keysheet::chord(binding)),
-                ("key", &keysheet::chord(&help)),
-            ],
-        );
+            .map(|b| b.to_string());
+        let language = chora_kit::words::Language::of_session();
+        let chord = keysheet::chord(binding);
+        let words = match help {
+            Some(help) => chora_kit::words::say(
+                language,
+                chora_kit::words::Word::KeyUnbound,
+                &[("chord", &chord), ("key", &keysheet::chord(&help))],
+            ),
+            None => chora_kit::words::say(
+                language,
+                chora_kit::words::Word::KeyUnboundBare,
+                &[("chord", &chord)],
+            ),
+        };
         self.show_words(&words, HINT_TIME)
     }
 
