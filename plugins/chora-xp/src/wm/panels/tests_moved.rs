@@ -211,7 +211,9 @@ mod dialogs {
     use super::*;
 
     /// A second Date and Time, Display Properties or Effects raises the
-    /// open one: the dialog is moved to the top, and no dialog opens.
+    /// open one: the dialog is moved to the top, and no dialog opens. Date
+    /// and Time also takes the keys and syncs the tasks (rxm2-4), so its
+    /// commands start with the move.
     #[test]
     fn a_second_open_raises_the_dialog() {
         let (mut wm, _methods) = wm_on_fake_core("raise-twice");
@@ -224,7 +226,11 @@ mod dialogs {
         let displays = wm.open_display_dialog(area);
         let effects = wm.open_effects();
         assert_eq!(wm.panels.len(), open, "no dialog opens twice");
-        for raised in [dates, displays, effects] {
+        assert!(
+            matches!(dates.first(), Some(Command::Move { .. })),
+            "Date and Time is moved to the top: {dates:?}"
+        );
+        for raised in [displays, effects] {
             assert!(
                 matches!(raised.as_slice(), [Command::Move { .. }]),
                 "the open dialog is moved to the top: {raised:?}"
@@ -423,25 +429,25 @@ mod clock {
         assert!(wm.context.is_some(), "the popup is open");
     }
 
-    /// Two presses on the clock of the taskbar within a double click open
-    /// Date and Time; one press opens nothing.
+    /// One press on the clock of the taskbar opens Date and Time (xp-10),
+    /// and the second press of a double click opens no second dialog.
     #[test]
-    fn a_double_click_on_the_clock_opens_date_and_time() {
+    fn a_click_and_a_double_click_on_the_clock_open_date_and_time_once() {
         let (mut wm, _methods) = wm_on_fake_core("clock-double");
         let [x, y, w, h] = wm.bars[0]
             .clock_rect()
             .expect("the taskbar shows the clock");
         let at = [f64::from(x + w / 2), f64::from(y + h / 2)];
         wm.press_tray(at);
-        assert!(
-            !wm.panels.iter().any(|p| matches!(p, Panel::Clock(_))),
-            "one press opens nothing"
-        );
+        let open = |wm: &Wm| {
+            wm.panels
+                .iter()
+                .filter(|p| matches!(p, Panel::Clock(_)))
+                .count()
+        };
+        assert_eq!(open(&wm), 1, "one press opens Date and Time");
         wm.press_tray(at);
-        assert!(
-            wm.panels.iter().any(|p| matches!(p, Panel::Clock(_))),
-            "the double click opens Date and Time"
-        );
+        assert_eq!(open(&wm), 1, "the double click opens no second dialog");
     }
 }
 

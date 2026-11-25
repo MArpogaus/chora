@@ -44,24 +44,44 @@ pub const GREET_AFTER: Duration = Duration::from_millis(1500);
 /// How long the greeting stays in the balloon.
 const GREET_FOR: Duration = Duration::from_secs(12);
 
+/// How long the greeting waits, when a window lies under its balloon, before
+/// it looks again.
+const GREET_RETRY: Duration = Duration::from_millis(500);
+
+/// Whether a window of a query lies on an area (x, y, width, height): a
+/// visible surface with a rectangle that meets it.
+pub fn window_meets(nodes: &[Value], [x, y, w, h]: [i32; 4]) -> bool {
+    nodes
+        .iter()
+        .filter(|node| node["visible"].as_bool().unwrap_or(true))
+        .filter_map(|node| node["rects"].as_object())
+        .flat_map(|rects| rects.values())
+        .any(|rect| {
+            let side = |at: usize| rect[at].as_f64().unwrap_or(0.0);
+            let [rx, ry, rw, rh] = [side(0), side(1), side(2), side(3)];
+            rw > 0.0
+                && rh > 0.0
+                && rx < f64::from(x + w)
+                && f64::from(x) < rx + rw
+                && ry < f64::from(y + h)
+                && f64::from(y) < ry + rh
+        })
+}
+
 /// The file whose presence says that the paperclip greeted.
-fn greeted_file() -> Option<std::path::PathBuf> {
-    Some(
-        chora_scene::paths::state_home()?
-            .join("chora")
-            .join("assistant-greeted"),
-    )
+fn greeted_file(home: Option<std::path::PathBuf>) -> Option<std::path::PathBuf> {
+    Some(home?.join("chora").join("assistant-greeted"))
 }
 
 /// Whether the paperclip has not greeted yet in this state of the session.
 pub fn greeting_pending() -> bool {
-    greeted_file().is_some_and(|file| !file.exists())
+    greeted_file(chora_scene::paths::state_home()).is_some_and(|file| !file.exists())
 }
 
 /// Remembers the greeting; when that fails the paperclip greets again at
 /// the next start.
-fn remember_greeting() {
-    let Some(file) = greeted_file() else {
+fn remember_greeting(home: Option<std::path::PathBuf>) {
+    let Some(file) = greeted_file(home) else {
         return;
     };
     let dir = file.parent().map(chora_scene::paths::private_dir);
@@ -94,6 +114,17 @@ impl Agent {
         {
             return Ok(());
         }
+        let covered = self.window_under_the_balloon();
+        self.greet_with(now, covered)
+    }
+
+    /// The greeting itself, or a new try when a window lies under its
+    /// balloon: the greeting is not spent then.
+    pub fn greet_with(&mut self, now: Instant, covered: bool) -> Result<(), ClientError> {
+        if covered {
+            self.greet = Some(now + GREET_RETRY);
+            return Ok(());
+        }
         let helper = self.voice.is_some() || !self.helpers.is_empty();
         let word = if helper {
             Word::Greeting
@@ -101,10 +132,57 @@ impl Agent {
             Word::GreetingNoHelper
         };
         let text = word.text(self.language);
-        remember_greeting();
+        remember_greeting(self.state_home.clone());
+        self.greeting = Some(now + GREET_FOR);
         self.said = Some((text.to_owned(), now + GREET_FOR));
         let commands = self.say(text, GREET_FOR, now);
         self.apply(commands)
+    }
+
+    /// Whether a window of a client lies where the balloon of the greeting
+    /// stands: the greeting never covers what a person works in.
+    fn window_under_the_balloon(&mut self) -> bool {
+        let Some(area) = self.assistant.as_ref().map(Assistant::reach) else {
+            return false;
+        };
+        let nodes: Vec<Value> = self
+            .rt
+            .conn
+            .call("scene.query", chora_scene::ipc::Query::new("kind:surface"))
+            .unwrap_or_default();
+        window_meets(&nodes, area)
+    }
+
+    /// Any press takes the greeting out of the balloon, and it does not
+    /// come back with a helper that connects later.
+    pub fn greeting_gone(&mut self, now: Instant) -> Vec<Command> {
+        let Some(until) = self.greeting.take() else {
+            return Vec::new();
+        };
+        if until <= now {
+            return Vec::new();
+        }
+        let ours = |word: Word| {
+            self.said
+                .as_ref()
+                .is_some_and(|(t, _)| t == word.text(self.language))
+        };
+        if !ours(Word::Greeting) && !ours(Word::GreetingNoHelper) {
+            return Vec::new();
+        }
+        self.said = None;
+        self.assistant
+            .as_mut()
+            .map(Assistant::hush)
+            .unwrap_or_default()
+    }
+
+    /// A window that opens under the balloon of the greeting takes it away.
+    pub fn greeting_under_a_window(&mut self, now: Instant) -> Vec<Command> {
+        if self.greeting.is_some_and(|until| until > now) && self.window_under_the_balloon() {
+            return self.greeting_gone(now);
+        }
+        Vec::new()
     }
 
     /// Asks the voice agent for its state, so that the figure shows after

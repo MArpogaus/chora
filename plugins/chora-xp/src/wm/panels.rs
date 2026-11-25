@@ -1,10 +1,10 @@
 //! Menus, dialogs and panels: opening, drawing, clicking and closing them, and the taskbar and icons.
 
 use super::{
-    Action, BARS, Bar, Change, Click, Command, DIALOGS, DOUBLE_CLICK, DateDialog, DisplayDialog,
-    EffectsDialog, HIDE_DELAY, HelpDialog, Hit, Instant, Mode, NAME, Outcome, Panel, Path, Rect,
-    Setting, Store, TaskbarDialog, Value, Wm, apps, context, control, desktop_icons, display, help,
-    json, taskbar, volume, wallpaper,
+    Action, BARS, Bar, Change, Click, Command, DIALOGS, DateDialog, DisplayDialog, EffectsDialog,
+    HIDE_DELAY, HelpDialog, Hit, Instant, Mode, NAME, Outcome, Panel, Path, Rect, Setting, Store,
+    TaskbarDialog, Value, Wm, apps, context, control, desktop_icons, display, help, json, taskbar,
+    volume, wallpaper,
 };
 
 use chora_kit::notice::{self, Notice, Urgency};
@@ -156,14 +156,22 @@ impl Wm {
     /// Date and Time Properties in the middle of a work area, or the open
     /// one on top.
     pub(super) fn open_date_dialog(&mut self, area: Rect) -> Vec<Command> {
-        if let Some(commands) = self.raise_panel(|p| matches!(p, Panel::Clock(_))) {
-            return commands;
+        let mut commands = self.raise_panel(|p| matches!(p, Panel::Clock(_)));
+        if commands.is_none() {
+            let now = chrono::Local::now().naive_local();
+            let mut panel = DateDialog::new(now, area);
+            let page = panel.page(&self.theme, now);
+            commands = Some(panel.dialog.create(&mut self.theme, DIALOGS, page));
+            self.push_panel(Panel::Clock(panel));
         }
-        let now = chrono::Local::now().naive_local();
-        let mut panel = DateDialog::new(now, area);
-        let page = panel.page(&self.theme, now);
-        let commands = panel.dialog.create(&mut self.theme, DIALOGS, page);
-        self.push_panel(Panel::Clock(panel));
+        let mut commands = commands.unwrap_or_default();
+        commands.extend(self.focus(None));
+        if let Some(panel) = self.panels.last() {
+            commands.push(Command::FocusNode {
+                node: Some(panel.window_ref().group()),
+            });
+        }
+        commands.extend(self.sync_tasks());
         commands
     }
 
@@ -384,7 +392,8 @@ impl Wm {
     }
 
     /// A click on the speaker of a taskbar opens the volume popup above
-    /// it, and a double click on the clock opens Date and Time.
+    /// it, and a click on the clock opens Date and Time (XP opens it on a double
+    /// click; the second click of one raises the open dialog).
     pub(super) fn press_tray(&mut self, [px, py]: [f64; 2]) -> Vec<Command> {
         #[expect(
             clippy::cast_possible_truncation,
@@ -406,15 +415,6 @@ impl Wm {
             return Vec::new();
         };
         let area = bar.usable();
-        let now = Instant::now();
-        let double = self
-            .last_clock
-            .take()
-            .is_some_and(|at| now.duration_since(at) < DOUBLE_CLICK);
-        if !double {
-            self.last_clock = Some(now);
-            return Vec::new();
-        }
         self.open_date_dialog(area)
     }
 

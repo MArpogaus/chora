@@ -16,6 +16,9 @@ use crate::{
     theme::{Picture, Rect, Theme},
 };
 
+/// The title of the dialog, which its task button shows.
+pub const WINDOW_TITLE: &str = "Date and Time Properties";
+
 /// The client area.
 const SIZE: [i32; 2] = [398, 316];
 const PAGE: Rect = [6, 27, 384, 251];
@@ -129,7 +132,7 @@ impl DateDialog {
     /// The dialog for today, in the middle of a work area.
     pub fn new(now: NaiveDateTime, area: Rect) -> Self {
         Self {
-            dialog: Dialog::new("datetime", "Date and Time Properties", SIZE, area),
+            dialog: Dialog::new("datetime", WINDOW_TITLE, SIZE, area),
             tab: 0,
             year: now.year(),
             month: now.month(),
@@ -509,6 +512,31 @@ mod tests {
             zone_of(Path::new("/usr/share/zoneinfo/Europe/Zurich")).as_deref(),
             Some("Europe/Zurich")
         );
+    }
+
+    /// xp-10: the push buttons are XP's 75 by 23 on both tabs.
+    #[test]
+    fn the_push_buttons_are_75_by_23_xp_10() {
+        let (theme, cache) = theme("datetime-buttons");
+        let now = NaiveDate::from_ymd_opt(2003, 4, 15)
+            .and_then(|d| d.and_hms_opt(11, 41, 57))
+            .expect("a date");
+        let mut panel = DateDialog::new(now, [0, 0, 1280, 770]);
+        for tab in 0..2 {
+            panel.tab = tab;
+            for control in panel.page(&theme, now).controls {
+                if matches!(control.kind, dialog::Kind::Push { .. }) {
+                    assert!(
+                        control.rect[2] >= 75 && control.rect[3] >= 23,
+                        "{} is {} by {}",
+                        control.name,
+                        control.rect[2],
+                        control.rect[3]
+                    );
+                }
+            }
+        }
+        let _ = std::fs::remove_dir_all(cache);
     }
 
     #[test]

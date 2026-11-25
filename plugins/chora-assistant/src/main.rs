@@ -196,6 +196,12 @@ struct Agent {
     assistant: Option<Assistant>,
     /// When the paperclip greets, at the first start of a session state.
     greet: Option<Instant>,
+    /// Until when the greeting shows in the balloon; a press or a window
+    /// under the balloon takes it away before.
+    greeting: Option<Instant>,
+    /// The state home that the greeting is remembered in; tests set a
+    /// temporary one.
+    state_home: Option<PathBuf>,
     /// The camera of the construct is in a pane: the island dims.
     in_pane: bool,
     /// The client name of the voice agent and its state, while it is
@@ -277,6 +283,8 @@ impl Plugin for Agent {
                 let now = Instant::now();
                 self.switcher
                     .surface_changed(&surface, app_id.as_deref(), now);
+                let gone = self.greeting_under_a_window(now);
+                self.apply(gone)?;
                 Vec::new()
             }
             Event::Emitted {
@@ -388,9 +396,8 @@ impl Agent {
     ) -> Result<Self, String> {
         let card_theme = card::theme(&source.cache, HOST_FAMILY)?;
         source.loads = source.loads.max(1);
-        let mut methods = chat::exported();
-        methods.extend(settings::File::<Config>::methods());
-        methods.push(chora_kit::runtime::state_method());
+        let own = [chat::exported(), settings::File::<Config>::methods()];
+        let methods = [own.concat(), vec![chora_kit::runtime::state_method()]].concat();
         let rt = Runtime::start(NAME, Vec::new(), EVENTS, methods).map_err(|e| e.to_string())?;
         let mut agent = Self {
             rt,
@@ -414,6 +421,8 @@ impl Agent {
             language: Language::of_session(),
             assistant: None,
             greet: voice::greeting_pending().then(|| Instant::now() + voice::GREET_AFTER),
+            greeting: None,
+            state_home: chora_scene::paths::state_home(),
             in_pane: false,
             voice: None,
             muted: false,
@@ -441,8 +450,8 @@ impl Agent {
         agent.look_context = agent.switcher.applied().clone();
         agent.evaluate(Instant::now()).map_err(|e| e.to_string())?;
         agent.watch_slot().map_err(|e| e.to_string())?;
-        let row = agent.sync_row().map_err(|e| e.to_string())?;
-        agent.apply(row).map_err(|e| e.to_string())?;
+        let row = agent.sync_row().and_then(|row| agent.apply(row));
+        row.map_err(|e| e.to_string())?;
         agent.ask_voice().map_err(|e| e.to_string())?;
         Ok(agent)
     }
@@ -492,6 +501,8 @@ impl Agent {
     /// folder says, one on the badge turns it on, and one on a button of
     /// the question answers it.
     fn pressed(&mut self, node: &str, injected: bool) -> Result<Vec<Command>, ClientError> {
+        let gone = self.greeting_gone(Instant::now());
+        self.apply(gone)?;
         let (handled, commands) = self.press_card(node, injected)?;
         if handled {
             self.chat_refocus();
@@ -953,8 +964,20 @@ mod tests {
         let _ = std::fs::remove_dir_all(root);
     }
 
-    #[allow(clippy::too_many_lines, reason = "a fake core and a whole plugin")]
     fn on_fake_core(tag: &str, chats: bool) -> (Agent, [chora_kit::testing::TempDir; 2]) {
+        let (agent, dirs, _core) = on_core(tag, chats);
+        (agent, dirs)
+    }
+
+    #[allow(clippy::too_many_lines, reason = "a fake core and a whole plugin")]
+    fn on_core(
+        tag: &str,
+        chats: bool,
+    ) -> (
+        Agent,
+        [chora_kit::testing::TempDir; 2],
+        chora_kit::testing::FakeCore,
+    ) {
         let dir = chora_kit::testing::TempDir::new(&format!("chora-assistant-{tag}"));
         std::fs::create_dir_all(&dir).unwrap();
         let core = chora_kit::testing::FakeCore::start();
@@ -996,6 +1019,8 @@ mod tests {
             language: Language::En,
             assistant: None,
             greet: None,
+            greeting: None,
+            state_home: Some(dir.join("state")),
             in_pane: false,
             voice: None,
             muted: false,
@@ -1016,7 +1041,7 @@ mod tests {
             flash: None,
             keyboard_told: false,
         };
-        (agent, [dir, cache])
+        (agent, [dir, cache], core)
     }
 
     fn pressed(node: &str, injected: bool) -> Event {
@@ -1128,6 +1153,78 @@ mod tests {
             .map(|l| l.text)
             .collect::<Vec<_>>()
             .join("\n")
+    }
+
+    /// xp-30: the greeting goes with any press of the person, on a window or
+    /// on the desktop, and does not come back with a helper.
+    #[test]
+    fn a_press_anywhere_closes_the_greeting_xp_30() {
+        let (mut agent, _dirs) = xp_agent("greet-press");
+        let now = Instant::now();
+        agent.greet_with(now, false).unwrap();
+        assert!(agent.said.is_some(), "the paperclip greets");
+        agent.event(pressed("s1", false)).unwrap();
+        assert!(
+            agent.said.is_none(),
+            "the press leaves the greeting in the balloon"
+        );
+        assert!(agent.greeting.is_none(), "the greeting is over");
+    }
+
+    /// rxm2-2: a press hushes the greeting only, not a later sentence of the
+    /// voice or of a state.
+    #[test]
+    fn a_press_leaves_a_later_sentence_in_the_balloon_rxm2_2() {
+        let (mut agent, _dirs) = xp_agent("greet-later");
+        let now = Instant::now();
+        agent.greet_with(now, false).unwrap();
+        let later = ("A later sentence.".to_owned(), now + Duration::from_secs(8));
+        agent.said = Some(later.clone());
+        agent.event(pressed("s1", false)).unwrap();
+        assert_eq!(agent.said, Some(later), "the press hushed a later sentence");
+    }
+
+    /// rxm2-1: a greeting of a test never writes the file of the real
+    /// state home of the person who runs the tests.
+    #[test]
+    fn a_greeting_in_a_test_leaves_the_real_state_home_alone_rxm2_1() {
+        let real = chora_scene::paths::state_home().map(|h| h.join("chora/assistant-greeted"));
+        let before = real.as_ref().is_some_and(|f| f.exists());
+        let (mut agent, _dirs) = xp_agent("greet-state-home");
+        agent.greet_with(Instant::now(), false).unwrap();
+        let after = real.as_ref().is_some_and(|f| f.exists());
+        assert_eq!(before, after, "the test wrote {real:?}");
+    }
+
+    /// xp-30: the paperclip does not greet over a window: it waits, and
+    /// the greeting is not spent.
+    #[test]
+    fn the_greeting_waits_while_a_window_lies_under_the_balloon_xp_30() {
+        let (mut agent, _dirs) = xp_agent("greet-window");
+        let now = Instant::now();
+        agent.greet_with(now, true).unwrap();
+        assert!(agent.said.is_none(), "the paperclip greeted over a window");
+        assert!(agent.greet.is_some(), "the greeting is still due");
+    }
+
+    /// A window meets the area when one of its rectangles overlaps it.
+    #[test]
+    fn a_window_meets_the_area_of_the_balloon_only_when_it_overlaps_it() {
+        let window = |rect: [i32; 4], visible: bool| serde_json::json!({"visible": visible, "rects": {"DP-1": rect}});
+        let area = [800, 300, 400, 400];
+        assert!(voice::window_meets(&[window([0, 0, 900, 400], true)], area));
+        assert!(!voice::window_meets(
+            &[window([0, 0, 700, 400], true)],
+            area
+        ));
+        assert!(!voice::window_meets(
+            &[window([0, 0, 900, 400], false)],
+            area
+        ));
+        assert!(!voice::window_meets(
+            &[window([900, 400, 0, 0], true)],
+            area
+        ));
     }
 
     /// xp-47: the agent tells its first state after the greeting.
