@@ -216,6 +216,43 @@ mod tests {
         );
     }
 
+    /// rxt-3: the leaning tail is a wedge with a body, not a sliver: its
+    /// thickness at the widest column is at least 12 px.
+    #[test]
+    fn the_leaning_tail_is_a_wedge_and_not_a_sliver() {
+        let style = Style {
+            tail: 18,
+            ..Style::default()
+        };
+        for tip in [110_u32, 130, 160] {
+            let lean = style
+                .lean([100, 40], tip.cast_signed())
+                .expect("a leaning tail");
+            let path = lean.svg.split('"').nth(1).expect("the fill path");
+            let n: Vec<f64> = path
+                .split(|c: char| !(c.is_ascii_digit() || c == '.'))
+                .filter_map(|t| t.parse().ok())
+                .collect();
+            let (left, right, tx, ty) = (n[0], n[2], n[3], n[4]);
+            let widest = (0..=tip + 1)
+                .map(|x| {
+                    let x = f64::from(x) + 0.5;
+                    if x < left || x > tx {
+                        return 0.0;
+                    }
+                    let lower = ty * (x - left) / (tx - left);
+                    let upper = if x <= right {
+                        0.0
+                    } else {
+                        ty * (x - right) / (tx - right)
+                    };
+                    lower - upper
+                })
+                .fold(0.0, f64::max);
+            assert!(widest >= 12.0, "tip {tip}: widest {widest} px");
+        }
+    }
+
     #[test]
     fn a_tip_right_of_the_box_leans_out_in_a_picture_of_its_own() {
         let style = Style {
