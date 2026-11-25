@@ -12,6 +12,18 @@ use crate::{NAME, Tiling};
 const SHOWN_MS: i32 = 12_000;
 /// The most characters of the reason in the notice.
 const MOST: usize = 160;
+/// The most characters of the reason on the chip.
+const MOST_ON_CHIP: usize = 70;
+/// How long the chip shows the reason, where no notice can.
+const CHIP_MS: u64 = 5_000;
+
+/// The text cut to `most` characters, with a `…` where it is cut.
+fn cut(text: &str, most: usize) -> String {
+    match text.char_indices().nth(most) {
+        Some((end, _)) => format!("{}…", &text[..end]),
+        None => text.to_owned(),
+    }
+}
 
 /// The reason of a failed reload for a notice: the file by its name, then
 /// the line and the cause as the parser has them, cut short.
@@ -30,16 +42,13 @@ fn reason(message: &str) -> String {
     } else {
         format!("{name}: {cause}")
     };
-    match text.char_indices().nth(MOST) {
-        Some((end, _)) => format!("{}…", &text[..end]),
-        None => text,
-    }
+    cut(&text, MOST)
 }
 
 impl Tiling {
     /// Tells the person that a reload failed and why; the notice of an
-    /// earlier failure goes first. Without the server the person gets
-    /// none, and the line on stderr stays.
+    /// earlier failure goes first. Without the server the reason shows on
+    /// the chip of tiling, and the line on stderr stays.
     pub(crate) fn tell_reload_failed(&mut self, message: &str) {
         let german = Language::of_session() == Language::De;
         let (title, rest) = if german {
@@ -60,6 +69,13 @@ impl Tiling {
             let _ = notice::dismiss(&mut self.rt.conn, earlier);
         }
         self.reload_notice = notice::show_or_log(&mut self.rt.conn, None, &notice);
+        if self.reload_notice.is_none() {
+            let word = format!("{title}: {}", cut(&reason(message), MOST_ON_CHIP));
+            let time = std::time::Duration::from_millis(CHIP_MS);
+            if let Err(err) = self.show_words(&word, time) {
+                eprintln!("{NAME}: chip {title:?}: {err}");
+            }
+        }
     }
 }
 

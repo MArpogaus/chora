@@ -211,7 +211,11 @@ impl Tiling {
 
     /// Shows the chip with `word` in the middle of the current output for
     /// `time`; a chip that still shows gives way to it.
-    fn show_words(&mut self, word: &str, time: std::time::Duration) -> Result<(), ClientError> {
+    pub(super) fn show_words(
+        &mut self,
+        word: &str,
+        time: std::time::Duration,
+    ) -> Result<(), ClientError> {
         let Some((output, size)) = self.wm.current_output() else {
             return Ok(());
         };
