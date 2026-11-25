@@ -611,3 +611,77 @@ EXIT 0
 - rtb6-5 MINOR, demo/tour/intended.toml (35 `added xp-desktop` rows, x12c `visible xp-menu`, m4/m4b `visible`): the cause is a sha only; the brief asked each row to cite its act and capture. Fix: add "r6 take, captures/<act>.Q.png" to each as the pixel rows do, and commit the r6 tour-diff output under media/2026-11-24/tour-base-r6/ so 4/94/0 can be re-read.
 
 Not findings: rv9j-1..5, the 94 open (F7 rest, v9 take after merge).
+
+## r7 (F7, rc 11: rtb6-1 MAJOR, rtb6-4, rtb6-5)
+
+Branch claude/tour-base-r7, base 9311e155 (r6 head); head **7c2cdc95** (pushed). Step 0 green: `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`, `pytest tests/test_tour.py -q` (93 passed), `python3 -I tests/test_tour_diff.py` (Ran 85 OK). The tour tooling is `tests/tour-diff.py` and `demo/tour/intended.toml`; no product code, `demo/tour/handover.py` untouched (rtb6-3 not in scope).
+
+### Red, then fix
+
+| id | red | fix | red lines |
+|---|---|---|---|
+| rtb6-1 | 88aa6e17 (tests only) | 0ce3e09c (tests/tour-diff.py), 7c2cdc95 (intended.toml) | `FAIL: test_a_row_without_nodes_leaves_an_unrelated_node_open_for_every_kind (...) (kind='missing')` and the same for `'*'`, `'meta'`, `'owner'`, `'rect'`, `'z-order'`, each `AssertionError: 'change' == 'change' : {'verdict': 'change', 'cause': '675ebd55 the column'}`; `FAIL: test_the_run_of_the_finding`, `AssertionError: 'change' != 'open'`; `FAIL: test_every_closed_row_of_intended_toml_names_its_nodes_or_boxes`, `Lists differ: [('h2', 'meta'), ('h2', 'rect'), ('c1', 'm...`; `ERROR: test_a_row_without_nodes_names_the_kind_but_proves_nothing` (no `unproven` key); `Ran 90 tests ... FAILED (failures=8, errors=1)` |
+| rtb6-4, rtb6-5 | 9608747f (tests only) | 7c2cdc95 | `FAIL: test_a_row_of_xp_desktop_or_a_visible_row_cites_a_capture`, `Lists differ: [('x1', 'added'), ('x10', 'added'), ('x10c...`; `FAIL: test_a_closed_missing_or_rect_row_cites_a_capture`, `Lists differ: [('h2', 'rect'), ('c1', 'missing'), ('c1',...`; `FAIL: test_the_hairline_rows_of_m1_name_the_open_design_question`, `Lists differ: ['m1', 'm1c'] != []`; `Ran 93 tests ... FAILED (failures=4)` |
+
+After 7c2cdc95: `python3 -I tests/test_tour_diff.py` `Ran 93 tests ... OK`; `pytest tests/test_tour.py -q` `93 passed`. Pre-commit ran on every commit (no `--no-verify`; its TOML formatter reflowed intended.toml once, the commit was repeated). The second red does not include the old `RowsPerNode` test that pinned the match by kind: 88aa6e17 turns it round (`test_a_row_without_nodes_names_the_kind_but_proves_nothing`, `open` and `unproven ['meta']`), and `Verdict.intended` now lists `nodes = ["n"]`.
+
+### The fix
+
+- **tests/tour-diff.py (0ce3e09c), one rule.** `STRICT` is deleted: a row of any kind lists its `nodes` (a pixel row its `boxes`) or it matches nothing and its act stays `open` (`unproven` in the result). Seen on the real toml before and after: `verdict('m1', [missing unrelated-node], True, rows)`, the same with `rect`, `meta`, `owner`, `z-order`, and a `*` row, gives `open` with a bare row and `regression` (unnamed) with a row that lists other nodes; never `change`. The test is table-driven over every kind the source of tour-diff.py writes as `"kind": "<name>"` (read from the file, so a kind added to `scene_diff` later is in the table) plus `*`.
+- **demo/tour/intended.toml (7c2cdc95).** The 42 bare closed rows (30 `missing`, 11 `rect`, 1 `meta`) are gone: 449 rows, none closed without `nodes` or `boxes` (a `check` row names a check); one test over the file says so.
+  - **Nodes from the take and the judge's captures** (the exact ids of the diff of the r7 take, the cause cites the judge's still and `r7 take, captures/<act>.<capture>.png`): `missing mc-r0/r1-right-notify*` of m1, m1b, m1c, m2, m2b, m3, m4, m4b, m4c, m7, m7b (judge r1 m1c, m3: "the NOTIFICATIONS block goes"; the commit message of 675ebd55 says so); `rect` of m1 and m1c: the chat door and its parts (judge r1 m1c, m1c.jpg, m1-col.jpg: "the chat door moves up 84 px"), `keys-N-key-hit` and the `panels` rules (bisect r2 criteria); the same family for m4 and m4b; `missing` and `rect` `tiling-keys-*` of t6, t6c (judge r1 t6, t6.jpg: "the kit list"; the old cause says the nodes are numbered anew); `meta` and `rect` `xp-ctx-1-0` of h2 (the Send To row, handover.py:190; h2 has no baseline, so no capture diff shows it).
+  - **Open, bare, said so in the cause** (the judge did not prove them: "not proven (causes missing)", c*; "not proven by diff", m7c..m10; t9 is a layout change, shell 1252 to 840 px wide, not a 1 px gap shift): `missing` of c1, c2, c2b, c3, c3b, c3c, c3d, c4b, c5, c5b, c5c, c5d, m7c, m8, m8b, m9b, m10; `rect` of c1, c5, c5b, t9; and, new, one open `rect` row for the nodes of m4 and m4b that the closed row does not list (footer, header, doors, keys: about 100 nodes per act).
+  - **rtb6-4:** the `pixel` rows of m1 and m1c end "rv9j-2: the design decision is open, mc-v2 section 3 asks for 'Nothing new.' in the column".
+  - **rtb6-5:** the 35 `added xp-desktop` rows, `visible xp-menu` of x12c and `visible mc-regions-*` of m4, m4b cite `r7 take, captures/<act>.<capture>.png`, the still whose diff holds the node (checked per row against the scene diff of the pair: 0 rows cite a capture without the node). The `rect notify-card-*` rows of x2, x2b, x8 cite the r5 take and say that the r7 take shows the card as `added`, not moved.
+
+| rows | r6 (9311e155) | r7 (7c2cdc95) |
+|---|---|---|
+| closed `missing` / `rect` / `meta` without `nodes` | 30 / 11 / 1 | 0 |
+| `missing` closed with nodes / open | 1 / 16 | 14 / 33 |
+| `rect` closed with nodes / open | 68 / 45 | 75 / 51 |
+| all rows | 447 | 449 |
+
+### The pair and the counts
+
+The stills of the judge's pair are not on claude/session-log (only its jpg crops and `tour-diff-judge.txt`), so a fresh pair, as r5 and r6, taken here: v9 = `TOUR_OUT=<dir>/v9 TOUR_SCRATCH=<dir>/s9 python3 demo/tour/run.py` on 9311e155 (the toml is not read by the take; 35 min: xp 30 green 1 known, tiling 28 green, mc 22 green, construct 14 red (I2 co-44, I6 co-45), handover 11 green); v8 = a worktree of 733967aa built (`cargo build --workspace`, 1 min 12 s), `TOUR_REPO=<worktree> TOUR_BASELINE=1 TOUR_OUT=<dir>/v8 TOUR_SCRATCH=<dir>/s8 python3 demo/tour/run.py` (xp, tiling, mc 0 green as before, construct `baseline: none` at `cube.list`, handover BROKE at handover.py:190); one after the other. Then `python3 tests/tour-diff.py <dir>/v8/captures <dir>/v9/captures --intended demo/tour/intended.toml` (the r6 head: the same with `tests/tour-diff.py` and the toml of 9311e155).
+
+**Committed output** (a reviewer can re-read the lines and the nodes without a take): `media/2026-11-24/tour-base-r7/tour-diff-r6-head.txt` (before), `tour-diff-r7.txt` (after, 110 lines per capture and the count), `tour-diff-r7.json` (the same rows with the scene diff and blobs of every capture: which nodes each row has to name). Exact reproduction needs the pair: the two `run.py` lines above.
+
+| tour-diff, this pair, 110 captures | same | change | open | regression | none |
+|---|---|---|---|---|---|
+| before (tests/tour-diff.py and toml of 9311e155) | 1 | 4 | 91 | 3 | 11 |
+| after (7c2cdc95) | 1 | 2 | 93 | 3 | 11 |
+
+Acts that moved (2): **m4 and m4b, `change` to `open`.** Their `rect` diff holds the whole column, footer and header (120 nodes); the r6 bare closed row named all of them; the proven part (chat door and its parts, `keys-N-key-hit`, `panels` rules, the notify block `missing`) is a closed row with nodes, and the rest is the new open row "the other nodes of this diff are not proven for the act (r7 take, captures/m4.Q.png)". Left `change`: m1, m1c (every `missing`, `rect`, `pixel` node of the act is named by a row that lists it). None went from `open` to `change`; no act got a new regression from the change (the three regressions are in the before column too).
+
+**The 3 regressions are of the take, not of the rows:** x2, x2b, x8 have `added notify-card`, `notify-card-body`, `notify-card-close` (a notice card on the xp desktop, `meta` none) in this v9 take and not in v8; x2b has in addition `pixel` blobs outside every box (the eyes of the paperclip [1213,593,19,20], [1233,593,19,20] and [1245,513,16,10], [1245,525,16,10]: a blink, see r6 deviation 6). In the r6 take the card was not in these three captures (0 regressions). 675ebd55 makes chora-notify show the notices (judge rv9j-3: "v8 lost the notice"), so a row is probable, but that the card shows at x2 depends on the timing of the take: not proven, so no row; the PM decides (a timing flake of the notice or a row `added notify-card*` for x2, x2b, x8, open).
+
+### Gate
+
+Full gate `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` on 7c2cdc95: **green, in four pieces** (the VM of this session restarted twice during the first two full runs and killed them: no FAIL line, no EXIT; 36 and 33 cells had passed). Every one of the 63 steps of `tests/merge-gate.sh --list` has a PASS line in one of the four runs on 7c2cdc95 (checked with `comm` of `--list` against the PASS lines: nothing missing). Run 1 and 2: killed by the VM restart. Run 3 (`--only` the steps with no PASS yet, same `--jobs 2`): 22 PASS, then **`leak FAIL` 312 s: `rss slope 1928 kB/round (bound 1024)`, `FAIL: the RSS of the core grows 1928 kB per round`**, fds 24 -> 24 (the cell right after a cold VM start, two cells at once; the diff touches no product code: tests/tour-diff.py, tests/test_tour_diff.py, demo/tour/intended.toml). Run 4 (the remaining 9 steps, `--only`): `EXIT 0`, `leak PASS 311s` (the same cell, same commit, green), `acts PASS 1945s`. So the one red is a measurement flake of leak (foreign, not caused by this diff; the same cell is green on the rerun and in r6 at 320 s). `tools/sleep-ratchet` ok (sleep 779, sleep-all 930). `pgrep -fa 'chora --headless'` empty. Last 20 lines of run 4 (`/tmp/gl/run4.log`):
+
+```
+REMAINING acts,leak,xp-run,demo,tiling-bar,tiling-theme,tiling-disc,mc-host,e2e
+run directory: /tmp/merge-gate.ZNoUZa
+leak       PASS   311s /tmp/merge-gate.ZNoUZa/leak.log
+xp-run     PASS    13s /tmp/merge-gate.ZNoUZa/xp-run.log
+demo       PASS   239s /tmp/merge-gate.ZNoUZa/demo.log
+tiling-bar PASS   182s /tmp/merge-gate.ZNoUZa/tiling-bar.log
+tiling-theme PASS    18s /tmp/merge-gate.ZNoUZa/tiling-theme.log
+tiling-disc PASS    79s /tmp/merge-gate.ZNoUZa/tiling-disc.log
+mc-host    PASS    19s /tmp/merge-gate.ZNoUZa/mc-host.log
+e2e        PASS   277s /tmp/merge-gate.ZNoUZa/e2e.log
+acts       PASS  1945s /tmp/merge-gate.ZNoUZa/acts.log
+partial run: nothing is pushed
+EXIT 0
+```
+
+Not one uninterrupted `merge-gate.sh` run: the split is the cost of the restarts; each cell ran on the same commit. A single unbroken full run was not obtained.
+
+### Deviations, said plainly
+
+1. **The pair is not the judge's** (its stills are not on claude/session-log); a fresh one. Its v9 take ran on 9311e155, as r6's did on 61d0ef7a, so the counts of r6 (1/4/94/0/11 after) and these (1/2/93/3/11) differ by the take (the notice card and the blink), not by the code.
+2. **The nodes of the closed rows are the ids of this take** (`mc-r0`, `mc-r1`, `notify-0`, `tiling-keys-body-N`). A later take that numbers them differently finds nodes no row lists: `regression` where it is a new node, `open` where the open row of the kind is there. That is the rule, not a defect.
+3. **m4 and m4b rect: the part I did not prove** is about 100 nodes per act (the column and the footer of the sauce and boil pages). The judge looked at m1c and m3 only; the claim "675ebd55 moves the column" is the commit's (bisect r2 for m1), so only the nodes it names or the judge shows are closed.
+4. **The citation of a row that a take does not show:** the h2 rows (no baseline by design) and the three `rect notify-card-*` rows of x2, x2b, x8 say so in their cause.
+5. rtb6-2 and rtb6-3 (MINOR) are not touched, as the brief says; rtb5-1's `hud-line` rows (open) are as in r6.
