@@ -29,6 +29,9 @@ fn is_part_of(node: &str, id: &str) -> bool {
         || rest.starts_with("chapter-")
 }
 
+/// After how many volume ticks the pill and the card are read again.
+const ROOMS_EVERY: u32 = 2;
+
 impl Mc {
     /// The end of an empty animation of a hidden node that times
     /// something.
@@ -59,6 +62,9 @@ impl Mc {
             self.volume.refresh();
         }
         self.apply(vec![volume_wait()])?;
+        if self.volume_ticks.is_multiple_of(ROOMS_EVERY) {
+            self.learn_rooms()?;
+        }
         let reading = self.volume.take();
         if reading.is_some_and(|r| Some(r) != self.volume_reading) {
             self.volume_reading = reading;

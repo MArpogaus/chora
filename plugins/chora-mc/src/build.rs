@@ -112,6 +112,9 @@ impl Mc {
         let Some(output) = self.output.clone() else {
             return Ok(());
         };
+        if let Ok(rooms) = self.read_rooms() {
+            self.rooms = rooms;
+        }
         let mut commands = if self.built {
             self.unbuild()
         } else {

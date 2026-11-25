@@ -5,9 +5,6 @@ use super::{
     title_of, translate, wheel_id,
 };
 
-/// The height that the card of the notice server takes at the foot of the
-/// output: its margin of 56 pixels and its two lines.
-const CARD_ROOM: f64 = 135.0;
 /// The room under a baseline for the descenders of a line.
 const DESCENT: f64 = 8.0;
 
@@ -37,7 +34,7 @@ impl Mc {
     /// (rpx1-11, rpx1-12).
     fn page_bottom(&self, h: f64) -> f64 {
         let (b, phase) = (self.settings.value.scale.baseline, self.phase());
-        let room = h - CARD_ROOM - DESCENT;
+        let room = h - self.card_room() - DESCENT;
         phase + b * ((room - phase) / b).floor() + DESCENT
     }
 

@@ -34,6 +34,7 @@ mod mic;
 #[cfg(test)]
 mod minor;
 mod region;
+mod rooms;
 mod scene;
 mod show;
 mod state;
@@ -400,6 +401,9 @@ struct Mc {
     dock_focus: Option<String>,
     /// The text of each clock.
     clocks: BTreeMap<String, String>,
+    /// What the pill of the HUD host and the card of the notice server
+    /// take of the output.
+    rooms: rooms::Rooms,
     /// The worker that reads and changes the volume.
     volume: chora_kit::volume::Mixer,
     /// The volume that the worker read last.
@@ -578,6 +582,7 @@ impl Mc {
             quiet: BTreeSet::new(),
             dock_focus: None,
             clocks: BTreeMap::new(),
+            rooms: rooms::Rooms::default(),
             volume: chora_kit::volume::Mixer::new(NAME),
             volume_reading: None,
             volume_ticks: 0,
@@ -2737,7 +2742,7 @@ mod tests {
             .unwrap();
         mc.method("notify.clear", json!({})).unwrap();
         let sent: Vec<_> = (core.model().lock().unwrap().called.iter())
-            .filter(|c| c["client"] == "notify")
+            .filter(|c| c["client"] == "notify" && c["method"] != "state.get")
             .map(|c| (c["method"].clone(), c["params"].clone()))
             .collect();
         let show = |summary, body, expire_ms, urgency| {
@@ -2751,6 +2756,32 @@ mod tests {
                 (json!("notify.show"), show("Update", "", -1, "normal")),
                 (json!("notify.close"), json!({"id": 7})),
             ]
+        );
+    }
+
+    /// The page ends over the card that the notice server reports, and
+    /// the header before the pill that the HUD host draws (rmm1-2), not at
+    /// a distance that mc keeps for itself.
+    #[test]
+    fn the_page_and_the_header_end_by_the_rects_of_the_servers() {
+        use chora_kit::testing::FakeCore;
+        use serde_json::json;
+        let core = FakeCore::start().selecting();
+        core.answer_with(
+            "state.get",
+            json!({"shown": [{"rect": [160, 500, 291, 79]}]}),
+        );
+        let mc = crate::testing::mc_on(&core, "rooms-card", [1280, 720]);
+        let [_, top, _, height] = mc.geometry("agenda").unwrap().text;
+        assert_eq!(
+            mc.card_room(),
+            220.0,
+            "the room is the card's top to the foot"
+        );
+        assert!(
+            top + height <= 500.0,
+            "the page reaches under the card: {}",
+            top + height
         );
     }
 
