@@ -340,10 +340,15 @@ class OpenAndNamedChecks(unittest.TestCase):
         v = diff.verdict("c2", [], True, rows, checks=({"I2": "green"}, {"I2": "red"}))
         self.assertEqual(v["verdict"], "change", v)
 
-    def test_a_check_row_without_a_name_still_absorbs_the_flips(self):
-        rows = [{"act": "c2", "kind": "check", "cause": "co-44"}]
-        v = diff.verdict("c2", [], True, rows, checks=({"I2": "green"}, {"I2": "red"}))
-        self.assertEqual(v["verdict"], "change", v)
+    def test_a_check_row_without_a_name_proves_nothing_and_leaves_the_act_open(self):
+        """rtb7-2: a check or `*` row without `check =` named no check; it absorbed every flip as `change`. Like a row
+        without `nodes`, it makes the act `open` (`unproven` `check`)."""
+        for kind in ("check", "*"):
+            with self.subTest(kind=kind):
+                rows = [{"act": "c2", "kind": kind, "cause": "co-44"}]
+                v = diff.verdict("c2", [], True, rows, checks=({"I2": "green", "I6": "green"}, {"I2": "red", "I6": "red"}))
+                self.assertEqual(v["verdict"], "open", v)
+                self.assertIn("check", v.get("unproven", []), v)
 
     def test_base_not_measured_and_cand_red_is_a_regression_unless_a_check_row_names_it(self):
         """rtb2-2: a check the base marks "not measured" and the candidate reads red is a flip."""
@@ -629,12 +634,66 @@ class IntendedCauses(unittest.TestCase):
         bare = [(r["act"], r["kind"]) for r in self.rows() if r["kind"] in ("missing", "rect") and not r.get("open") and not self.cites_a_capture(r)]
         self.assertEqual(bare, [])
 
+    CHAPTERS = HERE.parent / "demo/tour/chapters"
+
+    @classmethod
+    def captures_of_acts(cls):
+        """act id -> capture name, read from the `t.act(..., scene=, capture=)` lines of the chapters (ids as `act_id`
+        of tour.py: a later act of a scene gets a letter)."""
+        seen, out = {}, {}
+        for path in sorted(cls.CHAPTERS.glob("*.py")):
+            for line in path.read_text().splitlines():
+                m = re.search(r't\.act\(.*scene="(\w+)"', line)
+                if m:
+                    scene = m.group(1)
+                    seen[scene] = seen.get(scene, 0) + 1
+                    act = scene if seen[scene] == 1 else f"{scene}{chr(ord('a') + seen[scene] - 1)}"
+                    c = re.search(r'capture="([^"]+)"', line)
+                    out[act] = c.group(1) if c else "Q"
+        return out
+
+    def test_a_cited_capture_is_a_capture_the_act_has(self):
+        """rtb7-5: a cause cites `captures/<act>.<capture>.png`; the act has that capture (x5d, x6d: `Q+1`, x8: `Q+0.5`)
+        and the row is of that act or cites one it names."""
+        known = self.captures_of_acts()
+        wrong = []
+        for r in self.rows():
+            for act, capture in re.findall(r"captures/(\w+)\.([^\s)]+?)\.png", r["cause"]):
+                if act in known and known[act] != capture:
+                    wrong.append((r["act"], r["kind"], f"{act}.{capture}", f"has {known[act]}"))
+        self.assertEqual(wrong, [])
+
     def test_the_hairline_rows_of_m1_name_the_open_design_question(self):
         """rtb6-4: the KEYS hairline moves with 675ebd55 (judge r1 m1c), which the judge called intended by the commit,
         not by the design (rv9j-2: mc-v2 section 3 asks for "Nothing new." in the column)."""
         rows = [r for r in self.rows() if r["act"] in ("m1", "m1c") and r["kind"] == "pixel"]
         self.assertTrue(rows)
         self.assertEqual([(r["act"]) for r in rows if "rv9j-2" not in r["cause"]], [])
+
+    def test_the_rows_of_m1_and_m1c_name_the_open_design_question(self):
+        """rtb7-1: rv9j-2 on the `missing` rows of m1 and m1c too: the notify block that goes is the design decision."""
+        rows = [r for r in self.rows() if r["act"] in ("m1", "m1c") and r["kind"] == "missing"]
+        self.assertTrue(rows)
+        self.assertEqual([r["act"] for r in rows if "rv9j-2: the design decision is open" not in r["cause"]], [])
+
+    def test_a_rect_row_of_a_card_the_take_shows_as_added_is_open(self):
+        """rtb7-3: `rect notify-card-*` of x2, x2b, x8 and `xp-ctx-1-0` of h2 name nodes the cited capture does not show
+        as moved (h2 has no baseline): open until a take shows them as `rect`."""
+        closed = [(r["act"], r["kind"]) for r in self.rows() if not r.get("open") and r["kind"] in ("rect", "meta") and any(n.startswith("notify-card") or n == "xp-ctx-1-0" for n in r.get("nodes", ()))]
+        self.assertEqual(closed, [])
+
+    def test_the_notify_card_of_x2_x2b_x8_is_an_open_added_row(self):
+        """rtb7-4: whether the card shows at the capture depends on the timing; an open `added` row (675ebd55) and a box
+        for the paperclip's blink in x2b."""
+        for act in ("x2", "x2b", "x8"):
+            rows = [r for r in self.rows() if r["act"] == act and r["kind"] == "added" and "notify-card" in r.get("nodes", ())]
+            self.assertEqual(len(rows), 1, act)
+            self.assertTrue(rows[0].get("open"), act)
+            self.assertEqual(sorted(rows[0]["nodes"]), ["notify-card", "notify-card-body", "notify-card-close"], act)
+            self.assertIn("675ebd55", rows[0]["cause"])
+            self.assertIn("timing", rows[0]["cause"])
+        boxes = [b for r in self.rows() if r["act"] == "x2b" and r["kind"] == "pixel" for b in r.get("boxes", [])]
+        self.assertIn([1213, 593, 39, 20], boxes)
 
     SESSION_CAPTIONS = ("fc9675ac", "11e34cf8", "94579f91")
 
