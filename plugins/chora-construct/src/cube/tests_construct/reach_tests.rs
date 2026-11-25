@@ -76,3 +76,45 @@ fn super_x_while_flying_out_of_a_pane_into_a_face_closes_nothing() {
         "Super+x on the way out of the pane closes nothing"
     );
 }
+
+/// co-79 (pane path): stood back with the keyboard in the window of a
+/// pane, as after `Alt+Escape` out of a program started from Programs,
+/// the give key of the face manager puts that window into the face, so
+/// the bar names it beside the cube's hints; the pull key gives nothing
+/// there and is not named (co-68). With the keyboard in a window of the
+/// face it is the other way round.
+#[test]
+fn stood_back_out_of_a_pane_the_bar_names_the_way_into_the_face() {
+    let (mut construct, core, _lines) = super::with_hint_bar("reach-put");
+    construct.cube.as_mut().unwrap().program = "xp".into();
+    construct.core_focus = Some("s1".into());
+    construct.draw_hints().unwrap();
+    assert_eq!(
+        construct.put_window().as_deref(),
+        Some("s1"),
+        "the key puts the pane's window"
+    );
+    assert!(
+        has(&core.model(), "construct-hint-put-in"),
+        "the bar names the way into the face"
+    );
+    assert!(
+        !construct.pull_acts() && !has(&core.model(), "construct-hint-pull-out"),
+        "the pull key gives nothing there and is not named"
+    );
+    construct.core_focus = Some("s7".into());
+    construct.draw_hints().unwrap();
+    assert_eq!(
+        construct.put_window(),
+        None,
+        "a window of the face is in the face already"
+    );
+    assert!(
+        !has(&core.model(), "construct-hint-put-in"),
+        "the way into the face is not named"
+    );
+    assert!(
+        has(&core.model(), "construct-hint-pull-out"),
+        "the pull key is named"
+    );
+}
