@@ -767,3 +767,10 @@ e2e        PASS   279s /tmp/merge-gate.6oGg1x/e2e.log
 all steps passed; no --push, nothing is pushed
 EXIT 0
 ```
+
+## PM review r8
+Base 721be592, head 27fb2599 (+108 -19: tests/tour-diff.py, tests/test_tour_diff.py, demo/tour/intended.toml). Red ab2817fe (tests only, 6 failures) before fix 27fb2599: holds.
+- tour-diff.py: an absorbed flip prefers a row whose `check` names the node; a wildcard row (no check) now marks the act open and `unproven` "check" instead of a silent green. Matches rtb7-1/-2.
+- intended.toml: rows citing a capture that does not show a move are `open = true` (rtb7-3); x2, x2b, x8 notify card as `added` open rows (rv9j-3); x5d, x6d, x8 cite the real capture names; paperclip blink box open. No row turned a regression green without a cause.
+- Ratchets lower, gate EXIT 0 in the lane. tour-diff after: 1/2/96/0/11 (0 regressions, 3 moved to open).
+Verdict (computed): 0 BLOCK, 0 MAJOR: MERGE-OK 27fb2599 -> train136.
