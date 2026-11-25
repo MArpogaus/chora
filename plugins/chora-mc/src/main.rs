@@ -439,6 +439,8 @@ struct Mc {
     slot_sent: Option<(String, Option<[f64; 4]>)>,
     /// How far the page of a scene scrolled down, by scene.
     scroll: BTreeMap<String, f64>,
+    /// The wheel that a touchpad or a roll has not yet made a step of.
+    wheel_acc: f64,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -610,6 +612,7 @@ impl Mc {
             slot: None,
             slot_sent: None,
             scroll: BTreeMap::new(),
+            wheel_acc: 0.0,
         };
         mc.keep_texts();
         mc
@@ -792,7 +795,13 @@ impl Plugin for Mc {
                 self.page_key(&key, &modifiers, injected);
                 Ok(())
             }
-            Event::PointerScroll { node, dy, .. } => self.wheel(&node, dy), // injected: Plugin::event drops an injected pointer event first
+            Event::PointerScroll {
+                node,
+                dy,
+                discrete,
+                source,
+                .. // injected: Plugin::event drops an injected pointer event first
+            } => self.wheel(&node, dy, discrete, source),
             Event::PointerPressed {
                 node,
                 position,
@@ -2814,6 +2823,97 @@ mod tests {
             "the page reaches under the card: {}",
             top + height
         );
+    }
+
+    /// mc on a fake core whose notice server shows a card at `rect`.
+    fn with_card(dir: &str, rect: &serde_json::Value) -> (crate::Mc, chora_kit::testing::FakeCore) {
+        let core = chora_kit::testing::FakeCore::start().selecting();
+        core.answer_with("state.get", serde_json::json!({"shown": [{"rect": rect}]}));
+        let mc = crate::testing::mc_on(&core, dir, [1280, 720]);
+        (mc, core)
+    }
+
+    /// A card at the top or in the middle of the output is not under the
+    /// page: the page stays whole (rmm2-1).
+    #[test]
+    fn a_card_at_the_top_or_the_middle_leaves_the_page_whole() {
+        for (name, rect) in [("top", [160, 20, 291, 79]), ("mid", [160, 300, 291, 79])] {
+            let (mut mc, _core) = with_card(&format!("rooms-{name}"), &serde_json::json!(rect));
+            mc.learn_rooms().unwrap();
+            assert_eq!(
+                mc.card_room(),
+                135.0,
+                "a {name} card takes no room at the foot"
+            );
+        }
+    }
+
+    /// A card on another output is no room of this one (rmm2-1).
+    #[test]
+    fn a_card_on_another_output_leaves_the_page_whole() {
+        let (mut mc, _core) = with_card("rooms-far", &serde_json::json!([160, 1400, 291, 79]));
+        mc.learn_rooms().unwrap();
+        assert_eq!(
+            mc.card_room(),
+            135.0,
+            "below the output is not under the page"
+        );
+    }
+
+    /// A card of another height never reflows the pages, and a tall one
+    /// does not leave the page short after it closes (rmm2-2).
+    #[test]
+    fn a_card_of_another_height_leaves_the_pages_alone() {
+        let (mut mc, core) = with_card("rooms-height", &serde_json::json!([160, 620, 291, 100]));
+        let log = core.record(|method, params| {
+            (method == "scene.apply"
+                && params
+                    .to_string()
+                    .contains(r#"{"remove":{"id":"mc-s-agenda-page""#))
+            .then(|| "rebuilt".to_owned())
+        });
+        mc.learn_rooms().unwrap();
+        assert_eq!(
+            mc.card_room(),
+            135.0,
+            "a short card (room 100) keeps the room"
+        );
+        assert!(
+            log.lock().unwrap().is_empty(),
+            "no page rebuilt for a short card"
+        );
+        core.answer_with(
+            "state.get",
+            serde_json::json!({"shown": [{"rect": [160, 500, 291, 220]}]}),
+        );
+        mc.learn_rooms().unwrap();
+        assert!(mc.card_room() > 135.0, "a tall card takes more");
+        core.answer_with("state.get", serde_json::json!({"shown": []}));
+        mc.learn_rooms().unwrap();
+        assert_eq!(
+            mc.card_room(),
+            135.0,
+            "the page is whole after the tall card closed"
+        );
+    }
+
+    /// A pill that moves redraws the header and sends no page rebuild
+    /// (rmm2-5; the pill read at 1000 and no node says so now): the flake of the chat click returns when it does.
+    #[test]
+    fn a_moved_pill_sends_no_page_rebuild() {
+        let core = chora_kit::testing::FakeCore::start().selecting();
+        let mut mc = crate::testing::mc_on(&core, "rooms-pill", [1280, 720]);
+        mc.rooms.pill_left = Some(1000.0);
+        let log = core.record(|method, params| {
+            (method == "scene.apply"
+                && params
+                    .to_string()
+                    .contains(r#"{"remove":{"id":"mc-s-agenda-page""#))
+            .then(|| "rebuilt".to_owned())
+        });
+        mc.learn_rooms().unwrap();
+        assert_eq!(mc.rooms.pill_left, None, "the pill moved");
+        assert!(log.lock().unwrap().is_empty(), "the pages stay");
     }
 
     /// A page with a text of a panel that reaches under the edge of the

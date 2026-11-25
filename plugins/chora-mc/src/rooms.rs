@@ -15,8 +15,8 @@ const PILL: [&str; 2] = ["hud-word", "hud-figure"];
 /// margin of the card of the mc folder of the notice server, 56 pixels,
 /// and its two lines.
 const CARD_ROOM_AT_START: f64 = 135.0;
-/// The most of the height of the output that a card may take from the
-/// page.
+/// The most of the height of the output that a card at the foot may take;
+/// a card higher up stands in the middle or at the top, not at the foot.
 const MOST_OF_HEIGHT: f64 = 3.0;
 
 /// What mc read of the other servers last.
@@ -24,7 +24,9 @@ const MOST_OF_HEIGHT: f64 = 3.0;
 pub(crate) struct Rooms {
     /// The left edge of the state pill, if the HUD host draws one.
     pub pill_left: Option<f64>,
-    /// The height from the top of the card that showed last to the foot.
+    /// The height from the top of the card that shows now to the foot, when
+    /// it is more than the room at the start (rmm2-2): a card of another
+    /// height that fits the room never moves the pages.
     pub card: Option<f64>,
 }
 
@@ -41,13 +43,26 @@ impl Mc {
         self.rooms.pill_left.map_or(width, |left| left - baseline)
     }
 
-    /// What the pill and the card take now, the card that showed last
-    /// staying when none shows.
+    /// The top of the pages in output coordinates: where the text block of
+    /// a scene begins.
+    fn page_top(&self) -> f64 {
+        let first = self.scenes.keys().next();
+        first
+            .and_then(|name| self.geometry(name))
+            .map_or(0.0, |geo| geo.text[1])
+    }
+
+    /// What the pill and the card take now. A card counts only when it
+    /// stands on the output of mc and its top lies under the top of the
+    /// page, in output coordinates (rmm2-1); the room is what the card
+    /// takes beyond the room at the start, and none once it closed.
     pub(crate) fn read_rooms(&mut self) -> Result<Rooms, ClientError> {
         let Some(output) = self.output.clone() else {
             return Ok(self.rooms);
         };
-        let [_, height] = output.size.map(f64::from);
+        let [width, height] = output.size.map(f64::from);
+        let [left, top] = output.position.map(f64::from);
+        let page_top = self.page_top();
         let mut pill_left: Option<f64> = None;
         for id in PILL {
             if let Some([x, ..]) = self.rect(id)? {
@@ -56,12 +71,14 @@ impl Mc {
         }
         let mut rooms = Rooms {
             pill_left: pill_left.map(f64::round),
-            card: self.rooms.card,
+            card: None,
         };
-        if let Some([_, y, ..]) = self.card_rect() {
-            let room = f64::from(output.position[1]) + height - y;
-            if room > 0.0 {
-                rooms.card = Some(room.min(height / MOST_OF_HEIGHT).round());
+        if let Some([x, y, ..]) = self.card_rect() {
+            let (across, down) = (x - left, y - top);
+            let room = (height - down).round();
+            let at_foot = room <= (height / MOST_OF_HEIGHT).round();
+            if (0.0..width).contains(&across) && down > page_top && at_foot {
+                rooms.card = (room > CARD_ROOM_AT_START).then_some(room);
             }
         }
         Ok(rooms)
