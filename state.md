@@ -23,7 +23,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 | Lane | Model, branch | State |
 |---|---|---|
 | gate-ratchets-r1.md (harness; 0.5 %) | sonnet medium, claude/gate-ratchets-r1 721be592 | session_016iS3kMbhowiyWohG5DiPcG |
-| xp-minor-r1.md (rc 1 known; xp-9, -19, -28, -29, rv9j-1; 1.0 %) | sonnet high, claude/xp-minor-r1 721be592 | starting |
+| xp-minor-r1.md (rc 1 known; xp-9, -19, -28, -29, rv9j-1; 1.0 %) | sonnet high, claude/xp-minor-r1 721be592 | session_016iS3kLkd4PjRtqn9yQBNjv |
 | train135 (rc 1; sh-42) | PM, 8e63e0ed (sh42-fix-r2 88035ec0) | gate running |
 | co-close-waits-r1.md (rc 1; t134 sleeps; 0.5 %) | sonnet medium, claude/co-close-waits-r1 7f519bc8 | session_016iS3kPi6qRiSRUWdnKxSmS |
 | tiling-doors-r2.md (rc 2; 1.0 %) | sonnet high, claude/tiling-doors-r2 721be592 | session_016iS3kPKrsTv7tRKpcW3uAv |
