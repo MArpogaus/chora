@@ -2,7 +2,7 @@
 
 ## Now (2026-11-25 05:33 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 03:50 PM 1.7 % (11-25), week about 34 % vs 55 % pace: under-spending, fill 6 lanes
+budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 05:33 PM 2.1 % (11-25), week about 34 % vs 55 % pace: under-spending, fill 6 lanes
 session branch: 721be592 (t134 03:50, tour-base r7); 82 greens. Lane gates miss ratchets: GATE-RATCHETS r1
 burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open, 3 regr)
 
@@ -25,6 +25,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 | gate-ratchets-r1.md (harness; 0.5 %) | sonnet medium, claude/gate-ratchets-r1 721be592 | session_016iS3kMbhowiyWohG5DiPcG |
 | xp-minor-r1.md (rc 1 known; xp-9, -19, -28, -29, rv9j-1; 1.0 %) | sonnet high, claude/xp-minor-r1 721be592 | session_016iS3kLkd4PjRtqn9yQBNjv |
 | train135 (rc 1; sh-42) | PM, 8e63e0ed (sh42-fix-r2 88035ec0) | gate running |
+| mc-minor-r1.md (rc 1 known; mc-56, rpx1-9, -11..-14; 1.0 %) | sonnet high, claude/mc-minor-r1 721be592 | starting |
 | tiling-doors-r2.md (rc 2; 1.0 %) | sonnet high, claude/tiling-doors-r2 721be592 | session_016iS3kPKrsTv7tRKpcW3uAv |
 ## Queue (% week; 5 % reserve)
 1. (rc 1, 2) TRAIN135 sh42-fix r2 running; TRAIN136: stray-super-minor r1 8c3ac745 + tour-base r8 27fb2599 + co-close-waits r1 22bf5fb7 MERGE-OK (PM; +co-reach, co-close r2).
