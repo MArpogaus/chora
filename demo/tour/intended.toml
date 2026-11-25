@@ -3703,8 +3703,8 @@ kind = "pixel"
 
 [[change]]
 act = "m8"
-boxes = [[201, 98, 1, 33], [204, 98, 1, 33], [464, 199, 352, 322]]
-cause = "675ebd55 the column (rv9j-2); 6fa86c16 the rules; db20c304, 3e355bb2 the page end; fa7faabd Home goes to the first page; 12f97cd3 Programs is the kit list (r1 take, captures/m8.Q.png)"
+boxes = [[201, 98, 1, 33], [204, 98, 1, 33], [500, 225, 270, 290]]
+cause = "675ebd55 the column (rv9j-2); 6fa86c16 the rules; db20c304, 3e355bb2 the page end; fa7faabd Home goes to the first page; 12f97cd3 Programs is the kit list, the launcher box of judge r2a (rtr1-1; the launcher does not open on this head, rtr1-3: a regression until MC-LAUNCHER) (r1 take, captures/m8.Q.png)"
 kind = "pixel"
 
 [[change]]
@@ -4047,4 +4047,292 @@ kind = "pixel"
 act = "x8"
 boxes = [[282, 92, 132, 532], [379, 98, 13, 15], [390, 169, 16, 13], [399, 100, 53, 16], [415, 169, 15, 16], [423, 152, 15, 12], [430, 134, 16, 11], [431, 172, 18, 10], [447, 151, 7, 13], [448, 190, 14, 9], [455, 154, 15, 9], [463, 169, 7, 13], [463, 185, 23, 18], [471, 151, 7, 13], [479, 151, 7, 13], [479, 169, 15, 13], [503, 169, 15, 13], [526, 172, 16, 10], [543, 154, 15, 10], [551, 169, 7, 13], [568, 169, 14, 12], [903, 628, 16, 52], [913, 639, 93, 10], [918, 659, 224, 11], [921, 96, 21, 21], [944, 96, 21, 21], [967, 96, 21, 21], [988, 92, 94, 532], [1052, 694, 22, 22], [1076, 694, 22, 22], [1100, 694, 22, 22], [1124, 694, 22, 22], [1139, 659, 22, 11], [1139, 679, 25, 15], [1162, 661, 19, 4], [1167, 628, 25, 37], [1205, 474, 39, 51], [1205, 525, 37, 12], [1245, 513, 16, 10], [1245, 525, 16, 10]]
 cause = "6d5c1f31 Turn Off buttons 58 px apart, captions 4 px clear (rxm1-1); 8e32d14a captions in 14 px type (r1 take, captures/x8.Q+0.5.png)"
+kind = "pixel"
+
+[[change]]
+act = "m1"
+boxes = [[888, 378, 336, 1], [937, 406, 287, 1]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m1.Q.png); rv9j-2: the design decision is open"
+kind = "pixel"
+
+[[change]]
+act = "m1"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m1.Q.png)"
+kind = "rect"
+nodes = ["mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-key-hit", "mc-r0-right-keys-5-key-mark", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-r1-right-keys-0-key", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-0-key-mark", "mc-r1-right-keys-0-words", "mc-r1-right-keys-1-key", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-1-key-mark", "mc-r1-right-keys-1-words", "mc-r1-right-keys-2-key", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark", "mc-r1-right-keys-2-words", "mc-r1-right-keys-3-key", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark", "mc-r1-right-keys-3-words", "mc-r1-right-keys-4-key", "mc-r1-right-keys-4-key-hit", "mc-r1-right-keys-4-key-mark", "mc-r1-right-keys-4-words", "mc-r1-right-keys-5-key", "mc-r1-right-keys-5-key-hit", "mc-r1-right-keys-5-key-mark", "mc-r1-right-keys-5-words", "mc-r1-right-keys-title", "mc-r1-right-keys-title-rule"]
+
+[[change]]
+act = "m1b"
+boxes = [[888, 378, 336, 1], [937, 406, 287, 1]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m1b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "m1b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m1b.Q.png)"
+kind = "rect"
+nodes = ["mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-key-hit", "mc-r0-right-keys-5-key-mark", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-r1-right-keys-0-key", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-0-key-mark", "mc-r1-right-keys-0-words", "mc-r1-right-keys-1-key", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-1-key-mark", "mc-r1-right-keys-1-words", "mc-r1-right-keys-2-key", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark", "mc-r1-right-keys-2-words", "mc-r1-right-keys-3-key", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark", "mc-r1-right-keys-3-words", "mc-r1-right-keys-4-key", "mc-r1-right-keys-4-key-hit", "mc-r1-right-keys-4-key-mark", "mc-r1-right-keys-4-words", "mc-r1-right-keys-5-key", "mc-r1-right-keys-5-key-hit", "mc-r1-right-keys-5-key-mark", "mc-r1-right-keys-5-words", "mc-r1-right-keys-title", "mc-r1-right-keys-title-rule"]
+
+[[change]]
+act = "m1c"
+boxes = [[888, 378, 336, 1], [937, 406, 287, 1]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m1c.Q.png); rv9j-2: the design decision is open"
+kind = "pixel"
+
+[[change]]
+act = "m1c"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m1c.Q.png)"
+kind = "rect"
+nodes = ["mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-key-hit", "mc-r0-right-keys-5-key-mark", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-r1-right-keys-0-key", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-0-key-mark", "mc-r1-right-keys-0-words", "mc-r1-right-keys-1-key", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-1-key-mark", "mc-r1-right-keys-1-words", "mc-r1-right-keys-2-key", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark", "mc-r1-right-keys-2-words", "mc-r1-right-keys-3-key", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark", "mc-r1-right-keys-3-words", "mc-r1-right-keys-4-key", "mc-r1-right-keys-4-key-hit", "mc-r1-right-keys-4-key-mark", "mc-r1-right-keys-4-words", "mc-r1-right-keys-5-key", "mc-r1-right-keys-5-key-hit", "mc-r1-right-keys-5-key-mark", "mc-r1-right-keys-5-words", "mc-r1-right-keys-title", "mc-r1-right-keys-title-rule"]
+
+[[change]]
+act = "m2"
+boxes = [[888, 378, 336, 1], [937, 406, 287, 1]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m2.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "m2"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m2.Q.png)"
+kind = "rect"
+nodes = ["mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-key-hit", "mc-r0-right-keys-5-key-mark", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-r1-right-keys-0-key", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-0-key-mark", "mc-r1-right-keys-0-words", "mc-r1-right-keys-1-key", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-1-key-mark", "mc-r1-right-keys-1-words", "mc-r1-right-keys-2-key", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark", "mc-r1-right-keys-2-words", "mc-r1-right-keys-3-key", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark", "mc-r1-right-keys-3-words", "mc-r1-right-keys-4-key", "mc-r1-right-keys-4-key-hit", "mc-r1-right-keys-4-key-mark", "mc-r1-right-keys-4-words", "mc-r1-right-keys-5-key", "mc-r1-right-keys-5-key-hit", "mc-r1-right-keys-5-key-mark", "mc-r1-right-keys-5-words", "mc-r1-right-keys-title", "mc-r1-right-keys-title-rule"]
+
+[[change]]
+act = "m2b"
+boxes = [[888, 378, 336, 1], [937, 406, 287, 1]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m2b.Q+1.png)"
+kind = "pixel"
+
+[[change]]
+act = "m2b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m2b.Q+1.png)"
+kind = "rect"
+nodes = ["mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-key-hit", "mc-r0-right-keys-5-key-mark", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-r1-right-keys-0-key", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-0-key-mark", "mc-r1-right-keys-0-words", "mc-r1-right-keys-1-key", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-1-key-mark", "mc-r1-right-keys-1-words", "mc-r1-right-keys-2-key", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark", "mc-r1-right-keys-2-words", "mc-r1-right-keys-3-key", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark", "mc-r1-right-keys-3-words", "mc-r1-right-keys-4-key", "mc-r1-right-keys-4-key-hit", "mc-r1-right-keys-4-key-mark", "mc-r1-right-keys-4-words", "mc-r1-right-keys-5-key", "mc-r1-right-keys-5-key-hit", "mc-r1-right-keys-5-key-mark", "mc-r1-right-keys-5-words", "mc-r1-right-keys-title", "mc-r1-right-keys-title-rule"]
+
+[[change]]
+act = "m3"
+boxes = [[888, 378, 336, 1], [937, 406, 287, 1]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m3.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "m3"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m3.Q.png)"
+kind = "rect"
+nodes = ["mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-key-hit", "mc-r0-right-keys-5-key-mark", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-r1-right-keys-0-key", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-0-key-mark", "mc-r1-right-keys-0-words", "mc-r1-right-keys-1-key", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-1-key-mark", "mc-r1-right-keys-1-words", "mc-r1-right-keys-2-key", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark", "mc-r1-right-keys-2-words", "mc-r1-right-keys-3-key", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark", "mc-r1-right-keys-3-words", "mc-r1-right-keys-4-key", "mc-r1-right-keys-4-key-hit", "mc-r1-right-keys-4-key-mark", "mc-r1-right-keys-4-words", "mc-r1-right-keys-5-key", "mc-r1-right-keys-5-key-hit", "mc-r1-right-keys-5-key-mark", "mc-r1-right-keys-5-words", "mc-r1-right-keys-title", "mc-r1-right-keys-title-rule"]
+
+[[change]]
+act = "m3b"
+boxes = [[888, 378, 336, 1], [937, 406, 287, 1]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m3b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "m3b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m3b.Q.png)"
+kind = "rect"
+nodes = ["mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-key-hit", "mc-r0-right-keys-5-key-mark", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-r1-right-keys-0-key", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-0-key-mark", "mc-r1-right-keys-0-words", "mc-r1-right-keys-1-key", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-1-key-mark", "mc-r1-right-keys-1-words", "mc-r1-right-keys-2-key", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark", "mc-r1-right-keys-2-words", "mc-r1-right-keys-3-key", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark", "mc-r1-right-keys-3-words", "mc-r1-right-keys-4-key", "mc-r1-right-keys-4-key-hit", "mc-r1-right-keys-4-key-mark", "mc-r1-right-keys-4-words", "mc-r1-right-keys-5-key", "mc-r1-right-keys-5-key-hit", "mc-r1-right-keys-5-key-mark", "mc-r1-right-keys-5-words", "mc-r1-right-keys-title", "mc-r1-right-keys-title-rule"]
+
+[[change]]
+act = "m4"
+boxes = [[888, 378, 336, 1], [937, 406, 287, 1]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m4.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "m4"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m4.Q.png)"
+kind = "rect"
+nodes = ["mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-key-hit", "mc-r0-right-keys-5-key-mark", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-r1-right-keys-0-key", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-0-key-mark", "mc-r1-right-keys-0-words", "mc-r1-right-keys-1-key", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-1-key-mark", "mc-r1-right-keys-1-words", "mc-r1-right-keys-2-key", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark", "mc-r1-right-keys-2-words", "mc-r1-right-keys-3-key", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark", "mc-r1-right-keys-3-words", "mc-r1-right-keys-4-key", "mc-r1-right-keys-4-key-hit", "mc-r1-right-keys-4-key-mark", "mc-r1-right-keys-4-words", "mc-r1-right-keys-5-key", "mc-r1-right-keys-5-key-hit", "mc-r1-right-keys-5-key-mark", "mc-r1-right-keys-5-words", "mc-r1-right-keys-title", "mc-r1-right-keys-title-rule"]
+
+[[change]]
+act = "m4b"
+boxes = [[888, 378, 336, 1], [937, 406, 287, 1]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m4b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "m4b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m4b.Q.png)"
+kind = "rect"
+nodes = ["mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-key-hit", "mc-r0-right-keys-5-key-mark", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-r1-right-keys-0-key", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-0-key-mark", "mc-r1-right-keys-0-words", "mc-r1-right-keys-1-key", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-1-key-mark", "mc-r1-right-keys-1-words", "mc-r1-right-keys-2-key", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark", "mc-r1-right-keys-2-words", "mc-r1-right-keys-3-key", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark", "mc-r1-right-keys-3-words", "mc-r1-right-keys-4-key", "mc-r1-right-keys-4-key-hit", "mc-r1-right-keys-4-key-mark", "mc-r1-right-keys-4-words", "mc-r1-right-keys-5-key", "mc-r1-right-keys-5-key-hit", "mc-r1-right-keys-5-key-mark", "mc-r1-right-keys-5-words", "mc-r1-right-keys-title", "mc-r1-right-keys-title-rule"]
+
+[[change]]
+act = "m4c"
+boxes = [[888, 378, 336, 1], [937, 406, 287, 1]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m4c.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "m4c"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m4c.Q.png)"
+kind = "rect"
+nodes = ["mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-key-hit", "mc-r0-right-keys-5-key-mark", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-r1-right-keys-0-key", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-0-key-mark", "mc-r1-right-keys-0-words", "mc-r1-right-keys-1-key", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-1-key-mark", "mc-r1-right-keys-1-words", "mc-r1-right-keys-2-key", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark", "mc-r1-right-keys-2-words", "mc-r1-right-keys-3-key", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark", "mc-r1-right-keys-3-words", "mc-r1-right-keys-4-key", "mc-r1-right-keys-4-key-hit", "mc-r1-right-keys-4-key-mark", "mc-r1-right-keys-4-words", "mc-r1-right-keys-5-key", "mc-r1-right-keys-5-key-hit", "mc-r1-right-keys-5-key-mark", "mc-r1-right-keys-5-words", "mc-r1-right-keys-title", "mc-r1-right-keys-title-rule"]
+
+[[change]]
+act = "m5"
+boxes = [[888, 378, 336, 1], [937, 406, 287, 1]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m5.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "m5"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m5.Q.png)"
+kind = "rect"
+nodes = ["mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-key-hit", "mc-r0-right-keys-5-key-mark", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-r1-right-keys-0-key", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-0-key-mark", "mc-r1-right-keys-0-words", "mc-r1-right-keys-1-key", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-1-key-mark", "mc-r1-right-keys-1-words", "mc-r1-right-keys-2-key", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark", "mc-r1-right-keys-2-words", "mc-r1-right-keys-3-key", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark", "mc-r1-right-keys-3-words", "mc-r1-right-keys-4-key", "mc-r1-right-keys-4-key-hit", "mc-r1-right-keys-4-key-mark", "mc-r1-right-keys-4-words", "mc-r1-right-keys-5-key", "mc-r1-right-keys-5-key-hit", "mc-r1-right-keys-5-key-mark", "mc-r1-right-keys-5-words", "mc-r1-right-keys-title", "mc-r1-right-keys-title-rule"]
+
+[[change]]
+act = "m5b"
+boxes = [[888, 378, 336, 1], [937, 406, 287, 1]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m5b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "m5b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m5b.Q.png)"
+kind = "rect"
+nodes = ["mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-key-hit", "mc-r0-right-keys-5-key-mark", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-r1-right-keys-0-key", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-0-key-mark", "mc-r1-right-keys-0-words", "mc-r1-right-keys-1-key", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-1-key-mark", "mc-r1-right-keys-1-words", "mc-r1-right-keys-2-key", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark", "mc-r1-right-keys-2-words", "mc-r1-right-keys-3-key", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark", "mc-r1-right-keys-3-words", "mc-r1-right-keys-4-key", "mc-r1-right-keys-4-key-hit", "mc-r1-right-keys-4-key-mark", "mc-r1-right-keys-4-words", "mc-r1-right-keys-5-key", "mc-r1-right-keys-5-key-hit", "mc-r1-right-keys-5-key-mark", "mc-r1-right-keys-5-words", "mc-r1-right-keys-title", "mc-r1-right-keys-title-rule"]
+
+[[change]]
+act = "m6"
+boxes = [[888, 378, 336, 1], [937, 406, 287, 1]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m6.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "m6"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m6.Q.png)"
+kind = "rect"
+nodes = ["mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-key-hit", "mc-r0-right-keys-5-key-mark", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-r1-right-keys-0-key", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-0-key-mark", "mc-r1-right-keys-0-words", "mc-r1-right-keys-1-key", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-1-key-mark", "mc-r1-right-keys-1-words", "mc-r1-right-keys-2-key", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark", "mc-r1-right-keys-2-words", "mc-r1-right-keys-3-key", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark", "mc-r1-right-keys-3-words", "mc-r1-right-keys-4-key", "mc-r1-right-keys-4-key-hit", "mc-r1-right-keys-4-key-mark", "mc-r1-right-keys-4-words", "mc-r1-right-keys-5-key", "mc-r1-right-keys-5-key-hit", "mc-r1-right-keys-5-key-mark", "mc-r1-right-keys-5-words", "mc-r1-right-keys-title", "mc-r1-right-keys-title-rule"]
+
+[[change]]
+act = "m6b"
+boxes = [[888, 378, 336, 1], [937, 406, 287, 1]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m6b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "m6b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m6b.Q.png)"
+kind = "rect"
+nodes = ["mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-key-hit", "mc-r0-right-keys-5-key-mark", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-r1-right-keys-0-key", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-0-key-mark", "mc-r1-right-keys-0-words", "mc-r1-right-keys-1-key", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-1-key-mark", "mc-r1-right-keys-1-words", "mc-r1-right-keys-2-key", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark", "mc-r1-right-keys-2-words", "mc-r1-right-keys-3-key", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark", "mc-r1-right-keys-3-words", "mc-r1-right-keys-4-key", "mc-r1-right-keys-4-key-hit", "mc-r1-right-keys-4-key-mark", "mc-r1-right-keys-4-words", "mc-r1-right-keys-5-key", "mc-r1-right-keys-5-key-hit", "mc-r1-right-keys-5-key-mark", "mc-r1-right-keys-5-words", "mc-r1-right-keys-title", "mc-r1-right-keys-title-rule"]
+
+[[change]]
+act = "m7"
+boxes = [[888, 378, 336, 1], [937, 406, 287, 1]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m7.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "m7"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m7.Q.png)"
+kind = "rect"
+nodes = ["mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-key-hit", "mc-r0-right-keys-5-key-mark", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-r1-right-keys-0-key", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-0-key-mark", "mc-r1-right-keys-0-words", "mc-r1-right-keys-1-key", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-1-key-mark", "mc-r1-right-keys-1-words", "mc-r1-right-keys-2-key", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark", "mc-r1-right-keys-2-words", "mc-r1-right-keys-3-key", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark", "mc-r1-right-keys-3-words", "mc-r1-right-keys-4-key", "mc-r1-right-keys-4-key-hit", "mc-r1-right-keys-4-key-mark", "mc-r1-right-keys-4-words", "mc-r1-right-keys-5-key", "mc-r1-right-keys-5-key-hit", "mc-r1-right-keys-5-key-mark", "mc-r1-right-keys-5-words", "mc-r1-right-keys-title", "mc-r1-right-keys-title-rule"]
+
+[[change]]
+act = "m7b"
+boxes = [[888, 378, 336, 1], [937, 406, 287, 1]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m7b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "m7b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m7b.Q.png)"
+kind = "rect"
+nodes = ["mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-key-hit", "mc-r0-right-keys-5-key-mark", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-r1-right-keys-0-key", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-0-key-mark", "mc-r1-right-keys-0-words", "mc-r1-right-keys-1-key", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-1-key-mark", "mc-r1-right-keys-1-words", "mc-r1-right-keys-2-key", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark", "mc-r1-right-keys-2-words", "mc-r1-right-keys-3-key", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark", "mc-r1-right-keys-3-words", "mc-r1-right-keys-4-key", "mc-r1-right-keys-4-key-hit", "mc-r1-right-keys-4-key-mark", "mc-r1-right-keys-4-words", "mc-r1-right-keys-5-key", "mc-r1-right-keys-5-key-hit", "mc-r1-right-keys-5-key-mark", "mc-r1-right-keys-5-words", "mc-r1-right-keys-title", "mc-r1-right-keys-title-rule"]
+
+[[change]]
+act = "m7c"
+boxes = [[888, 378, 336, 1], [937, 406, 287, 1]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m7c.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "m7c"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m7c.Q.png)"
+kind = "rect"
+nodes = ["mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-key-hit", "mc-r0-right-keys-5-key-mark", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-r1-right-keys-0-key", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-0-key-mark", "mc-r1-right-keys-0-words", "mc-r1-right-keys-1-key", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-1-key-mark", "mc-r1-right-keys-1-words", "mc-r1-right-keys-2-key", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark", "mc-r1-right-keys-2-words", "mc-r1-right-keys-3-key", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark", "mc-r1-right-keys-3-words", "mc-r1-right-keys-4-key", "mc-r1-right-keys-4-key-hit", "mc-r1-right-keys-4-key-mark", "mc-r1-right-keys-4-words", "mc-r1-right-keys-5-key", "mc-r1-right-keys-5-key-hit", "mc-r1-right-keys-5-key-mark", "mc-r1-right-keys-5-words", "mc-r1-right-keys-title", "mc-r1-right-keys-title-rule"]
+
+[[change]]
+act = "m8"
+boxes = [[888, 378, 336, 1], [937, 406, 287, 1]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m8.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "m8"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m8.Q.png)"
+kind = "rect"
+nodes = ["mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-key-hit", "mc-r0-right-keys-5-key-mark", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-r1-right-keys-0-key", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-0-key-mark", "mc-r1-right-keys-0-words", "mc-r1-right-keys-1-key", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-1-key-mark", "mc-r1-right-keys-1-words", "mc-r1-right-keys-2-key", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark", "mc-r1-right-keys-2-words", "mc-r1-right-keys-3-key", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark", "mc-r1-right-keys-3-words", "mc-r1-right-keys-4-key", "mc-r1-right-keys-4-key-hit", "mc-r1-right-keys-4-key-mark", "mc-r1-right-keys-4-words", "mc-r1-right-keys-5-key", "mc-r1-right-keys-5-key-hit", "mc-r1-right-keys-5-key-mark", "mc-r1-right-keys-5-words", "mc-r1-right-keys-title", "mc-r1-right-keys-title-rule"]
+
+[[change]]
+act = "m8b"
+boxes = [[888, 378, 336, 1], [937, 406, 287, 1]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m8b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "m8b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m8b.Q.png)"
+kind = "rect"
+nodes = ["mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-key-hit", "mc-r0-right-keys-5-key-mark", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-r1-right-keys-0-key", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-0-key-mark", "mc-r1-right-keys-0-words", "mc-r1-right-keys-1-key", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-1-key-mark", "mc-r1-right-keys-1-words", "mc-r1-right-keys-2-key", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark", "mc-r1-right-keys-2-words", "mc-r1-right-keys-3-key", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark", "mc-r1-right-keys-3-words", "mc-r1-right-keys-4-key", "mc-r1-right-keys-4-key-hit", "mc-r1-right-keys-4-key-mark", "mc-r1-right-keys-4-words", "mc-r1-right-keys-5-key", "mc-r1-right-keys-5-key-hit", "mc-r1-right-keys-5-key-mark", "mc-r1-right-keys-5-words", "mc-r1-right-keys-title", "mc-r1-right-keys-title-rule"]
+
+[[change]]
+act = "m9"
+boxes = [[888, 378, 336, 1], [937, 406, 287, 1]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m9.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "m9"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m9.Q.png)"
+kind = "rect"
+nodes = ["mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-key-hit", "mc-r0-right-keys-5-key-mark", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-r1-right-keys-0-key", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-0-key-mark", "mc-r1-right-keys-0-words", "mc-r1-right-keys-1-key", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-1-key-mark", "mc-r1-right-keys-1-words", "mc-r1-right-keys-2-key", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark", "mc-r1-right-keys-2-words", "mc-r1-right-keys-3-key", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark", "mc-r1-right-keys-3-words", "mc-r1-right-keys-4-key", "mc-r1-right-keys-4-key-hit", "mc-r1-right-keys-4-key-mark", "mc-r1-right-keys-4-words", "mc-r1-right-keys-5-key", "mc-r1-right-keys-5-key-hit", "mc-r1-right-keys-5-key-mark", "mc-r1-right-keys-5-words", "mc-r1-right-keys-title", "mc-r1-right-keys-title-rule"]
+
+[[change]]
+act = "m9b"
+boxes = [[888, 378, 336, 1], [937, 406, 287, 1]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m9b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "m9b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m9b.Q.png)"
+kind = "rect"
+nodes = ["mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-key-hit", "mc-r0-right-keys-5-key-mark", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-r1-right-keys-0-key", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-0-key-mark", "mc-r1-right-keys-0-words", "mc-r1-right-keys-1-key", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-1-key-mark", "mc-r1-right-keys-1-words", "mc-r1-right-keys-2-key", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark", "mc-r1-right-keys-2-words", "mc-r1-right-keys-3-key", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark", "mc-r1-right-keys-3-words", "mc-r1-right-keys-4-key", "mc-r1-right-keys-4-key-hit", "mc-r1-right-keys-4-key-mark", "mc-r1-right-keys-4-words", "mc-r1-right-keys-5-key", "mc-r1-right-keys-5-key-hit", "mc-r1-right-keys-5-key-mark", "mc-r1-right-keys-5-words", "mc-r1-right-keys-title", "mc-r1-right-keys-title-rule"]
+
+[[change]]
+act = "m10"
+boxes = [[888, 378, 336, 1], [937, 406, 287, 1]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m10.Q+0.5.png)"
+kind = "pixel"
+
+[[change]]
+act = "m10"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: whether the v8 column still shows its notice depends on the take, so the KEYS block of the column moves 28 px (y 406 in v8, 378 in v9) or not, and its two hairlines blob (rtr1-2; r2 takes 1 and 2, captures/m10.Q+0.5.png)"
+kind = "rect"
+nodes = ["mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-key-hit", "mc-r0-right-keys-5-key-mark", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-r1-right-keys-0-key", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-0-key-mark", "mc-r1-right-keys-0-words", "mc-r1-right-keys-1-key", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-1-key-mark", "mc-r1-right-keys-1-words", "mc-r1-right-keys-2-key", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark", "mc-r1-right-keys-2-words", "mc-r1-right-keys-3-key", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark", "mc-r1-right-keys-3-words", "mc-r1-right-keys-4-key", "mc-r1-right-keys-4-key-hit", "mc-r1-right-keys-4-key-mark", "mc-r1-right-keys-4-words", "mc-r1-right-keys-5-key", "mc-r1-right-keys-5-key-hit", "mc-r1-right-keys-5-key-mark", "mc-r1-right-keys-5-words", "mc-r1-right-keys-title", "mc-r1-right-keys-title-rule"]
+
+[[change]]
+act = "m6"
+cause = "675ebd55 the column of the first region slot (r0) in v9 where the v8 column stands in r1: the region slot flips with the notice (rtr1-2; r2 take 2, mc-regions-0 visible, captures/m6.Q.png)"
+kind = "rect"
+nodes = ["mc-r0-footer-hud", "mc-r0-footer-next", "mc-r0-footer-next-hit", "mc-r0-footer-next-mark", "mc-r0-footer-prev", "mc-r0-footer-prev-hit", "mc-r0-footer-prev-mark", "mc-r0-header-clock", "mc-r0-header-head", "mc-r0-right-chat-door", "mc-r0-right-chat-door-hit", "mc-r0-right-chat-door-mark", "mc-r0-right-chat-key", "mc-r0-right-chat-state", "mc-r0-right-chat-title", "mc-r0-right-doors-lock", "mc-r0-right-doors-lock-hit", "mc-r0-right-doors-lock-mark", "mc-r0-right-doors-power", "mc-r0-right-doors-power-hit", "mc-r0-right-doors-power-mark", "mc-r0-right-doors-programs", "mc-r0-right-doors-programs-hit", "mc-r0-right-doors-programs-mark", "mc-r0-right-doors-screenshot", "mc-r0-right-doors-screenshot-hit", "mc-r0-right-doors-screenshot-mark", "mc-r0-right-doors-volume", "mc-r0-right-doors-volume-hit", "mc-r0-right-doors-volume-mark", "mc-r0-right-edge", "mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-r0-right-state", "mc-r0-right-state-mic", "mc-r0-right-state-mic-hit", "mc-r0-right-state-mic-mark"]
+
+[[change]]
+act = "m6"
+cause = "675ebd55 the column of the first region slot (r0) in v9 where the v8 column stands in r1: the region slot flips with the notice (rtr1-2; r2 take 2, mc-regions-0 visible, captures/m6.Q.png)"
+kind = "visible"
+nodes = ["mc-regions-0"]
+
+[[change]]
+act = "m9b"
+cause = "db20c304, 3e355bb2 the page ends over the card and the footer, so the agent bands 2 to 4 sit past its end in v9 (r2 take 1, captures/m9b.Q.png)"
+kind = "rect"
+nodes = ["mc-s-agents-panels-agent-2", "mc-s-agents-panels-agent-2-rule", "mc-s-agents-panels-agent-3", "mc-s-agents-panels-agent-3-rule", "mc-s-agents-panels-agent-4", "mc-s-agents-panels-agent-4-rule", "mc-s-agents-panels-band-2", "mc-s-agents-panels-band-2-rule", "mc-s-agents-panels-band-3", "mc-s-agents-panels-band-3-rule", "mc-s-agents-panels-band-4", "mc-s-agents-panels-band-4-rule"]
+
+[[change]]
+act = "t7"
+boxes = [[896, 560, 368, 104]]
+cause = "c9ed1cfd the notice card (ti-22): the card of the tiling screenshot notice stands 896 to 1264 x 560 to 664 at Q+0.5, its slide-in differs by take (r2 takes 1 and 2, captures/t7.Q+0.5.png)"
 kind = "pixel"
