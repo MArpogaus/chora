@@ -6,10 +6,14 @@
 #                      taskbar (our own element, not Luna) have 4.5:1 in
 #                      every state: at rest, under the pointer, and dimmed
 #                      behind Turn off computer
+#   pager-current      the current workspace button differs from each other one by 3:1 at rest and under
+#                      the pointer (rv9j-1), measured on the fill pixels at the left edge of the buttons
 #   session-labels     the captions of Lock, Log Off and Restart of Turn off
 #                      computer (our own buttons) have 7:1, the bar of a button, as white on their
 #                      backing; Stand By and Turn Off are Luna's and lie on its
 #                      panel fill, exempt in known-red.toml (white on it 2.1:1)
+#   caption-size       the captions of Lock and Restart of Turn off computer stand 12 px high or more in ink,
+#                      shadow included (11 px type gives 10, 14 px type 12 to 13): the 14 px of body text (xp-9)
 #   cancel-target      Cancel of Turn off computer is 24 px high or more
 #   inactive-title     the title of a window that is not active has 4.5:1
 #   bin-clear          the Recycle Bin stands at the bottom right, above the paperclip, and
@@ -19,7 +23,8 @@
 # Every cell runs and prints; the gate fails when one is red.
 # The captions have a shadow, so the own ones are measured as white (--text=FFFFFF), not as the
 # farthest colour, which is the shadow; Stand By and Turn Off lie on the dialog.svg fill #92B1F3 to
-# #95B4F5 at their place (2.1:1 white), exempt in known-red.toml, the fill is checked.
+# #95B4F5 at their place (2.1:1 white), exempt in known-red.toml, the fill is checked on the two rows
+# under the caption (the 14 px caption covers most of its own rows, so they have no common colour).
 # at_least RATIO MIN LABEL is red below the minimum; contrast FILE X Y W H prints the ratio alone;
 # pager_digits FILE LABEL measures the digit of each pager button; the title text of a window follows
 # the icon of the application and the edge of the frame, so its first 110 px are measured.
@@ -74,6 +79,28 @@ pager_digits() {
     done
 }
 
+pager_apart() {
+    local file=$1 label=$2 n x y w h cur=
+    read -r x y w h <<<"$(rect xp-pager-0-HEADLESS-1)"
+    cur=$(python3 -I "$repo/tests/png-pixel.py" "$file" "$((x + 3))" "$((y + h / 2))")
+    for n in 1 2 3; do
+        read -r x y w h <<<"$(rect "xp-pager-$n-HEADLESS-1")"
+        at_least "$(python3 -I - "$cur" "$(python3 -I "$repo/tests/png-pixel.py" "$file" "$((x + 3))" "$((y + h / 2))")" <<'PY'
+import sys
+
+
+def lum(p):
+    lin = [c / 255 / 12.92 if c / 255 <= 0.04045 else ((c / 255 + 0.055) / 1.055) ** 2.4 for c in map(int, p.split()[:3])]
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+
+a, b = sorted((lum(sys.argv[1]), lum(sys.argv[2])), reverse=True)
+print(f"{(a + 0.05) / (b + 0.05):.2f}")
+PY
+)" 3.0 "pager-current: $label: workspace button $((n + 1)) beside the current one"
+    done
+}
+
 sleep 1
 read -r bx by bw bh <<<"$(rect xp-icon-2)"
 { [ "$((bx + bw))" -ge 1256 ] && [ "$by" -ge 400 ] && [ "$((by + bh))" -le 770 ]; } ||
@@ -81,11 +108,13 @@ read -r bx by bw bh <<<"$(rect xp-icon-2)"
 bin_clear "greeting of the paperclip"
 ctl capture "$shots/rest.png" >/dev/null || fail "no capture"
 pager_digits "$shots/rest.png" "pager at rest"
+pager_apart "$shots/rest.png" "pager at rest"
 read -r x y w h <<<"$(rect xp-pager-1-HEADLESS-1)"
 inj "[{\"pointer_move\": {\"position\": [$((x + w / 2)), $((y + h / 2))]}}]"
 sleep 0.6
 ctl capture "$shots/hover.png" >/dev/null
 pager_digits "$shots/hover.png" "pager under the pointer"
+pager_apart "$shots/hover.png" "pager under the pointer"
 inj '[{"pointer_move": {"position": [640, 200]}}]'
 
 key Super+Shift+e
@@ -94,10 +123,16 @@ ctl capture "$shots/turnoff.png" >/dev/null
 pager_digits "$shots/turnoff.png" "pager dimmed behind Turn off computer"
 read -r x y w h <<<"$(rect xp-session-button-5)"
 [ "${h:-0}" -ge 24 ] || red "cancel-target: Cancel of Turn off computer is ${w:-?} x ${h:-?}, wants 24 px high or more"
+for n in 0 4; do
+    read -r x y w h <<<"$(rect "xp-session-button-$n")"
+    ink=$(python3 -I "$repo/tests/png-ink.py" "$shots/turnoff.png" "$((x + 8))" "$((y + h - 17))" "$((w - 16))" 16 | tr ' ' '\n' | sort -n | tail -n 1)
+    echo "caption $n ink: ${ink:-?} px"
+    [ "${ink:-0}" -ge 12 ] || red "caption-size: caption $n of Turn off computer is ${ink:-?} px of ink high, 14 px type gives 12 or more"
+done
 for n in 0 1 2 3 4; do
     read -r x y w h <<<"$(rect "xp-session-button-$n")"
     if [ "$n" = 2 ] || [ "$n" = 3 ]; then
-        read -r r g b <<<"$(python3 -I "$repo/tests/png-contrast.py" "$shots/turnoff.png" "$x" "$((y + h - 16))" "$w" 15 --text=FFFFFF | sed 's/.* on (\(.*\))/\1/; s/,//g')"
+        read -r r g b <<<"$(python3 -I "$repo/tests/png-contrast.py" "$shots/turnoff.png" "$x" "$((y + h - 2))" "$w" 2 --text=FFFFFF | sed 's/.* on (\(.*\))/\1/; s/,//g')"
         { [ "${r:-0}" -ge 144 ] && [ "$r" -le 151 ] && [ "${g:-0}" -ge 175 ] && [ "$g" -le 182 ] && [ "${b:-0}" -ge 241 ] && [ "$b" -le 247 ]; } ||
             red "session-labels: caption $n of Turn off computer lies on (${r:-?}, ${g:-?}, ${b:-?}), not the Luna fill (148, 179, 244) of its exemption"
     else

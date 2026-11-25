@@ -1,7 +1,8 @@
 #!/bin/bash
 # The chat header of xp ends its turn honestly (xp-28): after the question
 # is answered and the helper reports idle, the header says "Idle" with no
-# step and Stop is off. The fake voice plays the turn: working (step 1 of
+# step and Stop is off; a finished answer (state done that keeps its task and step 1 of 1) ends the
+# same way. The fake voice plays the turn: working (step 1 of
 # 1), a question, the answer, idle.
 # BIN: directory with the binaries, SHOTS: directory for the logs.
 set -u
@@ -67,7 +68,16 @@ wait_header_idle() {
 wait_header_idle
 after=$dumped
 echo "$shots: $after" >"$shots/after.json"
+echo 'voice.state {"name": "Atlas", "state": "working", "task": "Write file", "step": 1, "steps": 1, "seq": 3, "epoch": 1}' >&5
+wait_dump 'step 1 of 1'
+echo 'voice.state {"name": "Atlas", "state": "done", "task": "Write file", "step": 1, "steps": 1, "seq": 4, "epoch": 1}' >&5
+wait_header_idle
+finished=$dumped
+ctl capture "$shots/xp-28-idle.png" >/dev/null || fail "xp-28: the capture failed"
 exec 5>&-
+echo "$finished" | grep -q 'step 1 of 1' && fail "xp-28: the header keeps step 1 of 1 after the finished answer: $finished"
+echo "$finished" | grep -q 'Idle' || fail "xp-28: the header does not say Idle after the finished answer: $finished"
+ok "xp-28: the header says Idle after a finished answer that keeps its step"
 echo "$after" | grep -q 'Working' && fail "the header still says Working after the answer: $after"
 echo "$after" | grep -q 'step 1 of 1' && fail "the header still says step 1 of 1 after the answer: $after"
 echo "$after" | grep -q 'Idle' || fail "the header does not say Idle after the answer: $after"

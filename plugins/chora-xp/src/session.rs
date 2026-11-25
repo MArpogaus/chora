@@ -369,7 +369,7 @@ impl Dialog {
                     [178, 196, 240, 255]
                 };
                 let mut label =
-                    Text::new(button.title, Font::UiBold, color, [0, 37, w, 16]).centered();
+                    Text::new(button.title, Font::BodyBold, color, [0, 37, w, 16]).centered();
                 if button.enabled {
                     label = label.shadow(TITLE_SHADOW);
                 }
@@ -446,6 +446,24 @@ mod tests {
         assert!(!log_off[0].enabled && log_off[1].enabled);
         // Stand By is disabled without a way to suspend.
         assert!(!buttons(Mode::TurnOff, false)[2].enabled);
+    }
+
+    #[test]
+    fn every_caption_of_a_big_button_fits_it_at_14_px() {
+        let (theme, cache) = crate::dialog::tests::theme("session-captions");
+        for mode in [Mode::LogOff, Mode::TurnOff] {
+            for button in buttons(mode, true).iter().filter(|b| b.icon.is_some()) {
+                let width = theme.text_width(button.title, Font::BodyBold);
+                assert!(
+                    width <= f64::from(button.rect[2]),
+                    "{} is {width} px wide in a button of {}",
+                    button.title,
+                    button.rect[2]
+                );
+            }
+        }
+        assert!(theme.fonts().size(Font::BodyBold) >= 14);
+        let _ = std::fs::remove_dir_all(cache);
     }
 
     #[test]

@@ -87,18 +87,23 @@ const PAGER_GAP: i32 = 2;
 const PAGER_WIDTH: i32 = DESKTOPS as i32 * PAGER_BUTTON + (DESKTOPS as i32 - 1) * PAGER_GAP + 6;
 const WHITE: [u8; 4] = [255, 255, 255, 255];
 
-/// The fill and the edge of a workspace button: our own element, not Luna,
-/// dark enough under its white digit for 4.5:1 in every state, also when
+/// The fill and the edge of a workspace button: the blue of the Luna tray
+/// (#0D8DEA) darkened until a white digit reads on it at 4.5:1, also when
 /// Turn off computer takes the color from the screen. The one in use is
-/// pressed, the one under the pointer lighter.
+/// pressed, a deep navy at 3:1 and more from the others, the one under the
+/// pointer lighter.
 fn pager_colors(current: bool, hovered: bool) -> (&'static str, &'static str) {
     match (current, hovered) {
-        (true, true) => ("#1D57C4", "#0F3C96"),
-        (true, false) => ("#164EB8", "#0F3C96"),
-        (false, true) => ("#2C64D0", "#1A4BB0"),
-        (false, false) => ("#1E54BE", "#1A4BB0"),
+        (true, true) => ("#0A2A5C", "#041634"),
+        (true, false) => ("#06204A", "#041634"),
+        (false, true) => ("#0B76CD", "#0A4F96"),
+        (false, false) => ("#0A74CA", "#0A4F96"),
     }
 }
+
+/// The light line along the top of a workspace button that is not in use,
+/// the one of the Luna tray.
+const PAGER_LIGHT: &str = "#3AA9F0";
 
 /// The settings of Taskbar and Start Menu Properties.
 #[allow(clippy::struct_excessive_bools, reason = "independent check boxes")]
@@ -496,9 +501,17 @@ impl Bar {
                 )
                 .centered();
                 let size = f64::from(PAGER_BUTTON) - 1.0;
+                let light = if desktop == current {
+                    String::new()
+                } else {
+                    format!(
+                        r#"<path d="M3.5 1.5H{}" stroke="{PAGER_LIGHT}" stroke-opacity="0.7"/>"#,
+                        size - 2.5
+                    )
+                };
                 let picture = Picture::new(PAGER_BUTTON, PAGER_BUTTON)
                     .svg(format!(
-                        r#"<rect x="0.5" y="0.5" width="{size}" height="{size}" rx="3" fill="{fill}" stroke="{edge}"/>"#
+                        r#"<rect x="0.5" y="0.5" width="{size}" height="{size}" rx="3" fill="{fill}" stroke="{edge}"/>{light}"#
                     ))
                     .text(label);
                 update(
@@ -1301,6 +1314,53 @@ mod tests {
             assert_eq!(pair[0][0] + 22 + 2, pair[1][0]);
         }
         assert!(rects[DESKTOPS - 1][0] + 22 <= 1280 - bar.tray_width());
+    }
+
+    /// The WCAG 2 relative luminance of a `#RRGGBB` color.
+    fn luminance(hex: &str) -> f64 {
+        let channel = |i: usize| {
+            let c = f64::from(u8::from_str_radix(&hex[1 + 2 * i..3 + 2 * i], 16).unwrap()) / 255.0;
+            if c <= 0.04045 {
+                c / 12.92
+            } else {
+                ((c + 0.055) / 1.055).powf(2.4)
+            }
+        };
+        0.2126 * channel(0) + 0.7152 * channel(1) + 0.0722 * channel(2)
+    }
+
+    fn ratio(a: &str, b: &str) -> f64 {
+        let (a, b) = (luminance(a), luminance(b));
+        (a.max(b) + 0.05) / (a.min(b) + 0.05)
+    }
+
+    #[test]
+    fn the_current_desktop_button_differs_from_the_others_by_3_to_1_rv9j_1() {
+        for hovered in [false, true] {
+            let current = pager_colors(true, false).0;
+            let other = pager_colors(false, hovered).0;
+            assert!(
+                ratio(current, other) >= 3.0,
+                "current {current} on {other} (hovered {hovered}): {:.2}:1",
+                ratio(current, other)
+            );
+        }
+    }
+
+    /// The tray of Luna is #0D8DEA (13, 141, 234) at its middle row; a button
+    /// is that hue darkened for the white digit, not a blue square of its own.
+    #[test]
+    fn the_desktop_buttons_keep_the_tray_tone_and_a_readable_digit_xp_19() {
+        for hovered in [false, true] {
+            let fill = pager_colors(false, hovered).0;
+            assert!(
+                ratio(fill, "#FFFFFF") >= 4.5,
+                "{fill} under the white digit"
+            );
+            let [r, g, b] = [1, 3, 5].map(|i| i32::from_str_radix(&fill[i..i + 2], 16).unwrap());
+            assert!(b > g && g > r + 60, "{fill} is not of the tray hue");
+        }
+        assert!(ratio(pager_colors(true, false).0, "#FFFFFF") >= 4.5);
     }
 
     #[test]
