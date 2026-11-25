@@ -503,6 +503,9 @@ struct Construct {
     current: Option<String>,
     radius: Option<f64>,
     waiting: Vec<Waiting>,
+    /// The tokens of terminals that a face waits for: their windows go to
+    /// the manager of the faces, no pane (rcr1-1).
+    face_tokens: Vec<String>,
     /// Windows that found no room: attached and hidden, with no pane yet.
     hidden: Vec<String>,
     moving: Option<Moving>,
@@ -665,6 +668,7 @@ impl Construct {
             current: None,
             radius: None,
             waiting: Vec::new(),
+            face_tokens: Vec::new(),
             hidden: Vec::new(),
             moving: None,
             fog_shader: shaders("fog.frag", FOG_SHADER)?,

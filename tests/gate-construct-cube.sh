@@ -39,6 +39,14 @@
 #    While the window manager does not answer, a window keeps its
 #    plane, so it never shows nowhere; it lands when the answer comes.
 #    FLOAT_SHOT  a PNG path that keeps a capture of the floating windows
+# 2c. A window that a face starts while the key sheet is open or from
+#    the launcher (the terminal and the launcher of the gate are chora-probe
+#    windows that report their keys): Super+t with the key sheet open over
+#    a face starts a window of xp on the front face, no pane of the
+#    construct (rcr1-1); Escape closes the sheet and that window has the
+#    keyboard again (co-78). A program of the launcher in a face that
+#    holds a window is a window of xp, shown on that face, and takes
+#    keys, in 5 of 5 runs (co-77).
 # 3. A slow cube.turn forwards nothing while it runs; at a third of it
 #    the screen shows two faces; the gate prints the frame time of the
 #    turn; then the next face
@@ -137,6 +145,17 @@ for pid in sorted(filter(str.isdigit, os.listdir("/proc")), key=int):
 EOF
 }
 
+mkdir -p "$work/chora"
+cat >"$work/launch.sh" <<'LAUNCH'
+#!/bin/sh
+# a program of the launcher, no child of it, as fuzzel starts one
+n=$(date +%s%N)
+(setsid chora-probe window 40 200 80 --report >"$1/prog.$n.log" 2>&1 &)
+LAUNCH
+cat >"$work/chora/chora-construct.yaml" <<CONFIG
+terminal: exec chora-probe window 200 80 40 --report >$work/term.log 2>&1
+launcher: sh $work/launch.sh $work
+CONFIG
 session_start 1280x800 -- "$bin/chora-construct"
 if [ "${CUBE_LOAD:-0}" = 1 ]; then
     for _ in $(seq $((4 * $(nproc)))); do
@@ -288,6 +307,73 @@ until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "after the key list th
 until_ok 'ctl query id:construct-hint-pull-out | grep -q construct-hint-pull-out' 20 ||
     fail "co-79: in a face with the keyboard in its window the hint bar names no Super Alt 4 Pull out"
 ok "co-79: in a face with the keyboard in its window the hint bar names the pull key"
+
+others() {
+    ctl query kind:surface | python3 -I -c '
+import json, sys
+for n in json.load(sys.stdin):
+    if n["surface"].get("app_id") == "chora-probe" and n["id"] != sys.argv[1]:
+        r = next(iter(n["rects"].values()), [0, 0, 0, 0])
+        print(n["id"], n.get("owner"), next(iter(n["rects"]), "-"), round(r[0]), round(r[1]), round(r[2]), round(r[3]))' "$surface"
+}
+end_others() {
+    python3 -I - "$CHORA_SOCKET" "$(pid_of chora-probe)" <<'PY'
+import os, signal, sys
+for pid in sorted(filter(str.isdigit, os.listdir("/proc")), key=int):
+    try:
+        cmd = open(f"/proc/{pid}/cmdline", "rb").read().split(b"\0")
+        env = open(f"/proc/{pid}/environ", "rb").read().split(b"\0")
+    except OSError:
+        continue
+    if cmd[0].endswith(b"chora-probe") and b"CHORA_SOCKET=" + sys.argv[1].encode() in env and pid != sys.argv[2]:
+        os.kill(int(pid), signal.SIGTERM)
+PY
+    until_ok 'test -z "$(others)"' 40 || fail "a probe window of a program of the face stays after its end: $(others)"
+    inject "[{\"pointer_move\": {\"position\": [$((x + 3)), $((y + 2))]}}, {\"click\": {}}]"
+    before=$(keys_got 30)
+    plain a
+    until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "after the end of a program of the face the first probe window has no keyboard"
+}
+xp_shows() { ctl state xp | python3 -I -c 'import json, sys; w = [w for w in json.load(sys.stdin)["windows"] if w["surface"] == sys.argv[1]]; sys.exit(0 if w and w[0]["shown"] else 1)' "$1"; }
+keys_in() { grep -c '^key 30$' "$1"; }
+
+key Super+F1
+until_ok help_shown 12 || fail "co-78: Super+F1 shows no key sheet over the face"
+key Super+t
+until_ok 'test -n "$(others)"' 80 || fail "rcr1-1: Super+t with the key sheet open started no window"
+until_ok 'others | grep -q " xp VIRTUAL"' 40 || fail "rcr1-1: Super+t with the key sheet open over a face started no window of the face manager xp: $(others)"
+read -r second owner out wx wy ww wh <<<"$(others)"
+[ "$out" = "$front" ] || fail "rcr1-1: the window of Super+t is on $out, not on the face $front"
+until_ok 'xp_shows "$second"' 20 || fail "rcr1-1: the face manager does not show the window $second"
+ok "rcr1-1: Super+t with the key sheet open over a face starts a window of the face (xp, $out)"
+help_shown || fail "co-78: the key sheet closed by itself when the window opened"
+before=$(keys_in "$work/term.log")
+plain a
+! until_ok 'test "$(keys_in "$work/term.log")" -gt "$before"' 8 || fail "rcm1-2: a key reached the window while the key sheet was open"
+plain Escape
+if help_shown; then plain Escape; fi
+until_ok '! help_shown' 20 || fail "co-78: Escape keeps the key sheet after Super+t started a window in the face"
+before=$(keys_in "$work/term.log")
+plain a
+until_ok 'test "$(keys_in "$work/term.log")" -gt "$before"' 20 || fail "co-78: after Escape the window that Super+t started has no keyboard"
+ok "co-78: Escape closes the key sheet after Super+t opened a window of the face, and that window has the keyboard"
+end_others
+
+for run in 1 2 3 4 5; do
+    key Super+space
+    until_ok 'test -n "$(others)"' 100 || fail "co-77: run $run: the program of the launcher opened no window in the face"
+    until_ok 'others | grep -q " xp VIRTUAL"' 40 || fail "co-77: run $run: the program of the launcher in a face is held by none of xp: $(others)"
+    read -r second owner out wx wy ww wh <<<"$(others)"
+    [ "$out" = "$front" ] || fail "co-77: run $run: the program is on $out, not on the face $front"
+    until_ok 'xp_shows "$second"' 20 || fail "co-77: run $run: the face manager does not show the window $second"
+    { [ "$wx" -ge 0 ] && [ "$wy" -ge 0 ] && [ $((wx + ww)) -le 1280 ] && [ $((wy + wh)) -le 800 ]; } || fail "co-77: run $run: the window lies outside the face: $wx,$wy ${ww}x$wh"
+    log=$(find "$work" -name "prog.*.log" -printf "%T@ %p\n" | sort -n | tail -n 1 | cut -d" " -f2)
+    before=$(keys_in "$log")
+    plain a
+    until_ok 'test "$(keys_in "$log")" -gt "$before"' 20 || fail "co-77: run $run: keys do not reach the program of the launcher"
+    end_others
+done
+ok "co-77: a program of the launcher in a face that holds a window is shown on that face, held by the face manager xp, and takes keys, 5 of 5 runs"
 
 call view.step_back >/dev/null || fail "view.step_back"
 until_ok "$stood_back" 20 || fail "no step back: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"

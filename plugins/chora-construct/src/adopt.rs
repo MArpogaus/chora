@@ -5,7 +5,7 @@ use super::{
     ClientError, Command, Construct, Content, Hold, Instant, Kind, LAUNCHED, NAME, NO_ROOM, Pane,
     PaneFile, PropsUpdate, Transform, WINDOWS, Waiting, configure, update,
 };
-use chora_kit::{modes::Mode, wm::focus};
+use chora_kit::wm::focus;
 
 /// Whether a window with the token of the launcher is the launcher's own:
 /// a launcher without a window, such as fuzzel, may pass its token on to
@@ -40,6 +40,9 @@ pub(crate) fn follows_buffer(pane: [f64; 2], buffer: [f64; 2]) -> Option<[f64; 2
     let same = pane.iter().zip(buffer).all(|(a, b)| (a - b).abs() < 0.5);
     (has_buffer && !same).then_some(buffer)
 }
+
+/// How many terminals that a face started wait for their window.
+const FACE_TOKENS: usize = 8;
 
 /// The names of the shells that wrap a launcher.
 pub(crate) const SHELLS: [&str; 3] = ["sh", "dash", "bash"];
@@ -220,6 +223,14 @@ impl Construct {
             }
             return Ok(());
         }
+        if let Some(at) = (self.face_tokens.iter()).position(|t| Some(t.as_str()) == token) {
+            self.face_tokens.remove(at);
+            return if free {
+                self.hand_to_the_faces(surface)
+            } else {
+                Ok(())
+            };
+        }
         let i = (self.waiting.iter()).position(|w| token.is_some() && w.token.as_deref() == token);
         let waited = i.map(|i| self.waiting.remove(i));
         let by_key = waited.as_ref().is_some_and(|w| w.key);
@@ -295,6 +306,41 @@ impl Construct {
         });
     }
 
+    /// Starts the terminal for the face in front. The core gives a new
+    /// window to the holder of the keyboard, which is the construct while
+    /// the key sheet is open, so the window goes on to the manager of the
+    /// faces when it comes (`hand_to_the_faces`) and no pane is made
+    /// (rcr1-1).
+    pub(crate) fn start_terminal_in_face(&mut self) {
+        let command = self.settings.value.terminal.clone();
+        let mint = self.rt.conn.activation_token();
+        if let Some((token, _)) = chora_kit::launch::start(&command, mint.as_deref()) {
+            self.face_tokens.push(token);
+            let kept = self.face_tokens.len().saturating_sub(FACE_TOKENS);
+            self.face_tokens.drain(..kept);
+        }
+    }
+
+    /// The window of a terminal that a face started goes to the manager
+    /// of the faces: the construct takes the window the core gave it
+    /// and lets it go to that manager at once.
+    fn hand_to_the_faces(&mut self, surface: &str) -> Result<(), ClientError> {
+        let commands = vec![
+            Command::Attach {
+                surface: surface.into(),
+                parent: WINDOWS.into(),
+            },
+            Command::Remove {
+                id: surface.into(),
+                to: Some(self.face_manager()),
+            },
+        ];
+        if let Some(err) = self.rt.conn.try_apply(commands)? {
+            crate::log::log_warn!("chora-construct: {surface} to the faces: {err}");
+        }
+        Ok(())
+    }
+
     /// Starts the launcher. Its own window, if it has one and the
     /// token, is no pane; the next window after it is.
     pub(crate) fn start_launcher(&mut self) {
@@ -311,9 +357,7 @@ impl Construct {
     /// so in a face no pane does, and with no window focused nothing does. A pane goes when its window
     /// does; a plugin pane goes at once.
     pub(crate) fn close_focused(&mut self) -> Result<(), ClientError> {
-        let in_face =
-            !self.in_pane() && (self.cube.as_ref()).is_some_and(|c| c.view().mode() == Mode::Use);
-        if in_face {
+        if self.in_a_face() {
             let Some(surface) = (self.core_focus.clone())
                 .filter(|s| !(self.panes.iter()).any(|p| p.window() == Some(s)))
             else {
