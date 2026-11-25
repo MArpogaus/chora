@@ -41,7 +41,6 @@ L is the look the task runs on (default: the first flavor); FILE is the
 
 import contextlib
 import dataclasses
-import hashlib
 import json
 import os
 import pathlib
@@ -179,12 +178,20 @@ class Run:
         calls = len(self.calls.read_text().splitlines())
         text = f'{{"snap": {dump(snap)}, "marks": {json.dumps(marks)}, "calls": {calls}}}'
         (self.state_dir / f"{name}.json").write_text(text)
-        (self.state_dir / f"{name}.config").write_text(config_digest(self.dir))
+        (self.state_dir / f"{name}.config").write_text(config_value(self.dir))
 
     def config_at(self, name):
-        """The config digest kept with the snapshot `name`, None when absent."""
+        """The value of gap_inner kept with the snapshot `name`, None when absent."""
         path = self.state_dir / f"{name}.config"
         return path.read_text() if path.exists() else None
+
+    def running_gap(self):
+        """The gap_inner that the running tiling reports (`get_layout`) as text,
+        None when it does not answer."""
+        try:
+            return str(self.s.call("tiling", "get_layout")["gap_inner"])
+        except (RuntimeError, KeyError, TypeError):
+            return None
 
     def observe(self, action, snap):
         """What the contracts read later: what was open, the helper, and the
@@ -693,13 +700,18 @@ def verify_only_keys_open(ctx):
 
 
 def verify_reloaded(ctx):
-    """L2: the config value changed against the begin, and the reload took:
-    the look answers again and holds the focus. The state answer has no
-    reload counter, so the read of the value is the digest of the files."""
+    """L2: the value of gap_inner on disk differs from its value at the
+    begin, the running config reports the new value after the reload, and
+    the look answers again and holds the focus. A changed file with the same
+    value (the editor opened, a comment typed) is no pass."""
 
     def verify(after_):
-        begin, now = ctx.config or (None, None)
-        out = [] if begin != now else ["the config value did not change since the begin"]
+        begin, disk, running = ctx.config or (None, None, None)
+        out = []
+        if begin == disk:
+            out.append(f"gap_inner is still {disk} on disk: the value did not change since the begin")
+        elif str(running) != disk:
+            out.append(f"the running config reports gap_inner {running}, not {disk} after the reload")
         if (after_.states.get(ctx.look) or {}).get("focus", {}).get("holder") != ctx.look:
             out.append(f"the look is not back with the focus after the reload ({ctx.look})")
         return out
@@ -830,24 +842,24 @@ def scene_line(snap, look):
     return f" [scene: {', '.join(words)}]" if words else ""
 
 
-def config_digest(folder):
-    """A digest of the config files of the session folder: the private config
-    home and the xp.yaml."""
-    files = sorted(p for p in (pathlib.Path(folder) / "config").rglob("*") if p.is_file())
-    files.append(pathlib.Path(folder) / "xp.yaml")
-    sha = hashlib.sha256()
-    for p in files:
-        if p.is_file():
-            sha.update(str(p.name).encode() + p.read_bytes())
-    return sha.hexdigest()
+TILING_CONFIG = pathlib.Path("config") / "chora" / "chora-tiling.yaml"
+GAP_DEFAULT = "12"
+GAP_LINE = re.compile(r"^\s*gap_inner:\s*(\d+)\s*$", re.MULTILINE)
+
+
+def config_value(folder):
+    """The value of gap_inner in the config of tiling in the session folder,
+    as text; the default 12 while the file does not exist or does not say."""
+    path = pathlib.Path(folder) / TILING_CONFIG
+    found = GAP_LINE.search(path.read_text()) if path.is_file() else None
+    return found.group(1) if found else GAP_DEFAULT
 
 
 def has_config(run):
-    """Whether the session has a config that a reload can change: a file that
-    is not empty in the private config home or the xp.yaml of the session."""
-    files = [p for p in (run.dir / "config").rglob("*") if p.is_file()]
-    files.append(run.dir / "xp.yaml")
-    return any(p.is_file() and p.stat().st_size for p in files)
+    """Whether the session has a config of tiling that a reload can change:
+    a tiling look runs (the editor writes the file) or the file is not empty."""
+    path = run.dir / TILING_CONFIG
+    return "tiling" in getattr(run.s, "looks", ()) or (path.is_file() and path.stat().st_size > 0)
 
 
 def wait_for_app(read_nodes, app_id, timeout, sleep=time.sleep, clock=time.monotonic):
@@ -892,7 +904,7 @@ def end(run, args):
         parse_chords([a for a in actions if a["time"] >= since]),
         entries,
         left_open(look, now),
-        (run.config_at(name), config_digest(run.dir)),
+        (run.config_at(name), config_value(run.dir), run.running_gap()),
     )
     bad = 0
     breaches = [b for b in run.breaches() if b["time"] >= since]
