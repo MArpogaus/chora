@@ -101,7 +101,9 @@ mod tests {
     use chora_kit::{
         give::Windows as _,
         runtime::Plugin as _,
-        testing::{FakeCore, Model, Script, Subject, created, owner, phases, surface},
+        testing::{
+            FakeCore, Model, Script, Subject, created, focus_changed, owner, phases, surface,
+        },
     };
     use chora_scene::{Command, Event, NodeKind, PropsUpdate, ROOT, SurfaceInfo};
     use serde_json::Value;
@@ -172,10 +174,7 @@ mod tests {
         let mut xp = wm_on_kit_core(&core, "given-keys");
         let model = core.model();
         surface(&model, "s9");
-        xp.event(Event::FocusChanged {
-            surface: Some("s9".into()),
-        })
-        .unwrap();
+        xp.event(focus_changed(Some("s9"))).unwrap();
         surface(&model, "s1");
         model.lock().unwrap().scene.reserve("s1", Some(NAME));
         xp.event(Event::SurfaceDetached {
@@ -198,7 +197,7 @@ mod tests {
         let state = xp.state().unwrap();
         assert_eq!(state["focus"]["holder"], Value::Null, "{}", state["focus"]);
 
-        xp.event(Event::FocusChanged { surface: None }).unwrap();
+        xp.event(focus_changed(None)).unwrap();
         surface(&model, "s2");
         model.lock().unwrap().scene.reserve("s2", Some(NAME));
         xp.event(Event::SurfaceDetached {
