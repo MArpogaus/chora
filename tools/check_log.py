@@ -109,6 +109,25 @@ def check_state(text, now):
         age = (now_min - (int(measured.group(1)) * 60 + int(measured.group(2)))) % (24 * 60)
         if age > 120:
             yield f"state.md: the budget measure is {age} min older than the Now time (limit 120; run tokens.py)"
+    yield from check_lanes_full(text, budget)
+
+
+def check_lanes_full(text, budget):
+    """Workday close 11-25 (critic 8): under-spending recurred five times
+    under a manual guard. Behind pace (week % more than 5 under time %),
+    fewer than 6 running or starting build lanes fail the commit unless
+    the Now section names why ('lanes-short: <reason>')."""
+    pace = re.search(r"week about (\d+) % vs (\d+) %", budget)
+    if not pace or int(pace.group(1)) >= int(pace.group(2)) - 5:
+        return
+    if any(l.startswith("lanes-short:") for l in section_lines(text, "Now")):
+        return
+    rows = [l for l in section_lines(text, "Lanes")
+            if l.startswith("| ") and not l.startswith("| Lane")
+            and not l.startswith("| train") and re.search(r"\| (running|starting)", l)]
+    if len(rows) < 6:
+        yield (f"state.md: behind pace ({pace.group(1)} % vs {pace.group(2)} %) with "
+               f"{len(rows)} build lanes; start lanes to 6 or add 'lanes-short: <reason>' to Now")
 
 
 def check_decisions(text, now):

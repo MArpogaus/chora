@@ -1,15 +1,16 @@
 # State
 
-## Now (2026-11-25 12:53 UTC)
+## Now (2026-11-25 12:55 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 12:53 PM 3.2 % (11-25), week about 38 % vs 62 % pace: under-spending, fill 6 lanes
-session branch: d86be5d0 (t138 11:10: xp-minor r1, mc-minor r1); 86 greens. TRAIN139 tiling-doors r3 35e31662, tiling-minor r1 31af60c5 (gate running)
-burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open, 3 regr)
+budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 12:53 PM 3.2 % (11-25); week about 38 % vs 62 % time; need (100-38-5)/63 h = 0.9 %/h; 6 build lanes
+lanes-short: 6th lane P2-R10 starts on the t140 head (~15:00 UTC)
+session branch: e39448ad (t139 12:55: tiling-doors r3, tiling-minor r1; ti-55, ti-56 fixed, recheck P2-R10); 87 greens. TRAIN140 62a04be0: xp-minor r3, mc-minor r2, co-minor r2 (gate running)
+burn-down: audit r6: F1-F4, F6, F8 met; F5 met by FLAKE-SERIES r9 5/5 c3c37c2e, rerun on final head; F7 open (v9 take r1: 82 open, 3 regr; take r2 now)
 
 ## RC
 | # | Criterion | State |
 |---|---|---|
-| 1, 1b | No BLOCK/MAJOR, independent pass; owner sees v9 | construct co-75, -76, -79 fixed t136 (recheck next persona round); xp, mc: none; tiling ti-55, ti-56 reopened r9 |
+| 1, 1b | No BLOCK/MAJOR, independent pass; owner sees v9 | construct co-75, -76, -79 fixed t136 (recheck next persona round); xp, mc: none; tiling ti-55, ti-56 fixed t139 (recheck P2-R10) |
 | 2 | Persona r4 | xp, mc meet; co r9 not met; tiling r9 not met (ti-55, ti-56; DOORS r3, then P2-R10) |
 | 3 | 3 greens, no flake | met: t130-t132 green; FLAKE-SERIES r9 5/5 c3c37c2e |
 | 4, 5 | CI green on a PR; packaging | pre-commit green; CI PR at release |
@@ -22,19 +23,18 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| train139 (Queue 1) | PM, e39448ad on d86be5d0 | gate running |
-| co-minor-r2.md (rc 2) | done 466fcd11, PM review r2 MERGE-OK | train140 after t139 |
-| xp-minor-r3.md (rc 1) | done cb5fcb7f, PM review MERGE-OK | train140 after t139 |
-| mc-minor-r2.md (rc 1) | done 0f68810c, review r2 MERGE-OK (0 MAJOR, 5 MINOR) | train140 after t139 |
+| train140 (Queue 1) | PM, 62a04be0 on e39448ad: xp-minor r3 cb5fcb7f, mc-minor r2 0f68810c, co-minor r2 466fcd11 | gate running |
 | mc-minor-r3.md (rc 1; rmm2-1..6; 0.8 %) | sonnet medium, claude/mc-minor-r3 0f68810c | running session_016iS3kNMXoJFbpfCZT9oZsw |
 | co-polish-r1.md (rc 1; co-44, co-45; 0.8 %) | sonnet medium, claude/co-polish-r1 d86be5d0 | starting |
 | xp-minor-r4.md (rc 1; rxm3-1, -2; 0.3 %) | haiku medium, claude/xp-minor-r4 cb5fcb7f | starting |
+| tour-v9-take-r2.md (F7, rc 11; 1 %) | sonnet medium, claude/tour-v9-take-r2 e39448ad | starting |
+| tiling-minor-r2.md (rc 1; rtm1-1..3, rtd3-1..3; 0.6 %) | sonnet medium, claude/tiling-minor-r2 e39448ad | starting |
 ## Queue (% week; 5 % reserve)
-1. (rc 1, 2) t138 green d86be5d0 (xp-9, -19, -28, -29 closed). TRAIN139 running: tiling-doors r3 35e31662, tiling-minor r1 31af60c5.
-2. (rc 2) construct: CO-MINOR r2 466fcd11 PM review MERGE-OK (rcm1-1 closed); train140 with xp-minor r3, mc-minor r2; co-77 by design D106; persona recheck co-75/76/79 in P2-R10.
-3. (rc 2) tiling in train139; then P2-R10 persona recheck (ti-55, ti-56, co-75/76/79; 0.8 %).
-4. (F7, rc 11) TOUR-BASE r8 MERGE-OK 27fb2599 (PM), train136; then v9 take; rv9j-1..5 MINOR after.
-5. (F4, F5) after train127: FLAKE-SERIES r8 5/5 on final head (haiku), TOUR-V9 final take + 5 reviews (2.5 %), CI-PR (rc 4, 5). (rc 1) after reviews: co-44, co-45 only when construct has no open MAJOR (rules.md 6); rtd-5, rtd-7 MINOR backlog.
+1. (rc 1, 2) t139 green e39448ad (tiling doors r3, minor r1). TRAIN140 running: xp-minor r3, mc-minor r2, co-minor r2.
+2. (rc 2) construct: co-minor r2 in t140; co-77 by design D106; co-polish r1 (co-44, co-45) running; persona recheck co-75/76/79 in P2-R10.
+3. (rc 2) P2-R10 persona recheck after t140 (ti-55, ti-56, co-75/76/79; 0.8 %); tiling-minor r2 (rtm1-1..3, rtd3-1..3) on e39448ad.
+4. (F7, rc 11) TOUR-V9 take r2 on e39448ad running; then 4 fresh-eyes judges, one per look (opus high, 2 %); no tooling round before take r2 (critic 11-25).
+5. (F5, rc 3, 4, 5) after t140: FLAKE-SERIES r10 on the final head (haiku); CI-PR dry run (sonnet); rtd-5, rtd-7 MINOR backlog.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
