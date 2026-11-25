@@ -86,3 +86,14 @@ Findings:
 - rtm1-5 NIT plugins/chora-tiling/src/looks.rs:60: the notice says "Other desktops" / "Andere Desktops" while ti-55 (TILING-DOORS r2) makes "look" the word on screen; fix: align the title with the bar word when r2 lands.
 
 Verdict: MERGE-OK (0 BLOCK, 0 MAJOR, 2 MINOR, 3 NIT).
+
+## r2 (lane tiling-minor-r2)
+
+Head 7987897c0 on claude/tiling-minor-r2 (from e39448ad). Step 0 green.
+
+- rtm1-1: tests/gate-tiling-reload-notice.sh waits `until_ok no_notice 4` (2 s). Red with the dismiss in reload.rs:53 removed: `FAIL: a good reload after a failed one leaves the card up: Settings not applied chora-tiling.yaml: unknown variant`.
+- rtm1-2: plugins/chora-tiling/tests/launch_looks.rs runs `chora-tiling --launch looks` against a FakeCore that refuses clients.list and counts one notify.show (new FakeCore::socket()). Red with tell_launch removed: `notices shown: ["methods.call {...hide_keys...}", "clients.list null"]` (left 0, right 1). The first version set LC_ALL and tripped cut-check copies; the locale is gone.
+- rtm1-3: a note_act unit test under a lock already exists (state::tests::a_press_while_locked_is_no_act); red with the `.filter(|_| self.lock.is_none())` removed: FAILED at state.rs:1975. The input.rs doc comment now says what each test pins.
+- rtd3-1: no test of two real connects: the pid is the only input of the name and one test process has one pid; the pure test guards a constant name (doc comment). rtd3-2: GAP_LINE closes the quote it opened (backreference); red `AssertionError: '20' != '12'`. rtd3-3: the name test sits below `use super::*;`.
+
+Gate: full `tests/merge-gate.sh --jobs 2`, EXIT 1 with one foreign red: cell keylist of mc-sofa (`FAIL: a rule of the key list strikes a text (rpx1-9)`, tests/gate-mc-sofa.sh:472; no file of mine near it). The same step on e39448ad alone also fails (cells door empty-head answer answer-long alarm keylist pill-clock remote-back), so it is not mine. All other cells PASS (ci-check, clippy, test, tiling-*, layout, doors, pixels).
