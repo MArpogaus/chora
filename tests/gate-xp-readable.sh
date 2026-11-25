@@ -23,7 +23,8 @@
 # Every cell runs and prints; the gate fails when one is red.
 # The captions have a shadow, so the own ones are measured as white (--text=FFFFFF), not as the
 # farthest colour, which is the shadow; Stand By and Turn Off lie on the dialog.svg fill #92B1F3 to
-# #95B4F5 at their place (2.1:1 white), exempt in known-red.toml, the fill is checked.
+# #95B4F5 at their place (2.1:1 white), exempt in known-red.toml, the fill is checked on the two rows
+# under the caption (the 14 px caption covers most of its own rows, so they have no common colour).
 # at_least RATIO MIN LABEL is red below the minimum; contrast FILE X Y W H prints the ratio alone;
 # pager_digits FILE LABEL measures the digit of each pager button; the title text of a window follows
 # the icon of the application and the edge of the frame, so its first 110 px are measured.
@@ -131,7 +132,7 @@ done
 for n in 0 1 2 3 4; do
     read -r x y w h <<<"$(rect "xp-session-button-$n")"
     if [ "$n" = 2 ] || [ "$n" = 3 ]; then
-        read -r r g b <<<"$(python3 -I "$repo/tests/png-contrast.py" "$shots/turnoff.png" "$x" "$((y + h - 16))" "$w" 15 --text=FFFFFF | sed 's/.* on (\(.*\))/\1/; s/,//g')"
+        read -r r g b <<<"$(python3 -I "$repo/tests/png-contrast.py" "$shots/turnoff.png" "$x" "$((y + h - 2))" "$w" 2 --text=FFFFFF | sed 's/.* on (\(.*\))/\1/; s/,//g')"
         { [ "${r:-0}" -ge 144 ] && [ "$r" -le 151 ] && [ "${g:-0}" -ge 175 ] && [ "$g" -le 182 ] && [ "${b:-0}" -ge 241 ] && [ "$b" -le 247 ]; } ||
             red "session-labels: caption $n of Turn off computer lies on (${r:-?}, ${g:-?}, ${b:-?}), not the Luna fill (148, 179, 244) of its exemption"
     else
