@@ -253,3 +253,9 @@ Head e1ec02ee on claude/tiling-doors-r4 (from e39448ad; history kept, no force p
 - Full gate (--jobs 2, no filter): 44 steps PASS up to mc-sofa, then `mc-sofa FAIL`: "FAIL: a rule of the key list strikes a text (rpx1-9): mc-r1-right-keys-title-rule strikes Super+N; ... FAIL: cells failed: keylist", EXIT 1. This is the known foreign red in lane containers. The gate stops at the first red, so the remaining steps ran with `--only mc-column,mc-handover,launcher-click,voice-acp,voice-events,agent,e2e`: all 7 PASS (e2e 287 s), EXIT 0.
 - Ratchets: sleep ok (778/929), size ok (0 over 1500), lint ok (360/0/46). No `chora --headless` left.
 - For P2-R11: the driver runs the ricer in the README order. If T7 is still red with T7 first, the next step is the session layout (xp on an output of its own), not another door or new wording.
+
+## PM review r4 (2026-11-25 16:09 UTC; diff e39448ad..e1ec02ee, 2 files, +32 -0, under 200 lines)
+- Red before fix: 375b3364 red (`0 != 1 'Ricer order'`), fix e1ec02ee; test_check 64 OK. Harness only, no product code; T7 words pinned.
+- Gate: 44 PASS, foreign red mc-sofa keylist (rpx1-9, also volume-wheel rpx1-15 red in train141), rest by --only PASS, EXIT 0. Accepted as complete (known foreign red).
+- Critical note rtd4-1 (MINOR, harness): the reorder removes the L3 prime but the persona session itself is not the documented start: session.sh `tiling+xp` puts xp on tiling's one output, so tag 1 shows the xp taskbar and an empty tag the xp desktop. A persona round in that layout tests a state no real user sees. Fix before P2-R11: session.sh starts xp on its own output or pane (D55 step 2), with a test. Not a ti-55 pass: ti-55 stays open until P2-R11 T7 reaches 2/2.
+- Verdict (computed): 0 MAJOR open -> MERGE-OK e1ec02ee; joins train142.
