@@ -2842,6 +2842,43 @@ mod tests {
         );
     }
 
+    /// A card of another height never reflows the pages, and a tall one
+    /// does not leave the page short after it closes (rmm2-2).
+    #[test]
+    fn a_card_of_another_height_leaves_the_pages_alone() {
+        let (mut mc, core) = with_card("rooms-height", &serde_json::json!([160, 620, 291, 100]));
+        let log = core.record(|method, params| {
+            (method == "scene.apply"
+                && params
+                    .to_string()
+                    .contains(r#"{"remove":{"id":"mc-s-agenda-page""#))
+            .then(|| "rebuilt".to_owned())
+        });
+        mc.learn_rooms().unwrap();
+        assert_eq!(
+            mc.card_room(),
+            135.0,
+            "a short card (room 100) keeps the room"
+        );
+        assert!(
+            log.lock().unwrap().is_empty(),
+            "no page rebuilt for a short card"
+        );
+        core.answer_with(
+            "state.get",
+            serde_json::json!({"shown": [{"rect": [160, 400, 291, 320]}]}),
+        );
+        mc.learn_rooms().unwrap();
+        assert!(mc.card_room() > 135.0, "a tall card takes more");
+        core.answer_with("state.get", serde_json::json!({"shown": []}));
+        mc.learn_rooms().unwrap();
+        assert_eq!(
+            mc.card_room(),
+            135.0,
+            "the page is whole after the tall card closed"
+        );
+    }
+
     /// A page with a text of a panel that reaches under the edge of the
     /// page shows the mark that more follows; a page that shows whole shows
     /// none (rmm1-4).
