@@ -222,3 +222,11 @@ Head 35e31662 on claude/tiling-doors-r3 (history kept, no force push).
 - rtd2-1: A revert of the launch name (the name function ignores the pid), B test `two_launches_of_one_machine_connect_under_different_names`, C fix (name `chora-tiling.launch-<pid>`). Red: `test tests::two_launches_of_one_machine_connect_under_different_names ... FAILED` (assertion `left != right` failed). Green after C: cargo test -p chora-tiling 206 passed.
 - rtd2-4: D test `test_a_comment_or_quotes_after_the_value_are_read`, red: `AssertionError: '12' != '20'` (FAILED failures=1). E GAP_LINE allows quotes and a trailing comment; test_check.py 62 OK.
 - Full gate (--jobs 2): all steps passed, EXIT 0 (last lines: e2e PASS 278s; "all steps passed; no --push, nothing is pushed"). Ratchets sleep/size/lint ok. No `chora --headless` left.
+
+## PM review r3 (2026-11-25 10:15 UTC; diff fa676de8..35e31662, 3 files, +25 -5, under 200 lines)
+- rtd2-1 (was MAJOR): closed. Red shown by revert d19bc394 then fix d7bee219; test `two_launches_of_one_machine_connect_under_different_names` fails on a constant name. MINOR rtd3-1: the test checks the pure name function only, not two real connects; enough as a guard against a constant name.
+- rtd2-4: closed. Red 064acd7c ('12' != '20'), fix 35e31662; three line forms tested.
+- NIT rtd3-2: GAP_LINE accepts mismatched quotes ("20'); harmless for a check.
+- NIT rtd3-3: the new test sits above `use super::*;` in mod tests.
+- Branch lacks 6b89b56f (ratchets); the train runs them.
+Verdict (computed): 0 open MAJOR -> MERGE-OK 35e31662. Next: train139 with tiling-minor r1 31af60c5, then P2-R10 (persona recheck ti-55, ti-56, co-75/76/79).

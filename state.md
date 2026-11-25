@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-25 09:34 UTC)
+## Now (2026-11-25 10:13 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 09:23 PM 2.7 % (11-25), week about 34 % vs 55 % pace: under-spending, fill 6 lanes
 session branch: 6b89b56f (t137 09:25: gate-ratchets r1 + PM fix e25848d6); 85 greens. TRAIN138 xp-minor r1 d2a048d5, mc-minor r1 5cb288e2 (gate running)
@@ -26,11 +26,11 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 | co-minor-r1.md (rc 2; co-77, -78, rcr1-1; 1 %) | sonnet high, claude/co-minor-r1 6f37120b | session_016iS3kPtWQpHRWp48U6q5Xm |
 | xp-minor-r3.md (rc 1; rxm2-1 MAJOR, -2, -4, -5, -6; 1 %) | sonnet medium, claude/xp-minor-r3 8109e08b | session_016iS3kQhioE1jyaqTZiQMvt |
 | mc-minor-r2.md (rc 1; rmm1-1..4, rpx1-10, -15; 1 %) | sonnet high, claude/mc-minor-r2 5cb288e2 | session_016iS3kNyhRbv8jD3qsSnufr |
-| tiling-doors-r3.md (rc 2; rtd2-1 MAJOR, rtd2-4; 0.5 %) | sonnet medium, claude/tiling-doors-r3 fa676de8 | session_016iS3kLs1XfS7H3odnwsmpY |
+| tiling-doors-r3.md (rc 2) | done 35e31662, PM review MERGE-OK | train139 after t138 |
 ## Queue (% week; 5 % reserve)
 1. (rc 1, 2) t137 green 6b89b56f (gate-ratchets). TRAIN138 running: xp-minor r1 d2a048d5, mc-minor r1 5cb288e2 (both MERGE-OK).
 2. (rc 2) construct: CO-MINOR r1 (co-77, co-78, rcr1-1; 1 %); persona recheck of co-75/76/79 in P2-R10.
-3. (rc 2) TILING-DOORS r2 fa676de8 review r2 FIX (rtd2-1 MAJOR, no red first); r3 then PM review, train, P2-R10 (0.8 %); TILING-MINOR r1 31af60c5 MERGE-OK (rtm1-1..5 minor), merge waits for ti-55, ti-56 (rules.md 6); joins train after DOORS r2.
+3. (rc 2) TILING-DOORS r3 35e31662 MERGE-OK (PM review) + TILING-MINOR r1 31af60c5: train139 after t138; then P2-R10 persona recheck (ti-55, ti-56, co-75/76/79; 0.8 %).
 4. (F7, rc 11) TOUR-BASE r8 MERGE-OK 27fb2599 (PM), train136; then v9 take; rv9j-1..5 MINOR after.
 5. (F4, F5) after train127: FLAKE-SERIES r8 5/5 on final head (haiku), TOUR-V9 final take + 5 reviews (2.5 %), CI-PR (rc 4, 5). (rc 1) after reviews: co-44, co-45 only when construct has no open MAJOR (rules.md 6); rtd-5, rtd-7 MINOR backlog.
 
