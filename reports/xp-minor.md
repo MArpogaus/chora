@@ -55,3 +55,22 @@ Range a1f3c8d7..3bec0cbf, own commits 7e49b273 (dispatch.rs +6/-2, startup.rs +1
 - xp-28: header half not reproducible, guarded by cell xp-chat-idle; editor-over-icons half not examined: stays open (next xp lane).
 - Gate 58 PASS on the merge with the session head. Test in the same commit as the fix: allowed by red-first (merge-gate.sh:30).
 Verdict (computed): 0 MAJOR -> MERGE-OK. Joins t110 after TI-38.
+
+## r1 (claude/xp-minor-r1)
+
+Branch claude/xp-minor-r1, base 721be592, head d2a048d5. Gate: `tests/merge-gate.sh --jobs 2` (full, no filter): all steps PASS, EXIT 0, no foreign red; `pgrep -fa 'chora --headless'` empty after. Captures: media/2026-11-25/xp-minor-r1/.
+
+| item | red | fix | red line |
+|------|-----|-----|----------|
+| rv9j-1 + xp-19 | ecceba2a | fb8775a0 | unit `the_desktop_buttons_keep_the_tray_tone_and_a_readable_digit_xp_19`: "#1E54BE is not of the tray hue"; `the_current_desktop_button_differs_from_the_others_by_3_to_1_rv9j_1` red on #164EB8 / #1E54BE (1.09:1); gate cells `pager-current` (tests/gate-xp-readable.sh) measure the fill pixels at rest and under the pointer |
+| xp-28 | 1036e621 | 098980b5 | unit `a_finished_answer_leaves_working_and_its_step_and_stop_goes_off_xp_28`: left `("Atlas — Done", "Write file, step 1 of 1")` right `("Atlas — Idle", "")`; gate-xp-chat-idle.sh plays state done that keeps task and step 1/1 |
+| xp-9 | 061cbcff | 8e32d14a | gate cell `caption-size`: "caption 0 of Turn off computer is 10 px of ink high, 14 px type gives 12 or more" (also caption 4) |
+| xp-29 | none | none | absent at the head, see below |
+
+1) rv9j-1, xp-19 (taskbar.rs `pager_colors`): other buttons are the Luna tray blue (#0D8DEA) darkened to #0A74CA (hover #0B76CD) with a light top line like the tray, white digit 4.8:1; the current one is a deep navy #06204A (hover #0A2A5C). Current against the others 3.32:1 (hover 3.42:1), was 1.09:1. The cube xp faces draw the same taskbar code (taskbar.rs `pager`), so they share it; no separate code. Gate: pixel contrast of button 1 against buttons 2 to 4 at rest and under the pointer >= 3:1, plus the existing 4.5:1 digit cells (rest, hover, dimmed behind Turn off), all PASS. The old 4.5:1 digit cell would not allow the plain tray blue (3.5:1 under white), so the tone is the tray hue at 4.8:1.
+2) xp-28 (chat/dialogue.rs `helper_state`, in chora-assistant; the header lives there, not in chora-xp): a state of idle or done drops task and steps and shows Idle (done is Idle in the chat; the helper waits for the next prompt), Stop is off (`running()` false). Earlier round (3bec0cbf) covered idle without steps; the real voice ends a prompt with `done` and keeps the fields, which is what failed.
+3) xp-9 (session.rs): the captions of the icon buttons use Font::BodyBold (14 px, was 11 px bold); Cancel is already 80x28 (unit `cancel_is_a_push_button_of_80_by_28_inside_the_dialog`, gate `cancel-target`), unchanged. Unit `every_caption_of_a_big_button_fits_it_at_14_px`: Stand By is 55.0 of 56 px wide, so it fits, but with 1 px room. Look: "Stand By" and "Turn Off" now nearly touch (see capture 3); a wider button would change the layout, left for the owner. The Luna fill check of the exempt captions now samples the two rows under the caption (the caption covers its own rows).
+4) xp-29: absent at the head, no code. Cell `xp29-click` (tests/gate-xp-helper.sh, in the merge gate, PASS: "ok: xp-29: a click on the paperclip opens the chat (helper)"), same as reports/xp-helper.md; unit `a_press_of_a_person_on_the_figure_opens_the_chat_and_one_of_a_program_does_not`; the tray door is unchanged. Capture 4.
+
+Captures: 1-pager.png (taskbar, current 1 navy, 2 to 4 tray blue), 2-chat-idle.png (chat header "Atlas — Idle", Stop greyed, after a done that kept step 1/1), 3-turnoff.png (14 px captions), 4-paperclip-click.png (chat open after a click on the paperclip).
+Not covered: the desktop is not dimmed in the capture of Turn off (xp-9 third part, outside the brief's two numbers); a voice that never sends idle or done still shows Working.
