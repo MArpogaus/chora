@@ -3,9 +3,9 @@
 //! five (six stood back with a pane beside the cube, co-64), each the
 //! keycaps of its key and a word, apart by thin
 //! separators. They show only where they apply and fade: walking for 6 s after entering and while
-//! the pointer rests at the bottom, flown into a pane `Alt Esc Step back`
-//! for 3 s, in a face of the cube always, and stood back from the cube
-//! while it stands. A hint takes a
+//! the pointer rests at the bottom, flown into a pane or a face of the
+//! cube `Alt Esc Step back` and `All keys` always (after 3 s as the resting
+//! chip, co-76), and stood back from the cube while it stands. A hint takes a
 //! click and does its act (P3); the pointer over it shows the hover fill.
 #![allow(clippy::many_single_char_names, reason = "x, y, w of shapes")]
 
@@ -45,8 +45,8 @@ pub const LIFT: f64 = 24.0;
 pub enum Set {
     Walk,
     Flown,
-    /// The chip that a face keeps after its hints went: `Step back` and
-    /// `All keys` (co-42, co-61).
+    /// The chip that a face or a pane keeps after its hints went: `Step
+    /// back` and `All keys` (co-42, co-61, co-76).
     Rest,
     Cube,
     Pull,
@@ -136,14 +136,15 @@ pub fn walking(panes: usize, ahead: bool) -> Vec<Walking> {
 
 /// The set that applies while the hints are not hidden and the cube is
 /// not stood back: in a pane or stepped into a face (`engaged`) the hint
-/// `Step back` for its time or while the pointer rests at the bottom;
-/// walking without a cube the hints of the walk.
+/// `Step back` for its time or while the pointer rests at the bottom, and
+/// after it the resting chip, so that a way out and to the key list always
+/// shows (co-42, co-76); walking without a cube the hints of the walk.
 #[must_use]
 pub fn resting_set(at: Resting) -> Option<Set> {
     let shows = at.timed || at.low;
     match (at.engaged, at.has_cube) {
         (true, _) if shows => Some(Set::Flown),
-        (true, true) => Some(Set::Rest),
+        (true, _) => Some(Set::Rest),
         (false, false) if shows => Some(Set::Walk),
         _ => None,
     }
@@ -700,7 +701,7 @@ mod tests {
         assert_eq!(at(true, true, true, false), Some(Set::Flown));
         assert_eq!(at(true, true, false, true), Some(Set::Flown));
         assert_eq!(at(true, true, false, false), Some(Set::Rest));
-        assert_eq!(at(true, false, false, false), None);
+        assert_eq!(at(true, false, false, false), Some(Set::Rest), "co-76");
         assert_eq!(at(false, false, true, false), Some(Set::Walk));
         assert_eq!(at(false, true, true, false), None);
     }

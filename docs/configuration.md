@@ -957,10 +957,16 @@ direction. `Super+space` starts the launcher. The launcher itself is no pane:
 a layer-shell launcher such as fuzzel shows over the space, and a
 launcher window that maps with the activation token of its start shows
 in the middle of the output. The first other window after the launcher
-becomes a pane, also beside another flavor. `Super+x` asks the window of the
-pane nearest the middle of the view to close, as a close button does, so
-a program can ask about unsaved work first; the pane goes when the
-window closes. `tests/gate-construct-keys.sh` checks the three keys.
+becomes a pane, also beside another flavor. `Super+x` asks the window
+that the person sees focused to close, as a close button does, so a
+program can ask about unsaved work first: the pane with the focus ring
+(the pane flown into, else the one under the pointer or nearest the
+middle of the view), and in a face of the cube the window of the face
+with the keyboard. A window out of view never closes: in a face a pane
+waiting beside the cube stays, and with no window focused nothing
+closes. The pane goes when the window closes.
+`tests/gate-construct-keys.sh` checks the three keys and
+`tests/gate-construct-close.sh` the close in a face (co-75).
 
 The elements over the space, such as the window list, follow the
 [construct style guide](construct-style.md).
@@ -1196,7 +1202,10 @@ most five, each the keycaps of a key and a word: walking, for 6 seconds
 after the start and after a fly-out, `W A S D Walk`, `Return Fly in`
 while a pane is ahead, `Tab Windows` from two windows, `Super T
 Terminal` and `Super F1 All keys`; in a
-pane, `Alt Esc Step back` for 3 seconds from the start of the fly-in;
+pane or a face of the cube, `Alt Esc Step back` and `Super F1 All keys`,
+for 3 seconds from the start of the fly-in, then as the resting chip
+in the lifted glass, so a click always finds the way out and the key
+list (co-42, co-76);
 stood back from a cube, `Ctrl Alt ← Turn left`, `Return Step in` and
 `Turn right Ctrl Alt →`, whose hints are the chips of the cube. The
 keys of the hints are those of the settings. A click on a hint
