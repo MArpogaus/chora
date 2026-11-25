@@ -716,6 +716,7 @@ cell_rooms_pill() {
     sed -i 's/margin: \[56, 34\]/margin: [470, 34]/' "$work/data/chora/huds/mc/hud.yaml"
     printf 'enabled: true\nposition: null\nhud: mc\n' >"$work/chora/chora-assistant.yaml"
     kill_of chora-assistant
+    until_ok '[ "$(ctl query owner:assistant | jq length)" = 0 ]' 80 || fail "the nodes of the old host stay after its grace time"
     "$bin/chora-assistant" >"$work/assistant-moved.log" 2>&1 &
     pids+=($!)
     ctl wait owner:assistant --timeout 20 >/dev/null || fail "the host does not start: $(tail -n 3 "$work/assistant-moved.log")"
@@ -740,6 +741,8 @@ cell_rooms_pill() {
 
 cell_rooms_pill_status() {
     rm -rf "$work/data/chora/huds" "$work/chora/chora-assistant.yaml"
+    kill_of chora-assistant
+    until_ok '[ "$(ctl query owner:assistant | jq length)" = 0 ]' 80 || fail "the nodes of the old host stay after its grace time"
     "$bin/chora-assistant" >"$work/assistant-default.log" 2>&1 &
     pids+=($!)
     ctl wait owner:assistant --timeout 20 >/dev/null || fail "the host does not start: $(tail -n 3 "$work/assistant-default.log")"
