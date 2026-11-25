@@ -428,3 +428,4 @@ rr9-1 | MINOR | review-record-v9 r4 (reports/record-v9.md "## Review r4") | open
 - construct rcm1-3 NIT: co-77 pin cell checks C3's single holder (after RC)
 - xp: rxm3-1 MINOR (rxm2-1 test vacuous when the real greeted file exists), rxm3-2 NIT (unrelated rewrites in Agent::new); reports/xp-minor.md PM review r3.
 - mc: rmm2-1..5 MINOR (card room assumes foot card; page end follows last card height; wheel 5 %/event on touchpad; ink cell x band fixed; 761c0b29 no red test), rmm2-6 NIT (mc-style.md); reports/mc-minor.md Review r2.
+- (critic 11-25) design/rc.md table rewrite: dropped; state.md RC table is the live view, rc.md keeps the criteria.
