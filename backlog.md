@@ -421,3 +421,4 @@ rr9-1 | MINOR | review-record-v9 r4 (reports/record-v9.md "## Review r4") | open
 - (xp polish, 1.0) rxt-1: inactive title text 2.2:1, carried by its shadow; I6 measures the halo; document or rethink.
 
 - rfs8-1..3 MINOR (reports/flake-series.md "## Review r8"): leak bound scaling for ROUNDS<12; planted idle6 leak raised to +4 MB; 380fa09a no red. After the RC.
+- (harness, 11-25) t134: sh42 r1 (+2) and co-close r2 (+3) added sleeps; lane gates do not run tools/sleep-ratchet, so the breach showed only in the train; earliest gate: merge-gate.sh in the lane (add the three ratchets as its first step, red first).
