@@ -108,6 +108,9 @@ impl Mc {
     /// The regions switch in the same transaction as the scene.
     /// A hidden scene has no layout of the core: its notes align now.
     pub(crate) fn show(&mut self, name: &str, user: bool) -> Result<(), RpcError> {
+        if name == crate::agent::SCENE {
+            self.fill_agents()?;
+        }
         let Some(scene) = self.scenes.get(name) else {
             return Err(invalid(format!("no scene {name}")));
         };

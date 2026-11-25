@@ -208,6 +208,11 @@ doors_under_chat() {
         ".[] | $shown | select(.id | test(\"-doors-\")) | .rects | to_entries[0].value |
          select(.[0] < \$c[0] + \$c[2] and \$c[0] < .[0] + .[2] and .[1] < \$c[1] + \$c[3] and \$c[1] < .[1] + .[3]) | tostring"
 }
+hits_under_chat() {
+    ctl query "owner:mc kind:rect" | jq -r --argjson c "$(node_rect hud-chat)" \
+        ".[] | $shown | select(.id | endswith(\"-hit\")) | .rects | to_entries[0].value |
+         select(.[2] > 1 and .[3] > 1 and .[0] < \$c[0] + \$c[2] and \$c[0] < .[0] + .[2] and .[1] < \$c[1] + \$c[3] and \$c[1] < .[1] + .[3]) | tostring"
+}
 cell_door() {
     key Super+Home
     until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
@@ -217,6 +222,7 @@ cell_door() {
     click_rect "$(text_rect "Chat with a helper ...")"
     until_ok 'ctl query id:hud-chat | jq -e "length > 0" >/dev/null' 20 || fail "a press on the chat door opens no chat: $(texts | tr '\n' '|')"
     until_ok '[ -z "$(doors_under_chat)" ]' 40 || fail "the chat stays over a door of the column (mc-56): $(doors_under_chat | tr '\n' ' ')"
+    [ -z "$(hits_under_chat)" ] || fail "a hit area of mc lies under the open chat (mc-56): $(hits_under_chat | tr '\n' ' ')"
     shot door
     key Escape
     until_ok '! ctl query id:hud-chat | jq -e "length > 0" >/dev/null' 20 || fail "Escape does not close the chat"
@@ -442,6 +448,105 @@ cell_launcher_click_row() {
     rm -f "$work/fake/real"
 }
 
+off_screen() {
+    ctl query "owner:mc kind:text" | jq -r ".[] | $shown | .rects | to_entries[0].value |
+        select(.[0] < 0 or .[1] < 0 or .[0] + .[2] > 1280 or .[1] + .[3] > 720) | tostring"
+    ctl query "owner:mc kind:rect" | jq -r ".[] | $shown | select(.id | endswith(\"-hit\")) | .rects | to_entries[0].value |
+        select(.[2] > 1 and .[3] > 1 and (.[0] < 0 or .[1] < 0 or .[0] + .[2] > 1280 or .[1] + .[3] > 720)) | tostring"
+}
+struck_texts() {
+    ctl query "owner:mc kind:rect" | jq -r ".[] | $shown | select(.rects | to_entries[0].value | .[3] <= 2 and .[2] > 8) |
+        {id: .id, r: (.rects | to_entries[0].value)}" | jq -rs --argjson t "$(ctl query "owner:mc kind:text" | jq -c "[.[] | $shown | {t: .text, r: (.rects | to_entries[0].value)}]")" '
+        [.[] | . as $h | $t[] | select($h.r[0] < .r[0] + .r[2] and .r[0] < $h.r[0] + $h.r[2] and $h.r[1] > .r[1] + 3 and $h.r[1] < .r[1] + .r[3] - 3) | "\($h.id) strikes \(.t)"] | join("; ")'
+}
+cell_keylist() {
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    emit voice.state '{"state": "listening", "task": "", "said": "", "muted": {"mic": false, "speaker": false}}'
+    ctl call mc hud.set '{"state": "listening", "text": ""}' >/dev/null || fail "hud.set"
+    until_ok 'has_text "Mute"' 20 || fail "no Mute: $(texts | tr '\n' '|')"
+    key Super+F1
+    until_ok 'has_text "Show overview"' 20 || fail "Super+F1 does not open the full list"
+    until_ok 'jq -e ".[1] > 500" <<<"$(text_rect "Back one step")" >/dev/null' 20 || fail "the full list places no last row"
+    shot keylist
+    [ -z "$(struck_texts)" ] || fail "a rule of the key list strikes a text (rpx1-9): $(struck_texts)"
+    for t in "Take a screenshot" "Back one step" "Power menu" "Lock the screen"; do
+        has_text "$t" || fail "the full list lacks the row \"$t\" at 1280x720"
+    done
+    [ -z "$(off_screen)" ] || fail "text or a hit area of the full list is off the 1280x720 output (rpx1-9): $(off_screen | tr '\n' ' ')"
+    key Super+F1
+    until_ok '! has_text "Show overview"' 20 || fail "Super+F1 does not close the list"
+}
+
+cell_page_end() {
+    local card page foot
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    key Super+Right
+    until_ok '[ "$(current)" = morning ]' 20 || fail "no morning: $(current)"
+    panel morning overnight '["Then", "Toss the drained spaghetti in the pan with a splash of the pasta water and the parsley, then serve it at once with a little grated cheese on top."]'
+    ctl call mc notify.clear '{}' >/dev/null
+    ctl call mc notify.push '{"title": "Timer: spaghetti, 9 minutes", "body": "Started by voice"}' >/dev/null || fail "notify.push"
+    until_ok '[ "$(ctl call notify state.get "{}" | jq "[.shown[].summary] | length")" -ge 1 ]' 20 || fail "no card"
+    shot page-end
+    card=$(ctl call notify state.get '{}' | jq -c '.shown[0].rect')
+    page=$(node_rect mc-s-morning-page)
+    foot=$(text_rect "→ 3  Helpers")
+    jq -ne --argjson c "$card" --argjson p "$page" '$p[1] + $p[3] <= $c[1]' >/dev/null ||
+        fail "the page $page reaches under the timer card $card (rpx1-11): the page does not reserve its height"
+    jq -ne --argjson f "$foot" --argjson p "$page" '$p[1] + $p[3] <= $f[1]' >/dev/null ||
+        fail "the page $page reaches under the footer line $foot (rpx1-12)"
+    ctl call mc notify.clear '{}' >/dev/null
+    page_cut() {
+        ctl capture "$work/page-end.png" >/dev/null || fail "capture page-end"
+        # shellcheck disable=SC2046 # four words, one for each number of the rect
+        python3 -I "$repo/tests/png-ink.py" "$work/page-end.png" \
+            $(jq -r '"160 \(.[1] + .[3] - 2 | floor) 664 2"' <<<"$page")
+    }
+    until_ok '[ -z "$(ctl call notify state.get "{}" | jq -r ".shown[].summary")" ]' 20 || fail "notify.clear leaves the card"
+    until_ok '[ -z "$(page_cut)" ]' 8
+    cut=$(page_cut)
+    [ -z "$cut" ] || fail "a line of the page is cut at the edge of the page $page: ink $cut in its last two rows (rpx1-12)"
+}
+
+cell_pill_clock() {
+    local clock word
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    emit voice.state '{"state": "listening", "task": "", "said": "", "muted": {"mic": false, "speaker": false}}'
+    until_ok 'ctl query id:hud-word | jq -e "length > 0" >/dev/null' 20 || fail "the host draws no state word"
+    key Super+n
+    until_ok '! has_text "Back one step"' 20 || fail "Super+n does not hide the column"
+    clock_rect() {
+        ctl query "owner:mc kind:text" | jq -c "[.[] | $shown | select(.text | test(\"^[A-Z]+ [0-9]+ [A-Z]+ +[0-9]+:[0-9]+\$\"))][0].rects | to_entries[0].value"
+    }
+    until_ok 'jq -e ".[0] + .[2] > 900" <<<"$(clock_rect)" >/dev/null' 20 || fail "the header does not widen without the column"
+    clock=$(clock_rect)
+    word=$(node_rect hud-word)
+    shot pill-clock
+    key Super+n
+    until_ok 'has_text "Back one step"' 20 || fail "Super+n does not bring the column back"
+    jq -ne --argjson c "$clock" --argjson w "$word" '$c[0] + $c[2] <= $w[0] - 8 or $c[1] + $c[3] <= $w[1] or $w[1] + $w[3] <= $c[1]' >/dev/null ||
+        fail "the state pill $word lies over the clock $clock when the column is hidden (rpx1-13)"
+}
+
+cell_helpers_empty() {
+    local name words
+    for name in $(ctl call mc agent.list '{}' | jq -r '.agents[].name'); do
+        ctl call mc agent.remove "{\"name\": \"$name\"}" >/dev/null
+    done
+    ctl call mc scene.show '{"name": "agents"}' >/dev/null || fail "scene.show agents"
+    until_ok '[ "$(current)" = agents ]' 20 || fail "no helpers page: $(current)"
+    empty_words() {
+        ctl query "owner:mc kind:text" | jq -r "[.[] | $shown | select((.rects | to_entries[0].value | .[0] < 860 and .[1] > 150) and (.text | test(\"helper\"; \"i\"))) | \"\\(.family)|\\(.text)\"] | join(\"; \")"
+    }
+    until_ok '[ -n "$(empty_words)" ]' 12
+    shot helpers-empty
+    words=$(empty_words)
+    [ -n "$words" ] || fail "the helpers page without a helper says nothing in words (rpx1-14): $(texts | tr '\n' '|')"
+    case "$words" in *Pagella* | *Serif*) ;; *) fail "the words of the empty helpers page are not in the page type: $words" ;; esac
+}
+
 failed=()
 skipped=()
 ran=0
@@ -460,7 +565,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none remote-back launcher-click-row)
+cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist page-end pill-clock helpers-empty remote-back launcher-click-row)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done

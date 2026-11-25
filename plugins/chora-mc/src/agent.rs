@@ -5,7 +5,7 @@
 use chora_kit::{
     ask::Card,
     notice::{self, Notice},
-    words::Language,
+    words::{Language, Word},
 };
 use chora_scene::ipc::RpcError;
 use serde::{Deserialize, Serialize};
@@ -20,7 +20,7 @@ use crate::{
 };
 
 /// The scene that shows the agents, one column each.
-const SCENE: &str = "agents";
+pub(crate) const SCENE: &str = "agents";
 /// The room of the sign of a helper before its name, in pixels.
 const SIGN_WIDTH: f64 = 18.0;
 
@@ -448,7 +448,7 @@ impl Mc {
     /// and the panel `band-N` with its voice and its start. Panels
     /// without an agent are empty. With a focus, `agent-1` has that agent
     /// and the other `agent-N` its transcript, newest last.
-    fn fill_agents(&mut self) -> Result<(), RpcError> {
+    pub(crate) fn fill_agents(&mut self) -> Result<(), RpcError> {
         let running = self.agents.iter().filter(|a| a.state != "asleep").count();
         let focused = (self.agent_focus.as_ref())
             .and_then(|name| self.agents.iter().find(|a| a.name == *name))
@@ -515,9 +515,16 @@ impl Mc {
     /// the body muted while it rests.
     fn agent_panel(&self, panel: &Panel, agent: Option<&Agent>) -> Panel {
         let Some(agent) = agent else {
+            let words = Word::NoHelper.text(Language::of_session());
+            let first = panel.id == "agent-1";
             return Panel {
                 title: String::new(),
                 lines: Vec::new(),
+                empty: if first {
+                    words.into()
+                } else {
+                    panel.empty.clone()
+                },
                 ..panel.clone()
             };
         };
