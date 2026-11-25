@@ -3026,4 +3026,61 @@ pub(crate) mod tests {
             "the click on its own empty claim keeps the keyboard"
         );
     }
+
+    /// A core with one output, a bar (a layer surface at the middle of the
+    /// output, around 400, 300), and a plugin `look` claiming the whole
+    /// output.
+    fn bar_core() -> (Core, Wayland, Client) {
+        use wayland_protocols_wlr::layer_shell::v1::client::{
+            zwlr_layer_shell_v1::Layer, zwlr_layer_surface_v1::KeyboardInteractivity,
+        };
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let mut wayland = Wayland::connect(&mut core);
+        wayland.roundtrip(&mut core);
+        let bar = wayland.layer(&mut core, Layer::Top, KeyboardInteractivity::None);
+        wayland.attach_layer(&mut core, &bar, (100, 30));
+        let look = claimer(&mut core, "look", [0.0, 0.0, 800.0, 600.0]);
+        (core, wayland, look)
+    }
+
+    /// The connections that hold the act, if any.
+    fn act_conns(core: &Core) -> Option<Vec<u64>> {
+        core.state.last_act.as_ref().map(|a| a.conns.clone())
+    }
+
+    /// rth-3: a real press on a layer surface in the claim of a look is an
+    /// act of that look.
+    #[test]
+    fn a_real_press_on_a_bar_is_an_act_of_the_look_of_the_claim() {
+        let (mut core, _wayland, _look) = bar_core();
+        move_to(&mut core, 400.0, 300.0);
+        click(&mut core, true);
+        assert_eq!(act_conns(&core), Some(core.state.ipc.conns_of("look")));
+    }
+
+    /// rth-3: an injected press is no act.
+    #[test]
+    fn an_injected_press_on_a_bar_is_no_act() {
+        let (mut core, _wayland, _look) = bar_core();
+        move_to(&mut core, 400.0, 300.0);
+        super::press_button(
+            &mut core.state,
+            272,
+            ButtonState::Pressed,
+            InputTime::now(),
+            true,
+        );
+        assert_eq!(act_conns(&core), None);
+    }
+
+    /// rth-3: a press in a locked session is no act.
+    #[test]
+    fn a_press_on_a_bar_while_locked_is_no_act() {
+        let (mut core, mut wayland, _look) = bar_core();
+        let _lock = wayland.lock(&mut core);
+        move_to(&mut core, 400.0, 300.0);
+        click(&mut core, true);
+        assert_eq!(act_conns(&core), None);
+    }
 }
