@@ -196,6 +196,9 @@ struct Agent {
     assistant: Option<Assistant>,
     /// When the paperclip greets, at the first start of a session state.
     greet: Option<Instant>,
+    /// Until when the greeting shows in the balloon; a press or a window
+    /// under the balloon takes it away before.
+    greeting: Option<Instant>,
     /// The camera of the construct is in a pane: the island dims.
     in_pane: bool,
     /// The client name of the voice agent and its state, while it is
@@ -277,6 +280,8 @@ impl Plugin for Agent {
                 let now = Instant::now();
                 self.switcher
                     .surface_changed(&surface, app_id.as_deref(), now);
+                let gone = self.greeting_under_a_window(now);
+                self.apply(gone)?;
                 Vec::new()
             }
             Event::Emitted {
@@ -414,6 +419,7 @@ impl Agent {
             language: Language::of_session(),
             assistant: None,
             greet: voice::greeting_pending().then(|| Instant::now() + voice::GREET_AFTER),
+            greeting: None,
             in_pane: false,
             voice: None,
             muted: false,
@@ -492,6 +498,8 @@ impl Agent {
     /// folder says, one on the badge turns it on, and one on a button of
     /// the question answers it.
     fn pressed(&mut self, node: &str, injected: bool) -> Result<Vec<Command>, ClientError> {
+        let gone = self.greeting_gone(Instant::now());
+        self.apply(gone)?;
         let (handled, commands) = self.press_card(node, injected)?;
         if handled {
             self.chat_refocus();
@@ -1008,6 +1016,7 @@ mod tests {
             language: Language::En,
             assistant: None,
             greet: None,
+            greeting: None,
             in_pane: false,
             voice: None,
             muted: false,
@@ -1148,48 +1157,45 @@ mod tests {
     fn a_press_anywhere_closes_the_greeting_xp_30() {
         let (mut agent, _dirs) = xp_agent("greet-press");
         let now = Instant::now();
-        let text = chora_kit::words::Word::GreetingNoHelper
-            .text(agent.language)
-            .to_owned();
-        agent.said = Some((text.clone(), now + Duration::from_secs(12)));
-        let shown = (agent.assistant.as_mut())
-            .expect("the paperclip shows")
-            .say(&mut agent.theme, &text, Duration::from_secs(12), now);
-        agent.apply(shown).unwrap();
+        agent.greet_with(now, false).unwrap();
+        assert!(agent.said.is_some(), "the paperclip greets");
         agent.event(pressed("s1", false)).unwrap();
         assert!(
             agent.said.is_none(),
             "the press leaves the greeting in the balloon"
         );
+        assert!(agent.greeting.is_none(), "the greeting is over");
     }
 
     /// xp-30: the paperclip does not greet over a window: it waits, and
     /// the greeting is not spent.
     #[test]
     fn the_greeting_waits_while_a_window_lies_under_the_balloon_xp_30() {
-        let (mut agent, _dirs, core) = on_core("greet-window", true);
-        let xp = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/assets/assistant");
-        agent.source.assets = Some(xp);
-        let (theme, values, _) = agent
-            .source
-            .load(NEUTRAL, &Context::default())
-            .expect("the XP folder loads");
-        agent.theme = theme;
-        agent.values = values;
-        agent.sync_assistant(Instant::now()).unwrap();
-        core.answer_with(
-            "scene.query",
-            serde_json::json!([{
-                "id": "s1", "kind": "surface", "visible": true,
-                "rects": {"DP-1": [0, 0, 1920, 1030]},
-                "surface": {"app_id": "foot"}
-            }]),
-        );
+        let (mut agent, _dirs) = xp_agent("greet-window");
         let now = Instant::now();
-        agent.greet = Some(now);
-        agent.greet_step(now + Duration::from_millis(1)).unwrap();
+        agent.greet_with(now, true).unwrap();
         assert!(agent.said.is_none(), "the paperclip greeted over a window");
         assert!(agent.greet.is_some(), "the greeting is still due");
+    }
+
+    /// A window meets the area when one of its rectangles overlaps it.
+    #[test]
+    fn a_window_meets_the_area_of_the_balloon_only_when_it_overlaps_it() {
+        let window = |rect: [i32; 4], visible: bool| serde_json::json!({"visible": visible, "rects": {"DP-1": rect}});
+        let area = [800, 300, 400, 400];
+        assert!(voice::window_meets(&[window([0, 0, 900, 400], true)], area));
+        assert!(!voice::window_meets(
+            &[window([0, 0, 700, 400], true)],
+            area
+        ));
+        assert!(!voice::window_meets(
+            &[window([0, 0, 900, 400], false)],
+            area
+        ));
+        assert!(!voice::window_meets(
+            &[window([900, 400, 0, 0], true)],
+            area
+        ));
     }
 
     /// xp-47: the agent tells its first state after the greeting.
