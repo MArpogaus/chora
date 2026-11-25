@@ -611,11 +611,13 @@ cell_page_end() {
     ctl call mc notify.clear '{}' >/dev/null
     ctl call mc notify.push '{"title": "Timer: spaghetti, 9 minutes", "body": "Started by voice"}' >/dev/null || fail "notify.push"
     until_ok '[ "$(ctl call notify state.get "{}" | jq "[.shown[].summary] | length")" -ge 1 ]' 20 || fail "no card"
-    shot page-end
     card=$(ctl call notify state.get '{}' | jq -c '.shown[0].rect')
+    clear_of_card() { jq -ne --argjson c "$card" --argjson p "$(node_rect mc-s-morning-page)" '$p[1] + $p[3] <= $c[1]' >/dev/null; }
+    until_ok clear_of_card 40
+    shot page-end
     page=$(node_rect mc-s-morning-page)
     foot=$(text_rect "→ 3  Helpers")
-    jq -ne --argjson c "$card" --argjson p "$page" '$p[1] + $p[3] <= $c[1]' >/dev/null ||
+    clear_of_card ||
         fail "the page $page reaches under the timer card $card (rpx1-11): the page does not reserve its height"
     jq -ne --argjson f "$foot" --argjson p "$page" '$p[1] + $p[3] <= $f[1]' >/dev/null ||
         fail "the page $page reaches under the footer line $foot (rpx1-12)"
@@ -627,6 +629,10 @@ cell_page_end() {
             $(jq -r '"160 \(.[1] + .[3] - 2 | floor) 664 2"' <<<"$page")
     }
     until_ok '[ -z "$(ctl call notify state.get "{}" | jq -r ".shown[].summary")" ]' 20 || fail "notify.clear leaves the card"
+    until_ok '! clear_of_card' 40 || fail "the page $page keeps the band of the closed card (rv9ka-1)"
+    page=$(node_rect mc-s-morning-page)
+    jq -ne --argjson f "$foot" --argjson p "$page" '$p[1] + $p[3] <= $f[1]' >/dev/null ||
+        fail "the page $page reaches under the footer line $foot with no card (rpx1-12)"
     until_ok '[ -z "$(page_cut)" ]' 8
     cut=$(page_cut)
     [ -z "$cut" ] || fail "a line of the page is cut at the edge of the page $page: ink $cut in its last two rows (rpx1-12)"
