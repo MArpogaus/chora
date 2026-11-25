@@ -163,3 +163,13 @@ Diff 254b07ba..cb5fcb7f (9 files, +137 -40; under 200 lines). Red first: d49c2da
 - rxm3-1 MINOR (assistant/src/main.rs, rxm2_1 test): before == after passes vacuously when the real assistant-greeted file already exists; assert on the temp dir file instead. Backlog.
 - rxm3-2 NIT (assistant/src/main.rs:399, :453): unrelated rewrites of the methods list and sync_row/apply in Agent::new; harmless.
 Verdict (computed): MERGE-OK cb5fcb7f.
+
+## r4 (lane xp-minor-r4)
+Branch claude/xp-minor-r4, head 0a0850e48 on cb5fcb7f (xp-minor r3). `cargo check --workspace` EXIT 0 (after `git fetch --unshallow`).
+- rxm3-1 MINOR: fix 0a0850e48 (test only, plugins/chora-assistant/src/main.rs): `a_greeting_in_a_test_leaves_the_real_state_home_alone_rxm2_1` now asserts that the greeting is remembered in the temp state home (`agent.state_home`), then keeps the real-home before == after check. Red: with the write in voice.rs `remember_greeting` broken, the test fails with `the greeting is not remembered in Some("/tmp/chora-assistant-greet-state-home-14337-0/state/chora/assistant-greeted")` (main.rs:1199). voice.rs restored (`git checkout`), not in the commit.
+- rxm3-2 NIT: left as is. The one-hunk reverts of the methods list and of sync_row/apply in `Agent::new` put `Agent::start` at 61 lines; `cargo clippy -p chora-assistant --all-targets -- -D warnings` fails with `too_many_lines (61/60)`. The rewrites keep it at 60. Left for a later change that also splits `start`.
+- Gates: `cargo test -p chora-assistant`: `test result: ok. 258 passed; 0 failed`. `cargo clippy -p chora-assistant --all-targets -- -D warnings`: Finished, no warnings. Commit hooks passed (red first included). No full gate (test-only change).
+
+## PM review r4 (lane xp-minor-r4, 0a0850e4 on cb5fcb7f)
+Diff: plugins/chora-assistant/src/main.rs +8 (test only, one commit, owner identity). rxm3-1: the rxm2_1 test now asserts the greeting file exists in the agent's temp state_home before the real-home before == after check, so it can no longer pass vacuously; red shown by the lane (main.rs:1199 with the voice.rs write broken). rxm3-2 NIT left with a reason (the revert pushes Agent::start over clippy too_many_lines); accepted, stays NIT. Lane: cargo test -p chora-assistant 258 passed, clippy -D warnings clean; test-only, so no full gate needed before the train gate.
+Verdict (computed): 0 open MAJOR -> MERGE-OK 0a0850e4. Next: train141.
