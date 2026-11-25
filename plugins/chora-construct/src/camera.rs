@@ -684,10 +684,22 @@ impl Construct {
         (at, space::facing([from.x, from.z], at))
     }
 
-    /// A terminal from use mode: steps back, then starts the terminal
+    /// Whether the camera is in a face of the cube, not in a pane: the
+    /// windows there are the window manager's of the faces.
+    pub(crate) fn in_a_face(&self) -> bool {
+        !self.in_pane()
+            && (self.cube.as_ref()).is_some_and(|c| c.view().mode() == chora_kit::modes::Mode::Use)
+    }
+
+    /// A terminal from use mode: in a face, the terminal starts for the
+    /// face (rcr1-1); else steps back, then starts the terminal
     /// to open right of the pane that the camera stood in, at the same
     /// distance from where the fly-in began, and fly into it.
     pub(crate) fn terminal_beside(&mut self) -> Result<(), ClientError> {
+        if self.in_a_face() {
+            self.start_terminal_in_face();
+            return Ok(());
+        }
         let back = (self.flown.as_ref())
             .or_else(|| self.glide.as_ref().and_then(|g| g.into.as_ref()))
             .map(|f| f.back);

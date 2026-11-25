@@ -342,8 +342,8 @@ key Super+F1
 until_ok help_shown 12 || fail "co-78: Super+F1 shows no key sheet over the face"
 key Super+t
 until_ok 'test -n "$(others)"' 80 || fail "rcr1-1: Super+t with the key sheet open started no window"
+until_ok 'others | grep -q " xp VIRTUAL"' 40 || fail "rcr1-1: Super+t with the key sheet open over a face started no window of the face manager xp: $(others)"
 read -r second owner out wx wy ww wh <<<"$(others)"
-[ "$owner" = xp ] || fail "rcr1-1: Super+t with the key sheet open over a face started a window of $owner, not of the face manager xp: $(others)"
 [ "$out" = "$front" ] || fail "rcr1-1: the window of Super+t is on $out, not on the face $front"
 until_ok 'xp_shows "$second"' 20 || fail "rcr1-1: the face manager does not show the window $second"
 ok "rcr1-1: Super+t with the key sheet open over a face starts a window of the face (xp, $out)"
@@ -359,8 +359,8 @@ end_others
 for run in 1 2 3 4 5; do
     key Super+space
     until_ok 'test -n "$(others)"' 100 || fail "co-77: run $run: the program of the launcher opened no window in the face"
+    until_ok 'others | grep -q " xp VIRTUAL"' 40 || fail "co-77: run $run: the program of the launcher in a face is held by none of xp: $(others)"
     read -r second owner out wx wy ww wh <<<"$(others)"
-    [ "$owner" = xp ] || fail "co-77: run $run: the program of the launcher in a face is held by $owner, not by the face manager xp"
     [ "$out" = "$front" ] || fail "co-77: run $run: the program is on $out, not on the face $front"
     until_ok 'xp_shows "$second"' 20 || fail "co-77: run $run: the face manager does not show the window $second"
     { [ "$wx" -ge 0 ] && [ "$wy" -ge 0 ] && [ $((wx + ww)) -le 1280 ] && [ $((wy + wh)) -le 800 ]; } || fail "co-77: run $run: the window lies outside the face: $wx,$wy ${ww}x$wh"

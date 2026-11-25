@@ -205,6 +205,20 @@ fn chat_closed(event: &Event) -> bool {
 }
 
 impl Construct {
+    /// The core focused `surface`: the walk lets go of the keys when a
+    /// pane window has them, and a window of a face that takes them from
+    /// the open key sheet is the sheet's to take back (co-78).
+    fn focus_heard(&mut self, surface: Option<&str>) -> Result<(), ClientError> {
+        self.core_focus = surface.map(String::from);
+        if surface.is_some_and(|s| self.own_window(s)) {
+            self.walk_keys = false;
+        }
+        match surface.filter(|s| self.help && self.in_a_face() && !self.own_window(s)) {
+            Some(window) => self.help_retakes_keyboard(window),
+            None => Ok(()),
+        }
+    }
+
     /// The events of the core and of the other clients.
     fn on_event(&mut self, event: Event) -> Result<(), ClientError> {
         if !chora_kit::runtime::hears_pointer(&event, self.rt.accepts_injected()) {
@@ -219,11 +233,8 @@ impl Construct {
             return self.window_created(&created);
         }
         if let Some(surface) = self.kit_focus.hear(&event) {
-            self.core_focus = surface.map(String::from);
-            if surface.is_some_and(|s| self.own_window(s)) {
-                self.walk_keys = false;
-            }
-            return Ok(());
+            let surface = surface.map(String::from);
+            return self.focus_heard(surface.as_deref());
         }
         if matches!(
             event,

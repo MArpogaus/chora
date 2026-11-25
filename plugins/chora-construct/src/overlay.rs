@@ -343,6 +343,18 @@ impl Construct {
         self.rt.conn.apply(crate::modes::the_keyboard_to_the_look())
     }
 
+    /// A window of a face took the keyboard from the open help (one that
+    /// the face manager opened, or the Super+t of the help started): the
+    /// help takes it back, so that Escape reaches it, and notes the window
+    /// for the close, which gives it the keyboard again (co-78).
+    pub(crate) fn help_retakes_keyboard(&mut self, window: &str) -> Result<(), ClientError> {
+        if let Some(host) = &mut self.cube {
+            host.note_focus(Some(window.into()));
+        }
+        self.walk_keys = true;
+        self.rt.conn.apply(crate::modes::the_keyboard_to_the_look())
+    }
+
     /// The help closed: the window that had the keyboard gets it back.
     fn help_gives_keyboard(&mut self) -> Result<(), ClientError> {
         let Some(surface) = self.help_back.take() else {
