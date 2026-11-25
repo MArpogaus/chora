@@ -20,7 +20,8 @@ pub fn nothing_new(language: chora_kit::words::Language) -> &'static str {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PageKeys {
     /// The page takes the keyboard: Right and Left alone turn it, Home
-    /// goes to the first page and Escape goes back.
+    /// goes to the first page, Up and Down scroll it by a line, Page Up
+    /// and Page Down by a screen, and Escape goes back.
     Plain,
     /// Only the bindings: beside other window managers (`--output`) the
     /// node with the keyboard would draw their new windows to mc (D55).
@@ -180,6 +181,8 @@ pub fn all(config: &Config, plain: bool) -> Vec<Row> {
             let binding = binding.map(|r| r.binding);
             let home = Row::new("Home", "First page", binding.as_deref());
             found.push((rank, 1, home));
+            let scroll = Row::new("\u{2191}\u{2009}\u{2193}", "Scroll the page", None);
+            found.push((rank, 2, scroll));
         }
     }
     let (give, words) = keysheet::give_row(Language::En);
@@ -243,6 +246,7 @@ mod tests {
             "All keys",
             "Turn the page",
             "First page",
+            "Scroll the page",
             "Show agenda",
             "Show terminal",
             "Show overview",
