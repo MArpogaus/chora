@@ -258,6 +258,11 @@ fn main() -> ExitCode {
 /// is the only message.
 fn tell_launch_error(err: &theme::LaunchError) {
     let (title, text) = err.notice();
+    tell_launch(title, text);
+}
+
+/// Shows a critical notice of a launch that could not start.
+fn tell_launch(title: &str, text: &str) {
     let notice = notice::Notice {
         app: "chora-tiling",
         icon: "",
@@ -366,7 +371,11 @@ fn launch_looks(dirs: &[std::path::PathBuf]) -> ExitCode {
         launch_conn().and_then(|mut conn| conn.call::<_, Value>("clients.list", Value::Null));
     let clients = match clients {
         Ok(clients) => clients,
-        Err(err) => return cannot_start("looks", &err),
+        Err(err) => {
+            let (title, text) = looks::unreachable_notice(language);
+            tell_launch(title, text);
+            return cannot_start("looks", &err);
+        }
     };
     let running = looks::running(&clients);
     let scheme = theme::written_scheme(dirs);
