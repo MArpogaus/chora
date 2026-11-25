@@ -19,7 +19,8 @@
 #   cancel-target      Cancel of Turn off computer is 24 px high or more
 #   inactive-title     the title of a window that is not active has 4.5:1
 #   bin-clear          the Recycle Bin stands at the bottom right, above the paperclip, and
-#                      no balloon (greeting, empty chat) and no notice (one, three) lies on it
+#                      no balloon (greeting, empty chat) and no notice (one, three) lies on it or on
+#                      any other desktop icon (xp-13)
 #   datetime-click     one click on the clock of the tray opens Date and Time, which shows a taskbar button (xp-10)
 #   datetime-metrics   the push buttons of Date and Time are the 75 x 23 of XP
 #
@@ -59,16 +60,19 @@ inj() { echo "$1" | ctl inject >/dev/null || fail "inject $1"; }
 key() { inj "[{\"shortcut\": {\"keys\": \"$1\"}}]"; }
 rect() { ctl query "id:$1" | jq -r '.[0].rects | to_entries[0].value | map(floor) | join(" ")'; }
 bin_clear() {
-    local label=$1 bx by bw bh id x y w h
-    read -r bx by bw bh <<<"$(rect xp-icon-2)"
-    [ -n "${bx:-}" ] || { red "bin-clear: $label: no Recycle Bin"; return; }
-    while read -r id x y w h; do
-        if [ "$w" -gt 0 ] && [ "$h" -gt 0 ] && [ "$bx" -lt $((x + w)) ] && [ "$x" -lt $((bx + bw)) ] &&
-            [ "$by" -lt $((y + h)) ] && [ "$y" -lt $((by + bh)) ]; then
-            red "bin-clear: $label: $id $x,$y ${w}x$h lies on the Recycle Bin $bx,$by ${bw}x$bh"
-        fi
-    done < <(ctl query '*' | jq -r '.[] | select(.owner == "assistant" or .owner == "notify") | .id as $id |
-        .rects | to_entries[] | "\($id) \(.value | map(floor) | join(" "))"')
+    local label=$1 icon bx by bw bh id x y w h seen=0
+    while read -r icon bx by bw bh; do
+        seen=$((seen + 1))
+        while read -r id x y w h; do
+            if [ "$w" -gt 0 ] && [ "$h" -gt 0 ] && [ "$bx" -lt $((x + w)) ] && [ "$x" -lt $((bx + bw)) ] &&
+                [ "$by" -lt $((y + h)) ] && [ "$y" -lt $((by + bh)) ]; then
+                red "bin-clear: $label: $id $x,$y ${w}x$h lies on the desktop icon $icon $bx,$by ${bw}x$bh"
+            fi
+        done < <(ctl query '*' | jq -r '.[] | select(.owner == "assistant" or .owner == "notify") | .id as $id |
+            .rects | to_entries[] | "\($id) \(.value | map(floor) | join(" "))"')
+    done < <(ctl query kind:image | jq -r '.[] | select(.id | test("^xp-icon-[0-9]+$")) | .id as $id |
+        .rects | to_entries[0] | "\($id) \(.value | map(floor) | join(" "))"')
+    [ "$seen" -ge 2 ] || red "bin-clear: $label: only $seen desktop icons"
 }
 at_least() {
     awk -v r="$1" -v m="$2" 'BEGIN { exit !(r + 0 >= m + 0) }' || red "$3: $1:1, wants $2:1"
