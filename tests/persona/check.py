@@ -844,7 +844,7 @@ def scene_line(snap, look):
 
 TILING_CONFIG = pathlib.Path("config") / "chora" / "chora-tiling.yaml"
 GAP_DEFAULT = "12"
-GAP_LINE = re.compile(r"^\s*gap_inner:\s*(\d+)\s*$", re.MULTILINE)
+GAP_LINE = re.compile(r"""^\s*gap_inner:\s*["']?(\d+)["']?\s*(?:#.*)?$""", re.MULTILINE)
 
 
 def config_value(folder):
