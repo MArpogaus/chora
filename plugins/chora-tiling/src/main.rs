@@ -275,13 +275,15 @@ fn tell_launch_error(err: &theme::LaunchError) {
 }
 
 /// The connection of a launch: it only shows one notice or asks tiling to
-/// close the key list, and ends, so it is no plugin.
+/// close the key list, and ends, so it is no plugin. Its name carries the
+/// process id: the word of the bar asks every 2 seconds, and a click must not
+/// meet the name of a launch that is still open.
 #[allow(
     clippy::disallowed_methods,
     reason = "a launch is no plugin: it only shows one notice or asks one thing and ends"
 )]
 fn launch_conn() -> Result<Conn, chora_scene::ipc::ClientError> {
-    Conn::connect("chora-tiling.launch")
+    Conn::connect(&format!("chora-tiling.launch-{}", std::process::id()))
 }
 
 /// Asks tiling to close the key list before the launcher or the power menu
