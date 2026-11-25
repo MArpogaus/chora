@@ -62,6 +62,9 @@
 #               (Super+Shift+E) take the theme of mc: the box has the colour
 #               of the page and its text at least 4.5 to 1 on it (rpx1-10)
 #
+#   volume-wheel  a wheel over the volume door in the column raises and
+#               lowers the level, as the keys do (rpx1-15)
+#
 #   page-edges  no line of any built-in scene, every panel full, is cut at the
 #               edge of its page at 1280x720 (rmm1-1)
 #
@@ -541,33 +544,56 @@ node_rect_of_more() {
 }
 
 
+menu_look() {
+    ctl capture "$work/menu.png" >/dev/null || fail "capture the menu"
+    # shellcheck disable=SC2086 # four words, one for each number of the rect
+    python3 -I "$repo/tests/png-contrast.py" "$work/menu.png" $1 | tr -d '(),'
+}
 menu_theme() {
-    local name=$1 x=$2 y=$3 w=$4 h=$5 want ratio red green blue
+    local name=$1 rect="$2 $3 $4 $5" want ratio red green blue
     case $theme in
     dark) want="28 28 28" ;;
     *) want="247 245 237" ;;
     esac
-    ctl capture "$work/menu-$name.png" >/dev/null || fail "capture $name"
-    read -r ratio _ _ _ _ _ red green blue < <(python3 -I "$repo/tests/png-contrast.py" "$work/menu-$name.png" "$x" "$y" "$w" "$h" | tr -d '(),')
+    until_ok '[ "$(menu_look "$rect" | cut -d" " -f1)" != 1.00 ]' 40 || fail "the $name shows no text"
+    read -r ratio _ _ _ _ _ red green blue < <(menu_look "$rect")
     [ "$red $green $blue" = "$want" ] || fail "the $name has the box $red $green $blue, not the page background $want of the $theme theme (rpx1-10)"
     jq -ne --arg r "$ratio" '($r | tonumber) >= 4.5' >/dev/null || fail "the text of the $name has the contrast $ratio to its box, under 4.5 (rpx1-10)"
 }
+menu_gone() { until_ok '! session_pids -x fuzzel >/dev/null' 40 || fail "a menu stays open"; }
 cell_launcher_theme() {
     key Super+Home
     until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
     : >"$work/fake/real"
     key Super+space
-    sleep 3
-    shot launcher-theme
     menu_theme "launcher" 500 246 200 18
+    shot launcher-theme
     key Escape
-    sleep 1
+    menu_gone
     key Super+Shift+e
-    sleep 3
-    shot power-theme
     menu_theme "power menu" 570 300 140 100
+    shot power-theme
     key Escape
+    menu_gone
     rm -f "$work/fake/real"
+}
+
+cell_volume_wheel() {
+    local door calls=$work/wpctl.calls
+    : >"$calls"
+    # shellcheck disable=SC2016 # the stand-in expands its own arguments
+    printf '#!/bin/sh\necho "$@" >>"%s"\ncase " $* " in *" get-volume "*) echo "Volume: 0.50" ;; esac\n' "$calls" >"$work/fake/wpctl"
+    chmod +x "$work/fake/wpctl"
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    until_ok 'has_text "Volume 50%"' 60 || fail "the volume door does not show the level 50%: $(texts | tr '\n' '|')"
+    door=$(text_rect "Volume 50%")
+    move_to "$(jq -n --argjson r "$door" '$r[0] + 20 | floor')" "$(jq -n --argjson r "$door" '$r[1] + $r[3] / 2 | floor')"
+    echo '[{"scroll": {"dy": -60}}]' | ctl inject >/dev/null || fail "inject scroll"
+    until_ok 'grep -Eq "set-volume .*%\+" "$calls"' 20 || fail "a wheel up over the volume door does not raise the volume (rpx1-15): $(tr '\n' '|' <"$calls")"
+    echo '[{"scroll": {"dy": 60}}]' | ctl inject >/dev/null || fail "inject scroll"
+    until_ok 'grep -Eq "set-volume .*%-" "$calls"' 20 || fail "a wheel down over the volume door does not lower the volume (rpx1-15): $(tr '\n' '|' <"$calls")"
+    shot volume-wheel
 }
 
 cell_page_end() {
@@ -720,7 +746,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist keylist-click more launcher-theme page-end page-edges pill-clock helpers-empty remote-back launcher-click-row rooms-card rooms-pill)
+cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist keylist-click more launcher-theme volume-wheel page-end page-edges pill-clock helpers-empty remote-back launcher-click-row rooms-card rooms-pill)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done
