@@ -162,6 +162,14 @@ impl Agent {
         if until <= now {
             return Vec::new();
         }
+        let ours = |word: Word| {
+            self.said
+                .as_ref()
+                .is_some_and(|(t, _)| t == word.text(self.language))
+        };
+        if !ours(Word::Greeting) && !ours(Word::GreetingNoHelper) {
+            return Vec::new();
+        }
         self.said = None;
         self.assistant
             .as_mut()
