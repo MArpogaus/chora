@@ -48,10 +48,11 @@ rtb5-1 | MAJOR (F7) | review tour-base r5 (reports/tour-base.md "## Review r5") 
 rtb5-2 | MINOR (F7) | review tour-base r5 | r6 9311e155 (review r6: closed; rtb6-* follow) | pixel rows cite judge x7.jpg for 30 acts the judge did not see
 rtb5-3 | MINOR (F7) | review tour-base r5 | r6 9311e155 (review r6: closed; rtb6-* follow) | handover.py:106 companion start unchecked; the test reads command lines only
 rss-11 | MINOR | review stray-super r3 (reports/stray-super.md "## Review r3") | open | construct with a cube binds Super keys but never says swallow on; beside an earlier tiling its keys race xp's swallow (plausible, not reproduced)
-rss-12 | MINOR | review stray-super r3 | open | say_swallow sets said before the emit; a say the core drops (32 emits/s) is never sent again
-rss-13 | MINOR | review stray-super r3 | open | about 75 "grabbed already" log lines per join in tiling; one line would do
+rss-12 | MINOR | review stray-super r3 | MERGE-OK 8c3ac745 (PM review minor r1); train136 | say_swallow sets said before the emit; a say the core drops (32 emits/s) is never sent again
+rss-13 | MINOR | review stray-super r3 | MERGE-OK 8c3ac745 (PM review minor r1); train136 | about 75 "grabbed already" log lines per join in tiling; one line would do
 rtb6-1 | MAJOR (F7) | review tour-base r6 (reports/tour-base.md "## Review r6") | open; TOUR-BASE r7 | bare missing (30) and rect (11) rows still absorb any unrelated node; m1, m1c, m4, m4b change rests on them
 rtb6-2 | MINOR (F7) | review tour-base r6 | open | Notepad-frame pixel boxes cover the whole frame
 rtb6-3 | MINOR (F7) | review tour-base r6 | open | handover alive check scans all of /proc, not this session
 rtb6-4 | MINOR (F7) | review tour-base r6 | open; TOUR-BASE r7 | m1 row omits rv9j-2
 rtb6-5 | MINOR (F7) | review tour-base r6 | open; TOUR-BASE r7 | xp-desktop rows cite no capture; no r6 tour-diff output committed
+rssm-1 | MINOR | PM review stray-super minor r1 (reports/stray-super.md) | open | inside a set of grabs every refusal is logged as "grabbed already" without its error text; a set left open by an early return keeps its refusals unlogged
