@@ -448,6 +448,36 @@ cell_launcher_click_row() {
     rm -f "$work/fake/real"
 }
 
+off_screen() {
+    ctl query "owner:mc kind:text" | jq -r ".[] | $shown | .rects | to_entries[0].value |
+        select(.[0] < 0 or .[1] < 0 or .[0] + .[2] > 1280 or .[1] + .[3] > 720) | tostring"
+    ctl query "owner:mc kind:rect" | jq -r ".[] | $shown | select(.id | endswith(\"-hit\")) | .rects | to_entries[0].value |
+        select(.[2] > 1 and .[3] > 1 and (.[0] < 0 or .[1] < 0 or .[0] + .[2] > 1280 or .[1] + .[3] > 720)) | tostring"
+}
+struck_texts() {
+    ctl query "owner:mc kind:rect" | jq -r ".[] | $shown | select(.rects | to_entries[0].value | .[3] <= 2 and .[2] > 8) |
+        {id: .id, r: (.rects | to_entries[0].value)}" | jq -rs --argjson t "$(ctl query "owner:mc kind:text" | jq -c "[.[] | $shown | {t: .text, r: (.rects | to_entries[0].value)}]")" '
+        [.[] | . as $h | $t[] | select($h.r[0] < .r[0] + .r[2] and .r[0] < $h.r[0] + $h.r[2] and $h.r[1] > .r[1] + 3 and $h.r[1] < .r[1] + .r[3] - 3) | "\($h.id) strikes \(.t)"] | join("; ")'
+}
+cell_keylist() {
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    emit voice.state '{"state": "listening", "task": "", "said": "", "muted": {"mic": false, "speaker": false}}'
+    ctl call mc hud.set '{"state": "listening", "text": ""}' >/dev/null || fail "hud.set"
+    until_ok 'has_text "Mute"' 20 || fail "no Mute: $(texts | tr '\n' '|')"
+    key Super+F1
+    until_ok 'has_text "Show overview"' 20 || fail "Super+F1 does not open the full list"
+    sleep 1.5
+    shot keylist
+    [ -z "$(struck_texts)" ] || fail "a rule of the key list strikes a text (rpx1-9): $(struck_texts)"
+    for t in "Take a screenshot" "Back one step" "Power menu" "Lock the screen"; do
+        has_text "$t" || fail "the full list lacks the row \"$t\" at 1280x720"
+    done
+    [ -z "$(off_screen)" ] || fail "text or a hit area of the full list is off the 1280x720 output (rpx1-9): $(off_screen | tr '\n' ' ')"
+    key Super+F1
+    until_ok '! has_text "Show overview"' 20 || fail "Super+F1 does not close the list"
+}
+
 failed=()
 skipped=()
 ran=0
@@ -466,7 +496,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none remote-back launcher-click-row)
+cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist remote-back launcher-click-row)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done
