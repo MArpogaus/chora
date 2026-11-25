@@ -154,3 +154,17 @@ rmm2-3: discrete notch from v120/120 (core input.rs:1206), Finger/Continuous dy/
 - rmm3-3 NIT docs/mc-style.md:129: "`accent` for the selected row" is not the code: menus.rs:43-45 puts `faint` behind the selected row with `text`, `accent` colors what the input matches. Fix: say faint behind the selected row and accent for the match.
 - rmm3-4 NIT plugins/chora-mc/src/acts.rs:116: `wheel_acc` never decays, so the rest of a swipe (up to 0.99 notch) stays and a tiny move in the same direction much later makes a step; the reversal reset has no assert. Fix: drop the rest at the start of a new gesture (a pause) and assert a reversal in the test.
 Verdict (computed): 0 BLOCK, 0 MAJOR, 2 MINOR, 2 NIT -> MERGE-OK 42418379.
+
+## r4
+
+Base 23cd2b5a (mc-page-end r1), head 2ad0c45c0 on claude/mc-minor-r4. Diffstat: 5 files, +55 -5 (keys.rs, main.rs, methods.rs, rooms.rs, tests/gate-mc-sofa.sh).
+
+Red commits (before fixes): f25d3d022 (rpe-1), 5a115f73e (rpe-2). Reds seen: `a_page_names_the_scroll_keys_beside_home` left "Super+Home" right "↑ ↓"; `a_card_that_mc_pushes_takes_its_room_at_once` left 56.0 right 220.0.
+
+- rpe-1 closed by 4363de11c: the plain key list holds "↑ ↓ / Scroll the page" beside Home; `page_key` and `PageKeys::Plain` doc comments name the scroll keys. Test: `a_page_names_the_scroll_keys_beside_home` (and the word list test).
+- rpe-2 closed by ae7496f74: `notify.push` and `notify.clear` call `learn_rooms` right after (no sleep). Test: `a_card_that_mc_pushes_takes_its_room_at_once`. No notice-server shown/closed signal exists in mc, so none is used.
+- rpe-3 closed by 2ad0c45c0: the fail message prints a fresh `node_rect`.
+
+Capture: media/2026-11-25/mc-minor-r4/mc-sofa-keylist-dark.png (134 KB).
+
+Gate: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2`, no step filter: "all steps passed; no --push, nothing is pushed", 0 FAIL, mc-sofa PASS 110s. `pgrep -fa 'chora --headless'` empty.
