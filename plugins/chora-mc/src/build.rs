@@ -270,7 +270,9 @@ impl Mc {
     /// Creates the head and the panels of a scene, under a group of their
     /// own that the next call replaces.
     /// A page between the header and the footer that clips the panels
-    /// and takes the wheel; the panels move up in it as it scrolls.
+    /// and takes the wheel; the panels move up in it as it scrolls. It ends
+    /// five lines over the foot of the output, above the card of
+    /// chora-notify and the footer line (rpx1-11, rpx1-12).
     /// Other plugins find the page by this tag and show it
     /// through its node texture, as chora-construct does.
     pub(crate) fn panels(&self, name: &str) -> Vec<Command> {
@@ -288,7 +290,7 @@ impl Mc {
                 &scene_id(name),
                 PropsUpdate {
                     transform: Some(translate(0.0, 2.0 * b)),
-                    size: Some([w, (h - 4.0 * b).max(b)]),
+                    size: Some([w, (h - 7.0 * b).max(b)]),
                     clip: Some(Some(chora_scene::Clip { radius: 0.0 })),
                     meta: Some(BTreeMap::from([("pane".into(), name.into())])),
                     ..PropsUpdate::default()

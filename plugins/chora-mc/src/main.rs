@@ -2202,7 +2202,9 @@ mod tests {
     /// A page that is longer than the output scrolls (the mission scene
     /// with its data); every other panel of a built-in scene stands inside
     /// the text block at 1280 by 800, so that the words of an empty panel
-    /// show.
+    /// show. The text block ends five lines over the foot, over the card
+    /// and the footer line (rpx1-11), so a panel of the least height may
+    /// pass it by one line.
     #[test]
     fn every_panel_of_a_scene_is_placed_at_1280_by_800() {
         let (mut mc, _model) = crate::testing::mc("panels-1280", [1280, 800]);
@@ -2213,7 +2215,8 @@ mod tests {
             for panel in &scene.panels {
                 let [x, y, w, h] = mc.place(name, panel).expect("a box");
                 assert!(w > 0.0 && h > 0.0, "{name}: panel {} has no size", panel.id);
-                let inside = x >= tx && x + w <= tx + tw + 0.5 && y + h <= ty + th + 0.5;
+                let line = mc.settings.value.scale.baseline;
+                let inside = x >= tx && x + w <= tx + tw + 0.5 && y + h <= ty + th + line;
                 assert!(
                     inside || name == "mission",
                     "{name}: panel {} at {:?} is not inside the text block",

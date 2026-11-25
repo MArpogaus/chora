@@ -65,7 +65,7 @@ impl Mc {
         } else {
             HEAD * b
         };
-        let bottom = h - 4.0 * b;
+        let bottom = h - 5.0 * b;
         Some(Geometry {
             text: [x, top, width, (bottom - top).max(b)],
             note,
