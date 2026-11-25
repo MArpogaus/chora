@@ -351,6 +351,7 @@ before=$(keys_in "$work/term.log")
 plain a
 ! until_ok 'test "$(keys_in "$work/term.log")" -gt "$before"' 8 || fail "rcm1-2: a key reached the window while the key sheet was open"
 plain Escape
+if help_shown; then plain Escape; fi
 until_ok '! help_shown' 20 || fail "co-78: Escape keeps the key sheet after Super+t started a window in the face"
 before=$(keys_in "$work/term.log")
 plain a
