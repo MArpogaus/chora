@@ -34,3 +34,9 @@ e2e        PASS   293s /tmp/merge-gate.Uk2wCy/e2e.log
 all steps passed; no --push, nothing is pushed
 EXIT 0
 ```
+
+## PM review r1 (07:3x UTC)
+Base 721be592..0094bffd, +49 -8, 4 files (PM review: under 200 lines, harness). Red 3bfcb52d (self-test, step missing) before fix 39566610; d53aae56, 0094bffd test-only follow-ups.
+Checks: step `ratchets` after identity in default_steps, header comment, --worker list and serial_steps; size-ratchet gets the merge base like ci-check; FAIL line names the ratchet and its last count line; CONTRIBUTING one sentence. Lane gate EXIT 0 per worker.
+Note (no finding): `--only` runs skip the step by design (lane mode is --worker; trains run the full gate). ci-check still repeats the three ratchets; harmless, seconds.
+Verdict: 0 BLOCK, 0 MAJOR, 0 MINOR -> MERGE-OK. Harness branch: own train (t137) right after train136, then lanes merge the session branch.
