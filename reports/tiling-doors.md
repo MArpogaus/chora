@@ -214,3 +214,11 @@ Findings:
 - rtd2-7 | NIT | plugins/chora-tiling/src/overlay.rs:185 | doc comment line of 131 chars | rewrap.
 
 Counts: BLOCK 0, MAJOR 1, MINOR 5, NIT 1. Verdict: **FIX** (rtd2-1).
+
+## r3
+
+Head 35e31662 on claude/tiling-doors-r3 (history kept, no force push).
+
+- rtd2-1: A revert of the launch name (the name function ignores the pid), B test `two_launches_of_one_machine_connect_under_different_names`, C fix (name `chora-tiling.launch-<pid>`). Red: `test tests::two_launches_of_one_machine_connect_under_different_names ... FAILED` (assertion `left != right` failed). Green after C: cargo test -p chora-tiling 206 passed.
+- rtd2-4: D test `test_a_comment_or_quotes_after_the_value_are_read`, red: `AssertionError: '12' != '20'` (FAILED failures=1). E GAP_LINE allows quotes and a trailing comment; test_check.py 62 OK.
+- Full gate (--jobs 2): all steps passed, EXIT 0 (last lines: e2e PASS 278s; "all steps passed; no --push, nothing is pushed"). Ratchets sleep/size/lint ok. No `chora --headless` left.
