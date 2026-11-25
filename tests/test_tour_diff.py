@@ -287,7 +287,7 @@ class CompareDirs(unittest.TestCase):
     def test_a_new_red_check_with_a_check_row_is_a_change(self):
         write_capture(self.base, "x1.Q")
         write_capture(self.cand, "x1.Q", data='{"nodes": [], "checks": {"I9": "red"}}')
-        row = {"act": "x1", "kind": "check", "cause": "I9 is known red"}
+        row = {"act": "x1", "kind": "check", "check": "I9", "cause": "I9 is known red"}
         self.assertEqual(self.verdicts(intended=[row]), [("x1", "Q", "change")])
 
     def test_a_check_green_on_base_and_gone_on_cand_is_a_regression(self):
