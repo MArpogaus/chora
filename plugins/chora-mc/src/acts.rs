@@ -106,9 +106,10 @@ impl Host for Mc {
     /// (mc-44). Another command runs as it is.
     fn run(&mut self, command: &str) -> Result<(), Infallible> {
         let command = match command.trim() {
-            "fuzzel" => "chora-mc --launch fuzzel",
-            other => other,
+            "fuzzel" if self.menu.is_none() => "chora-mc --launch fuzzel".to_owned(),
+            other => self.themed(other),
         };
+        let command = command.as_str();
         let token = self.rt.conn.activation_token();
         let started =
             chora_kit::launch::start(&chora_kit::shared::launcher(command), token.as_deref());
@@ -116,6 +117,21 @@ impl Host for Mc {
             Some(_) => Ok(()),
             None => self.failed(Failure::NotStarted(command.to_owned())),
         }
+    }
+
+    /// The power menu of the shared script with the fuzzel of mc as its
+    /// menu, in the colors of the theme (rpx1-10); plain when the config
+    /// of the menus is not written.
+    fn power(&mut self) -> Result<bool, Infallible> {
+        if self.menu.is_none() {
+            return Ok(false);
+        }
+        let Some(command) = chora_kit::shared::command("power", &[]) else {
+            return Ok(false);
+        };
+        let token = self.rt.conn.activation_token();
+        let started = chora_kit::launch::start(&self.themed(&command), token.as_deref());
+        Ok(started.is_some())
     }
 
     fn keys(&mut self) -> Result<(), Infallible> {

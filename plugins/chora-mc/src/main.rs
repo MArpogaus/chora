@@ -29,6 +29,7 @@ mod keys;
 mod layout;
 mod lifecycle;
 mod manage;
+mod menus;
 mod methods;
 mod mic;
 #[cfg(test)]
@@ -404,6 +405,9 @@ struct Mc {
     /// What the pill of the HUD host and the card of the notice server
     /// take of the output.
     rooms: rooms::Rooms,
+    /// The config of fuzzel in the look of mc, for the launcher and the
+    /// power menu.
+    menu: Option<std::path::PathBuf>,
     /// The worker that reads and changes the volume.
     volume: chora_kit::volume::Mixer,
     /// The volume that the worker read last.
@@ -457,11 +461,17 @@ fn main() -> ExitCode {
 /// and the launcher never closes without a word (mc-44). Another program
 /// is no launch of mc.
 fn launch(argv: &[String]) -> ExitCode {
-    if argv != ["fuzzel"] {
-        eprintln!("usage: chora-mc --launch fuzzel");
-        return ExitCode::from(2);
-    }
-    chora_kit::launcher::run(&["fuzzel".to_owned()], "foot", None);
+    let fuzzel = match argv {
+        [fuzzel] if fuzzel == "fuzzel" => vec!["fuzzel".to_owned()],
+        [fuzzel, flag, file] if fuzzel == "fuzzel" && flag == "--config" => {
+            vec!["fuzzel".to_owned(), flag.clone(), file.clone()]
+        }
+        _ => {
+            eprintln!("usage: chora-mc --launch fuzzel [--config FILE]");
+            return ExitCode::from(2);
+        }
+    };
+    chora_kit::launcher::run(&fuzzel, "foot", None);
     ExitCode::SUCCESS
 }
 
@@ -485,6 +495,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     if args.output.is_some() {
         mc.page_keys = keys::PageKeys::Bound;
     }
+    mc.write_menu_theme();
     mc.start(methods)?;
     if let Some(err) = mc.settings.broken().map(str::to_owned) {
         mc.notice("Settings", &err);
@@ -583,6 +594,7 @@ impl Mc {
             dock_focus: None,
             clocks: BTreeMap::new(),
             rooms: rooms::Rooms::default(),
+            menu: None,
             volume: chora_kit::volume::Mixer::new(NAME),
             volume_reading: None,
             volume_ticks: 0,
@@ -870,6 +882,7 @@ impl Plugin for Mc {
                 "idle".clone_into(&mut agent.state);
             }
         }
+        self.write_menu_theme();
         self.name_theme()
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         let same_shape = self.built && !plain && self.shape.as_ref() == Some(&self.shape_of());
