@@ -92,20 +92,40 @@ impl Mc {
 }
 
 impl Mc {
+    /// How many steps of the volume a scroll event makes: positive down.
+    pub(crate) fn wheel_steps(
+        &mut self,
+        dy: f64,
+        _discrete: [f64; 2],
+        _source: chora_scene::ScrollSource,
+    ) -> i32 {
+        self.wheel_acc = 0.0;
+        if dy < 0.0 { -1 } else { i32::from(dy > 0.0) }
+    }
+
     /// A wheel over a node: over the volume door it raises the level
     /// (up) or lowers it (down) by a step, as the volume keys do, the
     /// mouse path of the remote's volume (rpx1-15); elsewhere it
     /// scrolls the page under it.
-    pub(crate) fn wheel(&mut self, node: &str, dy: f64) -> Result<(), ClientError> {
+    pub(crate) fn wheel(
+        &mut self,
+        node: &str,
+        dy: f64,
+        discrete: [f64; 2],
+        source: chora_scene::ScrollSource,
+    ) -> Result<(), ClientError> {
         if !node.ends_with("-doors-volume-hit") {
             return self.scroll_page(node, dy);
         }
-        let change = match dy.partial_cmp(&0.0) {
-            Some(std::cmp::Ordering::Less) => chora_kit::volume::Change::Up,
-            Some(std::cmp::Ordering::Greater) => chora_kit::volume::Change::Down,
-            _ => return Ok(()),
+        let steps = self.wheel_steps(dy, discrete, source);
+        let change = if steps < 0 {
+            chora_kit::volume::Change::Up
+        } else {
+            chora_kit::volume::Change::Down
         };
-        self.volume.change(change, true);
+        for _ in 0..steps.abs() {
+            self.volume.change(change, true);
+        }
         Ok(())
     }
 }

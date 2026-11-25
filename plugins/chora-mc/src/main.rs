@@ -439,6 +439,8 @@ struct Mc {
     slot_sent: Option<(String, Option<[f64; 4]>)>,
     /// How far the page of a scene scrolled down, by scene.
     scroll: BTreeMap<String, f64>,
+    /// The wheel that a touchpad or a roll has not yet made a step of.
+    wheel_acc: f64,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -610,6 +612,7 @@ impl Mc {
             slot: None,
             slot_sent: None,
             scroll: BTreeMap::new(),
+            wheel_acc: 0.0,
         };
         mc.keep_texts();
         mc
@@ -792,7 +795,13 @@ impl Plugin for Mc {
                 self.page_key(&key, &modifiers, injected);
                 Ok(())
             }
-            Event::PointerScroll { node, dy, .. } => self.wheel(&node, dy), // injected: Plugin::event drops an injected pointer event first
+            Event::PointerScroll {
+                node,
+                dy,
+                discrete,
+                source,
+                .. // injected: Plugin::event drops an injected pointer event first
+            } => self.wheel(&node, dy, discrete, source),
             Event::PointerPressed {
                 node,
                 position,
