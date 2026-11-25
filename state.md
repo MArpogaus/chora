@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-25 08:33 UTC)
+## Now (2026-11-25 09:24 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 07:43 PM 2.4 % (11-25), week about 34 % vs 55 % pace: under-spending, fill 6 lanes
+budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 09:23 PM 2.7 % (11-25), week about 34 % vs 55 % pace: under-spending, fill 6 lanes
 session branch: 6f37120b (t136 07:41: co-close r2, co-reach, co-close-waits, stray-super-minor, tour-base r8); 84 greens. TRAIN137 gate-ratchets (+PM fix e25848d6: own sed line counted as a sleep)
 burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open, 3 regr)
 
@@ -24,7 +24,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 |---|---|---|
 | train137 (harness) | PM, 6b89b56f on 6f37120b | gate running |
 | co-minor-r1.md (rc 2; co-77, -78, rcr1-1; 1 %) | sonnet high, claude/co-minor-r1 6f37120b | session_016iS3kPtWQpHRWp48U6q5Xm |
-| xp-minor-r2.md (rc 1; xp-10, -13, -30, rxm1-1; 1 %) | sonnet high, claude/xp-minor-r2 d2a048d5 | session_016iS3kQRG6ST7x32pFZswCM |
+| review-xp-minor-r2.md (rc 1; r2 8109e08b, gate EXIT 0; 0.5 %) | opus high, read-only | starting |
 | mc-minor-r2.md (rc 1; rmm1-1..4, rpx1-10, -15; 1 %) | sonnet high, claude/mc-minor-r2 5cb288e2 | session_016iS3kNyhRbv8jD3qsSnufr |
 | tiling-doors-r3.md (rc 2; rtd2-1 MAJOR, rtd2-4; 0.5 %) | sonnet medium, claude/tiling-doors-r3 fa676de8 | session_016iS3kLs1XfS7H3odnwsmpY |
 ## Queue (% week; 5 % reserve)

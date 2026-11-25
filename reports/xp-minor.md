@@ -127,3 +127,7 @@ e2e        PASS   277s /tmp/merge-gate.6tPBk5/e2e.log
 all steps passed; no --push, nothing is pushed
 EXIT 0
 ```
+
+## PM decisions r2 (2026-11-25 09:25 UTC)
+- xp-30 Esc: not done, accepted. A plugin that takes Esc globally or grabs the keyboard for a balloon steals keys from the window in use (shared RC bar: no stray keys into clients). The greeting goes on any click, when a window opens under it, and fades after 12 s. Known issue, not a finding.
+- xp-10 and xp-13 text size: 11 px stays, the replica size (docs/xp-style.md row 1, XP Normal 96 DPI; brief: "the replica size if design/looks (xp) names one"). design/looks/xp-v2.md 14 px for menus, titles and balloon is not the dialog or icon label size. Recorded; a Large Fonts option goes to backlog after the RC.

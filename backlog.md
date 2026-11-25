@@ -422,3 +422,4 @@ rr9-1 | MINOR | review-record-v9 r4 (reports/record-v9.md "## Review r4") | open
 
 - rfs8-1..3 MINOR (reports/flake-series.md "## Review r8"): leak bound scaling for ROUNDS<12; planted idle6 leak raised to +4 MB; 380fa09a no red. After the RC.
 - (harness, 11-25) t134: sh42 r1 (+2) and co-close r2 (+3) added sleeps; lane gates do not run tools/sleep-ratchet, so the breach showed only in the train; earliest gate: merge-gate.sh in the lane (add the three ratchets as its first step, red first).
+- xp Large Fonts option for dialogs and icon labels (14 px), after the RC (PM 11-25, reports/xp-minor.md PM decisions r2).
