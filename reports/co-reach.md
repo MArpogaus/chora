@@ -265,3 +265,8 @@ e2e        PASS   265s /tmp/merge-gate.xFW2z0/e2e.log
 all steps passed; no --push, nothing is pushed
 EXIT 0
 ```
+
+## PM review r1 (fbdcd6e2..7f519bc8, 123 lines; rules.md 7: PM review under 200 lines)
+Checks: red first (43433ce7 test before 7f519bc8 fix): yes. co-79: `pull_out_hint` is the one source for the pull hint in the face and stood-back sets, gated on `pull_acts` (co-68: never in a pane); reach_tests.rs covers face focused, face unfocused, pane; gate-construct-cube.sh asserts `construct-hint-pull-out` in a face with the keyboard in its window. docs/cube-modes.md says the rule. No new sleep in this round (the 3 of the branch are co-close r2's, gate-construct-close.sh:51, 80, 87).
+Findings: rcr1-1 MINOR: the demo r12 face is empty (Super+t with the key sheet open starts a pane, not a face window), so the hint stays untold there: route with co-78.
+Verdict (computed): 0 BLOCK, 0 MAJOR: MERGE-OK. Train only after the co-close sleeps become waits (t134 sleep-ratchet): CO-CLOSE-WAITS r1.
