@@ -179,7 +179,8 @@ join_tiling() {
     "$bin/chora-tiling" --no-companions >"$shots/join-tiling-$1.log" 2>&1 &
     pids+=($!)
     ctl wait owner:tiling --timeout 20 >/dev/null || fail "join-$1: tiling does not join: $(tail -n 3 "$shots/join-tiling-$1.log")"
-    sleep 2
+    until_ok "[ \"\$(ctl state tiling | jq -r '.desks | length')\" -gt 0 ]" 40 ||
+        fail "join-$1: tiling has no desk: $(ctl state tiling | jq -c .)"
 }
 keys_stay() {
     typed "$1 r1"
@@ -216,7 +217,8 @@ grant input.inject screen.capture methods.call methods.privileged
 pids+=($!)
 ctl wait owner:mc --timeout 20 >/dev/null || fail "join-mc: mc does not start: $(tail -n 3 "$shots/join-mc.log")"
 writer mc --app-id=joinmc joinmc
-sleep 2
+until_ok "[ \"\$(ctl state mc | jq -r '.windows | length')\" -gt 0 ]" 40 ||
+    fail "join-mc: mc does not list $w: $(ctl state mc | jq -c .)"
 key Return
 focused 10 || fail "join-mc: Return does not focus $w on the page of mc"
 typed "mc a1"
