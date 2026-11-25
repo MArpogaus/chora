@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-25 02:28 UTC)
+## Now (2026-11-25 02:29 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 02:16 PM 1.5 % (11-25), week about 34 % vs 55 % pace: under-spending, fill 6 lanes
 session branch: 84f66d43 (t133 00:20); 81 greens. t134 = tour-base-r7 721be592 gate running (sh42 +2, co-close +3 sleeps split off; lane gates miss the sleep ratchet: harness backlog)
@@ -23,7 +23,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 | Lane | Model, branch | State |
 |---|---|---|
 | train134 (F7) | PM, 721be592 (tour-base-r7) | gate running |
-| stray-super-minor-r1.md (rc 1, 9; rss-12, rss-13; 0.8 %) | sonnet high, claude/stray-super-minor-r1 84f66d43 | starting |
+| stray-super-minor-r1.md (rc 1, 9; rss-12, rss-13; 0.8 %) | sonnet high, claude/stray-super-minor-r1 84f66d43 | session_016iS3kLMiAHZnqw4HmY1kpE |
 | tiling-minor-r1.md (rc 1; rth-1..8, rtd1-2..5; 1.0 %) | sonnet high, claude/tiling-minor-r1 84f66d43 | session_016iS3kNuX9zyEYHgoVk9R8Y |
 | sh42-fix-r2.md (rc 1; sh-42; t134 sleep-ratchet; 0.6 %) | sonnet medium, claude/sh42-fix-r2 b92de049+84f66d43 | session_016iS3kPqhV59i3btC3QEanV |
 | co-reach-r1.md (rc 1, 2; co-79 MAJOR; 1.2 %) | opus high, claude/co-reach-r1 fbdcd6e2 | session_016iS3kLNYWe7A8GuMJ46b8V |
