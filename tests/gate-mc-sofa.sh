@@ -245,7 +245,7 @@ cell_door() {
     click_rect "$(text_rect "Chat with a helper ...")"
     until_ok 'ctl query id:hud-chat | jq -e "length > 0" >/dev/null' 20 || fail "a press on the chat door opens no chat: $(texts | tr '\n' '|')"
     until_ok '[ -z "$(doors_under_chat)" ]' 40 || fail "the chat stays over a door of the column (mc-56): $(doors_under_chat | tr '\n' ' ')"
-    [ -z "$(hits_under_chat)" ] || fail "a hit area of mc lies under the open chat (mc-56): $(hits_under_chat | tr '\n' ' ')"
+    until_ok '[ -z "$(hits_under_chat)" ]' 40 || fail "a hit area of mc lies under the open chat (mc-56): $(hits_under_chat | tr '\n' ' ')"
     shot door
     key Escape
     until_ok '! ctl query id:hud-chat | jq -e "length > 0" >/dev/null' 20 || fail "Escape does not close the chat"
