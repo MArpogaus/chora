@@ -12,3 +12,11 @@ keylist red (rpx1-9) did not reproduce in 55 runs here; not a gate-script race s
 Light theme, full mc-sofa run: `rooms-pill` red 3 of 3 ("the host does not draw the state word at the new place: [1120.0,29.0,80.0,26.0]"). Same on the base 62a04be0 (full light run red on rooms-pill), green when the cell runs alone; so pre-existing and order-dependent, not caused by this change, out of scope. Needs its own lane.
 
 Gate: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2`: all steps PASS ("all steps passed; no --push"), mc-sofa PASS 79s, EXIT 0. pgrep 'chora --headless' empty.
+
+## PM review r1 (2026-11-25 18:33 UTC; diff 62a04be0..3d555e4f, 1 file, +4)
+
+- Red first: c8107a4b feeds the cell the unplaced rect [0,0,w,h] (red every time), 3d555e4f replaces it with the wait. A pinned race, not a red on unchanged code; accepted for a harness flake (the race is shown in the logged rect).
+- Fix: until_ok on text rect == hit rect and off origin; no sleep, no product change; check as strict as before. Counts 2/10 red -> 0/20.
+- rfs1-1 (MINOR, core): the core reports a text visible at [0,0,w,h] before layout places it. If a frame draws it there, a person sees a flash at the corner. Backlog: check one frame capture after a door appears.
+- rfs1-2 (MAJOR for rc 3, harness): mc-sofa light, rooms-pill red 3/3 in the full run (also on 62a04be0), green alone: order-dependent. FLAKE-SOFA r2.
+- Verdict: MERGE-OK 3d555e4f (train144).
