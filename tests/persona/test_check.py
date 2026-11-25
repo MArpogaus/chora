@@ -327,6 +327,14 @@ class NoConfig(unittest.TestCase):
                 (path / "chora-tiling.yaml").write_text(f"look:\n  {line}\n")
                 self.assertEqual(check.config_value(folder), "20", line)
 
+    def test_mismatched_quotes_are_not_read(self):
+        for line in ("gap_inner: \"20'", "gap_inner: '20\""):
+            with tempfile.TemporaryDirectory() as folder:
+                path = pathlib.Path(folder) / "config" / "chora"
+                path.mkdir(parents=True)
+                (path / "chora-tiling.yaml").write_text(f"look:\n  {line}\n")
+                self.assertEqual(check.config_value(folder), "12", line)
+
     def test_a_missing_config_is_not_measured(self):
         with tempfile.TemporaryDirectory() as folder:
             run = self.run_in(folder)
