@@ -26,7 +26,7 @@ run() { (cd "$work/wt" && MERGE_GATE_RUNS=$work CHORA_GATE_LOCK=$work/lock tests
 run || fail "clean tree: the ratchets step fails: $(tail -5 "$work/out")"
 grep -q '^ratchets .*PASS' "$work/out" || fail "clean tree: no PASS line for ratchets: $(tail -5 "$work/out")"
 
-slack=$(cd "$work/wt" && tools/sleep-ratchet 2>&1 | sed -n 's/^lower the list: sleep is \([0-9]*\), listed \([0-9]*\).*/\2 - \1/p' | head -1)
+slack=$(cd "$work/wt" && tools/sleep-ratchet 2>&1 | sed -n 's/^lower the list: [s]leep is \([0-9]*\), listed \([0-9]*\).*/\2 - \1/p' | head -1)
 slack=$(( ${slack:-0} ))
 for _ in $(seq 0 "$slack"); do printf '%s 1\n' "$word" >>"$work/wt/tests/zz-ratchet-fixture.sh"; done
 if run; then
