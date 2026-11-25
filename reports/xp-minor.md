@@ -74,3 +74,12 @@ Branch claude/xp-minor-r1, base 721be592, head d2a048d5. Gate: `tests/merge-gate
 
 Captures: 1-pager.png (taskbar, current 1 navy, 2 to 4 tray blue), 2-chat-idle.png (chat header "Atlas — Idle", Stop greyed, after a done that kept step 1/1), 3-turnoff.png (14 px captions), 4-paperclip-click.png (chat open after a click on the paperclip).
 Not covered: the desktop is not dimmed in the capture of Turn off (xp-9 third part, outside the brief's two numbers); a voice that never sends idle or done still shows Working.
+
+## PM review r1
+Base 721be592, head d2a048d5 (+172 -15, 6 files; three red-then-fix pairs, red commits tests only).
+- rv9j-1, xp-19 (taskbar.rs pager_colors): others #0A74CA (white digit 4.9:1, tray hue), current #06204A (3.3:1 from the others, white 15:1), a tray light line on the others. Unit tests compute WCAG ratios; gate-xp-readable asserts pixels. Met.
+- xp-28 (chat/dialogue.rs helper_state): "idle" and "done" clear task and steps, Stop off; unit test drives working -> done -> idle with steps. Met.
+- xp-9 (session.rs): captions BodyBold >= 14 px, every caption fits its button; Cancel already 80x28. Met.
+- xp-29: no code; cell xp29-click green at head. Closed by evidence.
+- rxm1-1 MINOR: Stand By and Turn Off captions at 55 of 56 px leave almost no gap between neighbours (XP has visible gaps); a 1 px margin test or a shorter rect would hold it. Known issues.
+Verdict MERGE-OK (computed: no open MAJOR). Joins train137.
