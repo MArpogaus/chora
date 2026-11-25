@@ -57,10 +57,35 @@ pub fn prompt(language: Language) -> &'static str {
     Word::MoveThisWindowTo.text(language)
 }
 
+/// The title and the text of the notice for a click on the Looks door
+/// when the list of the running clients cannot be read.
+pub fn unreachable_notice(language: Language) -> (&'static str, &'static str) {
+    match language {
+        Language::De => (
+            "Andere Desktops nicht verfügbar",
+            "Die Liste der anderen Desktops ließ sich nicht lesen.",
+        ),
+        Language::En => (
+            "Other desktops not available",
+            "The list of the other desktops could not be read.",
+        ),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn a_door_that_cannot_list_the_looks_says_so_in_both_languages() {
+        let english = unreachable_notice(Language::En);
+        let german = unreachable_notice(Language::De);
+        assert_eq!(english.0, "Other desktops not available");
+        assert_eq!(german.0, "Andere Desktops nicht verfügbar");
+        assert!(english.1.contains("could not be read"), "{english:?}");
+        assert!(german.1.contains("nicht lesen"), "{german:?}");
+    }
 
     #[test]
     fn the_running_looks_are_the_other_clients_in_a_fixed_order() {

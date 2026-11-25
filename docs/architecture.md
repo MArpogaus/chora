@@ -440,7 +440,9 @@ The layer surface keeps it until one of these occurs:
 A layer surface that takes the keyboard on demand also gets it from an
 activation token that carries an act of the person. An act is a press that
 the core or a client took as a command: a grabbed key or button (Super+a),
-a key to a node with the focus, or a press on a node that is no window. A
+a key to a node with the focus, a press on a node that is no window, or a
+real press on a layer surface, which goes to the manager of the claim at
+the point. A
 key or button that goes to a window is no act, nor is a press while the
 session is locked, nor an injected press; an injected press also ends the
 act before it. The act belongs to the connections that received it: the

@@ -25,14 +25,13 @@ until_ok 'ctl call notify state.get >/dev/null 2>&1' 40 || fail "chora-notify do
 key() { echo "[{\"shortcut\": {\"keys\": \"$1\"}}]" | ctl inject - >/dev/null; }
 gap_inner() { ctl call tiling get_layout 2>/dev/null | jq -r .gap_inner; }
 shot=$XDG_CONFIG_HOME/notice.png
-ctl capture --output HEADLESS-1 "$shot" >/dev/null || fail "the capture"
-before=$(pixel "$shot" 1000 700)
+base=$XDG_CONFIG_HOME/before.png
 no_notice() { [ -z "$(shown_notices)" ]; }
 card_shows() {
     local x y
     read -r x y < <(ctl call notify state.get 2>/dev/null | jq -r '.shown[0].rect | "\(.[0] + .[2] / 2 | floor) \(.[1] + .[3] / 2 | floor)"') || return 1
     ctl capture --output HEADLESS-1 "$shot" >/dev/null 2>&1 || return 1
-    [ "$(pixel "$shot" "$x" "$y")" != "$before" ]
+    [ "$(pixel "$shot" "$x" "$y")" != "$(pixel "$base" "$x" "$y")" ]
 }
 
 "$bin/chora-tiling" --print-config >"$file"
@@ -47,6 +46,7 @@ broken() {
     local name=$1 line=$2 pattern=$3
     dismiss_notices
     until_ok no_notice || fail "$name: the notice does not go: $(shown_notices)"
+    ctl capture --output HEADLESS-1 "$base" >/dev/null || fail "$name: the capture before the card"
     cp "$file" "$file.good"
     case $name in
     line) sed -i "s/^  radius: 10/  radius: 10\n$line/" "$file" ;;
@@ -62,3 +62,7 @@ broken() {
 }
 broken line '  gap_inner 20' 'line [0-9]+'
 broken action 'MOD+Shift+y: frobnicate' 'frobnicate|unknown'
+
+key Super+Ctrl+r
+until_ok no_notice 16 || fail "a good reload after a failed one leaves the card up: $(shown_notices)"
+ok "a good reload after a failed one takes the card down"

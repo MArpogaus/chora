@@ -197,21 +197,31 @@ impl Tiling {
         let help = (config.common.bindings.iter())
             .find(|(_, action)| **action == Action::System(System::Keys))
             .and_then(|(text, _)| config.binding(text).ok())
-            .map_or_else(|| "Super+F1".to_owned(), |b| b.to_string());
-        let words = chora_kit::words::say(
-            chora_kit::words::Language::of_session(),
-            chora_kit::words::Word::KeyUnbound,
-            &[
-                ("chord", &keysheet::chord(binding)),
-                ("key", &keysheet::chord(&help)),
-            ],
-        );
+            .map(|b| b.to_string());
+        let language = chora_kit::words::Language::of_session();
+        let chord = keysheet::chord(binding);
+        let words = match help {
+            Some(help) => chora_kit::words::say(
+                language,
+                chora_kit::words::Word::KeyUnbound,
+                &[("chord", &chord), ("key", &keysheet::chord(&help))],
+            ),
+            None => chora_kit::words::say(
+                language,
+                chora_kit::words::Word::KeyUnboundBare,
+                &[("chord", &chord)],
+            ),
+        };
         self.show_words(&words, HINT_TIME)
     }
 
     /// Shows the chip with `word` in the middle of the current output for
     /// `time`; a chip that still shows gives way to it.
-    fn show_words(&mut self, word: &str, time: std::time::Duration) -> Result<(), ClientError> {
+    pub(super) fn show_words(
+        &mut self,
+        word: &str,
+        time: std::time::Duration,
+    ) -> Result<(), ClientError> {
         let Some((output, size)) = self.wm.current_output() else {
             return Ok(());
         };

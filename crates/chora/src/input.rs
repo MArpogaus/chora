@@ -31,12 +31,12 @@ use smithay::{
     },
     output::Output,
     reexports::wayland_server::{Resource, protocol::wl_surface::WlSurface},
-    utils::{Logical, Point, SERIAL_COUNTER, Serial},
+    utils::{Logical, Point, Rectangle, SERIAL_COUNTER, Serial},
     wayland::pointer_constraints::{PointerConstraint, with_pointer_constraint},
 };
 
 use crate::{
-    output::{Spot, output_area},
+    output::{Spot, output_area, scene_rect},
     render,
     state::{ButtonGrab, ClientState, HeldGrab, NodeGrab, Repeat, State, Suppressed},
 };
@@ -1017,25 +1017,63 @@ fn hover(state: &mut State, spot: &Spot, moved: bool) {
 }
 
 /// A press on a layer surface that is a bar or a panel of a flavor is a
-/// command to the window manager whose claim holds the point, or, where
-/// the bar lies outside every claim, to the first one: that manager gets
-/// the act, so that the keyboard goes to the panel which the
-/// click opens, as it does for a key that the manager grabbed (ti-52).
-/// Only a real press counts (see [`State::note_act`]).
+/// command to the window manager whose claim holds the point. Where the
+/// bar lies outside every claim, the managers whose claim lies on the
+/// output of the bar get the act, else every live manager: the keyboard
+/// goes to the panel which the click opens, as it does for a key that the
+/// manager grabbed (ti-52). Only a real press counts (see
+/// [`State::note_act`]).
 fn press_layer(state: &mut State) {
     let Some(spot) = state.spot(state.pointer_layout) else {
         return;
     };
-    let on_layer = render::surface_under(state, &spot)
-        .is_some_and(|under| state.is_layer_surface(&under.surface));
-    if !on_layer {
+    let Some(under) = render::surface_under(state, &spot) else {
+        return;
+    };
+    if !state.is_layer_surface(&under.surface) {
         return;
     }
     let point = [spot.scene.x, spot.scene.y];
-    let manager = chora_scene::claimant_at(state.scene.nodes(), point, |n| state.ipc.live(n))
-        .map(String::from)
-        .or_else(|| state.first_manager());
-    state.note_act(state.owner_conns(manager.as_deref()));
+    let claimant = chora_scene::claimant_at(state.scene.nodes(), point, |n| state.ipc.live(n));
+    let managers = claimant.map_or_else(
+        || {
+            let output = state.output_of_layer(&under.surface).unwrap_or(spot.output);
+            managers_on(state, &output)
+        },
+        |owner| vec![owner.to_owned()],
+    );
+    let conns = (managers.iter())
+        .flat_map(|owner| state.owner_conns(Some(owner)))
+        .collect();
+    state.note_act(conns);
+}
+
+/// The live window managers with a claim on an output; where none has,
+/// all of them.
+fn managers_on(state: &State, output: &Output) -> Vec<String> {
+    let screen = Rectangle::from_size(output_area(output).size);
+    let shown = scene_rect(&state.camera(output), screen);
+    let claims = || {
+        (state.scene.nodes())
+            .filter(|n| n.owner.as_deref().is_some_and(|o| state.ipc.live(o)))
+            .filter_map(|n| Some((n.owner.as_deref()?, n.props.claim?)))
+    };
+    let on_output = |[x, y, w, h]: &[f64; 4]| {
+        shown.overlaps(Rectangle::<f64, Logical>::new(
+            (*x, *y).into(),
+            (*w, *h).into(),
+        ))
+    };
+    let mut owners: Vec<String> = claims()
+        .filter(|(_, claim)| on_output(claim))
+        .map(|(owner, _)| owner.to_owned())
+        .collect();
+    if owners.is_empty() {
+        owners = claims().map(|(owner, _)| owner.to_owned()).collect();
+    }
+    owners.sort_unstable();
+    owners.dedup();
+    owners
 }
 
 /// Tells plugins about a press over a node. Over a rect or an image, the
@@ -3025,5 +3063,108 @@ pub(crate) mod tests {
             surface_has_keyboard(&core),
             "the click on its own empty claim keeps the keyboard"
         );
+    }
+
+    /// A core with one output, a bar (a layer surface at the middle of the
+    /// output, around 400, 300), and a plugin `look` claiming the whole
+    /// output.
+    fn bar_core() -> (Core, Wayland, Client) {
+        use wayland_protocols_wlr::layer_shell::v1::client::{
+            zwlr_layer_shell_v1::Layer, zwlr_layer_surface_v1::KeyboardInteractivity,
+        };
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let mut wayland = Wayland::connect(&mut core);
+        wayland.roundtrip(&mut core);
+        let bar = wayland.layer(&mut core, Layer::Top, KeyboardInteractivity::None);
+        wayland.attach_layer(&mut core, &bar, (100, 30));
+        let look = claimer(&mut core, "look", [0.0, 0.0, 800.0, 600.0]);
+        (core, wayland, look)
+    }
+
+    /// The connections that hold the act, if any.
+    fn act_conns(core: &Core) -> Option<Vec<u64>> {
+        core.state.last_act.as_ref().map(|a| a.conns.clone())
+    }
+
+    /// rth-3: a real press on a layer surface in the claim of a look is an
+    /// act of that look.
+    #[test]
+    fn a_real_press_on_a_bar_is_an_act_of_the_look_of_the_claim() {
+        let (mut core, _wayland, _look) = bar_core();
+        move_to(&mut core, 400.0, 300.0);
+        click(&mut core, true);
+        assert_eq!(act_conns(&core), Some(core.state.ipc.conns_of("look")));
+    }
+
+    /// rth-3: an injected press is no act.
+    #[test]
+    fn an_injected_press_on_a_bar_is_no_act() {
+        let (mut core, _wayland, _look) = bar_core();
+        move_to(&mut core, 400.0, 300.0);
+        super::press_button(
+            &mut core.state,
+            272,
+            ButtonState::Pressed,
+            InputTime::now(),
+            true,
+        );
+        assert_eq!(act_conns(&core), None);
+    }
+
+    /// rth-3: a press in a locked session is no act.
+    #[test]
+    fn a_press_on_a_bar_while_locked_is_no_act() {
+        let (mut core, mut wayland, _look) = bar_core();
+        let _lock = wayland.lock(&mut core);
+        move_to(&mut core, 400.0, 300.0);
+        click(&mut core, true);
+        assert_eq!(act_conns(&core), None);
+    }
+
+    /// rth-1: a press on a bar outside every claim is an act of the look
+    /// whose claim lies on the output of the bar, not of the look that
+    /// connected first.
+    #[test]
+    fn a_press_on_a_bar_outside_the_claims_goes_to_the_look_of_its_output() {
+        use wayland_protocols_wlr::layer_shell::v1::client::{
+            zwlr_layer_shell_v1::Layer, zwlr_layer_surface_v1::KeyboardInteractivity,
+        };
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let mut wayland = Wayland::connect(&mut core);
+        wayland.roundtrip(&mut core);
+        let bar = wayland.layer(&mut core, Layer::Top, KeyboardInteractivity::None);
+        wayland.attach_layer(&mut core, &bar, (100, 30));
+        let _far = claimer(&mut core, "far", [2000.0, 0.0, 800.0, 600.0]);
+        let _near = claimer(&mut core, "near", [0.0, 0.0, 100.0, 100.0]);
+        move_to(&mut core, 400.0, 300.0);
+        click(&mut core, true);
+        assert_eq!(act_conns(&core), Some(core.state.ipc.conns_of("near")));
+    }
+
+    /// rth-1: where no claim lies on the output of the bar, every look
+    /// gets the act.
+    #[test]
+    fn a_press_on_a_bar_where_no_claim_lies_goes_to_every_look() {
+        use wayland_protocols_wlr::layer_shell::v1::client::{
+            zwlr_layer_shell_v1::Layer, zwlr_layer_surface_v1::KeyboardInteractivity,
+        };
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let mut wayland = Wayland::connect(&mut core);
+        wayland.roundtrip(&mut core);
+        let bar = wayland.layer(&mut core, Layer::Top, KeyboardInteractivity::None);
+        wayland.attach_layer(&mut core, &bar, (100, 30));
+        let _a = claimer(&mut core, "a", [2000.0, 0.0, 100.0, 100.0]);
+        let _b = claimer(&mut core, "b", [3000.0, 0.0, 100.0, 100.0]);
+        move_to(&mut core, 400.0, 300.0);
+        click(&mut core, true);
+        let mut want = core.state.ipc.conns_of("a");
+        want.extend(core.state.ipc.conns_of("b"));
+        let mut got = act_conns(&core).expect("an act");
+        got.sort_unstable();
+        want.sort_unstable();
+        assert_eq!(got, want);
     }
 }

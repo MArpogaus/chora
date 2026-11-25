@@ -180,7 +180,8 @@ struct Waiting {
 }
 
 /// The last press that a person made as a command: a grabbed key or
-/// button, a key to a node, or a press on a node that is no window; never
+/// button, a key to a node, a press on a node that is no window, or a
+/// real press on a layer surface; never
 /// an injected press, a press in a locked session or a key typed into a
 /// window. `conns` are the connections that received it: the one of the
 /// grab, or those of the owner of the node at the press. Only a token of
@@ -1068,7 +1069,8 @@ impl State {
     /// Takes the newest real press as the act that activation tokens of
     /// the connections `conns` may carry, unless the session is locked.
     /// Called only for a press that a client took as a command: a key or
-    /// button it grabbed, a key to its node, or a press on its node.
+    /// button it grabbed, a key to its node, a press on its node, or a real
+    /// press on a layer surface at its claim.
     pub fn note_act(&mut self, conns: Vec<u64>) {
         let Some(serial) = self.last_real_press.filter(|_| self.lock.is_none()) else {
             return;

@@ -258,6 +258,11 @@ fn main() -> ExitCode {
 /// is the only message.
 fn tell_launch_error(err: &theme::LaunchError) {
     let (title, text) = err.notice();
+    tell_launch(title, text);
+}
+
+/// Shows a critical notice of a launch that could not start.
+fn tell_launch(title: &str, text: &str) {
     let notice = notice::Notice {
         app: "chora-tiling",
         icon: "",
@@ -399,7 +404,11 @@ fn launch_looks(dirs: &[std::path::PathBuf]) -> ExitCode {
         launch_conn().and_then(|mut conn| conn.call::<_, Value>("clients.list", Value::Null));
     let clients = match clients {
         Ok(clients) => clients,
-        Err(err) => return cannot_start("looks", &err),
+        Err(err) => {
+            let (title, text) = looks::unreachable_notice(language);
+            tell_launch(title, text);
+            return cannot_start("looks", &err);
+        }
     };
     let running = looks::running(&clients);
     let scheme = theme::written_scheme(dirs);
@@ -1241,9 +1250,12 @@ impl Tiling {
             Some(Effect::Relayout) => self.relayout(),
             // The same path as the method `settings.reload`.
             Some(Effect::Reload) => {
-                if let Err(err) = runtime::reload_settings(self) {
-                    eprintln!("chora-tiling: {}", err.message);
-                    self.tell_reload_failed(&err.message);
+                match runtime::reload_settings(self) {
+                    Ok(_) => self.dismiss_reload_notice(),
+                    Err(err) => {
+                        eprintln!("chora-tiling: {}", err.message);
+                        self.tell_reload_failed(&err.message);
+                    }
                 }
                 Ok(())
             }
@@ -2097,6 +2109,41 @@ mod tests {
         assert!(tiling.chip_until.is_some(), "the chip has a time to go");
     }
 
+    /// rtd1-3: the hint names the help key that the person bound.
+    #[test]
+    fn the_hint_names_a_rebound_help_key_rtd1_3() {
+        let (mut tiling, methods) = tiling_with_grabs("stray-rebound");
+        let keys = Action::System(System::Keys);
+        let config = &mut tiling.wm.config.common;
+        config
+            .bindings
+            .retain(|text, action| *action != keys || text == "MOD+slash");
+        tiling.act("Super+q").unwrap();
+        let hints = hints_shown(&methods);
+        assert_eq!(hints.len(), 1, "{hints:?}");
+        assert!(hints[0].contains("Super+/ shows all keys."), "{hints:?}");
+    }
+
+    /// rtd1-3: with no key bound to the key list the hint does not name
+    /// Super+F1, which would be a swallowed chord itself.
+    #[test]
+    fn the_hint_names_no_help_key_when_none_is_bound_rtd1_3() {
+        let (mut tiling, methods) = tiling_with_grabs("stray-no-help");
+        let keys = Action::System(System::Keys);
+        tiling
+            .wm
+            .config
+            .common
+            .bindings
+            .retain(|_, action| *action != keys);
+        tiling.act("Super+q").unwrap();
+        let hints = hints_shown(&methods);
+        assert_eq!(hints.len(), 1, "{hints:?}");
+        assert!(hints[0].contains("Super+Q does nothing here."), "{hints:?}");
+        assert!(!hints[0].contains("Super+F1"), "{hints:?}");
+        assert!(!hints[0].contains("shows all keys"), "{hints:?}");
+    }
+
     #[test]
     fn the_hint_shows_7_seconds_after_the_key_and_is_gone_at_9_ti_56() {
         let (mut tiling, _methods) = tiling_with_grabs("stray-long");
@@ -2133,6 +2180,22 @@ mod tests {
         assert!(tiling.keys_open());
         tiling.act("Super+q").unwrap();
         assert_eq!(hints_shown(&methods), Vec::<String>::new());
+    }
+
+    /// rth-4: with no notification server a failed reload still shows its
+    /// reason, on the chip of tiling.
+    #[test]
+    fn a_failed_reload_without_a_notice_server_shows_the_reason_on_the_chip() {
+        let (mut tiling, methods) = tiling_with_grabs("reload-chip");
+        tiling.tell_reload_failed("/x/chora-tiling.yaml: simple key expected ':' at line 24");
+        let chips: Vec<String> = sent_commands(&methods)
+            .iter()
+            .map(ToString::to_string)
+            .filter(|c| c.contains("tiling-chip-word") && c.contains("chora-tiling.yaml"))
+            .collect();
+        assert_eq!(chips.len(), 1, "{chips:?}");
+        assert!(chips[0].contains("Settings not applied"), "{chips:?}");
+        assert!(tiling.chip_until.is_some(), "the chip has a time to go");
     }
 
     #[test]
