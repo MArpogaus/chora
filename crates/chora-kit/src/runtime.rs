@@ -138,6 +138,11 @@ pub struct Runtime<A> {
     pub(crate) old_grabs: Vec<String>,
     /// The bindings whose refusal was logged, so that each logs once.
     refused: std::collections::HashSet<String>,
+    /// The bindings of the open set of grabs, from [`Self::start_grabs`]
+    /// to [`Self::end_grabs`], whose first refusal is not logged yet:
+    /// `end_grabs` logs one line for all of them (rss-13). None when no
+    /// set is open.
+    refusals: Option<Vec<String>>,
     /// The bindings of the set that the core refused, with their action
     /// and whether they swallow: asked again when the core tells that
     /// another client let one go (`input.ungrabbed`, D117).
@@ -208,6 +213,7 @@ impl<A> Runtime<A> {
             grabs: Vec::new(),
             old_grabs: Vec::new(),
             refused: std::collections::HashSet::new(),
+            refusals: None,
             waiting: Vec::new(),
             swallow: None,
             swallowed: std::collections::HashSet::new(),
@@ -414,7 +420,7 @@ impl<A> Runtime<A> {
                 }
                 Err(ClientError::Rpc(err)) => {
                     if !swallows && self.refused.insert(text.clone()) {
-                        eprintln!("chora-{}: {text}: {err}", self.name);
+                        self.log_refusal(&text, &err);
                     }
                     self.waiting.push((text, action, swallows));
                     return Ok(false);
@@ -457,6 +463,7 @@ impl<A> Runtime<A> {
                     .any(|b| b.to_string() == normal)
         };
         let serves = self.give_keys.is_some();
+        self.refusals = Some(Vec::new());
         self.waiting.clear();
         self.swallow = None;
         let (kept, old): (Vec<_>, Vec<_>) = std::mem::take(&mut self.grabs)
@@ -474,6 +481,7 @@ impl<A> Runtime<A> {
     ///
     /// As [`Self::ungrab_all`].
     pub fn end_grabs(&mut self) -> Result<(), ClientError> {
+        self.log_refusals();
         if self.swallow.is_none() {
             self.say_swallow(false)?;
         }
@@ -486,6 +494,36 @@ impl<A> Runtime<A> {
                 .call::<_, Value>("input.ungrab", Grab { binding })?;
         }
         Ok(())
+    }
+
+    /// Logs the first refusal of a binding: at once outside a set of
+    /// grabs, else at [`Self::end_grabs`] with the others of the set.
+    fn log_refusal(&mut self, text: &str, err: &RpcError) {
+        match &mut self.refusals {
+            Some(set) => set.push(text.to_owned()),
+            None => eprintln!("chora-{}: {text}: {err}", self.name),
+        }
+    }
+
+    /// Logs one line for the bindings that the core refused in the set of
+    /// grabs, which another client holds: a joiner meets about 75 of them
+    /// from the look that came before, and the runtime takes each one when
+    /// the core says that it is free (D117, rss-13).
+    fn log_refusals(&mut self) {
+        let refusals = self.refusals.take().unwrap_or_default();
+        match refusals.as_slice() {
+            [] => {}
+            [one] => eprintln!(
+                "chora-{}: {one} is grabbed already, asked again when it is free",
+                self.name
+            ),
+            [first, .., last] => eprintln!(
+                "chora-{}: {} bindings are grabbed already ({first} to {last}), \
+                 asked again when they are free",
+                self.name,
+                refusals.len()
+            ),
+        }
     }
 
     /// The action of a grabbed binding, as the core names it.
