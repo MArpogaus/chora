@@ -96,7 +96,8 @@ pub struct Button {
 type Spec = (Choice, &'static str, &'static str, bool, i32);
 
 /// The buttons of a dialog, Cancel last. Stand By is enabled only when its
-/// command is on `$PATH`.
+/// command is on `$PATH`. The five of Turn off stand 58 px apart, not XP's
+/// 56: at 56 the 14 px captions of Stand By and Turn Off were 3 px apart (rxm1-1).
 pub fn buttons(mode: Mode, suspend: bool) -> Vec<Button> {
     // The left edges of the icons in XP's screenshots.
     let (width, list): (i32, &[Spec]) = match mode {
@@ -114,10 +115,10 @@ pub fn buttons(mode: Mode, suspend: bool) -> Vec<Button> {
             ],
         ),
         Mode::TurnOff => (
-            56,
+            58,
             &[
-                (Choice::Lock, "Lock", "winxp/lock.svg", true, 28),
-                (Choice::LogOff, "Log Off", "winxp/log-off.svg", true, 84),
+                (Choice::Lock, "Lock", "winxp/lock.svg", true, 24),
+                (Choice::LogOff, "Log Off", "winxp/log-off.svg", true, 82),
                 (
                     Choice::StandBy,
                     "Stand By",
@@ -125,8 +126,8 @@ pub fn buttons(mode: Mode, suspend: bool) -> Vec<Button> {
                     suspend,
                     140,
                 ),
-                (Choice::TurnOff, "Turn Off", "winxp/turn-off.svg", true, 196),
-                (Choice::Restart, "Restart", "winxp/restart.svg", true, 252),
+                (Choice::TurnOff, "Turn Off", "winxp/turn-off.svg", true, 198),
+                (Choice::Restart, "Restart", "winxp/restart.svg", true, 256),
             ],
         ),
     };
@@ -439,7 +440,7 @@ mod tests {
     fn the_buttons_sit_where_xp_has_them() {
         let turn_off = buttons(Mode::TurnOff, true);
         let lefts: Vec<i32> = turn_off.iter().map(|b| b.rect[0]).collect();
-        assert_eq!(lefts, [28 - 11, 84 - 11, 140 - 11, 196 - 11, 252 - 11, 222]);
+        assert_eq!(lefts, [24 - 12, 82 - 12, 140 - 12, 198 - 12, 256 - 12, 222]);
         assert_eq!(turn_off[5].choice, Choice::Cancel);
         let log_off = buttons(Mode::LogOff, true);
         assert_eq!(log_off.len(), 3);
