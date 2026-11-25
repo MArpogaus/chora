@@ -138,15 +138,19 @@ impl<A> Runtime<A> {
     /// Says to the other window managers whether the plugin swallows, on
     /// a change only: a window manager that came earlier lets its swallow
     /// go while the plugin swallows (D118). A refusal of the core, such
-    /// as its limit of events per second, is no error.
+    /// as its limit of events per second, is no error, but the plugin did
+    /// not say it: it says it again at the next set of grabs (rss-12).
     pub(crate) fn say_swallow(&mut self, on: bool) -> Result<(), ClientError> {
         if self.said == on {
             return Ok(());
         }
-        self.said = on;
         let said = json!({"event": said_event(&self.name), "data": {"on": on}});
         match self.conn.call::<_, Value>("events.emit", said) {
-            Ok(_) | Err(ClientError::Rpc(_)) => Ok(()),
+            Ok(_) => {
+                self.said = on;
+                Ok(())
+            }
+            Err(ClientError::Rpc(_)) => Ok(()),
             Err(err) => Err(err),
         }
     }
