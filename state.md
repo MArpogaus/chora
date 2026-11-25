@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-25 18:52 UTC)
+## Now (2026-11-25 18:53 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 17:39 PM 4.4 % (11-25 BKK), 0.1 % (11-26); week about 41 % vs 65 % time; need (100-41-5)/58 h = 0.93 %/h; 6 build lanes
+budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 18:53 PM 4.4 % (11-25 BKK), 0.4 % (11-26); week about 41 % vs 65 % time; need (100-41-5)/58 h = 0.93 %/h; 6 build lanes
 session branch: 62a04be0 (t140 14:49); 88 greens. T142 6d512f1d red only doors tiling helper-none (missing; rerun 3/3 green, disk 4 G: flake). TRAIN143 16977e22 = t142 + act-wait r1 (gate)
 burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head; F7 open (take r2: 88 open, 10 regr; judges r2)
 
@@ -28,7 +28,7 @@ burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head; F7 open (
 | mc-minor-r4.md (rpe-1..3; 0.6 %) | sonnet medium, mc-minor-r4 23cd2b5a | running s..QU1Y2wj95EZqLt6ks |
 | xp-tail-r1.md (F7; rv9kb-2; 0.6 %) | sonnet medium, xp-tail-r1 62a04be0 | running s..PV7VUWhrb7C6ZgYQ7 |
 | tour-rows-r1.md (F7; 1 %) | sonnet medium, tour-rows-r1 62a04be0 | running s..QUL8RNU6CJCyGVdBb |
-| tiling-focus-r1.md (rc 1, 2; ti-57 MAJOR; 1.2 %) | opus high, tiling-focus-r1 79ed970f | starting |
+| tiling-focus-r1.md (rc 1, 2; ti-57 MAJOR; 1.2 %) | opus high, tiling-focus-r1 79ed970f | running s..LQrg3Gt2nuQWTHwkr |
 ## Queue (% week; 5 % reserve)
 1. (rc 1, 2) FLAKE-SOFA r1 MERGE-OK 3d555e4f (t144); r2 rooms-pill light; rmm3-1, -2 backlog.
 2. (rc 2) construct: co-45 fixed; co-44 backlog; r13 not met: co-75, co-76 hold; co-79 reopened (pane 0/5): CO-REACH r5.
