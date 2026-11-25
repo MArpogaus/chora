@@ -506,8 +506,9 @@ const WALLPAPER_UNIT: &str = "chora-tiling-swaybg.service";
 /// How long the layout chip shows.
 const CHIP_TIME: std::time::Duration = std::time::Duration::from_millis(700);
 
-/// How long the hint of an unbound chord shows on the chip.
-const HINT_TIME: std::time::Duration = std::time::Duration::from_secs(3);
+/// How long the hint of an unbound chord shows on the chip: long enough for
+/// slow eyes and for a look 4.3 s after the key.
+const HINT_TIME: std::time::Duration = std::time::Duration::from_secs(8);
 
 /// How long after a hint the next one may show.
 const HINT_AGAIN: std::time::Duration = std::time::Duration::from_secs(10);

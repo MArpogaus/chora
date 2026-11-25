@@ -347,7 +347,7 @@ program: `chora-tiling` grabs `Super+KEY`, `Super+Shift+KEY` and
 `F12`, the navigation keys and `Print`, and swallows the ones that the
 file does not bind, so `Super+q` types no `q` in a terminal. A swallowed
 chord shows the hint "Super+Q does nothing here. Super+F1 shows all
-keys." on the chip for 3 seconds, at most once in 10 seconds and not while
+keys." on the chip for 8 seconds, at most once in 10 seconds and not while
 the key list shows; `Super+q` stays unbound, as in the awesome keymap, and
 closes nothing (`MOD+q: close` in the file binds it). A key that
 the file binds keeps its action. With `modifier: Alt` nothing is

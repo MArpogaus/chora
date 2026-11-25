@@ -182,7 +182,7 @@ impl Tiling {
     }
 
     /// Says on the chip that nothing is bound to the chord `binding`, and
-    /// which key shows them all: for 3 seconds, at most once in 10 seconds,
+    /// which key shows them all: for 8 seconds (slow eyes and a look 4.3 s after the key can read it), at most once in 10 seconds,
     /// and not while the key list shows. The key stays swallowed.
     pub(super) fn hint_unbound(&mut self, binding: &str) -> Result<(), ClientError> {
         let now = std::time::Instant::now();
