@@ -48,3 +48,30 @@ fn a_window_that_takes_the_keyboard_from_the_key_sheet_in_a_face_is_noted() {
         "the window is noted for the close of the sheet"
     );
 }
+
+/// rcm1-1 (co-minor r1, MAJOR): the launcher shows over a face while the
+/// key sheet is open (Super+space). Its window is no pane, yet it is the
+/// construct's: the sheet does not take the keyboard back from it, and
+/// Escape has no window to ask xp for, as xp does not hold it.
+#[test]
+fn the_launcher_over_the_key_sheet_in_a_face_keeps_the_keyboard() {
+    let (mut construct, core, _lines) = in_a_face_beside_a_pane("sheet-launcher", false);
+    construct.toggle_help().unwrap();
+    construct.show_launcher("s9").unwrap();
+    core.model().lock().unwrap().focuses.clear();
+    core.model().lock().unwrap().scene.set_focused(Some("s9"));
+    chora_kit::runtime::Plugin::event(&mut construct, focus_changed(Some("s9"))).unwrap();
+    assert!(
+        !core.model().lock().unwrap().focuses.contains(&None),
+        "the sheet takes the keyboard back from the launcher: {:?}",
+        core.model().lock().unwrap().focuses
+    );
+    assert_eq!(
+        construct
+            .cube
+            .as_mut()
+            .and_then(crate::cube::Host::take_focus),
+        None,
+        "the launcher is no window of the face for Escape to give the keys to"
+    );
+}
