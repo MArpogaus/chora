@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-25 02:32 UTC)
+## Now (2026-11-25 03:51 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 02:16 PM 1.5 % (11-25), week about 34 % vs 55 % pace: under-spending, fill 6 lanes
-session branch: 84f66d43 (t133 00:20); 81 greens. t134 = tour-base-r7 721be592 gate running (sh42 +2, co-close +3 sleeps split off; lane gates miss the sleep ratchet: harness backlog)
+budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 03:50 PM 1.7 % (11-25), week about 34 % vs 55 % pace: under-spending, fill 6 lanes
+session branch: 721be592 (t134 03:50, tour-base r7); 82 greens. Lane gates miss the sleep ratchet: harness backlog
 burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open, 3 regr)
 
 ## RC
@@ -22,16 +22,16 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| train134 (F7) | PM, 721be592 (tour-base-r7) | gate running |
+| tour-base-r8.md (F7, rc 11; rtb7-1..5; 0.8 %) | sonnet medium, claude/tour-base-r8 721be592 | starting |
 | stray-super-minor-r1.md (rc 1, 9; rss-12, rss-13; 0.8 %) | sonnet high, claude/stray-super-minor-r1 84f66d43 | session_016iS3kLMiAHZnqw4HmY1kpE |
 | tiling-minor-r1.md (rc 1; rth-1..8, rtd1-2..5; 1.0 %) | sonnet high, claude/tiling-minor-r1 84f66d43 | session_016iS3kNuX9zyEYHgoVk9R8Y |
 | sh42-fix-r2.md (rc 1; sh-42; t134 sleep-ratchet; 0.6 %) | sonnet medium, claude/sh42-fix-r2 b92de049+84f66d43 | session_016iS3kPqhV59i3btC3QEanV |
 | co-close-waits-r1.md (rc 1; t134 sleeps; 0.5 %) | sonnet medium, claude/co-close-waits-r1 7f519bc8 | session_016iS3kPi6qRiSRUWdnKxSmS |
 ## Queue (% week; 5 % reserve)
-1. (rc 1, 2) TRAIN134 tour-base-r7 running; TRAIN135: SH42-FIX r2, CO-CLOSE-WAITS r1.
+1. (rc 1, 2) TRAIN135: SH42-FIX r2, CO-CLOSE-WAITS r1.
 2. (rc 1, 2) construct: CO-REACH r1 7f519bc8 MERGE-OK (holds co-close r2); CO-CLOSE-WAITS r1 then train; co-77, co-78, rcr1-1 MINOR after. sh-42: SH42-FIX r2 then train.
 3. (rc 3, F5) met: FLAKE-SERIES r9 5/5 green c3c37c2e; next series on the final head (item 5).
-4. (F7, rc 11) REVIEW r7 MERGE-OK (rtb7-1..5 MINOR: next tour round before the v9 take), train134; then v9 take; rv9j-1..5 MINOR after.
+4. (F7, rc 11) t134 merged r7; TOUR-BASE r8 (rtb7-1..5), review, train; then v9 take; rv9j-1..5 MINOR after.
 5. (F4, F5) after train127: FLAKE-SERIES r8 5/5 on final head (haiku), TOUR-V9 final take + 5 reviews (2.5 %), CI-PR (rc 4, 5). (rc 1) after reviews: co-44, co-45 only when construct has no open MAJOR (rules.md 6); rtd-5, rtd-7 MINOR backlog.
 
 ## Needs owner
