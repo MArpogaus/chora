@@ -28,7 +28,7 @@ burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head; F7 open (
 | mc-page-end-r1.md (rv9ka-1 MAJOR; 1.2 %) | opus high, mc-page-end-r1 42418379 | running s..QKeFuc8m3ZmGDdTbd |
 | xp-tail-r1.md (F7; rv9kb-2; 0.6 %) | sonnet medium, xp-tail-r1 62a04be0 | running s..PV7VUWhrb7C6ZgYQ7 |
 | tour-rows-r1.md (F7; 1 %) | sonnet medium, tour-rows-r1 62a04be0 | running s..QUL8RNU6CJCyGVdBb |
-| p2-r11-tiling.md (rc 2; ti-55 T7; 0.8 %) | sonnet medium, p2-r11-tiling 79ed970f | starting |
+| p2-r11-tiling.md (rc 2; ti-55 T7; 0.8 %) | sonnet medium, p2-r11-tiling 79ed970f | running s..MhzpvzGvFRskBTxzs |
 ## Queue (% week; 5 % reserve)
 1. (rc 1, 2) t140 green 62a04be0. TRAIN141 red: mc-sofa volume-wheel flaky on base (e6a17d59 1/3, 62a04be0 2/3); FLAKE-SOFA r1 running. TRAIN142 = t141 + mc-minor r3, tiling-doors r4; rmm3-1, -2 to backlog.
 2. (rc 2) construct: co-45 fixed (co-polish r1, t141); co-44 open (backlog, rules 6); r13 not met: co-75, co-76 hold; co-79 reopened (pane 0/5): CO-REACH r5.
