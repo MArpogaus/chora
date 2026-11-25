@@ -792,7 +792,7 @@ impl Plugin for Mc {
                 self.page_key(&key, &modifiers, injected);
                 Ok(())
             }
-            Event::PointerScroll { node, dy, .. } => self.scroll_page(&node, dy), // injected: Plugin::event drops an injected pointer event first
+            Event::PointerScroll { node, dy, .. } => self.wheel(&node, dy), // injected: Plugin::event drops an injected pointer event first
             Event::PointerPressed {
                 node,
                 position,

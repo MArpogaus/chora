@@ -2,7 +2,7 @@ use chora_kit::actions::System;
 use chora_kit::actions::perform::{Failure, Host};
 use std::convert::Infallible;
 
-use super::{Action, Mc, PressState};
+use super::{Action, ClientError, Mc, PressState};
 use crate::config::Look;
 
 impl Mc {
@@ -88,6 +88,25 @@ impl Mc {
         if let Err(err) = self.show(&next, true) {
             tracing::warn!("{next}: {}", err.message);
         }
+    }
+}
+
+impl Mc {
+    /// A wheel over a node: over the volume door it raises the level
+    /// (up) or lowers it (down) by a step, as the volume keys do, the
+    /// mouse path of the remote's volume (rpx1-15); elsewhere it
+    /// scrolls the page under it.
+    pub(crate) fn wheel(&mut self, node: &str, dy: f64) -> Result<(), ClientError> {
+        if !node.ends_with("-doors-volume-hit") {
+            return self.scroll_page(node, dy);
+        }
+        let change = match dy.partial_cmp(&0.0) {
+            Some(std::cmp::Ordering::Less) => chora_kit::volume::Change::Up,
+            Some(std::cmp::Ordering::Greater) => chora_kit::volume::Change::Down,
+            _ => return Ok(()),
+        };
+        self.volume.change(change, true);
+        Ok(())
     }
 }
 
