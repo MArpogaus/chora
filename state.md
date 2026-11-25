@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-25 16:02 UTC)
+## Now (2026-11-25 16:04 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 16:02 PM 4.0 % (11-25); week about 40 % vs 64 % time; need (100-40-5)/60 h = 0.9 %/h; 6 build lanes
-session branch: 62a04be0 (t140 14:49: xp-minor r3, mc-minor r2, co-minor r2); 88 greens. TRAIN141 e6a17d59: xp-minor r4, tiling-minor r2, co-polish r1 (gate)
+session branch: 62a04be0 (t140 14:49); 88 greens. TRAIN141 e6a17d59: xp-minor r4, tiling-minor r2, co-polish r1 (gate)
 burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head (mc-sofa keylist red in lane boxes); F7 open (take r2: 88 open, 10 regr; judges r2)
 
 ## RC
@@ -24,9 +24,9 @@ burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head (mc-sofa k
 |---|---|---|
 | train141 | PM, e6a17d59 on 62a04be0 | gate |
 | p2-r13-co.md (rc 2; co-75/76/79; 0.8 %) | sonnet medium, haiku personas, 62a04be0 | running s..NyQZ7DssHvkH8nt82 |
-| mc-page-end-r1.md (rc 1, F7; rv9ka-1 MAJOR; 1.2 %) | opus high, mc-page-end-r1 42418379 | starting |
-| xp-tail-r1.md (F7; rv9kb-2; 0.6 %) | sonnet medium, xp-tail-r1 62a04be0 | starting |
-| tour-rows-r1.md (F7, rc 11; 1 %) | sonnet medium, tour-rows-r1 62a04be0 | starting |
+| mc-page-end-r1.md (rc 1, F7; rv9ka-1 MAJOR; 1.2 %) | opus high, mc-page-end-r1 42418379 | running s..QKeFuc8m3ZmGDdTbd |
+| xp-tail-r1.md (F7; rv9kb-2; 0.6 %) | sonnet medium, xp-tail-r1 62a04be0 | running s..PV7VUWhrb7C6ZgYQ7 |
+| tour-rows-r1.md (F7, rc 11; 1 %) | sonnet medium, tour-rows-r1 62a04be0 | running s..QUL8RNU6CJCyGVdBb |
 | tiling-doors-r4.md (rc 2; ti-55 design; 1.5 %) | opus high, tiling-doors-r4 e39448ad | running s..Pm5veLHCLdY1xzMcC |
 | act-wait-r1.md (rc 2; ti-56; 0.6 %) | sonnet medium, act-wait-r1 62a04be0 | running s..LCw4rBW8Em2dqQzgX |
 ## Queue (% week; 5 % reserve)
