@@ -1,0 +1,17 @@
+# review tour-rows r1 (F7, rc 1, 11): seeded review of claude/tour-rows-r1 before its merge
+
+Model: opus, effort high, because 672 intended rows decide which v9-vs-v8 differences count as wanted; a row too broad hides a regression (owner 11-17: be very critical about met targets); the builder never reviews itself (rules.md 7)
+Lane: cloud, read-only on code: claude/tour-rows-r1 head 1ac365f1, base 62a04be0 (5 files, +3064 -1725; code part: demo/tour/run.py, tests/tour-diff.py, tests/test_tour*.py about 130 lines; the rest is demo/tour/intended.toml). One round.
+Stop at 120 k context (do not read intended.toml whole: grep and sample); cost at most 0.5 %; at most 8 findings. No merge gate run (the lane ran it: EXIT 0).
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`. A failure: send_message the PM "review-tour-rows-r1 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Read briefs/tour-rows-r1.md (done criteria), reports/tour-rows.md "## r1", reports/tour-v9-judge.md "## r2a" and "## r2b" on claude/session-log; `git diff 62a04be0..1ac365f1 -- demo/tour/run.py tests/`.
+Checks, each with its command and files:
+1) Red first: a3678a02, b6984edf, 0624beaf each before its fix; `python3 -m pytest tests/test_tour_diff.py tests/test_tour.py -q` at each red (fails) and at 1ac365f1 (passes).
+2) Tool: tour-diff.py `cut` kind (only a `cut` or `*` row naming the node absorbs it); the paperclip eye mask (16, 10, 48 x 30 in hud-figure) masks only the eyes, the body still compares; run.py clears only its own chapter's captures. Any way a real cut or blob slips through?
+3) Rows: every [[change]] row names a commit or judge verdict that exists (`git cat-file -e <sha>` for each distinct sha in cause; `grep -o '^cause = "[0-9a-f]\{8\}' | sort -u`); no row covers rv9ka-1 (`-lines` cut on m1..m4b); rows are per act and per node, no `*` row or nodeless row wider than its judge verdict. Check the 35 rows "371f0fa1 xp desktop under windows of other looks (T7)" on x1..x12b: is an added xp-desktop node in xp's own acts that commit's effect, or a hidden change? Sample 10 other rows against their capture jsons.
+4) Counts: 1 same, 90 change, 0 open, 8 regression (m1..m4b = rv9ka-1), 11 none; reproduce from the report's take files or by rerunning tests/tour-diff.py on the take if present; a count that does not reproduce is MAJOR.
+5) The lane's note: mc act 4 "the launcher is not open" red 2 of 2 on 62a04be0 (green 22/22 on e39448ad in the judges' takes). Is it a tour harness change in this diff (run.py clearing) or product? Name the evidence; a finding with severity (product: name it for the PM, do not fix).
+Known, not findings: rv9ka-1 (MC-PAGE-END r1, in t144), rv9ka-2, rv9kb-2..4, co-44, co-45, the v8 handover break at Send To.
+Verdict computed: an open BLOCK or MAJOR is FIX, else MERGE-OK. Findings one line each (rtr1-N, severity, file:line, text, fix in one sentence). Append to reports/tour-rows.md under "## Review r1".
+Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 6 lines): verdict, counts, BLOCK and MAJOR list. Poll every command in the same turn; never end a turn to wait.
+Rules: push only claude/session-log (fetch and merge on reject, no force), only that report; author Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com>; no attribution lines; never --no-verify.
