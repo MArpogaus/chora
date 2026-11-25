@@ -101,6 +101,35 @@ class SceneDiff(unittest.TestCase):
         self.assertEqual([d["kind"] for d in diff.scene_diff(a, b)], ["z-order"])
 
 
+class CutText(unittest.TestCase):
+    """rv9ka-3: a text node whose rect is shorter than its lines times its line height is cut."""
+
+    @staticmethod
+    def text(nid, h, text="For two\n200 g spaghetti\n4 cloves of garlic\n6 tbsp olive oil"):
+        return node(nid, (160, 530, 164, h), kind="text", text=text, font_size=19.0, line_height=1.5)
+
+    def test_a_text_that_loses_lines_is_a_cut(self):
+        a, b = [self.text("list-lines", 114)], [self.text("list-lines", 29)]
+        found = [(d["kind"], d["id"]) for d in diff.scene_diff(a, b)]
+        self.assertIn(("cut", "list-lines"), found)
+
+    def test_a_whole_text_is_no_cut(self):
+        a, b = [self.text("list-lines", 114)], [self.text("list-lines", 112)]
+        self.assertEqual([d for d in diff.scene_diff(a, b) if d["kind"] == "cut"], [])
+
+    def test_no_row_absorbs_a_cut_unless_it_names_the_node(self):
+        scene = [{"kind": "cut", "id": "list-lines", "detail": "29 px for 4 lines"}]
+        for rows in (
+            [{"act": "m1", "kind": "rect", "cause": "x", "open": True}],
+            [{"act": "m1", "kind": "*", "cause": "x"}],
+            [{"act": "m1", "kind": "cut", "cause": "x"}],
+            [{"act": "m1", "kind": "cut", "cause": "x", "nodes": ["other"]}],
+        ):
+            self.assertEqual(diff.verdict("m1", scene, True, rows)["verdict"], "regression", rows)
+        named = [{"act": "m1", "kind": "cut", "cause": "x", "nodes": ["list-lines"]}]
+        self.assertEqual(diff.verdict("m1", scene, True, named)["verdict"], "change")
+
+
 class PixelDiff(unittest.TestCase):
     def test_changed_blob_is_flagged(self):
         a, b = png(200, 100), png(200, 100, box(50, 40, 20, 20))
