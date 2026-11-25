@@ -731,6 +731,16 @@ class OldBuild(unittest.TestCase):
         self.assertEqual(sorted(p.name for p in old.glob("*")), [])
         self.assertEqual(out_dir, str(old.parent))
 
+    def test_a_chapter_keeps_the_captures_of_another_chapter_in_the_same_folder(self):
+        """r2a harness note: `run.py mc` then `run.py handover` in one TOUR_OUT lost the stills of mc."""
+        out_dir = tempfile.mkdtemp(prefix="tour-other-")
+        old = pathlib.Path(out_dir) / "captures"
+        old.mkdir()
+        for name in ("m1.Q.png", "m1.Q.json", "h5.Q.png"):
+            (old / name).write_bytes(b"old")
+        self.assertEqual(self.take(["handover"], out_dir), 0)
+        self.assertEqual(sorted(p.name for p in old.glob("*")), ["m1.Q.json", "m1.Q.png"])
+
     def test_a_check_leaves_the_folder_of_the_record_alone(self):
         out_dir = tempfile.mkdtemp(prefix="tour-keep-")
         keep = pathlib.Path(out_dir) / "captures"
