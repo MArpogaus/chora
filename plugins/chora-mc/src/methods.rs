@@ -233,11 +233,34 @@ impl Mc {
                 return;
             }
             "Return" => return self.enter_window(),
+            "Down" | "Up" | "Next" | "Page_Down" | "Prior" | "Page_Up" => {
+                return self.scroll_key(key);
+            }
             _ => return,
         };
         self.plain_turn = true;
         self.turn(look);
         self.plain_turn = false;
+    }
+
+    /// Scrolls a page that is longer than its room with the keys of a
+    /// remote and of a keyboard, as the wheel does (rv9ka-1): Down and Up
+    /// by a line, Page Down and Page Up by the room less a line.
+    fn scroll_key(&mut self, key: &str) {
+        let b = self.settings.value.scale.baseline;
+        let line = self.ty("body", None).line.max(b);
+        let room = (self.current.as_deref())
+            .and_then(|name| self.geometry(name))
+            .map_or(line, |geo| (geo.text[3] - line).max(line));
+        let dy = match key {
+            "Down" => line,
+            "Up" => -line,
+            "Next" | "Page_Down" => room,
+            _ => -room,
+        };
+        if let Err(err) = self.scroll_current(dy) {
+            tracing::warn!("scroll by key: {err}");
+        }
     }
 
     /// Draws the key list anew when the plain keys of the page began or

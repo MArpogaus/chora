@@ -129,8 +129,22 @@ fn fc_weight(css: u16) -> f64 {
     }
 }
 
-fn face_bytes(family: &str, weight: u16) -> Option<Vec<u8>> {
-    std::fs::read(file_of(family, weight)?).ok()
+/// The bytes of the face for a family at a weight, read once.
+fn face_bytes(family: &str, weight: u16) -> Option<std::sync::Arc<[u8]>> {
+    type Cache = std::collections::HashMap<(String, u16), Option<std::sync::Arc<[u8]>>>;
+    static CACHE: OnceLock<std::sync::Mutex<Cache>> = OnceLock::new();
+    let cache = CACHE.get_or_init(Default::default);
+    let key = (family.to_owned(), weight);
+    if let Some(bytes) = cache.lock().ok().and_then(|c| c.get(&key).cloned()) {
+        return bytes;
+    }
+    let bytes = (file_of(family, weight))
+        .and_then(|file| std::fs::read(file).ok())
+        .map(std::sync::Arc::from);
+    if let Ok(mut cache) = cache.lock() {
+        cache.insert(key, bytes.clone());
+    }
+    bytes
 }
 
 /// The metrics of the face for `family` (one name or a list) at a weight
@@ -214,6 +228,78 @@ pub fn advance(family: &str, weight: Option<u16>, text: &str) -> Option<f64> {
             Some(f64::from(face.glyph_hor_advance(id)?) / upem)
         })
         .sum()
+}
+
+/// How many lines a text of `size` pixels takes at `width` pixels, as the
+/// core breaks a text node with a `max_width`: at the spaces, a word wider
+/// than the width over lines of its own, and a new line at each line break
+/// of the text; `spacing` em more after each letter. Measured without
+/// kerning, so a little wide: never fewer lines than the core sets. None
+/// when the machine lacks the face.
+#[must_use]
+pub fn lines_at(
+    family: &str,
+    weight: Option<u16>,
+    [size, spacing]: [f64; 2],
+    text: &str,
+    width: f64,
+) -> Option<usize> {
+    type Cache = std::collections::HashMap<(String, u16, [u64; 3], String), usize>;
+    static CACHE: OnceLock<std::sync::Mutex<Cache>> = OnceLock::new();
+    let weight = weight.unwrap_or(400);
+    let name = pick(family);
+    let bits = [size, spacing, width].map(f64::to_bits);
+    let key = (name.clone(), weight, bits, text.to_owned());
+    let cache = CACHE.get_or_init(Default::default);
+    if let Some(&lines) = cache
+        .lock()
+        .ok()
+        .and_then(|c| c.get(&key).copied())
+        .as_ref()
+    {
+        return Some(lines);
+    }
+    let bytes = face_bytes(&name, weight)?;
+    let face = ttf_parser::Face::parse(&bytes, 0).ok()?;
+    let px = size / f64::from(face.units_per_em());
+    let wide = |word: &str| -> f64 {
+        (word.chars())
+            .filter_map(|c| face.glyph_hor_advance(face.glyph_index(c)?))
+            .map(|a| f64::from(a) * px + spacing * size)
+            .sum()
+    };
+    let (space, width) = (wide(" "), width.max(1.0));
+    let mut lines = 0;
+    for line in text.split('\n') {
+        let (mut count, mut at) = (1, 0.0);
+        for word in line.split(' ') {
+            let w = wide(word);
+            if at > 0.0 && at + space + w <= width + 0.5 {
+                at += space + w;
+                continue;
+            }
+            if at > 0.0 {
+                count += 1;
+            }
+            let over = ((w / width).ceil() - 1.0).max(0.0);
+            at = w - width * over;
+            #[allow(
+                clippy::cast_possible_truncation,
+                clippy::cast_sign_loss,
+                reason = "a few lines"
+            )]
+            let over = over as usize;
+            count += over;
+        }
+        lines += count;
+    }
+    if let Ok(mut cache) = cache.lock() {
+        if cache.len() > 4096 {
+            cache.clear();
+        }
+        cache.insert(key, lines);
+    }
+    Some(lines)
 }
 
 /// The ink of the first and the last glyph of a text in em: the space

@@ -7,14 +7,10 @@
 
 use serde_json::{Value, json};
 
-use crate::{ClientError, Mc};
+use crate::{ClientError, Mc, region::Region};
 
 /// The nodes of the pill of the HUD host: its word and its mark.
 const PILL: [&str; 2] = ["hud-word", "hud-figure"];
-/// The room that the page keeps at the foot until a card has shown: the
-/// margin of the card of the mc folder of the notice server, 56 pixels,
-/// and its two lines.
-const CARD_ROOM_AT_START: f64 = 135.0;
 /// The most of the height of the output that a card at the foot may take;
 /// a card higher up stands in the middle or at the top, not at the foot.
 const MOST_OF_HEIGHT: f64 = 3.0;
@@ -24,16 +20,26 @@ const MOST_OF_HEIGHT: f64 = 3.0;
 pub(crate) struct Rooms {
     /// The left edge of the state pill, if the HUD host draws one.
     pub pill_left: Option<f64>,
-    /// The height from the top of the card that shows now to the foot, when
-    /// it is more than the room at the start (rmm2-2): a card of another
-    /// height that fits the room never moves the pages.
+    /// The height from the top of the card that shows now at the foot to
+    /// the foot, when it is more than the room of the footer: the page
+    /// leaves that band free only while the card shows, and comes back
+    /// whole when it closed (rv9ka-1); a card that fits the footer room
+    /// never moves the pages (rmm2-2).
     pub card: Option<f64>,
 }
 
 impl Mc {
-    /// The height at the foot that the page leaves free for the card.
+    /// The height at the foot that the page leaves free: the card's while
+    /// one shows at the foot, else the footer's.
     pub(crate) fn card_room(&self) -> f64 {
-        self.rooms.card.unwrap_or(CARD_ROOM_AT_START)
+        self.rooms.card.unwrap_or_else(|| self.foot_room())
+    }
+
+    /// The room of the footer line at the foot: what the page leaves free
+    /// while no card shows there (rv9ka-1).
+    pub(crate) fn foot_room(&self) -> f64 {
+        let config = &self.settings.value;
+        config.regions.get(Region::Footer).size * config.scale.baseline
     }
 
     /// Where the header ends at the right: a baseline before the pill, or
@@ -55,7 +61,7 @@ impl Mc {
     /// What the pill and the card take now. A card counts only when it
     /// stands on the output of mc and its top lies under the top of the
     /// page, in output coordinates (rmm2-1); the room is what the card
-    /// takes beyond the room at the start, and none once it closed.
+    /// takes beyond the room of the footer, and none once it closed.
     pub(crate) fn read_rooms(&mut self) -> Result<Rooms, ClientError> {
         let Some(output) = self.output.clone() else {
             return Ok(self.rooms);
@@ -78,7 +84,7 @@ impl Mc {
             let room = (height - down).round();
             let at_foot = room <= (height / MOST_OF_HEIGHT).round();
             if (0.0..width).contains(&across) && down > page_top && at_foot {
-                rooms.card = (room > CARD_ROOM_AT_START).then_some(room);
+                rooms.card = (room > self.foot_room()).then_some(room);
             }
         }
         Ok(rooms)
@@ -174,8 +180,8 @@ mod tests {
         ]
     }
 
-    /// How many lines of a panel show on the page as it stands, unscrolled:
-    /// the whole lines of its box above the end of the page.
+    /// How many lines of a panel show on the page as it stands, scrolled
+    /// as it is: the whole lines of its box above the end of the page.
     fn lines_shown(mc: &crate::Mc, scene: &str, panel: &str) -> usize {
         let panel = (mc.scenes[scene].panels.iter())
             .find(|p| p.id == panel)
@@ -183,7 +189,8 @@ mod tests {
             .clone();
         let [_, y, _, h] = mc.place(scene, &panel).unwrap();
         let geo = mc.geometry(scene).unwrap();
-        let end = geo.text[1] + geo.text[3];
+        let scroll = mc.scroll.get(scene).copied().unwrap_or_default();
+        let end = geo.text[1] + geo.text[3] + scroll;
         let line = mc.ty("body", panel.style.as_ref()).line;
         let top = mc.lines_top(&panel);
         let seen = mc.whole_lines(&panel, h.min(end - y).max(0.0));
@@ -196,9 +203,30 @@ mod tests {
         shown
     }
 
+    /// Whether the mark that more follows shows on the page.
+    fn more_shows(mc: &crate::Mc, scene: &str) -> bool {
+        let rects = crate::HashMap::new();
+        match mc.more_update(scene, &rects) {
+            Some(crate::Command::Update { props, .. }) => props.visible == Some(true),
+            other => panic!("no update of the mark: {other:?}"),
+        }
+    }
+
+    /// The panels of `want` that lose lines with no word of it: fewer
+    /// lines show than the panel holds, and the page shows no mark that
+    /// more follows.
+    fn cut_unseen(mc: &crate::Mc, want: &[(&str, &str, usize)]) -> Vec<String> {
+        (want.iter())
+            .map(|&(scene, panel, n)| (scene, panel, n, lines_shown(mc, scene, panel)))
+            .filter(|&(scene, _, n, shown)| shown < n && !more_shows(mc, scene))
+            .map(|(scene, panel, n, shown)| format!("{scene}/{panel} {shown} of {n}"))
+            .collect()
+    }
+
     /// With no card on screen the last row of the recipe pages shows every
     /// line at 1280x720 (rv9ka-1): the page reaches the footer, not the
-    /// top of a card that is not there.
+    /// top of a card that is not there, and a page that is longer still
+    /// says that it goes on.
     #[test]
     fn with_no_card_the_last_row_of_a_recipe_shows_every_line() {
         let core = chora_kit::testing::FakeCore::start().selecting();
@@ -206,11 +234,52 @@ mod tests {
         let mut mc = crate::testing::mc_on(&core, "page-end-none", [1280, 720]);
         let want = recipe(&mut mc);
         mc.learn_rooms().unwrap();
-        let cut: Vec<String> = (want.iter())
-            .map(|&(scene, panel, n)| (scene, panel, n, lines_shown(&mc, scene, panel)))
-            .filter(|&(_, _, n, shown)| shown < n)
-            .map(|(scene, panel, n, shown)| format!("{scene}/{panel} {shown} of {n}"))
-            .collect();
+        let cut = cut_unseen(&mc, &want);
         assert!(cut.is_empty(), "lines cut with no card: {}", cut.join(", "));
+        let (h, b) = (720.0, mc.settings.value.scale.baseline);
+        for (scene, panel, n) in want {
+            let [_, top, _, height] = mc.geometry(scene).unwrap().text;
+            assert!(top + height + b >= h - mc.foot_room(), "{scene} ends short");
+            if scene != "sauce" && scene != "morning" {
+                assert!(lines_shown(&mc, scene, panel) >= n, "{scene}/{panel}");
+            }
+        }
+    }
+
+    /// While a card shows at the foot the page keeps its band free and says
+    /// that it goes on; Down of a remote or a keyboard scrolls it to its
+    /// last line, Up back; and once the card closed the page is whole
+    /// again (rv9ka-1).
+    #[test]
+    fn with_a_card_the_page_goes_on_and_the_keys_scroll_it() {
+        let core = chora_kit::testing::FakeCore::start().selecting();
+        core.answer_with("state.get", json!({"shown": []}));
+        let mut mc = crate::testing::mc_on(&core, "page-end-card", [1280, 720]);
+        let want = recipe(&mut mc);
+        mc.show("boil", false).unwrap();
+        core.answer_with(
+            "state.get",
+            json!({"shown": [{"rect": [160, 585, 291, 79]}]}),
+        );
+        mc.learn_rooms().unwrap();
+        assert_eq!(mc.card_room(), 135.0, "the card's band");
+        assert!(lines_shown(&mc, "boil", "side") < 3, "the card takes lines");
+        assert!(more_shows(&mc, "boil"), "the page says that it goes on");
+        assert_eq!(cut_unseen(&mc, &want[1..2]), Vec::<String>::new());
+        for _ in 0..4 {
+            crate::tests::press_key_from(&mut mc, "Down", &[], false);
+        }
+        assert!(
+            lines_shown(&mc, "boil", "side") >= 3,
+            "Down reaches the end"
+        );
+        assert!(!more_shows(&mc, "boil"), "at its end the mark hides");
+        crate::tests::press_key_from(&mut mc, "Up", &[], false);
+        assert!(more_shows(&mc, "boil"), "Up goes back");
+        core.answer_with("state.get", json!({"shown": []}));
+        mc.learn_rooms().unwrap();
+        assert_eq!(mc.card_room(), mc.foot_room(), "the band comes back");
+        assert_eq!(mc.scroll.get("boil").copied().unwrap_or_default(), 0.0);
+        assert!(lines_shown(&mc, "boil", "side") >= 3, "the page is whole");
     }
 }
