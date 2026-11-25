@@ -1,0 +1,2 @@
+task T4:power pass
+breaches 0

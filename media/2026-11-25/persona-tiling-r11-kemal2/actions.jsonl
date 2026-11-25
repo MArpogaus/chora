@@ -1,0 +1,23 @@
+{"time": 1795631906.066, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.043, "result": {"path": "/tmp/persona.dDcCro/shots/001.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795631908.838, "action": "key", "args": {"combo": "Super+Return"}, "ok": true, "seconds": 0.007, "result": "ok"}
+{"time": 1795631910.07, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.091, "result": {"path": "/tmp/persona.dDcCro/shots/002.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795631937.626, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.046, "result": {"path": "/tmp/persona.dDcCro/shots/003.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795631939.907, "action": "key", "args": {"combo": "Super+Return"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1795631941.338, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.078, "result": {"path": "/tmp/persona.dDcCro/shots/004.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795631944.527, "action": "key", "args": {"combo": "Super+Right"}, "ok": true, "seconds": 0.011, "result": "ok"}
+{"time": 1795631946.012, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.044, "result": {"path": "/tmp/persona.dDcCro/shots/005.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795631949.431, "action": "key", "args": {"combo": "Super+1"}, "ok": true, "seconds": 0.011, "result": "ok"}
+{"time": 1795631950.994, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.09, "result": {"path": "/tmp/persona.dDcCro/shots/006.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795631957.186, "action": "click", "args": {"x": 600.0, "y": 250.0, "button": "left", "double": false}, "ok": true, "seconds": 0.253, "result": "ok"}
+{"time": 1795631959.637, "action": "key", "args": {"combo": "Ctrl+d"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1795631961.304, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.069, "result": {"path": "/tmp/persona.dDcCro/shots/007.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795632022.792, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.05, "result": {"path": "/tmp/persona.dDcCro/shots/008.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795632026.762, "action": "click", "args": {"x": 738.0, "y": 477.0, "button": "left", "double": false}, "ok": true, "seconds": 0.225, "result": "ok"}
+{"time": 1795632028.532, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.073, "result": {"path": "/tmp/persona.dDcCro/shots/009.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795632031.897, "action": "type", "args": {"text": "what time is it?"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1795632034.019, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.01, "result": "ok"}
+{"time": 1795632035.592, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.078, "result": {"path": "/tmp/persona.dDcCro/shots/010.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795632109.717, "action": "key", "args": {"combo": "Super+q"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1795632109.773, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.083, "result": {"path": "/tmp/persona.dDcCro/shots/011.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795632121.684, "action": "key", "args": {"combo": "Super+x"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1795632121.73, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.083, "result": {"path": "/tmp/persona.dDcCro/shots/012.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
