@@ -40,3 +40,6 @@ Base 721be592..0094bffd, +49 -8, 4 files (PM review: under 200 lines, harness). 
 Checks: step `ratchets` after identity in default_steps, header comment, --worker list and serial_steps; size-ratchet gets the merge base like ci-check; FAIL line names the ratchet and its last count line; CONTRIBUTING one sentence. Lane gate EXIT 0 per worker.
 Note (no finding): `--only` runs skip the step by design (lane mode is --worker; trains run the full gate). ci-check still repeats the three ratchets; harmless, seconds.
 Verdict: 0 BLOCK, 0 MAJOR, 0 MINOR -> MERGE-OK. Harness branch: own train (t137) right after train136, then lanes merge the session branch.
+
+## Merge (train137, 2026-11-25 09:25 UTC)
+Merged in 6b89b56f with PM fix e25848d6 (the ratchet counted its own sed line as a sleep). Gate EXIT 0, 85 greens. Running lanes told to merge the session branch.
