@@ -19,6 +19,7 @@ page_edges() {
         until_ok '[ "$(current)" = '"$scene"' ]' 20 || fail "no page $scene: $(current)"
         until_ok '[ -n "$(node_rect mc-s-'"$scene"'-page)" ]' 20 || fail "no page node of $scene"
         page=$(node_rect "mc-s-$scene-page")
+        shot "page-edges-$scene"
         ctl capture "$work/edge-$scene.png" >/dev/null || fail "capture $scene"
         # shellcheck disable=SC2046 # four words, one for each number of the rect
         cut=$(python3 -I "$repo/tests/png-ink.py" "$work/edge-$scene.png" \

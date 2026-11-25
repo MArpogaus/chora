@@ -11,16 +11,17 @@ use crate::Mc;
 /// The name of the config file in the runtime directory of mc.
 const FILE: &str = "fuzzel.ini";
 
+/// The byte of a channel from 0 to 1, rounded.
+fn byte(channel: f64) -> u8 {
+    (0..=255u8)
+        .find(|v| f64::from(*v) + 0.5 > channel * 255.0)
+        .unwrap_or(255)
+}
+
 /// The color of a theme as the `RRGGBBAA` that fuzzel reads.
-#[allow(
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    reason = "clamped to 0 to 255"
-)]
 fn hex(color: [f64; 4]) -> String {
-    let [r, g, b, a] =
-        color.map(|c| format!("{:02x}", (c * 255.0).round().clamp(0.0, 255.0) as u8));
-    format!("{r}{g}{b}{a}")
+    let [r, g, b, a] = color.map(byte);
+    format!("{r:02x}{g:02x}{b:02x}{a:02x}")
 }
 
 /// The config of fuzzel for the colors of a theme: the page for the box,
