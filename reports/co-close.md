@@ -260,3 +260,10 @@ Red proof, the fault put back by hand (git revert of 272940fc conflicts, f0ab293
 | resting set shows nothing (`(true, _) => None`) | FAIL co-76: the hints did not come to rest after their 3 s |
 
 Full tests/merge-gate.sh (no --only): all steps passed, rc 0, run dir /tmp/merge-gate.i4Arnt (65 logs). A first run failed at clippy on a stray empty plugins/chora-construct/src/lib.rs that I made by a touch; removed, not committed, rerun green.
+
+## PM review waits r1
+Base 7f519bc8, head 22bf5fb7 (merge of session head 84f66d43, ancestor of 721be592, plus 22bf5fb7: +6 -5 in tests/gate-construct-close.sh and tools/sleep-ratchet.list).
+- Three fixed sleeps replaced: the hint check waits for construct-hints-glass alpha > 0.9; the two negative Super+x checks wait on `handled` (core query, construct state.get, quiet, state.get again: a round trip through both after the key).
+- Test-only change; red proof by hand (3 faults restored) is enough for a wait swap. Sleep ratchet falls 779 -> 778. Full gate rc 0 (lane).
+- Findings: none.
+Verdict MERGE-OK (computed: no open MAJOR). Joins train136 with co-reach and co-close r2 (7f519bc8).
