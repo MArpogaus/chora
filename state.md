@@ -1,16 +1,16 @@
 # State
 
-## Now (2026-11-25 22:10 UTC)
+## Now (2026-11-25 23:01 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 21:01 PM 4.4 % (11-25 BKK), 0.9 % (11-26); week about 43 % vs 67 % time; need (100-43-5)/55 h = 0.95 %/h; lanes 6 build
-session branch: 5646b8fd (t144 21:00); 90 greens. TRAIN145 df3d1ccf = t144 + ci-dry r1, flake-sofa r2, co-reach r5, mc-minor r4 (gate)
+budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 23:01 PM 1.2 % (11-26 BKK); week about 45 % vs 68 % time; need (100-45-5)/53 h = 0.94 %/h; lanes 6 build
+session branch: df3d1ccf (t145 22:43); 91 greens. TRAIN146 157be195 = t145 + xp-minor r1 d3d28cfa (gate 22:43)
 
 burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head; F7 open (take r2: 88 open, 10 regr; judges r2)
 
 ## RC
 | # | Criterion | State |
 |---|---|---|
-| 1, 1b | No BLOCK/MAJOR, independent pass; owner sees v9 | co-79 fixed r5 (t145); mc rv9ka-1 fixed (t144) |
+| 1, 1b | No BLOCK/MAJOR, independent pass; owner sees v9 | co-79 fixed r5 (t145 green); mc rv9ka-1 fixed (t144) |
 | 2 | Persona r4 | xp, mc meet; co r9 not met; tiling r11 not met: T7 2/2 green, ti-57 focus after T7 (L3 red) |
 | 3 | 3 greens, no flake | met: t130-t132 green; FLAKE-SERIES r9 5/5 c3c37c2e |
 | 4, 5 | CI green on a PR; packaging | pre-commit green; CI PR at release |
@@ -23,7 +23,7 @@ burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head; F7 open (
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| train145 | PM, df3d1ccf on 5646b8fd | gate 21:01, 34 PASS 22:02 |
+| train146 | PM, 157be195 on df3d1ccf | gate 22:43 |
 | flake-cube-r1.md (0.8 %) | sonnet high, flake-cube-r1 16977e22 | running s..PWJBMrkPqrTGzEz4N |
 | mc-launcher-r1.md (0.8 %) | sonnet high, 5646b8fd | running s..QDsyyTVKrVvGrALpf |
 | tour-rows-r2.md (0.8 %) | sonnet med, 1ac365f1 | running s..MZSPbKahubVfGgjop |
@@ -31,10 +31,10 @@ burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head; F7 open (
 | harness-minor-r1.md (0.6 %) | sonnet med, 5646b8fd | running s..NgK9wKeey3B3chSbH |
 | co-drop-r1.md (1.0 %) | opus high, co-drop-r1 7d9269ae | running s..QFQWDJPVE889fjtNT |
 ## Queue (% week; 5 % reserve)
-1. (rc 3) FLAKE-SOFA r1 (t144); r2 MERGE-OK 7db16e74 (t145). rfs2-2 cube no keyboard 3 reds: FLAKE-CUBE r1.
-2. (rc 2) construct: r13 not met: co-75, co-76 hold; co-79 CO-REACH r5 MERGE-OK 7d9269ae (t145); rcr5-1 MINOR, rcr5-2 MINOR/MAJOR if a run confirms (drop on a face stays in navigate): CO-DROP r1 runs.
+1. (rc 3) FLAKE-SOFA r1 (t144); r2 MERGE-OK 7db16e74 (t145 green). rfs2-2 cube no keyboard 3 reds: FLAKE-CUBE r1.
+2. (rc 2) construct: r13 not met: co-75, co-76 hold; co-79 CO-REACH r5 MERGE-OK 7d9269ae (t145 green); rcr5-1 MINOR, rcr5-2 MINOR/MAJOR if a run confirms (drop on a face stays in navigate): CO-DROP r1 runs.
 3. (rc 2) ti-55: TILING-DOORS r4 (t142). SESSION-LAYOUT r1 MERGE-OK 691f0c8e (t144). P2 r11: T7 2/2; ti-57: TILING-FOCUS r1 6261d3e0 review FIX (rtf1-1, rtf1-2 MAJOR): r2 brief, starts at next handback (6 build).
-4. (F7, rc 1, 11) take r2: 1 same, 88 open, 10 regr. Judges r2: MC-PAGE-END r1 (t144), MC-MINOR r4 MERGE-OK 2ad0c45c (t145), rv9kb-2 XP-TAIL r1 e4157dbd (t144); XP-MINOR r1 d3d28cfa 0 MAJOR, t146, TOUR-ROWS r1 FIX: TOUR-ROWS r2 runs; rtr1-3: MC-LAUNCHER r1 runs.
+4. (F7, rc 1, 11) take r2: 1 same, 88 open, 10 regr. Judges r2: MC-PAGE-END r1 (t144), MC-MINOR r4 MERGE-OK 2ad0c45c (t145 green), rv9kb-2 XP-TAIL r1 e4157dbd (t144); XP-MINOR r1 d3d28cfa 0 MAJOR, t146, TOUR-ROWS r1 FIX: TOUR-ROWS r2 runs; rtr1-3: MC-LAUNCHER r1 runs.
 5. (F5, rc 3, 4, 5) after t141: FLAKE-SERIES r10 on the final head (haiku); CI-DRY r1 MERGE-OK e36b6078 (43 PASS; docs strict fixed; NOT RUN vkms, rpm, arch, mike) next train.
 
 ## Needs owner
