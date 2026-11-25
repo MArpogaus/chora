@@ -1,0 +1,5 @@
+mode/front: navigate 0
+panes []
+construct state: {"holder": null} null
+xp state: {"holder": "xp", "surface": "s3"} null
+hints: Return | Ctrl | Alt | ← | Ctrl | Alt | → | Super | F1 | All keys | Super | Alt | 4 | Pull out

@@ -1,0 +1,115 @@
+run 1 in the pane after 9 s:
+mode use front 0, panes ['foot'], construct {"holder": "construct", "surface": "s1"}Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import sys,json; print(json.dumps(json.load(sys.stdin)['focus']))
+                                      ~~~~~~~~~^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/usr/local/lib/python3.13/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/local/lib/python3.13/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/json/decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+, xp , core focus: ['s1']
+    surface s1 owner construct visible True rect [0.0, 0.0, 1280.0, 800.0]
+  bar [Super F1 All keys Alt Esc Step back] step-back hint: yes, keys hint: yes
+  pass
+run 2 in the pane after 9 s:
+mode use front 0, panes ['foot'], construct {"holder": "construct", "surface": "s1"}Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import sys,json; print(json.dumps(json.load(sys.stdin)['focus']))
+                                      ~~~~~~~~~^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/usr/local/lib/python3.13/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/local/lib/python3.13/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/json/decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+, xp , core focus: ['s1']
+    surface s1 owner construct visible True rect [0.0, 0.0, 1280.0, 800.0]
+  bar [Super F1 All keys Alt Esc Step back] step-back hint: yes, keys hint: yes
+  pass
+run 3 in the pane after 9 s:
+mode use front 0, panes ['foot'], construct {"holder": "construct", "surface": "s1"}Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import sys,json; print(json.dumps(json.load(sys.stdin)['focus']))
+                                      ~~~~~~~~~^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/usr/local/lib/python3.13/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/local/lib/python3.13/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/json/decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+, xp , core focus: ['s1']
+    surface s1 owner construct visible True rect [0.0, 0.0, 1280.0, 800.0]
+  bar [Super F1 All keys Alt Esc Step back] step-back hint: yes, keys hint: yes
+  pass
+run 4 in the pane after 9 s:
+mode use front 0, panes ['foot'], construct {"holder": "construct", "surface": "s1"}Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import sys,json; print(json.dumps(json.load(sys.stdin)['focus']))
+                                      ~~~~~~~~~^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/usr/local/lib/python3.13/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/local/lib/python3.13/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/json/decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+, xp , core focus: ['s1']
+    surface s1 owner construct visible True rect [0.0, 0.0, 1280.0, 800.0]
+  bar [Super F1 All keys Alt Esc Step back] step-back hint: yes, keys hint: yes
+  pass
+run 5 in the pane after 9 s:
+mode use front 0, panes ['foot'], construct {"holder": "construct", "surface": "s1"}Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import sys,json; print(json.dumps(json.load(sys.stdin)['focus']))
+                                      ~~~~~~~~~^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/usr/local/lib/python3.13/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/local/lib/python3.13/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/json/decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+, xp , core focus: ['s1']
+    surface s1 owner construct visible True rect [0.0, 0.0, 1280.0, 800.0]
+  bar [Super F1 All keys Alt Esc Step back] step-back hint: yes, keys hint: yes
+  pass
