@@ -117,6 +117,21 @@ class CutText(unittest.TestCase):
         a, b = [self.text("list-lines", 114)], [self.text("list-lines", 112)]
         self.assertEqual([d for d in diff.scene_diff(a, b) if d["kind"] == "cut"], [])
 
+    def test_a_text_without_line_height_has_the_core_default(self):
+        """rtr1-4: the field is skipped when None; the core default is 1.2."""
+        def t(h):
+            n = self.text("list-lines", h)
+            del n["line_height"]
+            return n
+        found = [(d["kind"], d["id"]) for d in diff.scene_diff([t(91)], [t(29)])]
+        self.assertIn(("cut", "list-lines"), found)
+
+    def test_a_text_cut_in_both_builds_but_cut_more_is_a_cut(self):
+        """rtr1-4: v8 shows 2 of 4 lines, v9 shows 1."""
+        a, b = [self.text("list-lines", 57)], [self.text("list-lines", 29)]
+        found = [(d["kind"], d["id"]) for d in diff.scene_diff(a, b)]
+        self.assertIn(("cut", "list-lines"), found)
+
     def test_no_row_absorbs_a_cut_unless_it_names_the_node(self):
         scene = [{"kind": "cut", "id": "list-lines", "detail": "29 px for 4 lines"}]
         self.assertEqual(diff.verdict("m1", scene, True, [{"act": "m1", "kind": "rect", "cause": "x", "open": True}])["verdict"], "regression")
