@@ -22,7 +22,7 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| review-tour-base-r7.md (F7; 0.5 %) | sonnet high, r7 head 7c2cdc95 | starting |
+| review-tour-base-r7.md (F7; 0.5 %) | sonnet high, r7 head 7c2cdc95 | session_016iS3kMVLpZ99tLoguGVStK |
 | sh42-fix-r2.md (rc 1; sh-42; t134 sleep-ratchet; 0.6 %) | sonnet medium, claude/sh42-fix-r2 b92de049+84f66d43 | session_016iS3kPqhV59i3btC3QEanV |
 | flake-series-r9.md (rc 3, F5; 5/5; 0.6 %) | haiku high, claude/flake-series-r9 c3c37c2e | session_016iS3kL6R9aghhfvTsKiyJx |
 | co-reach-r1.md (rc 1, 2; co-79 MAJOR; 1.2 %) | opus high, claude/co-reach-r1 fbdcd6e2 | session_016iS3kLNYWe7A8GuMJ46b8V |
