@@ -69,7 +69,6 @@ stop_assistant() {
 click() {
     echo "[{\"pointer_move\": {\"node\": \"$1\", \"point\": [10, 10]}}, {\"button\": {\"state\": \"pressed\"}}, {\"button\": {\"state\": \"released\"}}]" | ctl inject >/dev/null
 }
-pause() { ctl wait --timeout "$1" 'id:xp-gate-pause' >/dev/null 2>&1 || true; }
 click_at() {
     echo "[{\"pointer_move\": {\"position\": [$1, $2]}}, {\"click\": {\"button\": 272}}]" | ctl inject - >/dev/null
 }
@@ -136,9 +135,7 @@ xp30-click)
     start_assistant clicked
     greets xp-30
     click_at 400 300
-    for _ in $(seq 40); do
-        [ -z "$(balloon)" ] && break
-    done
+    ctl wait --gone --timeout 4 'id:hud-line visible:true' >/dev/null 2>&1 || true
     t=$(balloon)
     [ -z "$t" ] || fail "xp-30: a click elsewhere leaves the greeting in the balloon: $t"
     ok "xp-30: a click on the desktop takes the greeting away"
@@ -148,15 +145,15 @@ xp30-window)
     foot --window-size-pixels=1180x640 -T cover sleep 600 >"$shots/foot.log" 2>&1 &
     fpid=$!
     pids+=("$fpid")
-    ctl wait --timeout 15 'kind:surface' >/dev/null || fail "xp-30: no window to cover the balloon"
-    pause 2
+    ctl wait --timeout 15 'kind:surface visible:true' >/dev/null || fail "xp-30: no window to cover the balloon"
     read -r wx wy ww wh < <(ctl query 'kind:surface' | jq -r '.[0].rects | to_entries[0].value | map(floor) | join(" ")')
     { [ "$wx" -lt 1184 ] && [ $((wx + ww)) -gt 900 ] && [ "$wy" -lt 700 ] && [ $((wy + wh)) -gt 400 ]; } ||
         fail "xp-30: the window $wx,$wy ${ww}x$wh does not lie under the place of the balloon"
     start_assistant covered
-    pause 5
-    t=$(balloon)
-    [ -z "$t" ] || fail "xp-30: the paperclip greets over a window: $t"
+    if ctl wait --timeout 5 'id:hud-line visible:true' >/dev/null 2>&1; then
+        t=$(balloon)
+        [ -z "$t" ] || fail "xp-30: the paperclip greets over a window: $t"
+    fi
     ctl capture "$shots/xp-30-covered.png" >/dev/null
     kill "$fpid"
     wait_balloon || fail "xp-30: the greeting never comes after the window is gone"
