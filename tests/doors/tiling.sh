@@ -13,7 +13,10 @@
 # bound to nothing, is swallowed and the chip names Super+F1, and the window
 # hears no key), looks-none and looks-door (ti-55: the bar word Looks lists
 # the other looks that run as move rows, or says that none runs; in a session
-# of tiling and xp the row moves the window to xp).
+# of tiling and xp the row moves the window to xp), looks-word (ti-55: the
+# word names where it leads: "Looks" when no other look runs, "Looks: xp"
+# with xp, read from the module of the bar that waybar runs; looks-word-parallel:
+# six reads at once all say it, none loses to the name of another).
 #
 # Usage: tests/doors/tiling.sh   BIN: directory with the binaries
 #   ONLY  a regular expression of cell names; the others do not run
@@ -284,6 +287,27 @@ check_looks_none() {
     [ "$(rows_of | wc -l)" = 1 ] || why "Looks has more than the one row: $(rows_of | tr '\n' '|')" || return 1
     [ "$(window_owners)" = tiling ] || why "a window left tiling: $(window_owners)" || return 1
 }
+bar_word() { PATH=$bin:$PATH sh "$flavor/waybar/looks.sh" 2>/dev/null | jq -r .text; }
+check_looks_word_none() {
+    local word
+    word=$(bar_word)
+    [ "$word" = Looks ] || why "tiling only: the word of custom/looks is \"$word\", not \"Looks\"" || return 1
+}
+word_is_xp() { [ "$(bar_word)" = "Looks: xp" ]; }
+check_looks_word_xp() {
+    until_ok word_is_xp 20 ||
+        why "tiling and xp: the word of custom/looks is \"$(bar_word)\", not \"Looks: xp\"" || return 1
+}
+check_looks_word_parallel() {
+    local n words jobs=()
+    for n in 1 2 3 4 5 6; do
+        bar_word >"$fakes/word-$n" &
+        jobs+=($!)
+    done
+    wait "${jobs[@]}"
+    words=$(cat "$fakes"/word-? | sort | uniq -c | tr '\n' '|')
+    [ "$words" = "      6 Looks: xp|" ] || why "six words at once, as waybar and a click ask: $words" || return 1
+}
 owner_is_xp() { [[ ,$(window_owners), == *,xp,* ]]; }
 check_looks_door() {
     "$bin/chora-xp" --theme "$repo/flavors/xp/theme" >"$fakes/xp.log" 2>&1 &
@@ -300,6 +324,9 @@ check_looks_door() {
 }
 check stray-hint check_stray_hint
 check looks-none check_looks_none
+check looks-word-none check_looks_word_none
 check looks-door check_looks_door
+check looks-word check_looks_word_xp
+check looks-word-parallel check_looks_word_parallel
 [ "$(ctl query kind:surface | jq length)" -ge 1 ] || fail "the window of the gate is lost"
 exit "$status"

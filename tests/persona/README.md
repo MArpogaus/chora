@@ -140,8 +140,9 @@ $ tests/persona/round.sh stop erika
   L1 holds the goal to its own begin and wants exactly one window closed (open
   at the begin or opened during the goal); L2 prints `not measured (no config)`
   when the session has no non-empty config, neither red nor green, and is red when the
-  config value did not change against the begin or the look does not hold the focus after
-  the reload; T7, C2 and L3 print `not reached (no event since begin)`, neither pass nor
+  value of gap_inner on disk did not change against the begin (a changed file with the same
+  value does not count), the running config (`get_layout`) does not report the new value after the
+  reload, or the look does not hold the focus after the reload; T7, C2 and L3 print `not reached (no event since begin)`, neither pass nor
   FAIL, when the persona's actions left no observation since the begin; a known-red row
   hides only the breaches its capture and match name, not the whole look and invariant; L3 does not
   count a holder of a window that a later goal gave to another look; T7 fails
@@ -226,3 +227,11 @@ $ grep -c '"action": "look"' "$f"                      # looks
 Time to goal is the time of the action after which the persona says the
 goal is reached, minus the time of the first line. Compare runs of the
 same brief across flavors or builds by actions, failures and time to goal.
+
+## Tiling goals
+
+The goals of the tiling persona round, in the words of a person (no goal names a
+row, a key or a desktop of the product). T7 names its target as the bar names it:
+the word of the bar is `Looks: xp` while xp runs.
+
+- T7: "Send the terminal over to the xp look (the other desktop that is running)"

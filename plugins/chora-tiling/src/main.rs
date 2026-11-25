@@ -281,7 +281,14 @@ fn tell_launch_error(err: &theme::LaunchError) {
     reason = "a launch is no plugin: it only shows one notice or asks one thing and ends"
 )]
 fn launch_conn() -> Result<Conn, chora_scene::ipc::ClientError> {
-    Conn::connect("chora-tiling.launch")
+    Conn::connect(&launch_name(std::process::id()))
+}
+
+/// The client name of a launch. It carries the process id: the word of the
+/// bar asks every 2 seconds, and a click must not meet the name of a launch
+/// that is still open.
+fn launch_name(pid: u32) -> String {
+    format!("chora-tiling.launch-{pid}")
 }
 
 /// Asks tiling to close the key list before the launcher or the power menu
@@ -305,6 +312,9 @@ fn launch(argv: &[String]) -> ExitCode {
         eprintln!("usage: chora-tiling --launch PROGRAM [ARGS]");
         return ExitCode::from(2);
     };
+    if program == "looks-word" {
+        return launch_looks_word();
+    }
     let dirs = theme::config_dirs();
     let line = match theme::launch_line(program, rest, &dirs, theme::written_scheme(&dirs)) {
         Ok(line) => line,
@@ -352,6 +362,29 @@ fn launch(argv: &[String]) -> ExitCode {
 fn cannot_start(program: &str, err: &dyn std::fmt::Display) -> ExitCode {
     eprintln!("chora-tiling: cannot start {program}: {err}");
     ExitCode::FAILURE
+}
+
+/// `--launch looks-word`: prints the word of the Looks door as the JSON of
+/// a custom module of waybar: "Looks" and the names of the other looks that
+/// run, or "Looks" alone (also when the core does not answer).
+fn launch_looks_word() -> ExitCode {
+    use std::io::Write as _;
+    let clients = launch_conn()
+        .and_then(|mut conn| {
+            conn.call_within::<_, Value>(
+                "clients.list",
+                Value::Null,
+                std::time::Duration::from_secs(1),
+            )
+        })
+        .unwrap_or(Value::Null);
+    let text = looks::word(&looks::running(&clients));
+    let said = writeln!(std::io::stdout(), "{}", json!({ "text": text }));
+    if said.is_ok() {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    }
 }
 
 /// `--launch looks`: the menu of the Looks word of the bar. It lists the
@@ -506,8 +539,9 @@ const WALLPAPER_UNIT: &str = "chora-tiling-swaybg.service";
 /// How long the layout chip shows.
 const CHIP_TIME: std::time::Duration = std::time::Duration::from_millis(700);
 
-/// How long the hint of an unbound chord shows on the chip.
-const HINT_TIME: std::time::Duration = std::time::Duration::from_secs(3);
+/// How long the hint of an unbound chord shows on the chip: long enough for
+/// slow eyes and for a look 4.3 s after the key.
+const HINT_TIME: std::time::Duration = std::time::Duration::from_secs(8);
 
 /// How long after a hint the next one may show.
 const HINT_AGAIN: std::time::Duration = std::time::Duration::from_secs(10);
@@ -1253,6 +1287,13 @@ mod tests {
     use std::path::Path;
 
     use chora_kit::testing::{FakeCore, Log};
+
+    #[test]
+    fn two_launches_of_one_machine_connect_under_different_names() {
+        let (a, b) = (crate::launch_name(1), crate::launch_name(2));
+        assert_ne!(a, b);
+        assert!(a.starts_with("chora-tiling.launch") && b.starts_with("chora-tiling.launch"));
+    }
 
     use super::*;
 
@@ -2054,6 +2095,27 @@ mod tests {
             "{hints:?}"
         );
         assert!(tiling.chip_until.is_some(), "the chip has a time to go");
+    }
+
+    #[test]
+    fn the_hint_shows_7_seconds_after_the_key_and_is_gone_at_9_ti_56() {
+        let (mut tiling, _methods) = tiling_with_grabs("stray-long");
+        let key = std::time::Instant::now();
+        tiling.act("Super+q").unwrap();
+        tiling
+            .end_chip(key + std::time::Duration::from_secs(7))
+            .unwrap();
+        assert!(
+            tiling.chip_until.is_some(),
+            "the hint is gone 7 s after the key"
+        );
+        tiling
+            .end_chip(key + std::time::Duration::from_secs(9))
+            .unwrap();
+        assert!(
+            tiling.chip_until.is_none(),
+            "the hint still shows 9 s after the key"
+        );
     }
 
     #[test]

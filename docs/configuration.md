@@ -347,7 +347,7 @@ program: `chora-tiling` grabs `Super+KEY`, `Super+Shift+KEY` and
 `F12`, the navigation keys and `Print`, and swallows the ones that the
 file does not bind, so `Super+q` types no `q` in a terminal. A swallowed
 chord shows the hint "Super+Q does nothing here. Super+F1 shows all
-keys." on the chip for 3 seconds, at most once in 10 seconds and not while
+keys." on the chip for 8 seconds, at most once in 10 seconds and not while
 the key list shows; `Super+q` stays unbound, as in the awesome keymap, and
 closes nothing (`MOD+q: close` in the file binds it). A key that
 the file binds keeps its action. With `modifier: Alt` nothing is
@@ -1683,7 +1683,10 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   pointer at rest would stand over a tile when the launcher or a new window
   takes the focus; the key list names their keys. The month of the clock
   marks today in bold and underlined.
-  **Looks**, after **Apps**, opens a menu with the prompt `Move this window to `
+  **Looks**, after **Apps**, names where it leads: the word is `Looks` while no
+  other look runs, `Looks: xp` while xp runs and `Looks: xp, mc` for several
+  (`waybar/looks.sh`, read every 2 seconds, so a look that joins or leaves
+  shows within 2 seconds). It opens a menu with the prompt `Move this window to `
   and one row for each other look that runs (a client of the core: xp, mc or
   construct), in the words of the key list: `Move window to the xp desktop`.
   A row hands the focused window over with `give.sh`, as `Super+Alt+2` to `4`

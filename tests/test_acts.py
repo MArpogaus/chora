@@ -1313,11 +1313,12 @@ class PersonaContracts(unittest.TestCase):
         self.assertIn("the focus", verdict("L1", ctx(), before, elsewhere)[0])
 
     def test_l2_the_look_holds_the_focus(self):
-        changed = ctx(config=("a", "b"))
+        changed = ctx(config=("12", "20", "20"))
         self.assertEqual(verdict("L2", changed, snap(), snap()), [])
         lost = snap(states={"xp": {"windows": [window("s1")], "focus": {"holder": "mc"}}})
         self.assertIn("the focus", verdict("L2", changed, snap(), lost)[0])
-        self.assertIn("did not change", verdict("L2", ctx(config=("a", "a")), snap(), snap())[0])
+        self.assertIn("did not change", verdict("L2", ctx(config=("12", "12", "12")), snap(), snap())[0])
+        self.assertIn("reports gap_inner 12", verdict("L2", ctx(config=("12", "20", "12")), snap(), snap())[0])
 
     def test_l3_windows_shown_again_with_the_focus(self):
         self.assertEqual(verdict("L3", ctx(), snap(), snap()), [])
