@@ -1,10 +1,10 @@
 //! Pointer work: pressing on parts, dragging, releasing, handing windows over and launching.
 
 use super::{
-    Bar, Button, Command, DISPLAY_TASK, DOUBLE_CLICK, DesktopIcons, Drag, HELP_TASK, Instant,
-    LEFT_BUTTON, Menu, NAME, Panel, Part, RIGHT_BUTTON, RpcError, Value, Wm, apps, close, context,
-    control, decoration, dialog, dropped_on, launch, pulled_out, shared, speed, startmenu, taskbar,
-    wallpaper,
+    Bar, Button, Command, DATETIME_TASK, DISPLAY_TASK, DOUBLE_CLICK, DesktopIcons, Drag, HELP_TASK,
+    Instant, LEFT_BUTTON, Menu, NAME, Panel, Part, RIGHT_BUTTON, RpcError, Value, Wm, apps, close,
+    context, control, decoration, dialog, dropped_on, launch, pulled_out, shared, speed, startmenu,
+    taskbar, wallpaper,
 };
 
 impl Wm {
@@ -161,6 +161,7 @@ impl Wm {
             }
             taskbar::Part::Task(surface) if surface == HELP_TASK => self.focus_help(),
             taskbar::Part::Task(surface) if surface == DISPLAY_TASK => self.focus_display(),
+            taskbar::Part::Task(surface) if surface == DATETIME_TASK => self.focus_clock(),
             taskbar::Part::Task(surface) => {
                 let minimized = self
                     .index(&surface)

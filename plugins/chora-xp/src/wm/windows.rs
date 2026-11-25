@@ -1,10 +1,10 @@
 //! The windows of the look: adopting, focusing, minimizing, forgetting, requests, tasks and hover.
 
 use super::{
-    Bar, ClientError, Command, DESKTOPS, DISPLAY_TASK, Decoration, Dialog, HELP_TASK, Instant,
-    MENUS, Menu, NAME, Panel, Part, PropsUpdate, Rect, RpcError, SurfaceRequest, Task, Value,
-    Window, Wm, change_keys, close, context, decoration, desk_id, dropped_at, help, home_bar,
-    restart, taskbar, window, window_icon,
+    Bar, ClientError, Command, DATETIME_TASK, DESKTOPS, DISPLAY_TASK, Decoration, Dialog,
+    HELP_TASK, Instant, MENUS, Menu, NAME, Panel, Part, PropsUpdate, Rect, RpcError,
+    SurfaceRequest, Task, Value, Window, Wm, change_keys, close, context, decoration, desk_id,
+    dropped_at, help, home_bar, restart, taskbar, window, window_icon,
 };
 use chora_kit::wm::focus;
 
@@ -152,6 +152,9 @@ impl Wm {
         }
         if surface == DISPLAY_TASK {
             return self.focus_display();
+        }
+        if surface == DATETIME_TASK {
+            return self.focus_clock();
         }
         let Some(i) = self.index(surface) else {
             return Vec::new();
@@ -460,6 +463,7 @@ impl Wm {
             Some(taskbar::Part::Task(surface)) => Some(surface),
             _ => None,
         };
+        let panels = self.panel_tasks(hovered.as_deref());
         let tasks: Vec<(Task<'_>, usize)> = self
             .opened
             .iter()
@@ -489,31 +493,51 @@ impl Wm {
             .collect();
         drop(tasks);
         let mut lists = lists;
-        if let (Some(list), true) = (lists.first_mut(), self.has_display()) {
-            list.push(Task {
-                surface: DISPLAY_TASK,
-                title: crate::display::WINDOW_TITLE,
-                icon: self.icons.find("preferences-desktop-display"),
-                active: self.display_active(),
-                minimized: false,
-                hovered: hovered.as_deref() == Some(DISPLAY_TASK),
-            });
-        }
-        if let (Some(list), true) = (lists.first_mut(), self.has_help()) {
-            list.push(Task {
-                surface: HELP_TASK,
-                title: help::TITLE,
-                icon: self.icons.find("help-browser"),
-                active: self.help_active(),
-                minimized: false,
-                hovered: hovered.as_deref() == Some(HELP_TASK),
-            });
+        if let Some(list) = lists.first_mut() {
+            list.extend(panels);
         }
         let mut commands = Vec::new();
         for (bar, list) in self.bars.iter_mut().zip(&lists) {
             commands.extend(bar.tasks(&mut self.theme, list));
         }
         commands
+    }
+
+    /// The task buttons of the open dialogs that have one, in the order of
+    /// Display Properties, Date and Time and Help.
+    fn panel_tasks(&mut self, hovered: Option<&str>) -> Vec<Task<'static>> {
+        let mut tasks = Vec::new();
+        if self.has_display() {
+            tasks.push(Task {
+                surface: DISPLAY_TASK,
+                title: crate::display::WINDOW_TITLE,
+                icon: self.icons.find("preferences-desktop-display"),
+                active: self.display_active(),
+                minimized: false,
+                hovered: hovered == Some(DISPLAY_TASK),
+            });
+        }
+        if self.has_clock() {
+            tasks.push(Task {
+                surface: DATETIME_TASK,
+                title: crate::datetime::WINDOW_TITLE,
+                icon: self.icons.find("x-office-calendar"),
+                active: self.clock_active(),
+                minimized: false,
+                hovered: hovered == Some(DATETIME_TASK),
+            });
+        }
+        if self.has_help() {
+            tasks.push(Task {
+                surface: HELP_TASK,
+                title: help::TITLE,
+                icon: self.icons.find("help-browser"),
+                active: self.help_active(),
+                minimized: false,
+                hovered: hovered == Some(HELP_TASK),
+            });
+        }
+        tasks
     }
 
     /// Whether Display Properties is open.
@@ -540,6 +564,32 @@ impl Wm {
             self.raise_panel(|p| matches!(p, Panel::Effects(_)))
                 .unwrap_or_default(),
         );
+        commands.extend(self.focus(None));
+        if let Some(panel) = self.panels.last() {
+            commands.push(Command::FocusNode {
+                node: Some(panel.window_ref().group()),
+            });
+        }
+        commands.extend(self.sync_tasks());
+        commands
+    }
+
+    /// Whether Date and Time Properties is open.
+    pub(super) fn has_clock(&self) -> bool {
+        self.panels.iter().any(|p| matches!(p, Panel::Clock(_)))
+    }
+
+    /// Whether Date and Time Properties has the focus: it is the topmost
+    /// panel and no window has the focus.
+    pub(super) fn clock_active(&self) -> bool {
+        self.focused.is_none() && matches!(self.panels.last(), Some(Panel::Clock(_)))
+    }
+
+    /// Takes Date and Time Properties to the top.
+    pub(super) fn focus_clock(&mut self) -> Vec<Command> {
+        let mut commands = self
+            .raise_panel(|p| matches!(p, Panel::Clock(_)))
+            .unwrap_or_default();
         commands.extend(self.focus(None));
         if let Some(panel) = self.panels.last() {
             commands.push(Command::FocusNode {

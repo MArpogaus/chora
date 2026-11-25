@@ -89,7 +89,6 @@ impl Wm {
             last_icon: None,
             panels: Vec::new(),
             hide_at: None,
-            last_clock: None,
             display_tab: 0,
             item: None,
             done: false,

@@ -16,6 +16,9 @@ use crate::{
     theme::{Picture, Rect, Theme},
 };
 
+/// The title of the dialog, which its task button shows.
+pub const WINDOW_TITLE: &str = "Date and Time Properties";
+
 /// The client area.
 const SIZE: [i32; 2] = [398, 316];
 const PAGE: Rect = [6, 27, 384, 251];
@@ -129,7 +132,7 @@ impl DateDialog {
     /// The dialog for today, in the middle of a work area.
     pub fn new(now: NaiveDateTime, area: Rect) -> Self {
         Self {
-            dialog: Dialog::new("datetime", "Date and Time Properties", SIZE, area),
+            dialog: Dialog::new("datetime", WINDOW_TITLE, SIZE, area),
             tab: 0,
             year: now.year(),
             month: now.month(),

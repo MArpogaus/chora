@@ -108,6 +108,9 @@ const HELP_TASK: &str = "helppanel";
 /// The name that the open Display Properties has for the task buttons, as
 /// [`HELP_TASK`] has for Help.
 const DISPLAY_TASK: &str = "displaypanel";
+/// The name that the open Date and Time Properties has for the task
+/// buttons, as [`HELP_TASK`] has for Help.
+const DATETIME_TASK: &str = "datetimepanel";
 /// How long a taskbar that hides itself waits after the pointer left it.
 const HIDE_DELAY: Duration = Duration::from_millis(500);
 /// The left mouse button.
@@ -359,8 +362,6 @@ pub struct Wm {
     panels: Vec<Panel>,
     /// When a taskbar that hides itself slides away.
     hide_at: Option<Instant>,
-    /// The last press on a clock, for the double click.
-    last_clock: Option<Instant>,
     /// The tab of Display Properties when it last closed, as XP keeps it.
     display_tab: usize,
     /// The icon or the start menu entry of the open context menu.
