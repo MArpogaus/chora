@@ -16,15 +16,17 @@ baseline_none = ["h2.Q", "h3.Q", "h3b.Q", "h4.Q", "h5.H50", "h6.Q", "h7.Q"]
 
 [[change]]
 act = "h2"
-cause = "xp-give Send To row (22fead94) (the Send To row `xp-ctx-1-0`, handover.py:190; r7 take, captures/h2.Q.png has no baseline, so no diff of it)"
+cause = "xp-give Send To row (22fead94) (the Send To row `xp-ctx-1-0`, handover.py:190; r7 take, captures/h2.Q.png has no baseline, so no diff of it); open: the cited capture does not show the node as moved, so the row proves nothing yet (rtb7-3)"
 kind = "meta"
 nodes = ["xp-ctx-1-0"]
+open = true
 
 [[change]]
 act = "h2"
-cause = "xp-give Send To row (22fead94) (the Send To row `xp-ctx-1-0`, handover.py:190; r7 take, captures/h2.Q.png has no baseline, so no diff of it)"
+cause = "xp-give Send To row (22fead94) (the Send To row `xp-ctx-1-0`, handover.py:190; r7 take, captures/h2.Q.png has no baseline, so no diff of it); open: the cited capture does not show the node as moved, so the row proves nothing yet (rtb7-3)"
 kind = "rect"
 nodes = ["xp-ctx-1-0"]
+open = true
 
 [[change]]
 act = "h2"
@@ -1152,7 +1154,7 @@ kind = "pixel"
 
 [[change]]
 act = "m1"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot) (judge r1 m1c, m1c.jpg: the NOTIFICATIONS block of the column goes; r7 take, captures/m1.Q.png: the notify block of the column)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot) (judge r1 m1c, m1c.jpg: the NOTIFICATIONS block of the column goes; r7 take, captures/m1.Q.png: the notify block of the column); rv9j-2: the design decision is open, mc-v2 section 3 asks for 'Nothing new.' in the column"
 kind = "missing"
 nodes = ["mc-r0-right-notify", "mc-r0-right-notify-title", "mc-r1-right-notify", "mc-r1-right-notify-title"]
 
@@ -1182,7 +1184,7 @@ kind = "pixel"
 
 [[change]]
 act = "m1c"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot) (judge r1 m1c, m1c.jpg and m1-col.jpg; r7 take, captures/m1c.Q.png: the notify block of the column)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot) (judge r1 m1c, m1c.jpg and m1-col.jpg; r7 take, captures/m1c.Q.png: the notify block of the column); rv9j-2: the design decision is open, mc-v2 section 3 asks for 'Nothing new.' in the column"
 kind = "missing"
 nodes = ["mc-r0-right-notify", "mc-r0-right-notify-title", "mc-r1-right-notify", "mc-r1-right-notify-title"]
 
@@ -2038,9 +2040,10 @@ nodes = ["xp-item-3", "xp-item-4"]
 
 [[change]]
 act = "x2"
-cause = "675ebd55 chora-notify shows the notices (sh-31) (r5 take, captures/x2.Q.png; the r7 take shows the card as added in this act, not moved)"
+cause = "675ebd55 chora-notify shows the notices (sh-31) (r5 take, captures/x2.Q.png; the r7 take shows the card as added in this act, not moved); open: the cited capture does not show the node as moved, so the row proves nothing yet (rtb7-3)"
 kind = "rect"
 nodes = ["notify-card-body", "notify-card-close"]
+open = true
 
 [[change]]
 act = "x2"
@@ -2056,9 +2059,10 @@ nodes = ["xp-item-3", "xp-item-4"]
 
 [[change]]
 act = "x2b"
-cause = "675ebd55 chora-notify shows the notices (sh-31) (r5 take, captures/x2b.Q.png; the r7 take shows the card as added in this act, not moved)"
+cause = "675ebd55 chora-notify shows the notices (sh-31) (r5 take, captures/x2b.Q.png; the r7 take shows the card as added in this act, not moved); open: the cited capture does not show the node as moved, so the row proves nothing yet (rtb7-3)"
 kind = "rect"
 nodes = ["notify-card-body", "notify-card-close"]
+open = true
 
 [[change]]
 act = "x2b"
@@ -2517,9 +2521,10 @@ nodes = ["xp-item-3", "xp-item-4"]
 
 [[change]]
 act = "x8"
-cause = "675ebd55 chora-notify shows the notices (sh-31) (r5 take, captures/x8.Q+0.5.png; the r7 take shows the card as added in this act, not moved)"
+cause = "675ebd55 chora-notify shows the notices (sh-31) (r5 take, captures/x8.Q+0.5.png; the r7 take shows the card as added in this act, not moved); open: the cited capture does not show the node as moved, so the row proves nothing yet (rtb7-3)"
 kind = "rect"
 nodes = ["notify-card-body", "notify-card-close"]
+open = true
 
 [[change]]
 act = "x8"
@@ -2649,9 +2654,10 @@ kind = "pixel"
 
 [[change]]
 act = "x2b"
-boxes = [[1052, 694, 94, 22], [927, 615, 265, 83], [1192, 470, 80, 67]]
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 675ebd55 chora-notify shows the notices (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x2b.Q.png)"
+boxes = [[1052, 694, 94, 22], [927, 615, 265, 83], [1192, 470, 80, 67], [1213, 593, 39, 20]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 675ebd55 chora-notify shows the notices (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x2b.Q.png); open: the box [1213,593,39,20] holds the eyes of the paperclip, a blink (the phase of the animation, no commit), open in one take and closed in the other"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "x2c"
@@ -2686,7 +2692,7 @@ kind = "pixel"
 [[change]]
 act = "x5d"
 boxes = [[1052, 694, 94, 22], [274, 84, 816, 549]]
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x5d.Q.png)"
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x5d.Q+1.png)"
 kind = "pixel"
 
 [[change]]
@@ -2728,7 +2734,7 @@ kind = "pixel"
 [[change]]
 act = "x6d"
 boxes = [[1052, 694, 94, 22], [274, 84, 816, 549]]
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x6d.Q.png)"
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x6d.Q+1.png)"
 kind = "pixel"
 
 [[change]]
@@ -2752,7 +2758,7 @@ kind = "pixel"
 [[change]]
 act = "x8"
 boxes = [[1052, 694, 94, 22], [903, 628, 289, 70], [274, 84, 816, 549], [1192, 470, 80, 67]]
-cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons; 675ebd55 chora-notify shows the notices (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x8.Q.png); open: the blobs at (1213, 593) and (1233, 593) are the eyes of the paperclip, open in the v8 still and closed in the v9 still (a blink, the phase of the animation), no commit; the tour does not mask them"
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons; 675ebd55 chora-notify shows the notices (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x8.Q+0.5.png); open: the blobs at (1213, 593) and (1233, 593) are the eyes of the paperclip, open in the v8 still and closed in the v9 still (a blink, the phase of the animation), no commit; the tour does not mask them"
 kind = "pixel"
 open = true
 
@@ -2773,3 +2779,24 @@ act = "c4"
 cause = "co-45 b8872054 the key list of a face has its scope line and heads at 11 px where the guide wants 14 (I6; judge r1 c4, c4.jpg)"
 check = "I6"
 kind = "check"
+
+[[change]]
+act = "x2"
+cause = "675ebd55 chora-notify shows the notices (rv9j-3); open: the card is on screen at the capture by timing, in both builds of the judge's pair, in neither of the r6 take, in v9 only in the r7 take (r7 take, captures/x2.Q.png)"
+kind = "added"
+nodes = ["notify-card", "notify-card-body", "notify-card-close"]
+open = true
+
+[[change]]
+act = "x2b"
+cause = "675ebd55 chora-notify shows the notices (rv9j-3); open: the card is on screen at the capture by timing, in both builds of the judge's pair, in neither of the r6 take, in v9 only in the r7 take (r7 take, captures/x2b.Q.png)"
+kind = "added"
+nodes = ["notify-card", "notify-card-body", "notify-card-close"]
+open = true
+
+[[change]]
+act = "x8"
+cause = "675ebd55 chora-notify shows the notices (rv9j-3); open: the card is on screen at the capture by timing, in both builds of the judge's pair, in neither of the r6 take, in v9 only in the r7 take (r7 take, captures/x8.Q+0.5.png)"
+kind = "added"
+nodes = ["notify-card", "notify-card-body", "notify-card-close"]
+open = true

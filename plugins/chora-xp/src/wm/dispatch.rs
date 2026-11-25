@@ -4,8 +4,8 @@ use chora_kit::wm::{Created, focus};
 
 use super::{
     Bar, Call, ClientError, Command, Duration, Event, Instant, Language, MENUS, Panel, Reading,
-    RpcError, VOLUME_AGAIN, Value, Wm, control, give, is_own, known, taskbar, volume,
-    without_reserve,
+    RpcError, SurfaceRequest, VOLUME_AGAIN, Value, Wm, control, give, is_own, known, taskbar,
+    volume, without_reserve,
 };
 
 impl Wm {
@@ -14,7 +14,9 @@ impl Wm {
         self.rt.conn.next_event_timeout(timeout)
     }
 
-    /// Handles one event of the core, with one arm per event.
+    /// Handles one event of the core, with one arm per event. Another
+    /// client may ask to close a window of xp (`node.requested` close, D31),
+    /// as the construct does on Super+x in a face (co-75).
     #[expect(
         clippy::too_many_lines,
         reason = "one match over every event kind, in dispatch order"
@@ -56,6 +58,11 @@ impl Wm {
             Event::NodeRequested {
                 node, action, args, ..
             } if action == "update" => self.requested_look(&node, &args),
+            Event::NodeRequested { node, action, .. }
+                if action == "close" && self.index(&node).is_some() =>
+            {
+                self.request(&node, SurfaceRequest::Close)
+            }
             Event::PointerPressed {
                 node,
                 button,

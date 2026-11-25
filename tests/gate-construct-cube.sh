@@ -285,6 +285,9 @@ ok "co-71: the key list opened from a face closes by its Close, by a click outsi
 before=$(keys_got 30)
 plain a
 until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "after the key list the probe window has no keyboard"
+until_ok 'ctl query id:construct-hint-pull-out | grep -q construct-hint-pull-out' 20 ||
+    fail "co-79: in a face with the keyboard in its window the hint bar names no Super Alt 4 Pull out"
+ok "co-79: in a face with the keyboard in its window the hint bar names the pull key"
 
 call view.step_back >/dev/null || fail "view.step_back"
 until_ok "$stood_back" 20 || fail "no step back: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"

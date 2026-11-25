@@ -239,9 +239,12 @@ def verdict(act, scene, pixel_same, intended, checks=None, blobs=None):
     flipped = sorted({n for n, c in base.items() if c == "green" and cand.get(n) != "green"} | {n for n, c in cand.items() if c == "red" and base.get(n) != "red"} | set(cand_red) | set(cand_lost))
     absorbed = [n for n in flipped if any(r["kind"] in ("check", "*") and r.get("check", n) == n for r in rows)]
     for n in absorbed:
-        row = next(r for r in rows if r["kind"] in ("check", "*") and r.get("check", n) == n)
+        row = next((r for r in rows if r["kind"] in ("check", "*") and r.get("check") == n), None) or next(r for r in rows if r["kind"] in ("check", "*") and r.get("check", n) == n)
         causes.append(row["cause"])
-        opened = opened or bool(row.get("open"))
+        guess = not row.get("check")
+        opened = opened or bool(row.get("open")) or guess
+        if guess and "check" not in unproven:
+            unproven.append("check")
     flipped = [n for n in flipped if n not in absorbed]
     extra = ({"unmeasured": unmeasured} if unmeasured else {}) | ({"cand_red": cand_red} if cand_red else {})
     if unnamed or flipped:

@@ -263,3 +263,15 @@ fn a_window_taking_the_keys_from_a_foreign_node_ends_the_loss() {
     tiling.focus.hear(&changed(Some("t2")));
     assert_eq!(tiling.state(), holds("tiling", Some("t2")));
 }
+
+/// sh-42, D119: a look that joins beside a focused window of another look
+/// sends no empty focus with its first transaction, which would take the
+/// keys from that window; a look that sent a window still drops it.
+#[test]
+fn a_joining_look_sends_no_empty_focus() {
+    let tiling = Look::new("tiling", &[]);
+    assert!(!tiling.focus.sends(None), "the join takes the keyboard");
+    let mut look = Look::new("tiling", &["t1"]);
+    look.focus.sent(Some("t1".into()));
+    assert!(look.focus.sends(None), "the look drops its own focus");
+}

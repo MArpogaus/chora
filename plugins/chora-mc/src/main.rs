@@ -2144,6 +2144,24 @@ mod tests {
         assert_eq!(focuses.last(), Some(&Some("s1".to_owned())));
     }
 
+    /// sh-42: another client dropped the keyboard (the core focuses no
+    /// surface) while a window of mc had it; a click on that window sends
+    /// its focus again, although it is the one mc sent last.
+    #[test]
+    fn a_click_on_its_window_after_another_client_dropped_the_keyboard_sends_the_focus() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("click-back-none", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        mc.windows.insert("agenda".into(), "s1".into());
+        mc.click("s1", [0.0, 0.0], false).unwrap();
+        let sent = model.lock().unwrap().focuses.len();
+        mc.event(chora_kit::testing::focus_changed(None)).unwrap();
+        mc.click("s1", [0.0, 0.0], false).unwrap();
+        let focuses = model.lock().unwrap().focuses.clone();
+        assert_eq!(focuses.len(), sent + 1, "{focuses:?}");
+        assert_eq!(focuses.last(), Some(&Some("s1".to_owned())));
+    }
+
     /// rw-2: `take_free_keyboard` gives the keyboard to the page node, and
     /// `state.get` tells that mc holds it.
     #[test]

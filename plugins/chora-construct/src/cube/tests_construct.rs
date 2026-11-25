@@ -1409,3 +1409,8 @@ fn a_window_that_opens_while_the_cube_stands_back_shows_beside_it() {
     construct.step_asides();
     assert_eq!(at_of(&construct, "foot"), put, "and the step in leaves it");
 }
+
+#[cfg(test)]
+mod close_tests;
+#[cfg(test)]
+mod reach_tests;

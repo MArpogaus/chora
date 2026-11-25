@@ -2,7 +2,8 @@
 # Gate of step K1 of the construct track: a terminal pane takes typed
 # text after a fly-in, pixel-sharp at 1:1. chora starts into
 # chora-construct; foot becomes a pane; keys walk; Return flies into the
-# pane; the injected text reaches foot; the output then shows the window
+# pane; the injected text reaches foot; the output then shows the window,
+# outside the resting hint Step back and All keys (co-76),
 # pixel for pixel as a capture of the window alone; Alt+Escape flies out;
 # a walk during a drag keeps its place.
 #
@@ -12,6 +13,9 @@
 #   K1_RACE  1 (test only) skips the wait for the pane to move and the walk
 #            to rest after each key, the wheel and the drag: the read
 #            after it is then the race the waits close
+# hint_boxes prints the boxes of the resting hint (Step back, All keys and
+# its shadow), which stays over the pane after its 3 s (co-76), as the
+# --outside flags of png-same.py.
 set -u
 . "$(dirname "$0")/gate-lib.sh"
 need_bins chora choractl chora-construct
@@ -81,10 +85,21 @@ done
 [ "$(cat "$work/typed" 2>/dev/null)" = "hello construct" ] || fail "foot got: $(cat "$work/typed" 2>/dev/null)"
 ok "after the fly-in, foot took the typed text"
 
+hint_boxes() {
+    ctl query '*' | python3 -I -c '
+import json, sys
+for n in json.load(sys.stdin):
+    if n["id"].startswith("construct-hint"):
+        for r in (n.get("rects") or {}).values():
+            print("--outside", ",".join(str(v) for v in r))'
+}
 compare_with_window() {
+    local boxes
     shot "$shots/construct-$theme-flown.png"
     shot --node "$surface" "$work/window.png"
-    diff=$(python3 -I "$repo/tests/png-same.py" "$shots/construct-$theme-flown.png" "$work/window.png") ||
+    boxes=$(hint_boxes)
+    # shellcheck disable=SC2086 # the flags of hint_boxes split on purpose
+    diff=$(python3 -I "$repo/tests/png-same.py" "$shots/construct-$theme-flown.png" "$work/window.png" $boxes) ||
         fail "compare: $diff"
     [ "$diff" = "0 0" ]
 }
@@ -92,8 +107,9 @@ for _ in $(seq 20); do
     compare_with_window && break
     sleep 0.5
 done
-[ "$diff" = "0 0" ] || fail "the output differs from the window alone after the Step back hint faded: $diff (pixels, worst channel)"
-ok "the output shows the window at 1:1, pixel for pixel"
+[ "$diff" = "0 0" ] || fail "the output differs from the window alone outside the resting hint: $diff (pixels, worst channel)"
+[ -n "$(node id:construct-hint-step-back 'n[0]["rects"]')" ] || fail "co-76: no hint Step back rests over the pane"
+ok "the output shows the window at 1:1, pixel for pixel, outside the resting hint Step back (co-76)"
 
 key Alt+Escape
 for _ in $(seq 24); do

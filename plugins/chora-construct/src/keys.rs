@@ -93,7 +93,7 @@ impl Host for Construct {
     }
 
     fn close(&mut self) -> Result<(), ClientError> {
-        self.close_ahead()
+        self.close_focused()
     }
 
     fn give(&mut self, to: &str) -> Result<(), ClientError> {

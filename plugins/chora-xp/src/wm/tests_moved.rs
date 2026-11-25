@@ -220,6 +220,33 @@ mod dispatch {
         );
     }
 
+    /// Another client asks xp to close a window of xp (`node.requested`
+    /// close, D31), as the construct does for the focused window of a face
+    /// on `Super+x` (co-75): xp closes it, as its own close key does, and a
+    /// request for a window that is not xp's closes nothing.
+    #[test]
+    fn a_close_that_another_client_asks_for_closes_the_window_of_xp() {
+        let (mut wm, methods) = wm_on_fake_core("node-close");
+        wm.windows
+            .push(crate::window::Window::new("s1", None, Some("s1")));
+        let applies = || {
+            (methods.lock().unwrap().iter())
+                .filter(|m| *m == "scene.apply")
+                .count()
+        };
+        let asked = |node: &str| {
+            wire(json!({
+                "event": "node.requested", "node": node, "client": "construct",
+                "action": "close", "args": {}
+            }))
+        };
+        let before = applies();
+        wm.event(asked("s9")).unwrap();
+        assert_eq!(applies(), before, "no window of xp: nothing closes");
+        wm.event(asked("s1")).unwrap();
+        assert_eq!(applies(), before + 1, "the close of s1 went out");
+    }
+
     /// Output changes: a new output, and then one removed, keep xp's bars
     /// on the output that remains.
     #[test]
