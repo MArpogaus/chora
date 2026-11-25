@@ -1132,6 +1132,20 @@ mod tests {
         (agent, dirs)
     }
 
+    /// xp-blink: the blink runs on the clock the tour steps, so a held
+    /// clock holds the eyes open in every still.
+    #[test]
+    fn the_blink_follows_the_stepped_clock_xp_blink() {
+        let (mut agent, _dirs) = xp_agent("blink-clock");
+        chora_kit::clock::step(serde_json::json!({"ms": 0.0})).unwrap();
+        std::thread::sleep(Duration::from_millis(50));
+        agent.replace_assistant().unwrap();
+        let due = agent.assistant_due().expect("the paperclip shows");
+        let held = chora_kit::clock::now();
+        assert_eq!(due, held + Duration::from_millis(2500), "the first blink");
+        chora_kit::clock::set(None);
+    }
+
     /// What greets at `GREET_AFTER` of a start without a voice agent: what
     /// `greet_step` keeps in `said`, without its file of the session.
     fn greeted_without_helper(agent: &mut Agent, now: Instant) {
