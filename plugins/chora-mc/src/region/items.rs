@@ -525,7 +525,7 @@ impl Mc {
         let title = if full { "All keys" } else { "Keys" };
         let head = self.content_type(content, true).props(title);
         let mut items = vec![Item {
-            put: Put::FootRule,
+            put: if full { Put::Foot } else { Put::FootRule },
             ..Item::text(format!("{id}-title"), slot, head, true)
         }];
         let mut ty = self.content_type(content, false);
@@ -561,8 +561,12 @@ impl Mc {
     /// The doors at the foot of a side: a word for each action that has a
     /// key, three in a line, clicked like its key. They stay while the chat is
     /// open (MH-2): its box ends one baseline above the foot, the doors being
-    /// the mouse path of the rc bar.
+    /// the mouse path of the rc bar. The full key list leaves them out: its
+    /// rows are clickable and hold the same keys (rpx1-9).
     fn door_items(&self, slot: i32, name: &str, content: &Content, region: Region) -> Vec<Item> {
+        if self.keys == crate::keys::List::All {
+            return Vec::new();
+        }
         let id = format!("{}-{name}", self.region_id(region));
         let mut ty = self.content_type(content, false);
         ty.color = self
