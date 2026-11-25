@@ -107,3 +107,87 @@ Findings:
 - rtd1-5 | COSMETIC | docs/configuration.md:1757 | "The looks set `look.theme`" still calls the theme rows looks, the ambiguity ti-55 removes | "The theme rows set `look.theme`".
 
 Verdict: **MERGE-OK** (0 BLOCK, 0 MAJOR, 4 MINOR, 1 COSMETIC).
+
+## r2
+
+Lane: cloud, branch claude/tiling-doors-r2 from 721be592 (session head t134). Head **fa676de8**. Step 0 green (`git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`). Decisions of the PM (11-25) as briefed: ti-55 the bar word names where it leads, ti-56 HINT_TIME 3 s -> 8 s, L2 compares the value of gap_inner. Nothing reopened.
+
+### Commits
+| sha | what |
+|---|---|
+| b0ec5f10 | red: tests only (ti-55, ti-56, L2) |
+| 9d416c21 | ti-56: HINT_TIME 8 s, docs/configuration.md |
+| 2ae1e3ff | L2: verify_reloaded reads the value of gap_inner (disk at begin vs disk now, and the running tiling) |
+| 3142aea3 | ti-55: custom/looks word "Looks" / "Looks: xp" / "Looks: xp, mc", the T7 goal text |
+| 45914b6b | the Looks word without a lint allow (lint-ratchet 361 > 360 in my first gate run) |
+| a8d2ce57 | a launch connects under a name of its own (found by the first gate run, see below) |
+| fa676de8 | tests/test_acts.py planted the old digest pair for L2; now the three values |
+
+### Red (b0ec5f10), the failing lines
+```
+(a) tests/doors/tiling.sh (cells beside the checks)
+tiling: tiling only: the word of custom/looks is "", not "Looks"            check tiling looks-word-none fail
+tiling: tiling and xp: the word of custom/looks is "", not "Looks: xp"      check tiling looks-word fail
+(b) cargo test -p chora-tiling the_hint_shows_7_seconds_after_the_key_and_is_gone_at_9_ti_56
+    FAILED: the hint is gone 7 s after the key
+    (end_chip(key + 7 s): chip_until is None with HINT_TIME 3 s; the clock is the `now` that end_chip takes, no sleep)
+(c) python3 -I tests/persona/test_check.py
+    FAIL: test_the_editor_opened_without_a_change_is_red     AssertionError: 0 != 1 : task L2 pass
+    FAIL: test_a_changed_file_with_the_same_gap_is_red       AssertionError: 0 != 1 : task L2 pass
+    FAIL: test_a_gap_written_but_not_reloaded_is_red         AssertionError: 0 != 1 : task L2 pass
+    (test_a_gap_changed_and_reloaded_passes: 12 -> 20 and reload, passes red and fixed)
+```
+After the fixes: doors `check tiling looks-word-none pass`, `looks-word pass`; the 4 `ti_56` tests ok; `test_check.py` 61 tests OK; `test_acts.py` 178 OK.
+
+### What changed
+- **ti-55**: `custom/looks` runs `waybar/looks.sh` every 2 s (`interval: 2`, no signal): `chora-tiling --launch looks-word` prints `{"text": ...}` from `clients.list` through `looks::running` and the new `looks::word` (xp, mc, construct in that order); the word is `Looks` when none runs or the core does not answer. A look that joins or leaves shows within 2 s. docs/configuration.md says so. The persona T7 goal is not stored in the repo (as r9 said); it is now in tests/persona/README.md under "Tiling goals": "Send the terminal over to the xp look (the other desktop that is running)".
+- **ti-56**: `HINT_TIME` 8 s. Once per 10 s and not while the key list shows are unchanged.
+- **L2**: `check.py` reads gap_inner from `config/chora/chora-tiling.yaml` (12, the default, while the file is absent or lacks the line); the begin value is kept with `begin`; the running value is `get_layout` of tiling. FAIL when the disk value equals the begin value ("gap_inner is still 12 on disk"), or the running value is not the disk value ("the running config reports gap_inner 12, not 20 after the reload"), or the look does not hold the focus. `has_config`: a tiling look in the session or a non-empty tiling config; a session with neither says "not measured (no config)". The digest and `config_digest` are gone; the README of tests/persona says so.
+
+### A defect the first gate run found (mine, fixed)
+The first full gate failed the `doors` step on `check tiling looks-none` ("Looks has no row ..."): the word module asks the core every 2 s under the client name `chora-tiling.launch`, the name every launch uses, and two connections of one name lose to each other. Measured on a tiling+xp session, six reads at once: 69 of 180 said `Looks: xp`, 111 said `Looks`; a click on Looks can meet a read and list no rows. `launch_conn` now takes the process id into the name (`chora-tiling.launch-PID`; nothing else names it). Cell `looks-word-parallel` (six reads at once, all `Looks: xp`): red with the old name (`six words at once ...: 3 Looks|3 Looks: xp|`), pass after. It passed standalone three times before the fix, so the load of the gate (two jobs) is what showed it.
+
+### Tour (fresh compositor per chapter, build fa676de8 for tiling and handover)
+```
+chapter tiling: 28 acts, 28 green, 0 inv, 0 known, 0 red, 0 todo, 0 unchecked
+tour: record: 0 red, 0 broken
+chapter handover: 11 acts, 11 green, 0 inv, 0 known, 0 red, 0 todo, 0 unchecked
+tour: record: 0 red, 0 broken
+```
+No expected bar word changed: no row of either chapter names the word of Looks. The `known act 24 is green: drop known` line is not from this lane (as in r1).
+
+### Captures (media/2026-11-25/tiling-doors-r2/, 1280x800, persona sessions)
+- `bar-tiling-only.png`: the bar word `Looks`.
+- `bar-tiling-plus-xp.png`: `Looks: xp`.
+- `hint-at-7s.png`: the hint chip `Super+Q does nothing here. Super+F1 shows all keys.` still on screen 6.2 s after Super+q (`hint-actions.jsonl`: key at 1795583794.441, look at 1795583800.678). A look 9.3 s after the key was taken too (not copied).
+Note for the reviewer: `Looks: xp` widens the left island by about 25 px; the island ends 1 px before the clock (x 563 and 564). With all three other looks (`Looks: xp, mc, construct`) it would reach into the clock; not changed here (the decision names the word, not a limit).
+
+### Full gate (final head fa676de8), last 20 lines
+```
+launcher-click PASS    15s
+voice-acp  PASS    11s
+voice-events PASS     2s
+agent      PASS    36s
+tiling-keys-more PASS    39s
+tiling-system PASS    13s
+handover   PASS    23s
+mc-scale   PASS    10s
+watchdog-starved PASS    48s
+tiling-windows PASS   161s
+xp-run     PASS    12s
+demo       PASS   188s
+tiling-bar PASS   156s
+tiling-theme PASS    18s
+leak       PASS   462s
+mc-host    PASS    19s
+tiling-disc PASS    70s
+e2e        PASS   265s
+all steps passed; no --push, nothing is pushed
+EXIT 0
+```
+Three earlier gate runs stopped on: lint-ratchet (allow 361 > 360, fixed in 45914b6b), doors looks-none (the name collision, a8d2ce57), acts selftest (test_acts.py planted the digest pair, fa676de8). `tools/sleep-ratchet` ok (sleep 778, sleep-all 929), `tools/size-ratchet` ok (0 files over 1500), `tools/lint-ratchet` ok (allow 360, no-reason 0, eprintln 46). `pgrep -fa 'chora --headless'` empty.
+
+### Not done / open
+- The persona round (r10) has not run: whether a persona now reads "Looks: xp" as the door is not measured here.
+- The T7 goal wording lives in the README only; the driver brief must copy it.
+- Out of scope and untouched: rth-*, rtd-*, rv9j-*, ti-31, ti-49, Super+q binding, I6, the L1 contract. rtd1-4 (a click on Looks with a failing `clients.list` shows nothing) still stands.
