@@ -150,8 +150,7 @@ cat >"$work/launch.sh" <<'LAUNCH'
 #!/bin/sh
 # a program of the launcher, no child of it, as fuzzel starts one
 n=$(date +%s%N)
-setsid chora-probe window 40 200 80 --report >"$1/prog.$n.log" 2>&1 &
-sleep 3
+(setsid chora-probe window 40 200 80 --report >"$1/prog.$n.log" 2>&1 &)
 LAUNCH
 cat >"$work/chora/chora-construct.yaml" <<CONFIG
 terminal: exec chora-probe window 200 80 40 --report >$work/term.log 2>&1
