@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-25 13:03 UTC)
+## Now (2026-11-25 13:08 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 12:53 PM 3.2 % (11-25); week about 38 % vs 62 % time; need (100-38-5)/63 h = 0.9 %/h; 6 build lanes
 lanes-short: xp-minor-r4 MERGE-OK 0a0850e4 (t141); P2-R10-co after t140
@@ -23,12 +23,12 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 met by FLAKE-SERIES r9 5/5 c3c37c2e, 
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| train140 | PM, 62a04be0 on e39448ad (Queue 1) | gate running |
+| train140 | PM, 62a04be0 on e39448ad | gate |
 | mc-minor-r3.md (rc 1; rmm2-1..6; 0.8 %) | sonnet medium, mc-minor-r3 0f68810c | running s..NMXoJFbpfCZT9oZsw |
 | co-polish-r1.md (rc 1; co-44, co-45; 0.8 %) | sonnet medium, co-polish-r1 d86be5d0 | running s..LQizNrD4V4G9kNF4m |
-| p2-r10-tiling.md (rc 2; ti-55, ti-56; 0.8 %) | sonnet medium, p2-r10-tiling e39448ad | starting |
-| tour-v9-take-r2.md (F7, rc 11; 1 %) | sonnet medium, tour-v9-take-r2 e39448ad | starting s..NYLg6VoKk9VmtWivs |
-| tiling-minor-r2.md (rc 1; rtm1-1..3, rtd3-1..3; 0.6 %) | sonnet medium, tiling-minor-r2 e39448ad | starting s..NuxhEtMVy3GKQ2Gva |
+| p2-r10-tiling.md (rc 2; ti-55, ti-56; 0.8 %) | sonnet medium, p2-r10-tiling e39448ad | running s..NJidF9SvrBbh5E1bK |
+| tour-v9-take-r2.md (F7, rc 11; 1 %) | sonnet medium, tour-v9-take-r2 e39448ad | running s..NYLg6VoKk9VmtWivs |
+| tiling-minor-r2.md (rc 1; rtm1-1..3, rtd3-1..3; 0.6 %) | sonnet medium, tiling-minor-r2 e39448ad | running s..NuxhEtMVy3GKQ2Gva |
 ## Queue (% week; 5 % reserve)
 1. (rc 1, 2) t139 green e39448ad (tiling doors r3, minor r1). TRAIN140 running: xp-minor r3, mc-minor r2, co-minor r2.
 2. (rc 2) construct: co-minor r2 in t140; co-77 by design D106; co-polish r1 (co-44, co-45) running; persona recheck co-75/76/79 in P2-R10.
