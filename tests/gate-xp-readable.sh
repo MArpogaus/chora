@@ -12,6 +12,8 @@
 #                      computer (our own buttons) have 7:1, the bar of a button, as white on their
 #                      backing; Stand By and Turn Off are Luna's and lie on its
 #                      panel fill, exempt in known-red.toml (white on it 2.1:1)
+#   caption-size       the captions of Lock and Restart of Turn off computer stand 12 px high or more in ink,
+#                      shadow included (11 px type gives 10, 14 px type 12 to 13): the 14 px of body text (xp-9)
 #   cancel-target      Cancel of Turn off computer is 24 px high or more
 #   inactive-title     the title of a window that is not active has 4.5:1
 #   bin-clear          the Recycle Bin stands at the bottom right, above the paperclip, and
@@ -120,6 +122,12 @@ ctl capture "$shots/turnoff.png" >/dev/null
 pager_digits "$shots/turnoff.png" "pager dimmed behind Turn off computer"
 read -r x y w h <<<"$(rect xp-session-button-5)"
 [ "${h:-0}" -ge 24 ] || red "cancel-target: Cancel of Turn off computer is ${w:-?} x ${h:-?}, wants 24 px high or more"
+for n in 0 4; do
+    read -r x y w h <<<"$(rect "xp-session-button-$n")"
+    ink=$(python3 -I "$repo/tests/png-ink.py" "$shots/turnoff.png" "$((x + 8))" "$((y + h - 17))" "$((w - 16))" 16 | tr ' ' '\n' | sort -n | tail -n 1)
+    echo "caption $n ink: ${ink:-?} px"
+    [ "${ink:-0}" -ge 12 ] || red "caption-size: caption $n of Turn off computer is ${ink:-?} px of ink high, 14 px type gives 12 or more"
+done
 for n in 0 1 2 3 4; do
     read -r x y w h <<<"$(rect "xp-session-button-$n")"
     if [ "$n" = 2 ] || [ "$n" = 3 ]; then
