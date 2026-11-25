@@ -16,7 +16,12 @@
 #   FLAVOR  tiling, xp, mc or construct; with a second one (tiling+xp) the
 #           first starts with the core and the second joins it, as a window
 #           can be handed from one to the other
-#   WxH     the size of the virtual output (default 1280x800)
+#   WxH     the size of the virtual output (default 1280x800); with two
+#           flavors there are two, side by side: the first look manages
+#           HEADLESS-1 and the joining look HEADLESS-2, to the right of it
+#           (D55: each window manager takes its own outputs), so the first
+#           look is the screen of the person and the second is one move
+#           of the pointer away (Super+Alt+N hands a window over)
 #
 # Environment:
 #   PERSONA_DIR  the session directory (default: a new /tmp/persona.XXXXXX,
@@ -228,15 +233,21 @@ export GALLIUM_DRIVER=llvmpipe LIBGL_ALWAYS_SOFTWARE=1
 
 startup_of() {
     case $1 in
-    tiling) startup=("$bin/chora-tiling" --no-companions) ;;
+    tiling) startup=("$bin/chora-tiling" --no-companions "${look_output[@]}") ;;
     xp)
         sed -e 's/^  sounds: true/  sounds: false/' -e 's/^editor:.*/editor: mousepad/' "$repo/plugins/chora-xp/xp.yaml" >"$dir/xp.yaml"
-        startup=(env "DBUS_SESSION_BUS_ADDRESS=unix:path=$dir/bus" "$bin/chora-xp" --theme "$repo/flavors/xp/theme" --config "$dir/xp.yaml")
+        startup=(env "DBUS_SESSION_BUS_ADDRESS=unix:path=$dir/bus" "$bin/chora-xp" --theme "$repo/flavors/xp/theme" --config "$dir/xp.yaml" "${look_output[@]}")
         ;;
-    mc) startup=("$bin/chora-mc" --manage-windows) ;;
+    mc) startup=("$bin/chora-mc" --manage-windows "${look_output[@]}") ;;
     construct) startup=("$bin/chora-construct") ;;
     esac
 }
+look_output=()
+outputs=$size
+if ((${#flavors[@]} == 2)); then
+    outputs=$size,$size+${size%x*}+0
+    look_output=(--output HEADLESS-1)
+fi
 startup_of "$flavor"
 
 companions=()
@@ -325,7 +336,7 @@ if has_flavor xp; then
     bus_pid=$!
 fi
 
-CHORA_LOG=$dir/chora.log "$repo/tests/headless-session.sh" "$size" -- "${startup[@]}" \
+CHORA_LOG=$dir/chora.log "$repo/tests/headless-session.sh" "$outputs" -- "${startup[@]}" \
     >"$out" 2>"$out.err" &
 session=$!
 
@@ -357,6 +368,7 @@ voice_pid=$!
 echo 'voice.state {"state": "listening", "task": "", "said": ""}' >&4
 
 if ((${#flavors[@]} == 2)); then
+    look_output=(--output HEADLESS-2)
     startup_of "${flavors[1]}"
     companions=("${flavors[1]} ${startup[*]}" "${companions[@]}")
 fi
