@@ -1,11 +1,16 @@
-# xp-minor-r2 (RC 2, shared bar "honest failure states"): Run... closed versus failed by the class of fuzzel's line (PM review r1 pr1-1)
+# xp-minor r2 (rc 1 known issues, F7; xp has no open BLOCK or MAJOR, rules.md 6): four more xp MINORs, owner ask xp-30 among them
 
-Model: sonnet, effort medium (small fix in the kit launcher)
-Lane: cloud, branch claude/xp-minor at 22884a79. One round, stop at 250 k. Cost about 0.5 %.
-Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`; a failure: send_message the PM "xp-minor r2 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
-Read on claude/session-log: reports/xp-minor.md "## r1" and "## PM review r1"; findings/xp.md row xp-36.
-Item 1 (pr1-1, MAJOR): crates/chora-kit/src/launcher.rs `ask`: fuzzel exits 1 on Escape and on every error, so the exit code cannot tell them apart. Decide by the line: Failed with the first stderr line whose trimmed text starts with "err:" (fuzzel's log prefix " err"), with that text after the prefix; else Closed (warn, info or no line), whatever the exit code; no exit status at all (a signal) with no err line is Closed too. Red first: restore a_launcher_that_fails_says_why_once to exit 1 with " err: config.c:17: [colors].prompt: invalid key" on stderr and its notice; keep a_warning_then_escape_stays_silent ("warn: ..." then exit 1); add a cell for an err line after a warn line. Then the fix. Update the doc comment of `ask`.
-Gate: `tests/merge-gate.sh --jobs 1 --only pre-commit,ci-check,build,test,clippy,gate-lib,xp,xp-question,launcher-click,doors`; poll it in the same turn; never end a turn to wait.
-Done when: red and fix commits pushed to claude/xp-minor; the gate list passes; reports/xp-minor.md "## r2" on claude/session-log names commits, cells and gate.
-Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 6 lines).
-Rules: push claude/xp-minor and claude/session-log only (fetch and merge on reject, no force); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages.
+Model: sonnet, effort high (small product fixes in chora-xp with red tests; routine but in the showcase look)
+Lane: cloud, branch claude/xp-minor-r2 at d2a048d5 (xp-minor r1, MERGE-OK, waits for train137). Areas: plugins/chora-xp (Date and Time window, desktop icons, session/dialog, paperclip balloon), its tests and gate cells. Stop at 250 k. Cost at most 1.0 %.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`. A failure: send_message the PM "xp-minor-r2 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Read findings/xp.md rows xp-10, xp-13, xp-30 and reports/xp-minor.md "## PM review r1" (rxm1-1) on claude/session-log, the vision card (XP SP2/SP3 Luna, POLS for XP users; Erika 74, Murat 52, mouse only) and design/looks (xp).
+Each item: red test commit first (tests only, message names the id), then the fix commit; a pixel or node assert in the xp gate cells, not a look at a screenshot.
+1) xp-30 (owner 11-17 10:35): at the first session start the paperclip greets once in its balloon ("Hi, I am your helper", how to ask, how to close; honest "No helper set up" when none is), then stays quiet; a flag in the xp state keeps it to once; it never covers a window the user works in and goes on any click or Esc.
+2) xp-10: Date and Time: text at least 14 px, buttons at least 75x23 (XP), a single click on the tray clock opens it (XP opens on double click; keep double click too), it shows a taskbar button.
+3) xp-13: no desktop icon (Recycle Bin) sits under the open chat balloon: the balloon avoids the icon column or the icons stay clickable; desktop labels at least 14 px or the replica size if design/looks (xp) names one (then record that).
+4) rxm1-1: the big buttons of the Turn Off and Log Off dialog keep at least 4 px between neighbouring captions.
+Out of scope: xp-16, xp-20..22, xp-34, xp-39, other looks, chora-notify, ratchet counts; no new sleep (sleep-ratchet).
+Run: the full gate, no step filter: `setsid nohup bash -c '(CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2 > /tmp/gate.log 2>&1; echo EXIT $? >> /tmp/gate.log)' >/dev/null 2>&1 </dev/null &`, poll in the same turn; paste the last 20 lines. A red cell you did not cause: name it with its log line. Before ending: `pgrep -fa 'chora --headless'` empty. Never end a turn to wait.
+Done when: four red-then-fix sha pairs with pasted red lines; full gate EXIT 0 (or foreign reds named); one capture per item in media/<date>/xp-minor-r2/ named in the report.
+Report: reports/xp-minor.md "## r2" on claude/session-log; send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 5 lines with the head sha.
+Rules: push claude/xp-minor-r2 and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report and media); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).
