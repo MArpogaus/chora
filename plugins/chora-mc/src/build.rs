@@ -271,7 +271,7 @@ impl Mc {
     /// own that the next call replaces.
     /// A page between the header and the footer that clips the panels
     /// and takes the wheel; the panels move up in it as it scrolls. It ends
-    /// on a line of the grid over the card of chora-notify and the footer
+    /// on a line of the grid over the card of the notice server and the footer
     /// line (rpx1-11, rpx1-12).
     /// Other plugins find the page by this tag and show it
     /// through its node texture, as chora-construct does.

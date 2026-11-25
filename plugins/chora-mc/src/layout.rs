@@ -5,7 +5,7 @@ use super::{
     title_of, translate, wheel_id,
 };
 
-/// The height that the card of chora-notify takes at the foot of the
+/// The height that the card of the notice server takes at the foot of the
 /// output: its margin of 56 pixels and its two lines.
 const CARD_ROOM: f64 = 135.0;
 /// The room under a baseline for the descenders of a line.
@@ -31,7 +31,7 @@ impl Mc {
         self.take_free_keyboard()
     }
 
-    /// Where the page ends: over the card of chora-notify with its margin
+    /// Where the page ends: over the card of the notice server with its margin
     /// and the footer line, on the line of the grid whose letters keep
     /// their descenders, so that the edge never cuts through a line
     /// (rpx1-11, rpx1-12).
