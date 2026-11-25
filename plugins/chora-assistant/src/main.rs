@@ -1167,6 +1167,18 @@ mod tests {
         assert!(agent.greeting.is_none(), "the greeting is over");
     }
 
+    /// rxm2-1: a greeting of a test never writes the file of the real
+    /// state home of the person who runs the tests.
+    #[test]
+    fn a_greeting_in_a_test_leaves_the_real_state_home_alone_rxm2_1() {
+        let real = chora_scene::paths::state_home().map(|h| h.join("chora/assistant-greeted"));
+        let before = real.as_ref().is_some_and(|f| f.exists());
+        let (mut agent, _dirs) = xp_agent("greet-state-home");
+        agent.greet_with(Instant::now(), false).unwrap();
+        let after = real.as_ref().is_some_and(|f| f.exists());
+        assert_eq!(before, after, "the test wrote {real:?}");
+    }
+
     /// xp-30: the paperclip does not greet over a window: it waits, and
     /// the greeting is not spent.
     #[test]
