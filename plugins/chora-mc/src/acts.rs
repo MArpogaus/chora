@@ -91,16 +91,36 @@ impl Mc {
     }
 }
 
+/// The scroll of a finger or a roll that makes one step of the volume, in
+/// logical pixels.
+const NOTCH: f64 = 40.0;
+
 impl Mc {
-    /// How many steps of the volume a scroll event makes: positive down.
+    /// How many steps of the volume a scroll event makes, positive down
+    /// (rmm2-3): a wheel makes one per notch (`discrete`), a finger or a
+    /// roll adds its `dy` up to one per [`NOTCH`] pixels, so that a swipe
+    /// of a touchpad never goes from the middle to the end in one gesture.
     pub(crate) fn wheel_steps(
         &mut self,
         dy: f64,
-        _discrete: [f64; 2],
-        _source: chora_scene::ScrollSource,
+        discrete: [f64; 2],
+        source: chora_scene::ScrollSource,
     ) -> i32 {
-        self.wheel_acc = 0.0;
-        if dy < 0.0 { -1 } else { i32::from(dy > 0.0) }
+        let notches = match source {
+            chora_scene::ScrollSource::Wheel if discrete[1] != 0.0 => discrete[1],
+            _ => dy / NOTCH,
+        };
+        if notches * self.wheel_acc < 0.0 {
+            self.wheel_acc = 0.0;
+        }
+        self.wheel_acc += notches;
+        let mut steps = 0;
+        while self.wheel_acc.abs() >= 1.0 {
+            let sign = self.wheel_acc.signum();
+            steps += if sign < 0.0 { -1 } else { 1 };
+            self.wheel_acc -= sign;
+        }
+        steps
     }
 
     /// A wheel over a node: over the volume door it raises the level
