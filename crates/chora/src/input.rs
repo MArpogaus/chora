@@ -3083,4 +3083,50 @@ pub(crate) mod tests {
         click(&mut core, true);
         assert_eq!(act_conns(&core), None);
     }
+
+    /// rth-1: a press on a bar outside every claim is an act of the look
+    /// whose claim lies on the output of the bar, not of the look that
+    /// connected first.
+    #[test]
+    fn a_press_on_a_bar_outside_the_claims_goes_to_the_look_of_its_output() {
+        use wayland_protocols_wlr::layer_shell::v1::client::{
+            zwlr_layer_shell_v1::Layer, zwlr_layer_surface_v1::KeyboardInteractivity,
+        };
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let mut wayland = Wayland::connect(&mut core);
+        wayland.roundtrip(&mut core);
+        let bar = wayland.layer(&mut core, Layer::Top, KeyboardInteractivity::None);
+        wayland.attach_layer(&mut core, &bar, (100, 30));
+        let _far = claimer(&mut core, "far", [2000.0, 0.0, 800.0, 600.0]);
+        let _near = claimer(&mut core, "near", [0.0, 0.0, 100.0, 100.0]);
+        move_to(&mut core, 400.0, 300.0);
+        click(&mut core, true);
+        assert_eq!(act_conns(&core), Some(core.state.ipc.conns_of("near")));
+    }
+
+    /// rth-1: where no claim lies on the output of the bar, every look
+    /// gets the act.
+    #[test]
+    fn a_press_on_a_bar_where_no_claim_lies_goes_to_every_look() {
+        use wayland_protocols_wlr::layer_shell::v1::client::{
+            zwlr_layer_shell_v1::Layer, zwlr_layer_surface_v1::KeyboardInteractivity,
+        };
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let mut wayland = Wayland::connect(&mut core);
+        wayland.roundtrip(&mut core);
+        let bar = wayland.layer(&mut core, Layer::Top, KeyboardInteractivity::None);
+        wayland.attach_layer(&mut core, &bar, (100, 30));
+        let _a = claimer(&mut core, "a", [2000.0, 0.0, 100.0, 100.0]);
+        let _b = claimer(&mut core, "b", [3000.0, 0.0, 100.0, 100.0]);
+        move_to(&mut core, 400.0, 300.0);
+        click(&mut core, true);
+        let mut want = core.state.ipc.conns_of("a");
+        want.extend(core.state.ipc.conns_of("b"));
+        let mut got = act_conns(&core).expect("an act");
+        got.sort_unstable();
+        want.sort_unstable();
+        assert_eq!(got, want);
+    }
 }
