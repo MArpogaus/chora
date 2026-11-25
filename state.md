@@ -25,7 +25,7 @@ burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head; F7 open (
 | train143 | PM, 16977e22 on 62a04be0 | gate 17:40 |
 | flake-sofa-r2.md (F5; rfs1-2; 0.6 %) | sonnet medium, flake-sofa-r2 3d555e4f | running s..MNzLQKASxWUjMFfX8 |
 | co-reach-r5.md (rc 1, 2; co-79 MAJOR pane path; 1 %) | opus high, co-reach-r5 62a04be0 | running s..P6b9i3yJSwFStLwno |
-| mc-minor-r4.md (rpe-1..3; 0.6 %) | sonnet medium, mc-minor-r4 23cd2b5a | starting |
+| mc-minor-r4.md (rpe-1..3; 0.6 %) | sonnet medium, mc-minor-r4 23cd2b5a | running s..QU1Y2wj95EZqLt6ks |
 | xp-tail-r1.md (F7; rv9kb-2; 0.6 %) | sonnet medium, xp-tail-r1 62a04be0 | running s..PV7VUWhrb7C6ZgYQ7 |
 | tour-rows-r1.md (F7; 1 %) | sonnet medium, tour-rows-r1 62a04be0 | running s..QUL8RNU6CJCyGVdBb |
 | p2-r11-tiling.md (rc 2; ti-55 T7; 0.8 %) | sonnet medium, p2-r11-tiling 79ed970f | running s..MhzpvzGvFRskBTxzs |
