@@ -847,6 +847,46 @@ mod tests {
         assert_eq!(german.0, "Ausschaltmenü nicht installiert");
     }
 
+    #[test]
+    fn the_titles_of_every_missing_script_are_pinned_in_both_languages() {
+        use chora_kit::words::Language;
+        let titles = |program: &str, language| {
+            LaunchError::Missing {
+                program: program.into(),
+                name: String::new(),
+                searched: Vec::new(),
+            }
+            .notice_in(language)
+            .0
+        };
+        let want = [
+            (
+                "power",
+                "Power menu not installed",
+                "Ausschaltmenü nicht installiert",
+            ),
+            (
+                "look",
+                "Theme switch not installed",
+                "Design-Umschalter nicht installiert",
+            ),
+            (
+                "settings",
+                "Settings door not installed",
+                "Einstellungen nicht installiert",
+            ),
+            (
+                "screenshot",
+                "Screenshot not installed",
+                "Bildschirmfoto nicht installiert",
+            ),
+        ];
+        for (program, english, german) in want {
+            assert_eq!(titles(program, Language::En), english, "{program}");
+            assert_eq!(titles(program, Language::De), german, "{program}");
+        }
+    }
+
     const LABELS: [(&str, &str); 4] = [
         ("text", "surface"),
         ("muted", "surface"),
