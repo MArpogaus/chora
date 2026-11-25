@@ -66,6 +66,40 @@ def lock_called(calls):
 
     return check
 
+def tiling_companions(output):
+    """The wallpaper and the bar of the tiling look, as the tiling chapter starts them. The chapter passes
+    `--no-companions` to chora-tiling (tiling_argv), so the screen of the act "tiling desktop empty" needs them
+    from here (rv9j-4). The wallpaper covers the tiling output only: the other looks draw their own desktops."""
+    return [["swaybg", "-o", output, "--color", "#2e3440"], ["dbus-run-session", "--", "sh", f"{REPO}/flavors/tiling/waybar/waybar.sh", f"{REPO}/flavors/tiling/waybar"]]
+
+
+def alive(pattern):
+    """True when a process of this machine has a command line that matches the pattern (/proc, no signal sent)."""
+    for entry in os.listdir("/proc"):
+        if entry.isdigit():
+            try:
+                cmdline = open(f"/proc/{entry}/cmdline", "rb").read().replace(b"\0", b" ").decode(errors="replace")
+            except OSError:
+                continue
+            if re.search(pattern, cmdline):
+                return True
+    return False
+
+
+def companions_missing(output, alive=alive):
+    """The companions of the tiling output that do not run, as text: `choractl run setsid` returns before the process is
+    up and its failure is not shown (rtb5-3), so the chapter looks for the processes themselves."""
+    wallpaper = f"swaybg -o {output} --color"
+    bar = re.escape(f"{REPO}/flavors/tiling/waybar/waybar.sh")
+    lost = {"swaybg for " + output: wallpaper, "waybar (waybar.sh of the tiling flavor)": bar}
+    return [f"{name} does not run" for name, pattern in lost.items() if not alive(pattern)]
+
+
+def companions_running(output, alive=alive):
+    """A check: the bar and the wallpaper of the tiling screen run, so an empty screen is the tiling look and no black one."""
+    return lambda after: companions_missing(output, alive)
+
+
 def start_multi():
     L = Launcher("multi")
     os.makedirs(f"{L.dir}/stub", exist_ok=True)
@@ -94,6 +128,16 @@ def start_multi():
     L.spawn([f"{BIN}/chora-xp", "--theme", f"{REPO}/flavors/xp/theme", "--config", f"{L.dir}/xp.yaml", "--output", out_of["xp"]], env, "xp.log")
     S.ctl("wait", "owner:xp", "--timeout", "30")
     L.spawn(tiling_argv(f"{BIN}/chora-tiling", "--output", out_of["tiling"]), env, "tiling.log")
+    S.ctl("wait", "owner:tiling", "--timeout", "30")
+    for argv in tiling_companions(out_of["tiling"]):
+        subprocess.run([f"{BIN}/choractl", "run", "setsid", *argv], env=dict(env, CHORA_FLAVOR_DIR=f"{REPO}/flavors/tiling"), check=False, capture_output=True)
+    for _ in range(40):
+        missing = companions_missing(out_of["tiling"])
+        if not missing:
+            break
+        time.sleep(0.25)
+    else:
+        raise RuntimeError("the companions of the tiling screen: " + "; ".join(missing))
     L.spawn([f"{BIN}/chora-mc", "--manage-windows", "--output", out_of["mc"]], env, "mc.log")
     L.spawn([f"{BIN}/chora-construct"], env, "construct.log")
     for o in ("tiling", "mc", "construct"):
@@ -170,7 +214,7 @@ def run(ctx):
         t.pointer_output = XP
         t.jump(640, 360)
         t.wait(0.3)
-        t.act("look", "Two screens: xp on the left, tiling on the right (empty)", "xp desktop with taskbar; tiling desktop empty", scene="h1", still="05-01-two-screens", contract="X1", cells=["gate-handover-matrix.sh"], capture="Q", expect=Expect(verify=windows_only()))
+        t.act("look", "Two screens: xp on the left, tiling on the right (empty)", "xp desktop with taskbar; tiling desktop empty", scene="h1", still="05-01-two-screens", contract="X1", cells=["gate-handover-matrix.sh"], capture="Q", expect=Expect(verify=both(windows_only(), companions_running(TI))))
         t.done()
         t.act("pointer", "Click Start", "The Start menu opens on the xp screen", scene="h1", still="05-02-start", opens=["xp-menu"], contract="T1", cells=["doors launcher-door"], capture="Q", known="I3: ca-3 construct and xp each say they hold the focus on a four-output session", expect=Expect(open=["xp-menu"]))
         goto(50, 705, XP, 1.0); t.click(); t.done()

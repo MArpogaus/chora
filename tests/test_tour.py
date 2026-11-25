@@ -1020,6 +1020,87 @@ class TilingArgv(unittest.TestCase):
             self.assertNotIn('[f"{BIN}/chora-tiling"', text, chapter)
 
 
+class HandoverCompanions(unittest.TestCase):
+    """rv9j-4: the handover chapter starts chora-tiling with `--no-companions` (tiling_argv), so the act
+    "tiling desktop empty" needs the bar and the wallpaper from the chapter, as tiling.py starts them
+    (`companions=` of the tiling chapter); without them the tiling screen of 05-01..05-03b is black."""
+
+    def commands(self):
+        module = importlib.import_module("chapters.handover")
+        fn = getattr(module, "tiling_companions", None)
+        self.assertIsNotNone(fn, "chapters/handover.py builds no companion command for the tiling output")
+        return fn("HEADLESS-3")
+
+    def test_a_bar_and_a_wallpaper_start_as_the_tiling_chapter_starts_them(self):
+        commands = self.commands()
+        tiling = (ROOT / "demo" / "tour" / "chapters" / "tiling.py").read_text()
+        wallpaper = [c for c in commands if c[0] == "swaybg"]
+        self.assertEqual(len(wallpaper), 1, commands)
+        self.assertIn("#2e3440", wallpaper[0])
+        self.assertIn('["swaybg", "--color", "#2e3440"]', tiling)
+        bar = [c for c in commands if any(a.endswith("flavors/tiling/waybar/waybar.sh") for a in c)]
+        self.assertEqual(len(bar), 1, commands)
+        self.assertEqual(bar[0][:3], ["dbus-run-session", "--", "sh"], bar)
+        self.assertTrue(bar[0][-1].endswith("flavors/tiling/waybar"), bar)
+
+    def test_the_wallpaper_covers_the_tiling_output_only(self):
+        """The other three outputs draw their own desktops (xp, mc, construct): a swaybg on every output paints under them."""
+        [wallpaper] = [c for c in self.commands() if c[0] == "swaybg"]
+        self.assertEqual(wallpaper[wallpaper.index("-o") + 1], "HEADLESS-3", wallpaper)
+
+    def test_the_chapter_starts_them_after_tiling(self):
+        text = (ROOT / "demo" / "tour" / "chapters" / "handover.py").read_text()
+        start = text.index("def start_multi")
+        body = text[start : text.index("\ndef run(", start)]
+        self.assertLess(body.index('tiling_argv(f"{BIN}/chora-tiling"'), body.index("tiling_companions("), body)
+
+
+class HandoverCompanionsRun(unittest.TestCase):
+    """rtb5-3: `choractl run setsid` for the bar and the wallpaper ran with `check=False, capture_output=True` and the
+    tests read only the command lines, so a missing swaybg or a failed waybar left the tiling screen black and the act
+    green. The chapter waits for the two processes and raises on a miss, as it does for `owner:*`; the first act, which
+    shows that screen, checks that they run."""
+
+    def module(self):
+        return importlib.import_module("chapters.handover")
+
+    def test_a_companion_that_does_not_run_is_named(self):
+        missing = self.module().companions_missing("HEADLESS-3", alive=lambda pattern: False)
+        self.assertEqual(len(missing), 2, missing)
+        self.assertTrue(any("swaybg" in m for m in missing), missing)
+        self.assertTrue(any("waybar" in m for m in missing), missing)
+
+    def test_companions_that_run_are_not_named(self):
+        self.assertEqual(self.module().companions_missing("HEADLESS-3", alive=lambda pattern: True), [])
+
+    def test_one_missing_companion_is_the_one_named(self):
+        missing = self.module().companions_missing("HEADLESS-3", alive=lambda pattern: "swaybg" in pattern)
+        self.assertEqual(len(missing), 1, missing)
+        self.assertIn("waybar", missing[0])
+
+    def test_the_wallpaper_is_looked_for_on_the_tiling_output(self):
+        seen = []
+        self.module().companions_missing("HEADLESS-3", alive=lambda pattern: seen.append(pattern) or True)
+        self.assertTrue(any("swaybg" in p and "HEADLESS-3" in p for p in seen), seen)
+
+    def test_start_multi_raises_on_a_miss_after_starting_them(self):
+        text = (ROOT / "demo" / "tour" / "chapters" / "handover.py").read_text()
+        start = text.index("def start_multi")
+        body = text[start : text.index("\ndef run(", start)]
+        self.assertIn("companions_missing(", body)
+        self.assertLess(body.index("tiling_companions("), body.index("companions_missing("), body)
+        self.assertIn("raise RuntimeError", body[body.index("companions_missing(") :], body)
+
+    def test_the_act_that_shows_the_empty_tiling_screen_checks_that_they_run(self):
+        module = self.module()
+        self.assertEqual(module.companions_running("HEADLESS-3", alive=lambda pattern: True)(None), [])
+        failed = module.companions_running("HEADLESS-3", alive=lambda pattern: False)(None)
+        self.assertEqual(len(failed), 2, failed)
+        text = (ROOT / "demo" / "tour" / "chapters" / "handover.py").read_text()
+        act = next(line for line in text.splitlines() if 't.act("look", "Two screens' in line)
+        self.assertIn("companions_running(", act)
+
+
 class CodeWindow(unittest.TestCase):
     """RV9-3: the code window of the tiling chapter showed crates/chora-kit/src/wobbly.rs of the
     checkout, and that file differs between the baseline and the candidate: a pixel diff of the

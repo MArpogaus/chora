@@ -4,6 +4,8 @@
 # scene has a letter, `h1b`), kind (rect, visible, meta, owner, missing, added, z-order, pixel, or * for any), cause (a commit or a finding id).
 # `baseline_none = ["<act>.<capture>"]` lists the captures that have no v8 baseline by design;
 # any other absence in BASE is a regression. A check that is red on purpose has a row of kind check.
+# A row may carry `nodes = ["id", ...]`: it names those nodes of the kind only (rv9j-5), so a closed row is
+# proved per node and a node it does not list falls to the next row, or to an open row of the kind.
 # A v8 open row that is gone in v9 needs a row here too. tests/tour-diff.py reads it with
 # --intended; a diff with no row is a regression.
 
@@ -14,34 +16,40 @@ baseline_none = ["h2.Q", "h3.Q", "h3b.Q", "h4.Q", "h5.H50", "h6.Q", "h7.Q"]
 
 [[change]]
 act = "h2"
-cause = "xp-give Send To row (22fead94)"
+cause = "xp-give Send To row (22fead94) (the Send To row `xp-ctx-1-0`, handover.py:190; r7 take, captures/h2.Q.png has no baseline, so no diff of it)"
 kind = "meta"
+nodes = ["xp-ctx-1-0"]
 
 [[change]]
 act = "h2"
-cause = "xp-give Send To row (22fead94)"
+cause = "xp-give Send To row (22fead94) (the Send To row `xp-ctx-1-0`, handover.py:190; r7 take, captures/h2.Q.png has no baseline, so no diff of it)"
 kind = "rect"
+nodes = ["xp-ctx-1-0"]
 
 [[change]]
 act = "h2"
-cause = "xp-give Send To row (22fead94)"
+cause = "xp-give Send To row (22fead94); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "added"
-
 # record-v9 r2: causes found by git log between 733967aa and the head (reports/record-v9.md r2).
+open = true
+
 [[change]]
 act = "c1"
-cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet); open: the row lists no nodes or boxes and the judge did not prove this diff for the act (judge r1, tour-v9-judge.md; r7 take, captures/c1.Q.png)"
 kind = "missing"
+open = true
 
 [[change]]
 act = "c1"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c1"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes and the judge did not prove this diff for the act (judge r1, tour-v9-judge.md; r7 take, captures/c1.Q.png)"
 kind = "rect"
+open = true
 
 [[change]]
 act = "c1"
@@ -57,13 +65,15 @@ open = true
 
 [[change]]
 act = "c2"
-cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet); open: the row lists no nodes or boxes and the judge did not prove this diff for the act (judge r1, tour-v9-judge.md; r7 take, captures/c2.Q.png)"
 kind = "missing"
+open = true
 
 [[change]]
 act = "c2"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c2"
@@ -73,13 +83,15 @@ open = true
 
 [[change]]
 act = "c2b"
-cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet); open: the row lists no nodes or boxes and the judge did not prove this diff for the act (judge r1, tour-v9-judge.md; r7 take, captures/c2b.Q.png)"
 kind = "missing"
+open = true
 
 [[change]]
 act = "c2b"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c2b"
@@ -89,13 +101,15 @@ open = true
 
 [[change]]
 act = "c3"
-cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet); open: the row lists no nodes or boxes and the judge did not prove this diff for the act (judge r1, tour-v9-judge.md; r7 take, captures/c3.H50.png)"
 kind = "missing"
+open = true
 
 [[change]]
 act = "c3"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c3"
@@ -105,13 +119,15 @@ open = true
 
 [[change]]
 act = "c3b"
-cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet); open: the row lists no nodes or boxes and the judge did not prove this diff for the act (judge r1, tour-v9-judge.md; r7 take, captures/c3b.Q.png)"
 kind = "missing"
+open = true
 
 [[change]]
 act = "c3b"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c3b"
@@ -121,13 +137,15 @@ open = true
 
 [[change]]
 act = "c3c"
-cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet); open: the row lists no nodes or boxes and the judge did not prove this diff for the act (judge r1, tour-v9-judge.md; r7 take, captures/c3c.Q.png)"
 kind = "missing"
+open = true
 
 [[change]]
 act = "c3c"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c3c"
@@ -137,13 +155,15 @@ open = true
 
 [[change]]
 act = "c3d"
-cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet); open: the row lists no nodes or boxes and the judge did not prove this diff for the act (judge r1, tour-v9-judge.md; r7 take, captures/c3d.Q.png)"
 kind = "missing"
+open = true
 
 [[change]]
 act = "c3d"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c3d"
@@ -153,18 +173,21 @@ open = true
 
 [[change]]
 act = "c4"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); b8872054 one key list for all four looks (kit::keysheet)"
+cause = "371f0fa1 xp desktop under windows of other looks (T7); b8872054 one key list for all four looks (kit::keysheet); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "added"
+open = true
 
 [[change]]
 act = "c4b"
-cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet); open: the row lists no nodes or boxes and the judge did not prove this diff for the act (judge r1, tour-v9-judge.md; r7 take, captures/c4b.Q.png)"
 kind = "missing"
+open = true
 
 [[change]]
 act = "c4b"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c4b"
@@ -174,18 +197,21 @@ open = true
 
 [[change]]
 act = "c5"
-cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet); open: the row lists no nodes or boxes and the judge did not prove this diff for the act (judge r1, tour-v9-judge.md; r7 take, captures/c5.H50.png)"
 kind = "missing"
+open = true
 
 [[change]]
 act = "c5"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c5"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes and the judge did not prove this diff for the act (judge r1, tour-v9-judge.md; r7 take, captures/c5.H50.png)"
 kind = "rect"
+open = true
 
 [[change]]
 act = "c5"
@@ -195,18 +221,21 @@ open = true
 
 [[change]]
 act = "c5b"
-cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet); open: the row lists no nodes or boxes and the judge did not prove this diff for the act (judge r1, tour-v9-judge.md; r7 take, captures/c5b.Q.png)"
 kind = "missing"
+open = true
 
 [[change]]
 act = "c5b"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c5b"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes and the judge did not prove this diff for the act (judge r1, tour-v9-judge.md; r7 take, captures/c5b.Q.png)"
 kind = "rect"
+open = true
 
 [[change]]
 act = "c5b"
@@ -222,13 +251,15 @@ open = true
 
 [[change]]
 act = "c5c"
-cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet); open: the row lists no nodes or boxes and the judge did not prove this diff for the act (judge r1, tour-v9-judge.md; r7 take, captures/c5c.H50.png)"
 kind = "missing"
+open = true
 
 [[change]]
 act = "c5c"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c5c"
@@ -238,13 +269,15 @@ open = true
 
 [[change]]
 act = "c5d"
-cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet)"
+cause = "6a5cfc1d chora-assistant is the only voice presenter; b8872054 one key list for all four looks (kit::keysheet); open: the row lists no nodes or boxes and the judge did not prove this diff for the act (judge r1, tour-v9-judge.md; r7 take, captures/c5d.Q.png)"
 kind = "missing"
+open = true
 
 [[change]]
 act = "c5d"
-cause = "8ca85eab pager on a face turns the hosted cube"
+cause = "8ca85eab pager on a face turns the hosted cube; open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c5d"
@@ -259,354 +292,394 @@ kind = "added"
 open = true
 
 [[change]]
-act = "h1"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
-
-[[change]]
-act = "h1b"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
-
-[[change]]
-act = "h1c"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
-
-[[change]]
-act = "h1d"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+act = "x1"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x1.Q.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x1"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
-
-[[change]]
-act = "x1"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x10"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x10.Q.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x10"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
-
-[[change]]
-act = "x10b"
-cause = "29281054 DB8 raw entries left out of the fill; b8872054 one key list for all four looks (xp Help reads the kit table); c64752fa"
-kind = "meta"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x10c"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x10c.Q.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x10c"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x11"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
-
-[[change]]
-act = "x11"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x11.Q.png)"
 kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x11"
-cause = "29281054 DB8 raw entries left out of the fill; 371f0fa1 xp desktop under windows of other looks (T7)"
-kind = "pixel"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x11b"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x11b.Q.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x11b"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x12"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x12.H50.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x12"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x12b"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x12b.Q.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x12b"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x12c"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x12c.H50.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x12c"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x2"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x2.Q.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x2"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x2b"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x2b.Q.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x2b"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x2c"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x2c.Q.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x2c"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x3"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
-
-[[change]]
-act = "x3"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x3.Q.png)"
 kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x3"
-cause = "29281054 DB8 raw entries left out of the fill; 371f0fa1 xp desktop under windows of other looks (T7)"
-kind = "pixel"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x4"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x4.H50.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x4"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x5"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
-
-[[change]]
-act = "x5"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x5.Q.png)"
 kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x5"
-cause = "29281054 DB8 raw entries left out of the fill; 371f0fa1 xp desktop under windows of other looks (T7)"
-kind = "pixel"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x5b"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x5b.Q.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x5b"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x5c"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x5c.Q.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x5c"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x5d"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x5d.Q+1.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x5d"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x5e"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x5e.Q.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x5e"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x5f"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x5f.Q.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x5f"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x5g"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x5g.Q.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x5g"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x6"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x6.Q.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x6"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x6b"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x6b.Q.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x6b"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x6c"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x6c.Q.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x6c"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x6d"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x6d.Q+1.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x6d"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x6e"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
-
-[[change]]
-act = "x6e"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x6e.Q.png)"
 kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x6e"
-cause = "29281054 DB8 raw entries left out of the fill; 371f0fa1 xp desktop under windows of other looks (T7)"
-kind = "pixel"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x7"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x7.Q.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x7"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x7b"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x7b.Q.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x7b"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x8"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x8.Q+0.5.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x8"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x9"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
-
-[[change]]
-act = "x9"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x9.Q.png)"
 kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x9"
-cause = "29281054 DB8 raw entries left out of the fill; 371f0fa1 xp desktop under windows of other looks (T7)"
-kind = "pixel"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
+kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "x9b"
-cause = "29281054 DB8 raw entries left out of the fill"
-kind = "meta"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x9b.Q.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x9b"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30): the node hud-line holds the greeting; open: that this makes the node new is not proven"
 kind = "added"
+nodes = ["hud-line"]
+open = true
 
 [[change]]
 act = "t1"
@@ -729,196 +802,6 @@ kind = "pixel"
 open = true
 
 [[change]]
-act = "x1"
-cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
-kind = "meta"
-
-[[change]]
-act = "x10"
-cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
-kind = "rect"
-
-[[change]]
-act = "x10"
-cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
-kind = "meta"
-
-[[change]]
-act = "x10b"
-cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
-kind = "rect"
-
-[[change]]
-act = "x10c"
-cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
-kind = "rect"
-
-[[change]]
-act = "x10c"
-cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
-kind = "meta"
-
-[[change]]
-act = "x11"
-cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
-kind = "rect"
-
-[[change]]
-act = "x11"
-cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
-kind = "meta"
-
-[[change]]
-act = "x11b"
-cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
-kind = "rect"
-
-[[change]]
-act = "x11b"
-cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
-kind = "meta"
-
-[[change]]
-act = "x12"
-cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
-kind = "meta"
-
-[[change]]
-act = "x12b"
-cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
-kind = "rect"
-
-[[change]]
-act = "x12b"
-cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
-kind = "meta"
-
-[[change]]
-act = "x12c"
-cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
-kind = "meta"
-
-[[change]]
-act = "x2"
-cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
-kind = "meta"
-
-[[change]]
-act = "x2b"
-cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
-kind = "meta"
-
-[[change]]
-act = "x2c"
-cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
-kind = "rect"
-
-[[change]]
-act = "x2c"
-cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
-kind = "meta"
-
-[[change]]
-act = "x3"
-cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
-kind = "rect"
-
-[[change]]
-act = "x3"
-cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
-kind = "meta"
-
-[[change]]
-act = "x4"
-cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
-kind = "rect"
-
-[[change]]
-act = "x4"
-cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
-kind = "meta"
-
-[[change]]
-act = "x5e"
-cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
-kind = "rect"
-
-[[change]]
-act = "x5e"
-cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
-kind = "meta"
-
-[[change]]
-act = "x5g"
-cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
-kind = "rect"
-
-[[change]]
-act = "x5g"
-cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
-kind = "meta"
-
-[[change]]
-act = "x6e"
-cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
-kind = "rect"
-
-[[change]]
-act = "x6e"
-cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
-kind = "meta"
-
-[[change]]
-act = "x7"
-cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
-kind = "rect"
-
-[[change]]
-act = "x7"
-cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
-kind = "meta"
-
-[[change]]
-act = "x7b"
-cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
-kind = "rect"
-
-[[change]]
-act = "x7b"
-cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
-kind = "meta"
-
-[[change]]
-act = "x8"
-cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
-kind = "rect"
-
-[[change]]
-act = "x8"
-cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
-kind = "meta"
-
-[[change]]
-act = "x9"
-cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
-kind = "rect"
-
-[[change]]
-act = "x9"
-cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
-kind = "meta"
-
-[[change]]
-act = "x9b"
-cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28)"
-kind = "rect"
-
-[[change]]
-act = "x9b"
-cause = "29281054 DB8 raw entries left out of the fill (the item names shift)"
-kind = "meta"
-
-[[change]]
 act = "c2"
 cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; open: more than three causes, none proven for this act alone"
 kind = "rect"
@@ -926,7 +809,7 @@ open = true
 
 [[change]]
 act = "c2"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; open: more than three causes, none proven for this act alone"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); d78fc4bb workspace buttons dark enough for 4.5:1 (the pager of the xp face); 62708d35 the bin back at the bottom right (the xp face); 909bc57b the hint chips Click Fly in and Pull out (co-64, co-65); f1397d98 darker title shadow, an inactive title reads (xp-45); judge r1 c2, c2.jpg and c3b, c3b.jpg; d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; open: more than three causes, none proven for this act alone"
 kind = "pixel"
 open = true
 
@@ -944,7 +827,7 @@ open = true
 
 [[change]]
 act = "c2b"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; open: more than three causes, none proven for this act alone"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); d78fc4bb workspace buttons dark enough for 4.5:1 (the pager of the xp face); 62708d35 the bin back at the bottom right (the xp face); 909bc57b the hint chips Click Fly in and Pull out (co-64, co-65); f1397d98 darker title shadow, an inactive title reads (xp-45); judge r1 c2, c2.jpg and c3b, c3b.jpg; open: more than three causes, none proven for this act alone"
 kind = "pixel"
 open = true
 
@@ -974,7 +857,7 @@ open = true
 
 [[change]]
 act = "c3b"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; open: more than three causes, none proven for this act alone"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); d78fc4bb workspace buttons dark enough for 4.5:1 (the pager of the xp face); 62708d35 the bin back at the bottom right (the xp face); 909bc57b the hint chips Click Fly in and Pull out (co-64, co-65); f1397d98 darker title shadow, an inactive title reads (xp-45); judge r1 c2, c2.jpg and c3b, c3b.jpg; open: more than three causes, none proven for this act alone"
 kind = "pixel"
 open = true
 
@@ -992,7 +875,7 @@ open = true
 
 [[change]]
 act = "c3c"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; open: more than three causes, none proven for this act alone"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); d78fc4bb workspace buttons dark enough for 4.5:1 (the pager of the xp face); 62708d35 the bin back at the bottom right (the xp face); 909bc57b the hint chips Click Fly in and Pull out (co-64, co-65); f1397d98 darker title shadow, an inactive title reads (xp-45); judge r1 c2, c2.jpg and c3b, c3b.jpg; open: more than three causes, none proven for this act alone"
 kind = "pixel"
 open = true
 
@@ -1010,7 +893,7 @@ open = true
 
 [[change]]
 act = "c3d"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; open: more than three causes, none proven for this act alone"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); d78fc4bb workspace buttons dark enough for 4.5:1 (the pager of the xp face); 62708d35 the bin back at the bottom right (the xp face); 909bc57b the hint chips Click Fly in and Pull out (co-64, co-65); f1397d98 darker title shadow, an inactive title reads (xp-45); judge r1 c2, c2.jpg and c3b, c3b.jpg; open: more than three causes, none proven for this act alone"
 kind = "pixel"
 open = true
 
@@ -1058,12 +941,13 @@ open = true
 
 [[change]]
 act = "c4"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip)"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "c4"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; open: more than three causes, none proven for this act alone"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); d78fc4bb workspace buttons dark enough for 4.5:1 (the pager of the xp face); 62708d35 the bin back at the bottom right (the xp face); 909bc57b the hint chips Click Fly in and Pull out (co-64, co-65); f1397d98 darker title shadow, an inactive title reads (xp-45); judge r1 c2, c2.jpg and c3b, c3b.jpg; d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; open: more than three causes, none proven for this act alone"
 kind = "pixel"
 open = true
 
@@ -1081,7 +965,7 @@ open = true
 
 [[change]]
 act = "c4b"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; open: more than three causes, none proven for this act alone"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); d78fc4bb workspace buttons dark enough for 4.5:1 (the pager of the xp face); 62708d35 the bin back at the bottom right (the xp face); 909bc57b the hint chips Click Fly in and Pull out (co-64, co-65); f1397d98 darker title shadow, an inactive title reads (xp-45); judge r1 c2, c2.jpg and c3b, c3b.jpg; open: more than three causes, none proven for this act alone"
 kind = "pixel"
 open = true
 
@@ -1111,7 +995,7 @@ open = true
 
 [[change]]
 act = "c5d"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; open: more than three causes, none proven for this act alone"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); d78fc4bb workspace buttons dark enough for 4.5:1 (the pager of the xp face); 62708d35 the bin back at the bottom right (the xp face); 909bc57b the hint chips Click Fly in and Pull out (co-64, co-65); f1397d98 darker title shadow, an inactive title reads (xp-45); judge r1 c2, c2.jpg and c3b, c3b.jpg; open: more than three causes, none proven for this act alone"
 kind = "pixel"
 open = true
 
@@ -1141,111 +1025,45 @@ open = true
 
 [[change]]
 act = "c5e"
-cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; open: more than three causes, none proven for this act alone"
+cause = "co-44 (1e7cc905 hide the chip words under the key list, cfc805d4 the hint Keys of a face rests as a chip); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); d78fc4bb workspace buttons dark enough for 4.5:1 (the pager of the xp face); 62708d35 the bin back at the bottom right (the xp face); 909bc57b the hint chips Click Fly in and Pull out (co-64, co-65); f1397d98 darker title shadow, an inactive title reads (xp-45); judge r1 c2, c2.jpg and c3b, c3b.jpg; d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; open: more than three causes, none proven for this act alone"
 kind = "pixel"
 open = true
 
 [[change]]
 act = "h1"
-cause = "d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
-kind = "missing"
-open = true
-
-[[change]]
-act = "h1"
-cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
-kind = "rect"
-open = true
-
-[[change]]
-act = "h1"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/h1.Q.png)"
 kind = "added"
-
-[[change]]
-act = "h1"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
-kind = "pixel"
-open = true
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "h1b"
-cause = "d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
-kind = "missing"
-open = true
-
-[[change]]
-act = "h1b"
-cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
-kind = "rect"
-open = true
-
-[[change]]
-act = "h1b"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/h1b.Q.png)"
 kind = "added"
-
-[[change]]
-act = "h1b"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
-kind = "pixel"
-open = true
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "h1c"
-cause = "d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
-kind = "missing"
-open = true
-
-[[change]]
-act = "h1c"
-cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
-kind = "rect"
-open = true
-
-[[change]]
-act = "h1c"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/h1c.Q.png)"
 kind = "added"
-
-[[change]]
-act = "h1c"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
-kind = "pixel"
-open = true
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "h1d"
-cause = "d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
-kind = "missing"
-open = true
-
-[[change]]
-act = "h1d"
-cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
-kind = "rect"
-open = true
-
-[[change]]
-act = "h1d"
-cause = "371f0fa1 xp desktop under windows of other looks (T7)"
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/h1d.Q.png)"
 kind = "added"
-
-[[change]]
-act = "h1d"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
-kind = "pixel"
-open = true
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "t10"
-cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 573496e5 the inner gap is 12 (I2)"
+cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 573496e5 the inner gap is 12 (I2); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "t10c"
-cause = "675ebd55 chora-notify shows the notices (sh-31)"
+cause = "675ebd55 chora-notify shows the notices (sh-31); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "added"
+open = true
 
 [[change]]
 act = "t10c"
@@ -1255,8 +1073,9 @@ open = true
 
 [[change]]
 act = "t6"
-cause = "b8872054 one key list for all four looks, kit::keysheet (ti-30)"
+cause = "b8872054 one key list for all four looks, kit::keysheet (ti-30) (judge r1 t6, t6.jpg: the kit key list with the Other desktops group; r7 take, captures/t6.Q.png)"
 kind = "rect"
+nodes = ["tiling-keys-body-0", "tiling-keys-body-1-cap", "tiling-keys-body-1-k", "tiling-keys-body-2-l", "tiling-keys-body-b", "tiling-keys-body-h", "tiling-keys-body-m", "tiling-keys-body-t", "tiling-keys-panel"]
 
 [[change]]
 act = "t6"
@@ -1266,8 +1085,9 @@ open = true
 
 [[change]]
 act = "t6c"
-cause = "b8872054 one key list for all four looks, kit::keysheet (ti-30)"
+cause = "b8872054 one key list for all four looks, kit::keysheet (ti-30) (judge r1 t6, t6.jpg: the kit key list with the Other desktops group; r7 take, captures/t6c.Q.png)"
 kind = "rect"
+nodes = ["tiling-keys-body-0", "tiling-keys-body-1-cap", "tiling-keys-body-1-k", "tiling-keys-body-2-l", "tiling-keys-body-b", "tiling-keys-body-h", "tiling-keys-body-m", "tiling-keys-body-t", "tiling-keys-panel"]
 
 [[change]]
 act = "t6c"
@@ -1277,8 +1097,9 @@ open = true
 
 [[change]]
 act = "t7"
-cause = "675ebd55 chora-notify shows the notices (sh-31)"
+cause = "675ebd55 chora-notify shows the notices (sh-31); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "added"
+open = true
 
 [[change]]
 act = "t7"
@@ -1288,262 +1109,64 @@ open = true
 
 [[change]]
 act = "t8"
-cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 573496e5 the inner gap is 12 (I2)"
-kind = "pixel"
-
-[[change]]
-act = "t9"
-cause = "573496e5 the inner gap is 12 (I2)"
-kind = "rect"
-
-[[change]]
-act = "t9"
-cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 573496e5 the inner gap is 12 (I2)"
-kind = "pixel"
-
-[[change]]
-act = "x1"
-cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
-kind = "rect"
-
-[[change]]
-act = "x1"
-cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 573496e5 the inner gap is 12 (I2); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "pixel"
 open = true
 
 [[change]]
-act = "x10"
-cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
+act = "t9"
+cause = "573496e5 the inner gap is 12 (I2); open: the row lists no nodes or boxes and the judge did not prove this diff for the act (judge r1, tour-v9-judge.md; r7 take, captures/t9.Q.png)"
+kind = "rect"
+open = true
+
+[[change]]
+act = "t9"
+cause = "bbb105ba the bar with a 1 px hairline, radius 10 (ti-21; crop of the bar of t8 on both takes); 573496e5 the inner gap is 12 (I2); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "pixel"
 open = true
 
 [[change]]
 act = "x10b"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found; open: cause not found"
+cause = "xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found; open: cause not found"
 kind = "added"
+nodes = ["hud-line", "xp-dlg-help-content-c-scroll"]
 open = true
 
 [[change]]
 act = "x10b"
-cause = "371f0fa1 xp desktop under windows of other looks (T7); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found, the blobs of this act carry no node; open: more than three causes, none proven for this act alone"
-kind = "pixel"
-open = true
-
-[[change]]
-act = "x10c"
-cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "pixel"
-open = true
-
-[[change]]
-act = "x11b"
-cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "pixel"
-open = true
-
-[[change]]
-act = "x12"
-cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot')"
-kind = "rect"
-
-[[change]]
-act = "x12b"
-cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "pixel"
-open = true
+cause = "371f0fa1 xp desktop under windows of other looks (T7) (r7 take, captures/x10b.Q.png)"
+kind = "added"
+nodes = ["xp-desktop"]
 
 [[change]]
 act = "x12c"
-cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 20e4ad6e menus shut on a new window (xp-item, xp-menu at x12c)"
-kind = "rect"
-
-[[change]]
-act = "x12c"
-cause = "20e4ad6e menus shut on a new window (xp-item, xp-menu at x12c)"
+cause = "20e4ad6e menus shut on a new window (xp-item, xp-menu at x12c) (r7 take, captures/x12c.H50.png)"
 kind = "visible"
+nodes = ["xp-menu"]
 
-[[change]]
-act = "x2"
-cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 675ebd55 chora-notify shows the notices (sh-31)"
-kind = "rect"
-
-[[change]]
-act = "x2"
-cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 675ebd55 chora-notify shows the notices (sh-31); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "pixel"
-open = true
-
-[[change]]
-act = "x2b"
-cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 675ebd55 chora-notify shows the notices (sh-31)"
-kind = "rect"
-
-[[change]]
-act = "x2b"
-cause = "29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 675ebd55 chora-notify shows the notices (sh-31); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "pixel"
-open = true
-
-[[change]]
-act = "x2c"
-cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "pixel"
-open = true
-
-[[change]]
-act = "x5"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "rect"
-open = true
-
-[[change]]
-act = "x5b"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "rect"
-open = true
-
-[[change]]
-act = "x5b"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "pixel"
-open = true
-
-[[change]]
-act = "x5c"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "rect"
-open = true
-
-[[change]]
-act = "x5c"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "pixel"
-open = true
-
-[[change]]
-act = "x5d"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "rect"
-open = true
-
-[[change]]
-act = "x5d"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "pixel"
-open = true
-
-[[change]]
-act = "x5e"
-cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found, the blobs of this act carry no node; open: cause not found"
-kind = "pixel"
-open = true
-
-[[change]]
-act = "x5f"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "rect"
-open = true
-
-[[change]]
-act = "x5f"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "pixel"
-open = true
-
-[[change]]
-act = "x5g"
-cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found, the blobs of this act carry no node; open: cause not found"
-kind = "pixel"
-open = true
-
-[[change]]
-act = "x6"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "rect"
-open = true
-
-[[change]]
-act = "x6"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "pixel"
-open = true
-
-[[change]]
-act = "x6b"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "rect"
-open = true
-
-[[change]]
-act = "x6b"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "pixel"
-open = true
-
-[[change]]
-act = "x6c"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "rect"
-open = true
-
-[[change]]
-act = "x6c"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "pixel"
-open = true
-
-[[change]]
-act = "x6d"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "rect"
-open = true
-
-[[change]]
-act = "x6d"
-cause = "4fec75c3 the paperclip greets once at the first start (xp-30); 29281054 DB8 raw entries left out of the fill (the label of xp-icon-2 'UXTerm' to 'Foot'); fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "pixel"
-open = true
-
-[[change]]
-act = "x7"
-cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found, the blobs of this act carry no node; open: cause not found"
-kind = "pixel"
-open = true
-
-[[change]]
-act = "x7b"
-cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); open: more than three causes, none proven for this act alone"
-kind = "pixel"
-open = true
-
-[[change]]
-act = "x8"
-cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found, the blobs of this act carry no node; open: cause not found"
-kind = "pixel"
-open = true
-
-[[change]]
-act = "x9b"
-cause = "fc9675ac, 11e34cf8, 94579f91 the pager and the captions of the xp taskbar reach 4.5:1 (xp-39, xp-readable), by the position of the blobs, no controlled take; 09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28); xp-43 (proposed): hud-line and the help dialog scroll node are new in the head, cause not found, the blobs of this act carry no node; open: cause not found"
-kind = "pixel"
-open = true
-
-# tour-base r2: the mc acts from the five takes of the bisect (reports/tour-base.md ## r2): one row per act and kind of the head against 733967aa; an open row names the commits in which the cause lies.
 [[change]]
 act = "m1"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+boxes = [[880, 370, 352, 44]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: the hairline of the KEYS heading moves with the column content (y 378 in v9, 406 in v8 in m1; the blob lands in m1 or m1c by take; judge r1 m1c, m1-col.jpg; rv9j-2: the design decision is open, mc-v2 section 3 asks for 'Nothing new.' in the column)"
+kind = "pixel"
+
+[[change]]
+act = "m1"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot) (judge r1 m1c, m1c.jpg: the NOTIFICATIONS block of the column goes; r7 take, captures/m1.Q.png: the notify block of the column)"
 kind = "missing"
+nodes = ["mc-r0-right-notify", "mc-r0-right-notify-title", "mc-r1-right-notify", "mc-r1-right-notify-title"]
 
 [[change]]
 act = "m1"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them) (judge r1 m1c, m1c.jpg and m1-col.jpg: the chat door moves up 84 px; r7 take, captures/m1.Q.png: the chat door of the column, its key hit and the page rule, the nodes bisect r2 names)"
 kind = "rect"
+nodes = ["mc-r0-right-chat-door", "mc-r0-right-chat-door-hit", "mc-r0-right-chat-door-mark", "mc-r0-right-chat-key", "mc-r0-right-chat-state", "mc-r0-right-chat-title", "mc-r0-right-keys-2-key-hit", "mc-s-ingredients-panels-lead-rule", "mc-s-ingredients-panels-list-rule"]
 
 [[change]]
 act = "m1b"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot) (judge r1 m1c, m1c.jpg: the NOTIFICATIONS block of the column goes; r7 take, captures/m1b.Q.png: the notify block of the column)"
 kind = "missing"
+nodes = ["mc-r0-right-notify", "mc-r0-right-notify-title", "mc-r1-right-notify", "mc-r1-right-notify-title"]
 
 [[change]]
 act = "m1b"
@@ -1553,23 +1176,33 @@ open = true
 
 [[change]]
 act = "m1c"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
-kind = "missing"
+boxes = [[880, 370, 352, 44]]
+cause = "675ebd55 chora-notify shows the notices, mc stacks none: the hairline of the KEYS heading moves with the column content (y 378 in v9, 406 in v8 in m1; the blob lands in m1 or m1c by take; judge r1 m1c, m1-col.jpg; rv9j-2: the design decision is open, mc-v2 section 3 asks for 'Nothing new.' in the column)"
+kind = "pixel"
 
 [[change]]
 act = "m1c"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them)"
-kind = "rect"
-
-[[change]]
-act = "m2"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
-kind = "added"
-
-[[change]]
-act = "m2"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot) (judge r1 m1c, m1c.jpg and m1-col.jpg; r7 take, captures/m1c.Q.png: the notify block of the column)"
 kind = "missing"
+nodes = ["mc-r0-right-notify", "mc-r0-right-notify-title", "mc-r1-right-notify", "mc-r1-right-notify-title"]
+
+[[change]]
+act = "m1c"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them) (judge r1 m1c, m1c.jpg and m1-col.jpg; r7 take, captures/m1c.Q.png: the chat door of the column, its key hit and the page rule, the nodes bisect r2 names)"
+kind = "rect"
+nodes = ["mc-r1-right-chat-door", "mc-r1-right-chat-door-hit", "mc-r1-right-chat-door-mark", "mc-r1-right-chat-key", "mc-r1-right-chat-state", "mc-r1-right-chat-title", "mc-r1-right-keys-2-key-hit", "mc-s-boil-panels-lead-rule", "mc-s-boil-panels-side-rule"]
+
+[[change]]
+act = "m2"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
+kind = "added"
+open = true
+
+[[change]]
+act = "m2"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot) (judge r1 m1c, m1c.jpg: the NOTIFICATIONS block of the column goes; r7 take, captures/m2.Q.png: the notify block of the column)"
+kind = "missing"
+nodes = ["mc-r0-right-notify-0", "mc-r0-right-notify-0-time", "mc-r0-right-notify-title", "mc-r1-right-notify", "mc-r1-right-notify-title"]
 
 [[change]]
 act = "m2"
@@ -1585,18 +1218,21 @@ open = true
 
 [[change]]
 act = "m2"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "m2b"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "added"
+open = true
 
 [[change]]
 act = "m2b"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot) (judge r1 m1c, m1c.jpg: the NOTIFICATIONS block of the column goes; r7 take, captures/m2b.Q+1.png: the notify block of the column)"
 kind = "missing"
+nodes = ["mc-r0-right-notify-0", "mc-r0-right-notify-0-time", "mc-r0-right-notify-title", "mc-r1-right-notify", "mc-r1-right-notify-title"]
 
 [[change]]
 act = "m2b"
@@ -1612,18 +1248,21 @@ open = true
 
 [[change]]
 act = "m2b"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "m3"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "added"
+open = true
 
 [[change]]
 act = "m3"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot) (judge r1 m3, m3.jpg; r7 take, captures/m3.Q.png: the notify block of the column)"
 kind = "missing"
+nodes = ["mc-r0-right-notify-0", "mc-r0-right-notify-0-time", "mc-r0-right-notify-title", "mc-r1-right-notify", "mc-r1-right-notify-title"]
 
 [[change]]
 act = "m3"
@@ -1639,8 +1278,9 @@ open = true
 
 [[change]]
 act = "m3"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "m3b"
@@ -1674,38 +1314,57 @@ open = true
 
 [[change]]
 act = "m4"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot) (judge r1 m1c, m1c.jpg: the NOTIFICATIONS block of the column goes; r7 take, captures/m4.Q.png: the notify block of the column)"
 kind = "missing"
+nodes = ["mc-r0-right-notify-0", "mc-r0-right-notify-0-time", "mc-r0-right-notify-title", "mc-r1-right-notify-0", "mc-r1-right-notify-0-time", "mc-r1-right-notify-title"]
 
 [[change]]
 act = "m4"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them) (judge r1 m1c, m1c.jpg and m1-col.jpg: the chat door moves up 84 px; r7 take, captures/m4.Q.png: the chat door of the column, its key hit and the page rule, the nodes bisect r2 names)"
 kind = "rect"
+nodes = ["mc-r0-right-chat-door", "mc-r0-right-chat-door-hit", "mc-r0-right-chat-door-mark", "mc-r0-right-chat-key", "mc-r0-right-chat-state", "mc-r0-right-chat-title", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-4-key-hit", "mc-r1-right-chat-door", "mc-r1-right-chat-door-hit", "mc-r1-right-chat-door-mark", "mc-r1-right-chat-key", "mc-r1-right-chat-state", "mc-r1-right-chat-title", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-4-key-hit", "mc-s-sauce-panels-lead-rule", "mc-s-sauce-panels-side-rule"]
 
 [[change]]
 act = "m4"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
-kind = "visible"
-
-[[change]]
-act = "m4b"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
-kind = "missing"
-
-[[change]]
-act = "m4b"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none; open: the other nodes of this diff are not proven for the act (r7 take, captures/m4.Q.png)"
 kind = "rect"
+open = true
+
+[[change]]
+act = "m4"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot) (r7 take, captures/m4.Q.png)"
+kind = "visible"
+nodes = ["mc-regions-0", "mc-regions-1"]
 
 [[change]]
 act = "m4b"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot) (judge r1 m1c, m1c.jpg: the NOTIFICATIONS block of the column goes; r7 take, captures/m4b.Q.png: the notify block of the column)"
+kind = "missing"
+nodes = ["mc-r0-right-notify-0", "mc-r0-right-notify-0-time", "mc-r0-right-notify-title", "mc-r1-right-notify-0", "mc-r1-right-notify-0-time", "mc-r1-right-notify-title"]
+
+[[change]]
+act = "m4b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); 6fa86c16 key hit and text, the page rule (bisect r2: 6fa86c16^ keeps the lead rule at x 42 and the key hit at 28, 6fa86c16 moves them) (judge r1 m1c, m1c.jpg and m1-col.jpg: the chat door moves up 84 px; r7 take, captures/m4b.Q.png: the chat door of the column, its key hit and the page rule, the nodes bisect r2 names)"
+kind = "rect"
+nodes = ["mc-r0-right-chat-door", "mc-r0-right-chat-door-hit", "mc-r0-right-chat-door-mark", "mc-r0-right-chat-key", "mc-r0-right-chat-state", "mc-r0-right-chat-title", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-4-key-hit", "mc-r1-right-chat-door", "mc-r1-right-chat-door-hit", "mc-r1-right-chat-door-mark", "mc-r1-right-chat-key", "mc-r1-right-chat-state", "mc-r1-right-chat-title", "mc-r1-right-keys-0-key-hit", "mc-r1-right-keys-1-key-hit", "mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-4-key-hit", "mc-s-boil-panels-lead-rule", "mc-s-boil-panels-side-rule"]
+
+[[change]]
+act = "m4b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none; open: the other nodes of this diff are not proven for the act (r7 take, captures/m4b.Q.png)"
+kind = "rect"
+open = true
+
+[[change]]
+act = "m4b"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot) (r7 take, captures/m4b.Q.png)"
 kind = "visible"
+nodes = ["mc-regions-0", "mc-regions-1"]
 
 [[change]]
 act = "m4c"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot) (judge r1 m1c, m1c.jpg: the NOTIFICATIONS block of the column goes; r7 take, captures/m4c.Q.png: the notify block of the column)"
 kind = "missing"
+nodes = ["mc-r0-right-notify-0", "mc-r0-right-notify-0-time", "mc-r0-right-notify-title", "mc-r1-right-notify-0", "mc-r1-right-notify-0-time", "mc-r1-right-notify-title"]
 
 [[change]]
 act = "m4c"
@@ -1733,8 +1392,9 @@ open = true
 
 [[change]]
 act = "m5"
-cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it)"
+cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "m5"
@@ -1756,8 +1416,9 @@ open = true
 
 [[change]]
 act = "m5b"
-cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it)"
+cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "m5b"
@@ -1785,8 +1446,9 @@ open = true
 
 [[change]]
 act = "m6"
-cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it)"
+cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "m6"
@@ -1814,8 +1476,9 @@ open = true
 
 [[change]]
 act = "m6b"
-cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it)"
+cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "m6b"
@@ -1831,8 +1494,9 @@ open = true
 
 [[change]]
 act = "m7"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot) (judge r1 m1c, m1c.jpg: the NOTIFICATIONS block of the column goes; r7 take, captures/m7.Q.png: the notify block of the column)"
 kind = "missing"
+nodes = ["mc-r1-right-notify", "mc-r1-right-notify-title"]
 
 [[change]]
 act = "m7"
@@ -1848,8 +1512,9 @@ open = true
 
 [[change]]
 act = "m7b"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot) (judge r1 m1c, m1c.jpg: the NOTIFICATIONS block of the column goes; r7 take, captures/m7b.Q.png: the notify block of the column)"
 kind = "missing"
+nodes = ["mc-r0-right-notify", "mc-r0-right-notify-title", "mc-r1-right-notify", "mc-r1-right-notify-title"]
 
 [[change]]
 act = "m7b"
@@ -1859,13 +1524,15 @@ open = true
 
 [[change]]
 act = "m7c"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); open: the row lists no nodes or boxes and the judge did not prove this diff for the act (judge r1, tour-v9-judge.md; r7 take, captures/m7c.Q.png)"
 kind = "missing"
+open = true
 
 [[change]]
 act = "m7c"
-cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it)"
+cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "pixel"
+open = true
 
 [[change]]
 act = "m7c"
@@ -1875,13 +1542,15 @@ open = true
 
 [[change]]
 act = "m7c"
-cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it)"
+cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "m8"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); open: the row lists no nodes or boxes and the judge did not prove this diff for the act (judge r1, tour-v9-judge.md; r7 take, captures/m8.Q.png)"
 kind = "missing"
+open = true
 
 [[change]]
 act = "m8"
@@ -1903,8 +1572,9 @@ open = true
 
 [[change]]
 act = "m8b"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); open: the row lists no nodes or boxes and the judge did not prove this diff for the act (judge r1, tour-v9-judge.md; r7 take, captures/m8b.Q.png)"
 kind = "missing"
+open = true
 
 [[change]]
 act = "m8b"
@@ -1920,8 +1590,9 @@ open = true
 
 [[change]]
 act = "m8b"
-cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it)"
+cause = "fa7faabd (mc-38) Home alone goes to the first page (controlled take r1: the mc-s-* visible and the pixel diffs of the pages go with it); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "visible"
+open = true
 
 [[change]]
 act = "m9"
@@ -1955,8 +1626,9 @@ open = true
 
 [[change]]
 act = "m9b"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); open: the row lists no nodes or boxes and the judge did not prove this diff for the act (judge r1, tour-v9-judge.md; r7 take, captures/m9b.Q.png)"
 kind = "missing"
+open = true
 
 [[change]]
 act = "m9b"
@@ -1978,8 +1650,9 @@ open = true
 
 [[change]]
 act = "m10"
-cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot)"
+cause = "675ebd55 chora-notify shows the notices, mc stacks none (bisect r2: 675ebd55^ equals the baseline in these, 675ebd55 moves the column rects, drops the notify block and flips the region slot); open: the row lists no nodes or boxes and the judge did not prove this diff for the act (judge r1, tour-v9-judge.md; r7 take, captures/m10.Q+0.5.png)"
 kind = "missing"
+open = true
 
 [[change]]
 act = "m10"
@@ -1999,33 +1672,1104 @@ cause = "mc-59 open: the cause lies in the commits (675ebd55..fa7faabd), no sha 
 kind = "visible"
 open = true
 
-# tour-base r2: rows that the full take of the head showed and the take of r1 did not.
 [[change]]
 act = "m10"
-cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6)"
+cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "added"
+open = true
 
 [[change]]
 act = "m9b"
-cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6)"
+cause = "42585079 doors of the column go while the chat is open (mc-56); a3037cb2 doors and chat head hide under cover (I6); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "added"
+open = true
 
 [[change]]
 act = "t6"
-cause = "a611c08a key list columns clear the longest row, titles in text; fa076e7b keycaps of the key list read at 14 px (the nodes tiling-keys-body-N are numbered anew)"
+cause = "a611c08a key list columns clear the longest row, titles in text; fa076e7b keycaps of the key list read at 14 px (the nodes tiling-keys-body-N are numbered anew) (judge r1 t6, t6.jpg: the kit key list with the Other desktops group; r7 take, captures/t6.Q.png)"
 kind = "missing"
+nodes = ["tiling-keys-body-10-l", "tiling-keys-body-11-cap", "tiling-keys-body-11-k", "tiling-keys-body-12-l", "tiling-keys-body-13-cap", "tiling-keys-body-13-k", "tiling-keys-body-14-l", "tiling-keys-body-15-cap", "tiling-keys-body-15-k", "tiling-keys-body-16-l", "tiling-keys-body-17-cap", "tiling-keys-body-17-k", "tiling-keys-body-18-l", "tiling-keys-body-19-cap", "tiling-keys-body-19-k", "tiling-keys-body-20-l", "tiling-keys-body-21-cap", "tiling-keys-body-21-k", "tiling-keys-body-22-l", "tiling-keys-body-23-cap", "tiling-keys-body-23-k", "tiling-keys-body-24-l", "tiling-keys-body-25-cap", "tiling-keys-body-25-k", "tiling-keys-body-26-l", "tiling-keys-body-27-cap", "tiling-keys-body-27-k", "tiling-keys-body-28-l", "tiling-keys-body-29-cap", "tiling-keys-body-29-k", "tiling-keys-body-3-cap", "tiling-keys-body-3-k", "tiling-keys-body-30-l", "tiling-keys-body-31-cap", "tiling-keys-body-31-k", "tiling-keys-body-32-l", "tiling-keys-body-33-cap", "tiling-keys-body-33-k", "tiling-keys-body-34-l", "tiling-keys-body-35", "tiling-keys-body-36-cap", "tiling-keys-body-36-k", "tiling-keys-body-37-l", "tiling-keys-body-38-cap", "tiling-keys-body-38-k", "tiling-keys-body-39-l", "tiling-keys-body-4-l", "tiling-keys-body-40-cap", "tiling-keys-body-40-k", "tiling-keys-body-41-l", "tiling-keys-body-42-cap", "tiling-keys-body-42-k", "tiling-keys-body-43-l", "tiling-keys-body-44-cap", "tiling-keys-body-44-k", "tiling-keys-body-45-l", "tiling-keys-body-46-cap", "tiling-keys-body-46-k", "tiling-keys-body-47-l", "tiling-keys-body-48-cap", "tiling-keys-body-48-k", "tiling-keys-body-49-l", "tiling-keys-body-5-cap", "tiling-keys-body-5-k", "tiling-keys-body-50", "tiling-keys-body-51-cap", "tiling-keys-body-51-k", "tiling-keys-body-52-l", "tiling-keys-body-53-cap", "tiling-keys-body-53-k", "tiling-keys-body-54-l", "tiling-keys-body-55-cap", "tiling-keys-body-55-k", "tiling-keys-body-56-l", "tiling-keys-body-57-cap", "tiling-keys-body-57-k", "tiling-keys-body-58-l", "tiling-keys-body-59-cap", "tiling-keys-body-59-k", "tiling-keys-body-6-l", "tiling-keys-body-60-l", "tiling-keys-body-61-cap", "tiling-keys-body-61-k", "tiling-keys-body-62-l", "tiling-keys-body-63-cap", "tiling-keys-body-63-k", "tiling-keys-body-64-l", "tiling-keys-body-65-cap", "tiling-keys-body-65-k", "tiling-keys-body-66-l", "tiling-keys-body-67-cap", "tiling-keys-body-67-k", "tiling-keys-body-68-l", "tiling-keys-body-69-cap", "tiling-keys-body-69-k", "tiling-keys-body-7-cap", "tiling-keys-body-7-k", "tiling-keys-body-70-l", "tiling-keys-body-71-cap", "tiling-keys-body-71-k", "tiling-keys-body-72-l", "tiling-keys-body-73", "tiling-keys-body-74-cap", "tiling-keys-body-74-k", "tiling-keys-body-75-l", "tiling-keys-body-76-cap", "tiling-keys-body-76-k", "tiling-keys-body-77-l", "tiling-keys-body-78-cap", "tiling-keys-body-78-k", "tiling-keys-body-79-l", "tiling-keys-body-8-l", "tiling-keys-body-80-cap", "tiling-keys-body-80-k", "tiling-keys-body-81-l", "tiling-keys-body-82-cap", "tiling-keys-body-82-k", "tiling-keys-body-83-l", "tiling-keys-body-84-cap", "tiling-keys-body-84-k", "tiling-keys-body-85-l", "tiling-keys-body-86-cap", "tiling-keys-body-86-k", "tiling-keys-body-87-l", "tiling-keys-body-88", "tiling-keys-body-89-cap", "tiling-keys-body-89-k", "tiling-keys-body-9-cap", "tiling-keys-body-9-k", "tiling-keys-body-90-l", "tiling-keys-body-91-cap", "tiling-keys-body-91-k", "tiling-keys-body-92-l", "tiling-keys-body-93-cap", "tiling-keys-body-93-k", "tiling-keys-body-94-l", "tiling-keys-body-95-cap", "tiling-keys-body-95-k", "tiling-keys-body-96-l"]
 
 [[change]]
 act = "t6"
-cause = "a611c08a key list columns clear the longest row, titles in text; fa076e7b keycaps of the key list read at 14 px (the nodes tiling-keys-body-N are numbered anew)"
+cause = "a611c08a key list columns clear the longest row, titles in text; fa076e7b keycaps of the key list read at 14 px (the nodes tiling-keys-body-N are numbered anew); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "added"
+open = true
 
 [[change]]
 act = "t6c"
-cause = "a611c08a key list columns clear the longest row, titles in text; fa076e7b keycaps of the key list read at 14 px (the nodes tiling-keys-body-N are numbered anew)"
+cause = "a611c08a key list columns clear the longest row, titles in text; fa076e7b keycaps of the key list read at 14 px (the nodes tiling-keys-body-N are numbered anew) (judge r1 t6, t6.jpg: the kit key list with the Other desktops group; r7 take, captures/t6c.Q.png)"
 kind = "missing"
+nodes = ["tiling-keys-body-10-l", "tiling-keys-body-11-cap", "tiling-keys-body-11-k", "tiling-keys-body-12-l", "tiling-keys-body-13-cap", "tiling-keys-body-13-k", "tiling-keys-body-14-l", "tiling-keys-body-15-cap", "tiling-keys-body-15-k", "tiling-keys-body-16-l", "tiling-keys-body-17-cap", "tiling-keys-body-17-k", "tiling-keys-body-18-l", "tiling-keys-body-19-cap", "tiling-keys-body-19-k", "tiling-keys-body-20-l", "tiling-keys-body-21-cap", "tiling-keys-body-21-k", "tiling-keys-body-22-l", "tiling-keys-body-23-cap", "tiling-keys-body-23-k", "tiling-keys-body-24-l", "tiling-keys-body-25-cap", "tiling-keys-body-25-k", "tiling-keys-body-26-l", "tiling-keys-body-27-cap", "tiling-keys-body-27-k", "tiling-keys-body-28-l", "tiling-keys-body-29-cap", "tiling-keys-body-29-k", "tiling-keys-body-3-cap", "tiling-keys-body-3-k", "tiling-keys-body-30-l", "tiling-keys-body-31-cap", "tiling-keys-body-31-k", "tiling-keys-body-32-l", "tiling-keys-body-33-cap", "tiling-keys-body-33-k", "tiling-keys-body-34-l", "tiling-keys-body-35", "tiling-keys-body-36-cap", "tiling-keys-body-36-k", "tiling-keys-body-37-l", "tiling-keys-body-38-cap", "tiling-keys-body-38-k", "tiling-keys-body-39-l", "tiling-keys-body-4-l", "tiling-keys-body-40-cap", "tiling-keys-body-40-k", "tiling-keys-body-41-l", "tiling-keys-body-42-cap", "tiling-keys-body-42-k", "tiling-keys-body-43-l", "tiling-keys-body-44-cap", "tiling-keys-body-44-k", "tiling-keys-body-45-l", "tiling-keys-body-46-cap", "tiling-keys-body-46-k", "tiling-keys-body-47-l", "tiling-keys-body-48-cap", "tiling-keys-body-48-k", "tiling-keys-body-49-l", "tiling-keys-body-5-cap", "tiling-keys-body-5-k", "tiling-keys-body-50", "tiling-keys-body-51-cap", "tiling-keys-body-51-k", "tiling-keys-body-52-l", "tiling-keys-body-53-cap", "tiling-keys-body-53-k", "tiling-keys-body-54-l", "tiling-keys-body-55-cap", "tiling-keys-body-55-k", "tiling-keys-body-56-l", "tiling-keys-body-57-cap", "tiling-keys-body-57-k", "tiling-keys-body-58-l", "tiling-keys-body-59-cap", "tiling-keys-body-59-k", "tiling-keys-body-6-l", "tiling-keys-body-60-l", "tiling-keys-body-61-cap", "tiling-keys-body-61-k", "tiling-keys-body-62-l", "tiling-keys-body-63-cap", "tiling-keys-body-63-k", "tiling-keys-body-64-l", "tiling-keys-body-65-cap", "tiling-keys-body-65-k", "tiling-keys-body-66-l", "tiling-keys-body-67-cap", "tiling-keys-body-67-k", "tiling-keys-body-68-l", "tiling-keys-body-69-cap", "tiling-keys-body-69-k", "tiling-keys-body-7-cap", "tiling-keys-body-7-k", "tiling-keys-body-70-l", "tiling-keys-body-71-cap", "tiling-keys-body-71-k", "tiling-keys-body-72-l", "tiling-keys-body-73", "tiling-keys-body-74-cap", "tiling-keys-body-74-k", "tiling-keys-body-75-l", "tiling-keys-body-76-cap", "tiling-keys-body-76-k", "tiling-keys-body-77-l", "tiling-keys-body-78-cap", "tiling-keys-body-78-k", "tiling-keys-body-79-l", "tiling-keys-body-8-l", "tiling-keys-body-80-cap", "tiling-keys-body-80-k", "tiling-keys-body-81-l", "tiling-keys-body-82-cap", "tiling-keys-body-82-k", "tiling-keys-body-83-l", "tiling-keys-body-84-cap", "tiling-keys-body-84-k", "tiling-keys-body-85-l", "tiling-keys-body-86-cap", "tiling-keys-body-86-k", "tiling-keys-body-87-l", "tiling-keys-body-88", "tiling-keys-body-89-cap", "tiling-keys-body-89-k", "tiling-keys-body-9-cap", "tiling-keys-body-9-k", "tiling-keys-body-90-l", "tiling-keys-body-91-cap", "tiling-keys-body-91-k", "tiling-keys-body-92-l", "tiling-keys-body-93-cap", "tiling-keys-body-93-k", "tiling-keys-body-94-l", "tiling-keys-body-95-cap", "tiling-keys-body-95-k", "tiling-keys-body-96-l"]
 
 [[change]]
 act = "t6c"
-cause = "a611c08a key list columns clear the longest row, titles in text; fa076e7b keycaps of the key list read at 14 px (the nodes tiling-keys-body-N are numbered anew)"
+cause = "a611c08a key list columns clear the longest row, titles in text; fa076e7b keycaps of the key list read at 14 px (the nodes tiling-keys-body-N are numbered anew); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "added"
+open = true
+
+[[change]]
+act = "h1"
+cause = "d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "missing"
+nodes = ["construct-hud", "construct-hud-glass", "construct-hud-glow", "construct-hud-say", "construct-hud-state", "construct-start-help-1", "construct-start-help-1-low", "construct-start-help-1-text"]
+open = true
+
+[[change]]
+act = "h1"
+cause = "d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "rect"
+nodes = ["construct-start-help-0", "construct-start-help-0-low", "construct-start-help-0-text"]
+open = true
+
+[[change]]
+act = "h1"
+cause = "675ebd55 chora-notify shows the notices: the column loses NOTIFICATIONS and the chat door moves up; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
+kind = "rect"
+nodes = ["mc-r0-right-chat-door", "mc-r0-right-chat-door-hit", "mc-r0-right-chat-door-mark", "mc-r0-right-chat-key", "mc-r0-right-chat-state", "mc-r0-right-chat-title", "mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-s-agenda-panels-today-rule"]
+open = true
+
+[[change]]
+act = "h1"
+cause = "675ebd55 chora-notify shows the notices: the column loses NOTIFICATIONS and the chat door moves up; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
+kind = "missing"
+nodes = ["mc-r0-right-notify", "mc-r0-right-notify-title"]
+open = true
+
+[[change]]
+act = "h1"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "h1"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "h1b"
+cause = "d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "missing"
+nodes = ["construct-hud", "construct-hud-glass", "construct-hud-glow", "construct-hud-say", "construct-hud-state", "construct-start-help-1", "construct-start-help-1-low", "construct-start-help-1-text"]
+open = true
+
+[[change]]
+act = "h1b"
+cause = "d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "rect"
+nodes = ["construct-start-help-0", "construct-start-help-0-low", "construct-start-help-0-text"]
+open = true
+
+[[change]]
+act = "h1b"
+cause = "675ebd55 chora-notify shows the notices: the column loses NOTIFICATIONS and the chat door moves up; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
+kind = "rect"
+nodes = ["mc-r0-right-chat-door", "mc-r0-right-chat-door-hit", "mc-r0-right-chat-door-mark", "mc-r0-right-chat-key", "mc-r0-right-chat-state", "mc-r0-right-chat-title", "mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-s-agenda-panels-today-rule"]
+open = true
+
+[[change]]
+act = "h1b"
+cause = "675ebd55 chora-notify shows the notices: the column loses NOTIFICATIONS and the chat door moves up; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
+kind = "missing"
+nodes = ["mc-r0-right-notify", "mc-r0-right-notify-title"]
+open = true
+
+[[change]]
+act = "h1b"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "h1b"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "h1c"
+cause = "d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "missing"
+nodes = ["construct-hud", "construct-hud-glass", "construct-hud-glow", "construct-hud-say", "construct-hud-state", "construct-start-help-1", "construct-start-help-1-low", "construct-start-help-1-text"]
+open = true
+
+[[change]]
+act = "h1c"
+cause = "d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "rect"
+nodes = ["construct-start-help-0", "construct-start-help-0-low", "construct-start-help-0-text"]
+open = true
+
+[[change]]
+act = "h1c"
+cause = "675ebd55 chora-notify shows the notices: the column loses NOTIFICATIONS and the chat door moves up; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
+kind = "rect"
+nodes = ["mc-r0-right-chat-door", "mc-r0-right-chat-door-hit", "mc-r0-right-chat-door-mark", "mc-r0-right-chat-key", "mc-r0-right-chat-state", "mc-r0-right-chat-title", "mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-s-agenda-panels-today-rule"]
+open = true
+
+[[change]]
+act = "h1c"
+cause = "675ebd55 chora-notify shows the notices: the column loses NOTIFICATIONS and the chat door moves up; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
+kind = "missing"
+nodes = ["mc-r0-right-notify", "mc-r0-right-notify-title"]
+open = true
+
+[[change]]
+act = "h1c"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "h1c"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "h1c"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "h1d"
+cause = "d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "missing"
+nodes = ["construct-hud", "construct-hud-glass", "construct-hud-glow", "construct-hud-say", "construct-hud-state", "construct-start-help-1", "construct-start-help-1-low", "construct-start-help-1-text"]
+open = true
+
+[[change]]
+act = "h1d"
+cause = "d9b2c4f1 the cube the person opens stands back (co-52, co-54); co-63 (open): the doors and hud of a face are not in the scene while it stands back, cause not found for every element"
+kind = "rect"
+nodes = ["construct-start-help-0", "construct-start-help-0-low", "construct-start-help-0-text"]
+open = true
+
+[[change]]
+act = "h1d"
+cause = "675ebd55 chora-notify shows the notices: the column loses NOTIFICATIONS and the chat door moves up; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
+kind = "rect"
+nodes = ["mc-r0-right-chat-door", "mc-r0-right-chat-door-hit", "mc-r0-right-chat-door-mark", "mc-r0-right-chat-key", "mc-r0-right-chat-state", "mc-r0-right-chat-title", "mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule", "mc-s-agenda-panels-today-rule"]
+open = true
+
+[[change]]
+act = "h1d"
+cause = "675ebd55 chora-notify shows the notices: the column loses NOTIFICATIONS and the chat door moves up; mc-59 open: the mc part of the handover acts is not bisected (675ebd55 is the likely cause of the column rects, not proven here)"
+kind = "missing"
+nodes = ["mc-r0-right-notify", "mc-r0-right-notify-title"]
+open = true
+
+[[change]]
+act = "h1d"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "h1d"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "h1d"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x1"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x1"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x10"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x10"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x10"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x10b"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x10b"
+cause = "b8872054 one key list for all four looks (xp Help reads the kit table); c64752fa"
+kind = "meta"
+nodes = ["xp-dlg-help-content-body"]
+
+[[change]]
+act = "x10b"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x10b"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x10c"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x10c"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x10c"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x11"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x11"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x11"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x11b"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x11b"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x11b"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x12"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x12"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x12b"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x12b"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x12b"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x12c"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x12c"
+cause = "29281054 the fill leaves out raw entries only (the item rects shift); 20e4ad6e menus shut on a new window (xp-item, xp-menu at x12c) (r7 take, captures/x12c.H50.png)"
+kind = "rect"
+nodes = ["xp-item-0", "xp-item-1", "xp-item-10", "xp-item-11", "xp-item-12", "xp-item-13", "xp-item-14", "xp-item-15", "xp-item-16", "xp-item-2", "xp-item-3", "xp-item-4", "xp-item-5", "xp-item-6", "xp-item-7", "xp-item-8", "xp-item-9", "xp-menu-frame"]
+
+[[change]]
+act = "x12c"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x2"
+cause = "675ebd55 chora-notify shows the notices (sh-31) (r5 take, captures/x2.Q.png; the r7 take shows the card as added in this act, not moved)"
+kind = "rect"
+nodes = ["notify-card-body", "notify-card-close"]
+
+[[change]]
+act = "x2"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x2"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x2b"
+cause = "675ebd55 chora-notify shows the notices (sh-31) (r5 take, captures/x2b.Q.png; the r7 take shows the card as added in this act, not moved)"
+kind = "rect"
+nodes = ["notify-card-body", "notify-card-close"]
+
+[[change]]
+act = "x2b"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x2b"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x2c"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x2c"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x2c"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x3"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x3"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x3"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x4"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x4"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x4"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x5"
+cause = "62708d35 the chat and its balloons stand left of the bin (88 px); 4fec75c3 the paperclip greets once at the first start, the chat grows by the greeting (xp-30); open: the chat height is not proven apart from the greeting (judge r1 x5d, x5d.jpg)"
+kind = "rect"
+nodes = ["hud-chat", "hud-chat-close", "hud-chat-close-mark", "hud-chat-send", "hud-chat-send-mark", "hud-chat-stop", "hud-chat-stop-mark"]
+open = true
+
+[[change]]
+act = "x5"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); open: the greeting reads 'no helper is set up' in the chat of a working helper, not proven by this act (judge r1 x5d, x5d.jpg)"
+kind = "meta"
+nodes = ["hud-chat"]
+open = true
+
+[[change]]
+act = "x5"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x5"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x5"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x5b"
+cause = "62708d35 the chat and its balloons stand left of the bin (88 px); 4fec75c3 the paperclip greets once at the first start, the chat grows by the greeting (xp-30); open: the chat height is not proven apart from the greeting (judge r1 x5d, x5d.jpg)"
+kind = "rect"
+nodes = ["hud-chat", "hud-chat-close", "hud-chat-close-mark", "hud-chat-send", "hud-chat-send-mark", "hud-chat-stop", "hud-chat-stop-mark"]
+open = true
+
+[[change]]
+act = "x5b"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); open: the greeting reads 'no helper is set up' in the chat of a working helper, not proven by this act (judge r1 x5d, x5d.jpg)"
+kind = "meta"
+nodes = ["hud-chat"]
+open = true
+
+[[change]]
+act = "x5b"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x5b"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x5b"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x5c"
+cause = "62708d35 the chat and its balloons stand left of the bin (88 px); 4fec75c3 the paperclip greets once at the first start, the chat grows by the greeting (xp-30); open: the chat height is not proven apart from the greeting (judge r1 x5d, x5d.jpg)"
+kind = "rect"
+nodes = ["hud-chat", "hud-chat-close", "hud-chat-close-mark", "hud-chat-send", "hud-chat-send-mark", "hud-chat-stop", "hud-chat-stop-mark"]
+open = true
+
+[[change]]
+act = "x5c"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); open: the greeting reads 'no helper is set up' in the chat of a working helper, not proven by this act (judge r1 x5d, x5d.jpg)"
+kind = "meta"
+nodes = ["hud-chat"]
+open = true
+
+[[change]]
+act = "x5c"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x5c"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x5c"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x5d"
+cause = "62708d35 the chat and its balloons stand left of the bin (88 px); 4fec75c3 the paperclip greets once at the first start, the chat grows by the greeting (xp-30); open: the chat height is not proven apart from the greeting (judge r1 x5d, x5d.jpg)"
+kind = "rect"
+nodes = ["hud-chat", "hud-chat-close", "hud-chat-close-mark", "hud-chat-send", "hud-chat-send-mark", "hud-chat-stop", "hud-chat-stop-mark"]
+open = true
+
+[[change]]
+act = "x5d"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); open: the greeting reads 'no helper is set up' in the chat of a working helper, not proven by this act (judge r1 x5d, x5d.jpg)"
+kind = "meta"
+nodes = ["hud-chat"]
+open = true
+
+[[change]]
+act = "x5d"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x5d"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x5d"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x5e"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x5e"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x5e"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x5f"
+cause = "62708d35 the chat and its balloons stand left of the bin (88 px); 4fec75c3 the paperclip greets once at the first start, the chat grows by the greeting (xp-30); open: the chat height is not proven apart from the greeting (judge r1 x5d, x5d.jpg)"
+kind = "rect"
+nodes = ["hud-chat", "hud-chat-close", "hud-chat-close-mark", "hud-chat-send", "hud-chat-send-mark", "hud-chat-stop", "hud-chat-stop-mark"]
+open = true
+
+[[change]]
+act = "x5f"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); open: the greeting reads 'no helper is set up' in the chat of a working helper, not proven by this act (judge r1 x5d, x5d.jpg)"
+kind = "meta"
+nodes = ["hud-chat"]
+open = true
+
+[[change]]
+act = "x5f"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x5f"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x5f"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x5g"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x5g"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x5g"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x6"
+cause = "62708d35 the chat and its balloons stand left of the bin (88 px); 4fec75c3 the paperclip greets once at the first start, the chat grows by the greeting (xp-30); open: the chat height is not proven apart from the greeting (judge r1 x5d, x5d.jpg)"
+kind = "rect"
+nodes = ["hud-chat", "hud-chat-close", "hud-chat-close-mark", "hud-chat-send", "hud-chat-send-mark", "hud-chat-stop", "hud-chat-stop-mark"]
+open = true
+
+[[change]]
+act = "x6"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); open: the greeting reads 'no helper is set up' in the chat of a working helper, not proven by this act (judge r1 x5d, x5d.jpg)"
+kind = "meta"
+nodes = ["hud-chat"]
+open = true
+
+[[change]]
+act = "x6"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x6"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x6"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x6b"
+cause = "62708d35 the question card and the chat stand left of the bin (88 px); 86343e3f the typing line stands in the card of the question (xp-14; judge r1 x6b, x6b.jpg)"
+kind = "rect"
+nodes = ["hud-card", "hud-card-no", "hud-card-no-mark", "hud-card-yes", "hud-card-yes-mark", "hud-chat", "hud-chat-close", "hud-chat-close-mark", "hud-chat-send", "hud-chat-send-mark", "hud-chat-stop", "hud-chat-stop-mark"]
+
+[[change]]
+act = "x6b"
+cause = "86343e3f the typing line stands in the card of the question: 'Typing does not answer.' (xp-14; judge r1 x6b, x6b.jpg)"
+kind = "meta"
+nodes = ["hud-card"]
+
+[[change]]
+act = "x6b"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); open: the greeting reads 'no helper is set up' in the chat of a working helper, not proven by this act (judge r1 x5d, x5d.jpg)"
+kind = "meta"
+nodes = ["hud-chat"]
+open = true
+
+[[change]]
+act = "x6b"
+cause = "86343e3f the typing line stands in the card of the question, so the hint line of the chat goes (xp-14; judge r1 x6b, x6b.jpg)"
+kind = "missing"
+nodes = ["hud-chat-hint"]
+
+[[change]]
+act = "x6b"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x6b"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x6b"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x6c"
+cause = "62708d35 the chat and its balloons stand left of the bin (88 px); 4fec75c3 the paperclip greets once at the first start, the chat grows by the greeting (xp-30); open: the chat height is not proven apart from the greeting (judge r1 x5d, x5d.jpg)"
+kind = "rect"
+nodes = ["hud-chat", "hud-chat-close", "hud-chat-close-mark", "hud-chat-send", "hud-chat-send-mark", "hud-chat-stop", "hud-chat-stop-mark"]
+open = true
+
+[[change]]
+act = "x6c"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); open: the greeting reads 'no helper is set up' in the chat of a working helper, not proven by this act (judge r1 x5d, x5d.jpg)"
+kind = "meta"
+nodes = ["hud-chat"]
+open = true
+
+[[change]]
+act = "x6c"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x6c"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x6c"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x6d"
+cause = "62708d35 the chat and its balloons stand left of the bin (88 px); 4fec75c3 the paperclip greets once at the first start, the chat grows by the greeting (xp-30); open: the chat height is not proven apart from the greeting (judge r1 x5d, x5d.jpg)"
+kind = "rect"
+nodes = ["hud-chat", "hud-chat-close", "hud-chat-close-mark", "hud-chat-send", "hud-chat-send-mark", "hud-chat-stop", "hud-chat-stop-mark"]
+open = true
+
+[[change]]
+act = "x6d"
+cause = "4fec75c3 the paperclip greets once at the first start (xp-30); open: the greeting reads 'no helper is set up' in the chat of a working helper, not proven by this act (judge r1 x5d, x5d.jpg)"
+kind = "meta"
+nodes = ["hud-chat"]
+open = true
+
+[[change]]
+act = "x6d"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x6d"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x6d"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x6e"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x6e"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x6e"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x7"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x7"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x7"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x7b"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x7b"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x7b"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x8"
+cause = "675ebd55 chora-notify shows the notices (sh-31) (r5 take, captures/x8.Q+0.5.png; the r7 take shows the card as added in this act, not moved)"
+kind = "rect"
+nodes = ["notify-card-body", "notify-card-close"]
+
+[[change]]
+act = "x8"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x8"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x8"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x9"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x9"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x9"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "x9b"
+cause = "09ff8ff9, bd5af4b3 new windows start right of the desktop icons, on their output only (xp-28; judge r1 x7, x7.jpg)"
+kind = "rect"
+nodes = ["Notepad:None", "xp-close-s1", "xp-frame-s1", "xp-max-s1", "xp-min-s1", "xp-title-s1"]
+
+[[change]]
+act = "x9b"
+cause = "62708d35 the bin back at the bottom right, balloons left of it (judge r1 x2, x2.jpg; the bin moves 12 px down in every act)"
+kind = "rect"
+nodes = ["xp-icon-2"]
+
+[[change]]
+act = "x9b"
+cause = "29281054 the fill leaves out raw entries only (the Start menu items UXTerm and XTerm read Foot and Foot Client)"
+kind = "meta"
+nodes = ["xp-item-3", "xp-item-4"]
+
+[[change]]
+act = "h1"
+boxes = [[1052, 694, 94, 22], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right (blobs at the pager buttons, the bin and the moved windows in the take of r6; judge r1 h1, h1.jpg)"
+kind = "pixel"
+
+[[change]]
+act = "h1b"
+boxes = [[1052, 694, 94, 22], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/h1b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "h1c"
+boxes = [[1052, 694, 94, 22], [14, 14, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; judge r1 h1c, t8b-h1c.jpg)"
+kind = "pixel"
+
+[[change]]
+act = "h1d"
+boxes = [[1052, 694, 94, 22], [14, 14, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/h1d.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x1"
+boxes = [[1052, 694, 94, 22], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right (blobs at the pager buttons, the bin and the moved windows in the take of r6; judge r1 x1, x7-tray.jpg)"
+kind = "pixel"
+
+[[change]]
+act = "x10"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x10.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x10b"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x10b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x10c"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x10c.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x11"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x11.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x11b"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x11b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x12b"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67], [1213, 593, 39, 20]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x12b.Q.png; the eyes of the paperclip blink in both builds, an animation, no commit)"
+kind = "pixel"
+
+[[change]]
+act = "x2"
+boxes = [[1052, 694, 94, 22], [927, 615, 265, 83], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 675ebd55 chora-notify shows the notices (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x2.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x2b"
+boxes = [[1052, 694, 94, 22], [927, 615, 265, 83], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 675ebd55 chora-notify shows the notices (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x2b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x2c"
+boxes = [[1052, 694, 94, 22], [14, 14, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x2c.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x3"
+boxes = [[1052, 694, 94, 22], [14, 14, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x3.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x5"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x5.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x5b"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x5b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x5c"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x5c.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x5d"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x5d.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x5e"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x5e.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x5f"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x5f.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x5g"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67], [1213, 593, 39, 20]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x5g.Q.png; the eyes of the paperclip blink in both builds, an animation, no commit)"
+kind = "pixel"
+
+[[change]]
+act = "x6"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x6.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x6b"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x6b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x6c"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x6c.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x6d"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x6d.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x6e"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67], [1213, 593, 39, 20]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x6e.Q.png; the eyes of the paperclip blink in both builds, an animation, no commit)"
+kind = "pixel"
+
+[[change]]
+act = "x7"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; judge r1 x7, x7.jpg)"
+kind = "pixel"
+
+[[change]]
+act = "x7b"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x7b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x8"
+boxes = [[1052, 694, 94, 22], [903, 628, 289, 70], [274, 84, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons; 675ebd55 chora-notify shows the notices (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x8.Q.png); open: the blobs at (1213, 593) and (1233, 593) are the eyes of the paperclip, open in the v8 still and closed in the v9 still (a blink, the phase of the animation), no commit; the tour does not mask them"
+kind = "pixel"
+open = true
+
+[[change]]
+act = "x9"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x9.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x9b"
+boxes = [[1052, 694, 94, 22], [274, 84, 816, 549], [1192, 470, 80, 67]]
+cause = "d78fc4bb workspace buttons dark enough for 4.5:1 (the four pager buttons); 62708d35 the bin back at the bottom right; 09ff8ff9 new windows start right of the desktop icons (blobs at the pager buttons, the bin and the moved windows in the take of r6; r6 take, captures/x9b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "c4"
+cause = "co-45 b8872054 the key list of a face has its scope line and heads at 11 px where the guide wants 14 (I6; judge r1 c4, c4.jpg)"
+check = "I6"
+kind = "check"
