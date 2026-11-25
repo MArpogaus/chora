@@ -3,6 +3,7 @@
 Model: opus, effort high, because the diff picks a page-end design in a look (card band, scroll path, more mark) where a wrong rule cuts lines again; the builder never reviews itself (rules.md 7)
 Lane: cloud, read-only on code: claude/mc-page-end-r1 head 23cd2b5a, base 42418379 (9 files, +386 -51). One round.
 Stop at 120 k context; cost at most 0.5 %; at most 8 findings. No merge gate run (the lane ran it in parts; the train runs it whole).
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`. A failure: send_message the PM "review-mc-page-end-r1 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
 Read briefs/mc-page-end-r1.md (done criteria), reports/mc-page-end.md "## r1" and reports/tour-v9-judge.md "## r2a" (rv9ka-1) on claude/session-log; `git diff 42418379..23cd2b5a`.
 Checks, each with its command and files:
 1) Red first: 8a0249a2 holds the failing assert and comes before 859cf3fe (`git log --oneline 42418379..23cd2b5a`); run `cargo test -p chora-mc` at 8a0249a2 (red) and at 23cd2b5a (green).
