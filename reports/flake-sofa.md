@@ -20,3 +20,12 @@ Gate: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2`: all steps PASS ("all st
 - rfs1-1 (MINOR, core): the core reports a text visible at [0,0,w,h] before layout places it. If a frame draws it there, a person sees a flash at the corner. Backlog: check one frame capture after a door appears.
 - rfs1-2 (MAJOR for rc 3, harness): mc-sofa light, rooms-pill red 3/3 in the full run (also on 62a04be0), green alone: order-dependent. FLAKE-SOFA r2.
 - Verdict: MERGE-OK 3d555e4f (train144).
+
+## r2
+
+- Base 3d555e4f, head 7db16e747 on claude/flake-sofa-r2: 55513297 (red) then 7db16e747 (fix). Diffstat: tests/gate-mc-sofa.sh, 16 insertions, 1 deletion. No product change.
+- Leftover: after the cell killed chora-assistant, the host nodes (hud, hud-word, hud-figure, hud-rows, hud-state, hud-body; owner assistant) stay in the scene for the 10 s grace time of the client name. The host that rooms-pill starts at once gets "node hud exists already" and the old nodes stay at the old margin (word at x 1115, not < 900). Cells that leave a hud state of mc (status: hud.set, answer: voice.say) reproduced it; alone, or after remote, wide, door, empty-head, rooms-card, it was green (race on the grace time).
+- Red: cell rooms-pill-status (default host, status, then rooms-pill), red 2 of 2 alone and in the order. Fix: rooms-pill waits (until_ok, no sleep) until owner:assistant has no node after the kill.
+- Counts: full mc-sofa light red 3 of 3 before; after light 5 of 5 and dark 3 of 3 green; the pinned cell green in light and dark.
+- Product note (not fixed): a host restart within the 10 s grace time takes back its old nodes and so keeps its old layout and ignores a new hud config. By design of resume; a real user who edits the hud and restarts within 10 s sees no change.
+- Gate: full run stopped at step cube (not mine): "FAIL: after the end of a program of the face the first probe window has no keyboard" (gate-construct-cube, red 2 of 2, only gate-mc-sofa.sh changed). --only mc-sofa through the gate: PASS 116s. No chora --headless left.
