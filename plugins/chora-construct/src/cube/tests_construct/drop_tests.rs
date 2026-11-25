@@ -17,8 +17,8 @@ use super::with_hint_bar;
 use crate::{Construct, LOOK, Moving, PANES};
 
 /// The cube of `with_hint_bar` stood back, its face manager `xp`, with
-/// the window `s1` of the pane `foot` in the scene and in the hand of a
-/// drag: xp claims the outputs of the two faces, `VIRTUAL-1` (the front)
+/// the look node of the construct, and the window `s1` of the pane
+/// `foot` in the scene and in the hand of a drag: xp claims the outputs of the two faces, `VIRTUAL-1` (the front)
 /// and `VIRTUAL-2`, side by side.
 fn dragging_stood_back(tag: &str) -> (Construct, FakeCore, Log) {
     let (mut construct, core, lines) = with_hint_bar(tag);
@@ -31,14 +31,17 @@ fn dragging_stood_back(tag: &str) -> (Construct, FakeCore, Log) {
     };
     core.outputs(json!([output("VIRTUAL-1", 0), output("VIRTUAL-2", 2000)]));
     (core.model().lock().unwrap().scene).add_surface("s1", chora_scene::SurfaceInfo::default());
-    construct
-        .rt
-        .conn
-        .apply(vec![Command::Attach {
-            surface: "s1".into(),
-            parent: PANES.into(),
-        }])
-        .unwrap();
+    let look = Command::Create {
+        id: LOOK.into(),
+        kind: NodeKind::Group,
+        parent: ROOT.into(),
+        props: PropsUpdate::default(),
+    };
+    let attach = Command::Attach {
+        surface: "s1".into(),
+        parent: PANES.into(),
+    };
+    construct.rt.conn.apply(vec![look, attach]).unwrap();
     construct.book.keep("s1");
     let mut xp = core.connect("xp");
     let desk = |i: usize, x: f64| Command::Create {
