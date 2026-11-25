@@ -156,14 +156,21 @@ impl Wm {
     /// Date and Time Properties in the middle of a work area, or the open
     /// one on top.
     pub(super) fn open_date_dialog(&mut self, area: Rect) -> Vec<Command> {
-        if let Some(commands) = self.raise_panel(|p| matches!(p, Panel::Clock(_))) {
-            return commands;
+        let mut commands = self.raise_panel(|p| matches!(p, Panel::Clock(_)));
+        if commands.is_none() {
+            let now = chrono::Local::now().naive_local();
+            let mut panel = DateDialog::new(now, area);
+            let page = panel.page(&self.theme, now);
+            commands = Some(panel.dialog.create(&mut self.theme, DIALOGS, page));
+            self.push_panel(Panel::Clock(panel));
         }
-        let now = chrono::Local::now().naive_local();
-        let mut panel = DateDialog::new(now, area);
-        let page = panel.page(&self.theme, now);
-        let mut commands = panel.dialog.create(&mut self.theme, DIALOGS, page);
-        self.push_panel(Panel::Clock(panel));
+        let mut commands = commands.unwrap_or_default();
+        commands.extend(self.focus(None));
+        if let Some(panel) = self.panels.last() {
+            commands.push(Command::FocusNode {
+                node: Some(panel.window_ref().group()),
+            });
+        }
         commands.extend(self.sync_tasks());
         commands
     }

@@ -211,7 +211,9 @@ mod dialogs {
     use super::*;
 
     /// A second Date and Time, Display Properties or Effects raises the
-    /// open one: the dialog is moved to the top, and no dialog opens.
+    /// open one: the dialog is moved to the top, and no dialog opens. Date
+    /// and Time also takes the keys and syncs the tasks (rxm2-4), so its
+    /// commands start with the move.
     #[test]
     fn a_second_open_raises_the_dialog() {
         let (mut wm, _methods) = wm_on_fake_core("raise-twice");
@@ -224,7 +226,11 @@ mod dialogs {
         let displays = wm.open_display_dialog(area);
         let effects = wm.open_effects();
         assert_eq!(wm.panels.len(), open, "no dialog opens twice");
-        for raised in [dates, displays, effects] {
+        assert!(
+            matches!(dates.first(), Some(Command::Move { .. })),
+            "Date and Time is moved to the top: {dates:?}"
+        );
+        for raised in [displays, effects] {
             assert!(
                 matches!(raised.as_slice(), [Command::Move { .. }]),
                 "the open dialog is moved to the top: {raised:?}"
