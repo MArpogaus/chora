@@ -55,6 +55,13 @@
 #   page-edges  no line of any built-in scene, every panel full, is cut at the
 #               edge of its page at 1280x720 (rmm1-1)
 #
+#   rooms-card  the page ends over a card of the notice server that stands
+#               higher (rmm1-2)
+#
+#   rooms-pill  the header ends before a state pill of the HUD host that
+#               stands further left; the ends come from the rects the
+#               servers report, not from a constant (rmm1-2)
+#
 #   remote-back a remote without Super leaves a window that has the keys:
 #               a program that the launcher started, then one press of
 #               XF86Back after the Escape that the shell got shows the
@@ -553,6 +560,66 @@ cell_helpers_empty() {
 . "$repo/tests/mc-edges.sh"
 cell_page_edges() { page_edges 1280x720; }
 
+kill_of() {
+    local pid
+    for pid in $(session_pids -x "$1"); do kill "$pid"; done
+    until_ok '! session_pids -x '"$1"' >/dev/null' 40 || fail "$1 does not end"
+    : >/dev/null
+}
+cell_rooms_card() {
+    local card page
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    kill_of chora-notify
+    mkdir -p "$work/notify-high"
+    cp -rL "$notify_slot"/. "$work/notify-high/"
+    sed -i 's/^margin: .*/margin: [160, 140]/' "$work/notify-high/values.yaml"
+    "$bin/chora-notify" --assets "$work/notify-high" --config "$work/notify-high/notify.yaml" >"$work/notify-high.log" 2>&1 &
+    pids+=($!)
+    until_ok 'ctl call notify state.get "{}" >/dev/null 2>&1' 40 || fail "chora-notify does not start: $(tail -n 3 "$work/notify-high.log")"
+    ctl call mc notify.clear '{}' >/dev/null
+    ctl call mc notify.push '{"title": "Timer: spaghetti, 9 minutes", "body": "Started by voice"}' >/dev/null || fail "notify.push"
+    until_ok '[ "$(ctl call notify state.get "{}" | jq "[.shown[].summary] | length")" -ge 1 ]' 20 || fail "no card"
+    card=$(ctl call notify state.get '{}' | jq -c '.shown[0].rect')
+    # shellcheck disable=SC2329 # until_ok evaluates its first argument
+    page_over_card() {
+        page=$(node_rect mc-s-agenda-page)
+        jq -ne --argjson c "$card" --argjson p "$page" '$p[1] + $p[3] <= $c[1]' >/dev/null
+    }
+    until_ok 'page_over_card' 40 || fail "the page $page reaches under the card $card that stands higher: the page end is a constant (rmm1-2)"
+    shot rooms-card
+    ctl call mc notify.clear '{}' >/dev/null
+}
+cell_rooms_pill() {
+    local clock word mark left
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    mkdir -p "$work/data/chora/huds"
+    cp -rL "$repo/plugins/chora-mc/hud" "$work/data/chora/huds/mc"
+    sed -i 's/margin: \[56, 34\]/margin: [470, 34]/' "$work/data/chora/huds/mc/hud.yaml"
+    printf 'enabled: true\nposition: null\nhud: mc\n' >"$work/chora/chora-assistant.yaml"
+    kill_of chora-assistant
+    "$bin/chora-assistant" >"$work/assistant-moved.log" 2>&1 &
+    pids+=($!)
+    ctl wait owner:assistant --timeout 20 >/dev/null || fail "the host does not start: $(tail -n 3 "$work/assistant-moved.log")"
+    emit voice.state '{"state": "listening", "task": "", "said": "", "muted": {"mic": false, "speaker": false}}'
+    until_ok 'jq -e ".[0] < 900" <<<"$(node_rect hud-word)" >/dev/null' 40 || fail "the host does not draw the state word at the new place: $(node_rect hud-word)"
+    # shellcheck disable=SC2329 # until_ok evaluates its first argument
+    clock_rect() {
+        ctl query "owner:mc kind:text" | jq -c "[.[] | $shown | select(.text | test(\"^[A-Z]+ [0-9]+ [A-Z]+ +[0-9]+:[0-9]+\$\"))][0].rects | to_entries[0].value"
+    }
+    # shellcheck disable=SC2329 # until_ok evaluates its first argument
+    header_clear() {
+        clock=$(clock_rect)
+        word=$(node_rect hud-word)
+        mark=$(node_rect hud-figure)
+        left=$(jq -n --argjson w "$word" --argjson m "$mark" '[$w[0], $m[0]] | min')
+        jq -ne --argjson c "$clock" --argjson l "$left" '$c[0] + $c[2] <= $l - 8' >/dev/null
+    }
+    until_ok 'header_clear' 40 || fail "the header $clock reaches the state pill $word that stands further left: the header end is a constant (rmm1-2)"
+    shot rooms-pill
+}
+
 failed=()
 skipped=()
 ran=0
@@ -571,7 +638,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist page-end page-edges pill-clock helpers-empty remote-back launcher-click-row)
+cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist page-end page-edges pill-clock helpers-empty remote-back launcher-click-row rooms-card rooms-pill)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done
