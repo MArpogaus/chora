@@ -438,8 +438,9 @@ clicks on that output. The menu calls `window.give` with `stay: true`
 give TO --stay`). The giver then keeps the keyboard in a transaction
 before the give when no claim of the receiver overlaps the output of the
 window (`chora_kit::wm::give::claims_over`, `Focus::keep`), and a
-receiver gives a window that comes while a window or a node of another
-client holds the keyboard no focus (`Focus::takes_given`,
+receiver gives a window that comes while a window or the desktop (the
+root node) of another look holds the keyboard no focus; a passing node,
+such as the walk of the construct, does not count (`Focus::takes_given`,
 `Book::confirm_keys`). chora-tiling keeps it and chora-xp yields. A give
 without `stay` (the give keys, a drag, automation, the voice) goes with
 the window, as below.
