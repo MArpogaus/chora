@@ -126,3 +126,20 @@ Red first: b52aa74a red at its own commit (`overview: panel scenes at [160.0, 16
 - rmm2-5 MINOR plugins/chora-mc/src/rooms.rs:74: 761c0b29 (a moved pill renders, no page rebuild) fixed the chat-click-close/terminal-chat flakes with no red test; nothing pins that a pill move leaves the pages, so the flake can return unseen. Fix: a unit test with FakeCore that moves hud-word and asserts learn_rooms sends no page rebuild.
 - rmm2-6 NIT docs/mc-style.md:89: the style rules name neither the more mark (rule 13 says only that a long page scrolls) nor the wheel on the volume door and the themed menus (line 122). Fix: one sentence each.
 Verdict (computed): 0 BLOCK, 0 MAJOR, 5 MINOR, 1 NIT -> MERGE-OK 0f68810c.
+
+## r3 (lane mc-minor-r3)
+Branch claude/mc-minor-r3 at 424183793 on 0f68810c. Step 0 green. Full gate (`tests/merge-gate.sh --jobs 2`, no filter): all steps passed, EXIT 0; no `chora --headless` left.
+| id | red (tests only) | fix | red line |
+|---|---|---|---|
+| rmm2-1 | 7076ea34 | ff7e9c91 | `a top card takes no room at the foot: left 240.0, right 135.0` |
+| rmm2-2 | 904a334c | ff7e9c91 | `a short card (room 100) keeps the room: left 100.0, right 135.0` |
+| rmm2-3 | b67ea317 | 9503cc30 | `a swipe of 120 px is a few steps, not 40: 40` |
+| rmm2-4 | - | 42418379 | test only, NOT red (see below) |
+| rmm2-5 | 8b08b292 | - | green at once (test only) |
+| rmm2-6 | - | 3b8cf70f | docs only |
+- rmm2-1: a card counts only when its x lies on mc's output, its top is under the page top (text block top) and its room is at most a third of the height (a foot card); top and middle cards leave the page whole.
+- rmm2-2 (deviation): the room is the card's room only while it is more than the 135 px start room; a card that fits changes nothing and never rebuilds the pages, a taller foot card enlarges the room and it goes back when the card closes (not "keep the larger forever", which would leave the page short after a tall card closed). The tall-card test moved from [160,400,291,320] to [160,500,291,220] in the fix commit, since a card that high is a middle card now.
+- rmm2-3: `Mc::wheel_steps`: a wheel gives its discrete notch, Finger/Continuous add dy/40 px, one step per whole notch, a reversal resets the rest; `wheel` sends that many volume steps.
+- rmm2-4: the cell saves 30 user scenes (scene.save), sets 4 agents with long plans, and takes x and w from the page rect. I could not make it red on the base overview.yaml (269c4a9f^, rebuilt, CELLS=page-edges): the page node clips the panel exactly at its edge, so no ink reaches the last two rows whatever the list length (the overview showed 14 lines of 36 scenes, cut at a line boundary; agents show Edge-3/4 whole). rmm1-1's defect (panel rect outside the text block) is pinned by the audit test, not by ink. No red line to paste; the cell is wider and fuller only. Needs a PM call.
+- rmm2-5: FakeCore has no rects, so the pill is moved by presetting rooms.pill_left; the test records scene.apply and asserts no remove of mc-s-agenda-page.
+- rmm2-6: docs/mc-style.md rule 13 names the more arrow; rule 16 names the volume wheel and the themed menus.
