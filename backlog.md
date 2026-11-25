@@ -432,3 +432,4 @@ rr9-1 | MINOR | review-record-v9 r4 (reports/record-v9.md "## Review r4") | open
 - mc: rmm3-1 MINOR (card rect output-local, mc on a non-origin output; needs notify to name its output), rmm3-2 MINOR (long foot card over 1/3 counts as none), rmm3-3, -4 NIT; reports/mc-minor.md Review r3.
 - F7 judges r2 (reports/tour-v9-judge.md r2a, r2b): rv9ka-2 MINOR kit launcher without app icons (or PM decision: text only); rv9kb-3 MINOR construct key sheet at 1280x720 runs 50 px past the bottom; rv9kb-4 COSMETIC tiling layout chip word left in its well.
 - rcd1-1 (ci-dry r1 PM review, MINOR): docs strict build runs only on push to main/dev; run `mkdocs build --strict` in pre-commit or the gate so a broken site shows before the release merge.
+- rfs2-1 (MINOR, mc host): restart within the 10 s grace keeps old nodes and ignores a new hud config (reports/flake-sofa.md PM review r2).

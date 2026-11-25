@@ -29,3 +29,10 @@ Gate: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2`: all steps PASS ("all st
 - Counts: full mc-sofa light red 3 of 3 before; after light 5 of 5 and dark 3 of 3 green; the pinned cell green in light and dark.
 - Product note (not fixed): a host restart within the 10 s grace time takes back its old nodes and so keeps its old layout and ignores a new hud config. By design of resume; a real user who edits the hud and restarts within 10 s sees no change.
 - Gate: full run stopped at step cube (not mine): "FAIL: after the end of a program of the face the first probe window has no keyboard" (gate-construct-cube, red 2 of 2, only gate-mc-sofa.sh changed). --only mc-sofa through the gate: PASS 116s. No chora --headless left.
+
+## PM review r2 (2026-11-25 20:12 UTC; 3d555e4f..7db16e74, 1 file, +16 -1)
+- Red first: 55513297 adds cell rooms-pill-status (status then rooms-pill on a fresh host), red 2/2; 7db16e74 waits (until_ok, no sleep) for owner:assistant to have no nodes after the kill. Harness only; check as strict.
+- Gate: full run stopped at foreign `cube` red ("first probe window has no keyboard"), named with its line; mc-sofa PASS through the gate. The train runs the rest.
+- rfs2-1 (MINOR, product): a host restarted within the 10 s grace takes back its old nodes and ignores a new hud config; backlog.
+- rfs2-2 (MAJOR for rc 3, harness or construct): cube "first probe window has no keyboard" red in xp-tail r1 (1 of 2) and flake-sofa r2 (2 of 2): FLAKE-CUBE r1.
+- Verdict: MERGE-OK 7db16e74 (train145).
