@@ -83,3 +83,47 @@ Base 721be592, head d2a048d5 (+172 -15, 6 files; three red-then-fix pairs, red c
 - xp-29: no code; cell xp29-click green at head. Closed by evidence.
 - rxm1-1 MINOR: Stand By and Turn Off captions at 55 of 56 px leave almost no gap between neighbours (XP has visible gaps); a 1 px margin test or a shorter rect would hold it. Known issues.
 Verdict MERGE-OK (computed: no open MAJOR). Joins train137.
+
+## r2 (claude/xp-minor-r2)
+
+Branch claude/xp-minor-r2, base d2a048d5, head 8109e08b. Full gate `tests/merge-gate.sh --jobs 2`, no filter: all steps PASS, EXIT 0, no foreign red; `pgrep -fa 'chora --headless'` empty after. Captures: media/2026-11-25/xp-minor-r2/.
+
+| item | red | fix | red line |
+|------|-----|-----|----------|
+| rxm1-1 | 3fc6045b | 6d5c1f31 | unit: "Stand By and Turn Off are 3.2 px apart"; gate cell caption-gap: "caption 3 of Turn off computer starts 2 px after the caption before it (ink ends at x 667, starts at x 670), wants 4 or more" |
+| xp-10 | acee8d9f | cdc9446a | units: "one click opens Date and Time left: 0 right: 1", "no task button for Date and Time"; gate cell datetime-click: "one click on the clock of the tray opens no Date and Time", "Date and Time shows no taskbar button" |
+| xp-30 | 28d29cc2 | 7ee01d44 | unit "the press leaves the greeting in the balloon"; gate: "xp-30: a click elsewhere leaves the greeting in the balloon: Hi, I am your helper, ..." and "xp-30: the paperclip greets over a window: Hi, I am your helper, ..." |
+| xp-13 | none | none | absent at the head, see below (guard 84666c00, green) |
+
+1) xp-30 (plugins/chora-assistant voice.rs, main.rs; words in chora-kit). The greeting itself and the once-flag (`assistant-greeted` in the state home, cells xp30-helper, xp30-none, xp30-once) were already there. New: any press (`pointer.pressed` on any node, a window or the desktop) takes it away and clears `said`, so it does not come back when a helper connects; before it shows, a `scene.query kind:surface` finds a window rectangle that meets `Assistant::reach()` (the balloon area) and the greeting waits (retry every 500 ms, not spent, the file is written only when it shows); a window that opens under it takes it away. The words now name how to close ("Click anywhere else to close this balloon.", en and de) in place of "closes by itself" (it still fades after 12 s). Cells xp30-click and xp30-window (gate-xp-helper.sh) are pixel and node asserts on `hud-line`; the fake core cannot hold a surface, so the unit tests drive `greet_with(now, covered)` and `window_meets`; the red unit for the window case I wrote first could not be made to pass and was replaced in the fix commit (the gate cell is its red evidence). NOT DONE: Esc. A plugin gets keys only when it holds a binding with a modifier or a node with the keyboard; taking Esc globally or the keyboard focus for a balloon would steal keys from the window the person works in. Needs an owner or PM call (for example chora-xp forwarding Esc on the empty desktop).
+2) xp-10 (chora-xp wm/panels.rs, windows.rs, pointer.rs, datetime.rs): one click on the tray clock opens Date and Time; the double click still works (its second click raises the open dialog, no second one; `last_clock` removed); a task button "Date and Time Properties" (id xp-task-datetimepanel-*) shows while it is open, raises it on a click and goes with it (sync_tasks split into `panel_tasks`). Buttons are 75 x 23 on both tabs (already so since 54f810dc, unit and gate cell datetime-metrics). NOT DONE: text at 14 px. The dialog is 11 px type (Font::Ui) by docs/xp-style.md row 1 (XP Normal 96 DPI, owner commit fd93053d), shared with the Taskbar and Display dialogs through the helpers of dialog.rs; 14 px needs a font argument through those helpers and a re-layout of the 398 x 316 page, and conflicts with that doc. The capture shows 11 px. Owner call: Large Fonts for dialogs or 11 px as the replica.
+3) xp-13: no code. No balloon (greeting, empty chat) or notice lies on the Recycle Bin or any other desktop icon: gate cell bin-clear covers every xp-icon-N now (84666c00, green at the head; the bin was moved by 62708d35, rxr-2). Desktop labels stay 11 px (Font::Ui): design/looks/xp-v2.md asks 14 px for menus, titles and balloon, docs/xp-style.md row 1 names 11 px for all chrome including icon labels; I took the doc of the repo (replica size) and record it here, not a look. A 14 px label needs the 80 x 88 icon cell re-laid out; PM call.
+4) rxm1-1 (session.rs): the five Turn Off buttons stand 58 px apart (were 56, XP's pitch) and are 58 wide, icons at 24, 82, 140, 198, 256; Stand By to Turn Off was 3.2 px by text width, 2 px of ink; now 4 or more on both measures. Unit `neighbouring_captions_of_the_big_buttons_keep_4_px_apart_rxm1_1`; gate cell caption-gap (new tests/png-extent.py: first and last column of white ink per caption). The unit `the_buttons_sit_where_xp_has_them` lost the XP pitch by design (new lefts), Cancel stays 80 x 28.
+
+Also: gate cells wait with `ctl wait` on a node that does not exist (`pause`), no new sleep (sleep-ratchet 779 / 930 as before; an earlier full run was red on 3 new sleeps and was fixed).
+
+Captures: 1-xp30-greeting.png (greeting, no helper, new words), 2-xp10-datetime-taskbutton.png (one click, task button, 75 x 23 buttons, 11 px text), 3-xp13-chat-icons.png (chat balloon, icons clear), 4-rxm1-1-turnoff-gaps.png (Turn Off, captions apart).
+
+Gate, last 20 lines:
+```
+voice-acp  PASS    12s /tmp/merge-gate.6tPBk5/voice-acp.log
+voice-events PASS     2s /tmp/merge-gate.6tPBk5/voice-events.log
+agent      PASS    41s /tmp/merge-gate.6tPBk5/agent.log
+tiling-keys-more PASS    42s /tmp/merge-gate.6tPBk5/tiling-keys-more.log
+acts       PASS  1890s /tmp/merge-gate.6tPBk5/acts.log
+tiling-system PASS    14s /tmp/merge-gate.6tPBk5/tiling-system.log
+handover   PASS    27s /tmp/merge-gate.6tPBk5/handover.log
+tiling-windows PASS   173s /tmp/merge-gate.6tPBk5/tiling-windows.log
+mc-scale   PASS    13s /tmp/merge-gate.6tPBk5/mc-scale.log
+watchdog-starved PASS    53s /tmp/merge-gate.6tPBk5/watchdog-starved.log
+xp-run     PASS    13s /tmp/merge-gate.6tPBk5/xp-run.log
+demo       PASS   239s /tmp/merge-gate.6tPBk5/demo.log
+tiling-bar PASS   177s /tmp/merge-gate.6tPBk5/tiling-bar.log
+leak       PASS   480s /tmp/merge-gate.6tPBk5/leak.log
+tiling-theme PASS    19s /tmp/merge-gate.6tPBk5/tiling-theme.log
+mc-host    PASS    19s /tmp/merge-gate.6tPBk5/mc-host.log
+tiling-disc PASS    73s /tmp/merge-gate.6tPBk5/tiling-disc.log
+e2e        PASS   277s /tmp/merge-gate.6tPBk5/e2e.log
+all steps passed; no --push, nothing is pushed
+EXIT 0
+```
