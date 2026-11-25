@@ -163,3 +163,7 @@ Diff 254b07ba..cb5fcb7f (9 files, +137 -40; under 200 lines). Red first: d49c2da
 - rxm3-1 MINOR (assistant/src/main.rs, rxm2_1 test): before == after passes vacuously when the real assistant-greeted file already exists; assert on the temp dir file instead. Backlog.
 - rxm3-2 NIT (assistant/src/main.rs:399, :453): unrelated rewrites of the methods list and sync_row/apply in Agent::new; harmless.
 Verdict (computed): MERGE-OK cb5fcb7f.
+
+## PM review r4 (lane xp-minor-r4, 0a0850e4 on cb5fcb7f)
+Diff: plugins/chora-assistant/src/main.rs +8 (test only, one commit, owner identity). rxm3-1: the rxm2_1 test now asserts the greeting file exists in the agent's temp state_home before the real-home before == after check, so it can no longer pass vacuously; red shown by the lane (main.rs:1199 with the voice.rs write broken). rxm3-2 NIT left with a reason (the revert pushes Agent::start over clippy too_many_lines); accepted, stays NIT. Lane: cargo test -p chora-assistant 258 passed, clippy -D warnings clean; test-only, so no full gate needed before the train gate.
+Verdict (computed): 0 open MAJOR -> MERGE-OK 0a0850e4. Next: train141.
