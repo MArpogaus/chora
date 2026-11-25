@@ -36,15 +36,6 @@ launcher_up() {
     XDG_RUNTIME_DIR=$(sed -n 's/^XDG_RUNTIME_DIR=//p' "$dir/session.env") session_pids -x fuzzel >/dev/null
 }
 launcher_down() { ! launcher_up; }
-until_ok() {
-    local _
-    for _ in $(seq "${2:-40}"); do
-        eval "$1" && return 0
-        sleep 0.25
-    done
-    return 1
-}
-
 spid=
 dir=
 stop_session() {
@@ -118,7 +109,7 @@ cell() {
     tmp_dirs+=("$dir")
     mkdir -p "$dir/data/applications" "$dir/config/chora"
     printf 'theme: %s\ntest_accept_injected_keys: true\n' "$theme" >"$dir/config/chora/chora-mc.yaml"
-    printf '[Desktop Entry]\nType=Application\nName=Aa Alpha\nExec=foot -a alpha sh -c "sleep 600"\n' >"$dir/data/applications/alpha.desktop"
+    printf '[Desktop Entry]\nType=Application\nName=Aa Alpha\nExec=foot -a alpha\n' >"$dir/data/applications/alpha.desktop"
     local front=$PATH
     if [ "$fuzzel" = old ]; then
         old_fuzzel "$dir/old"
@@ -134,9 +125,9 @@ cell() {
     until_ok "grep -q '^PERSONA_ENV=' '$dir.out'" 200 || fail "$what: the session did not start: $(cat "$dir.err")"
     admin grant choractl screen.capture >/dev/null || fail "$what: grant of the capture"
     until_ok '[ -n "$(programs_door)" ]' 120 || fail "$what: the column shows no Programs door"
-    sleep 1
+    pace 1
     shows "$what" mouse
-    sleep 1
+    pace 1
     shows "$what" keys
     ok "$what: the launcher opens by a click on Programs and by Super+Space, and closes by Escape"
     stop_session
