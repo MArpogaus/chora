@@ -326,7 +326,7 @@ end_others() {
     if [ "${1:-}" = stalled ]; then
         xp_pid=$(pid_of chora-xp)
         kill -STOP "$xp_pid"
-        (sleep 1.5 && kill -CONT "$xp_pid") &
+        (until_ok false 6; kill -CONT "$xp_pid") &
         pids+=($!)
     fi
     python3 -I - "$CHORA_SOCKET" "$first_probe" <<'PY'
