@@ -309,7 +309,7 @@ the flavors with `systemd-analyze --user verify`, and the session entries
 with `desktop-file-validate`. It needs systemd, desktop-file-utils, waybar,
 swaybg, swayidle and kanshi.
 
-A lane passes the output of `tests/cells-for.sh` to the `only` option of `tests/merge-gate.sh`: it prints the cells that the diff against the base touches (the cells that run a changed test script or a lib it sources, the cells that name the binary of a changed crate, every cell for a change to the core, the kit or the scene) and always holds `ci-check`, `pre-commit`, `build`, `test` and `clippy`. `tests/cells-for-selftest.sh` proves it from the `gate-lib` step. The pick is advisory: a plugin that a cell starts only through the session config is not picked, so the train runs the full gate.
+A lane passes the output of `tests/cells-for.sh` to the `only` option of `tests/merge-gate.sh`: it prints the cells that the diff against the base touches (the cells that run a changed test script or a lib it sources, the cells that name the binary of a changed crate, every cell for a change to the core, the kit or the scene) and always holds `ci-check`, `pre-commit`, `build`, `test` and `clippy`. `tests/cells-for-selftest.sh` proves it from the `gate-lib` step. The pick is advisory: a plugin that a cell starts only through the session config is not picked, so the train runs the full gate. The `ratchets` step (`tools/sleep-ratchet`, `tools/size-ratchet`, `tools/lint-ratchet`) runs in every lane gate (`--worker`), so a breach is refused before the PM sees it.
 
 `tests/merge-gate.sh` decides whether a merge into the session branch may
 be pushed. It runs `red-first`, `identity` (every commit of the range,
