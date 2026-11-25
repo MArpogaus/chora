@@ -168,12 +168,12 @@ env -u CHORA_GATE_LOCK_HELD -u MERGE_GATE_STEPS CHORA_GATE_LOCK="$work/gate.lock
 check "the step gate-lib runs the self-test of tests/gate-lib.sh" "$?" 0
 
 : >"$work/marks"
-for n in build test clippy xp hud cube; do printf '%s|echo %s >>%s/marks\n' "$n" "$n" "$work"; done >"$work/steps"
+for n in ratchets build test clippy xp hud cube; do printf '%s|echo %s >>%s/marks\n' "$n" "$n" "$work"; done >"$work/steps"
 run_gate --worker xp,hud
-check "--worker runs build, test, clippy and the named steps" "$(tr '\n' ' ' <"$work/marks")" "build test clippy xp hud "
+check "--worker runs ratchets, build, test, clippy and the named steps" "$(tr '\n' ' ' <"$work/marks")" "ratchets build test clippy xp hud "
 check "--worker exits 0" "$rc" 0
 run_gate --worker ''
-check "--worker with no steps runs the three base steps" "$(wc -l <"$work/marks")" 8
+check "--worker with no steps runs the four base steps" "$(wc -l <"$work/marks")" 10
 run_gate --worker xp --push session
 check "--worker with --push is refused" "$rc" 2
 run_gate --worker nosuch
