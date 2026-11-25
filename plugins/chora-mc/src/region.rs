@@ -58,9 +58,6 @@ fn room(item: &Item, width: f64) -> f64 {
 
 /// How long a new docked app waits for a size that fits, in milliseconds.
 pub const FIT_MS: f64 = 1000.0;
-/// The room at the right edge that the state pill of the HUD host takes at
-/// the top: its margin, its word and its mark (rpx1-13).
-const PILL_ROOM: f64 = 200.0;
 /// The most lines that `content.add` keeps.
 pub const MAX_LINES: usize = 12;
 
@@ -558,7 +555,7 @@ impl Mc {
         let [header, footer] = if headless {
             self.app_lines(w, on(Region::Right))
         } else {
-            [(x, width.min(w - PILL_ROOM - x).max(b)), (x, width)]
+            [(x, width.min(self.header_end(w) - x).max(b)), (x, width)]
         };
         regions.insert(Region::Header, [header.0, 0.0, header.1, head]);
         regions.insert(Region::Footer, [footer.0, h - foot, footer.1, foot]);

@@ -29,11 +29,13 @@ mod keys;
 mod layout;
 mod lifecycle;
 mod manage;
+mod menus;
 mod methods;
 mod mic;
 #[cfg(test)]
 mod minor;
 mod region;
+mod rooms;
 mod scene;
 mod show;
 mod state;
@@ -400,6 +402,12 @@ struct Mc {
     dock_focus: Option<String>,
     /// The text of each clock.
     clocks: BTreeMap<String, String>,
+    /// What the pill of the HUD host and the card of the notice server
+    /// take of the output.
+    rooms: rooms::Rooms,
+    /// The config of fuzzel in the look of mc, for the launcher and the
+    /// power menu.
+    menu: Option<std::path::PathBuf>,
     /// The worker that reads and changes the volume.
     volume: chora_kit::volume::Mixer,
     /// The volume that the worker read last.
@@ -453,11 +461,17 @@ fn main() -> ExitCode {
 /// and the launcher never closes without a word (mc-44). Another program
 /// is no launch of mc.
 fn launch(argv: &[String]) -> ExitCode {
-    if argv != ["fuzzel"] {
-        eprintln!("usage: chora-mc --launch fuzzel");
-        return ExitCode::from(2);
-    }
-    chora_kit::launcher::run(&["fuzzel".to_owned()], "foot", None);
+    let fuzzel = match argv {
+        [fuzzel] if fuzzel == "fuzzel" => vec!["fuzzel".to_owned()],
+        [fuzzel, flag, file] if fuzzel == "fuzzel" && flag == "--config" => {
+            vec!["fuzzel".to_owned(), flag.clone(), file.clone()]
+        }
+        _ => {
+            eprintln!("usage: chora-mc --launch fuzzel [--config FILE]");
+            return ExitCode::from(2);
+        }
+    };
+    chora_kit::launcher::run(&fuzzel, "foot", None);
     ExitCode::SUCCESS
 }
 
@@ -481,6 +495,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     if args.output.is_some() {
         mc.page_keys = keys::PageKeys::Bound;
     }
+    mc.write_menu_theme();
     mc.start(methods)?;
     if let Some(err) = mc.settings.broken().map(str::to_owned) {
         mc.notice("Settings", &err);
@@ -578,6 +593,8 @@ impl Mc {
             quiet: BTreeSet::new(),
             dock_focus: None,
             clocks: BTreeMap::new(),
+            rooms: rooms::Rooms::default(),
+            menu: None,
             volume: chora_kit::volume::Mixer::new(NAME),
             volume_reading: None,
             volume_ticks: 0,
@@ -775,7 +792,7 @@ impl Plugin for Mc {
                 self.page_key(&key, &modifiers, injected);
                 Ok(())
             }
-            Event::PointerScroll { node, dy, .. } => self.scroll_page(&node, dy), // injected: Plugin::event drops an injected pointer event first
+            Event::PointerScroll { node, dy, .. } => self.wheel(&node, dy), // injected: Plugin::event drops an injected pointer event first
             Event::PointerPressed {
                 node,
                 position,
@@ -865,6 +882,7 @@ impl Plugin for Mc {
                 "idle".clone_into(&mut agent.state);
             }
         }
+        self.write_menu_theme();
         self.name_theme()
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         let same_shape = self.built && !plain && self.shape.as_ref() == Some(&self.shape_of());
@@ -2233,8 +2251,7 @@ mod tests {
             for panel in &scene.panels {
                 let [x, y, w, h] = mc.place(name, panel).expect("a box");
                 assert!(w > 0.0 && h > 0.0, "{name}: panel {} has no size", panel.id);
-                let line = mc.settings.value.scale.baseline;
-                let inside = x >= tx && x + w <= tx + tw + 0.5 && y + h <= ty + th + 2.0 * line;
+                let inside = x >= tx && x + w <= tx + tw + 0.5 && y + h <= ty + th + 0.5;
                 assert!(
                     inside || name == "mission",
                     "{name}: panel {} at {:?} is not inside the text block",
@@ -2756,7 +2773,7 @@ mod tests {
             .unwrap();
         mc.method("notify.clear", json!({})).unwrap();
         let sent: Vec<_> = (core.model().lock().unwrap().called.iter())
-            .filter(|c| c["client"] == "notify")
+            .filter(|c| c["client"] == "notify" && c["method"] != "state.get")
             .map(|c| (c["method"].clone(), c["params"].clone()))
             .collect();
         let show = |summary, body, expire_ms, urgency| {
@@ -2771,6 +2788,64 @@ mod tests {
                 (json!("notify.close"), json!({"id": 7})),
             ]
         );
+    }
+
+    /// The page ends over the card that the notice server reports, and
+    /// the header before the pill that the HUD host draws (rmm1-2), not at
+    /// a distance that mc keeps for itself.
+    #[test]
+    fn the_page_and_the_header_end_by_the_rects_of_the_servers() {
+        use chora_kit::testing::FakeCore;
+        use serde_json::json;
+        let core = FakeCore::start().selecting();
+        core.answer_with(
+            "state.get",
+            json!({"shown": [{"rect": [160, 500, 291, 79]}]}),
+        );
+        let mc = crate::testing::mc_on(&core, "rooms-card", [1280, 720]);
+        let [_, top, _, height] = mc.geometry("agenda").unwrap().text;
+        assert_eq!(
+            mc.card_room(),
+            220.0,
+            "the room is the card's top to the foot"
+        );
+        assert!(
+            top + height <= 500.0,
+            "the page reaches under the card: {}",
+            top + height
+        );
+    }
+
+    /// A page with a text of a panel that reaches under the edge of the
+    /// page shows the mark that more follows; a page that shows whole shows
+    /// none (rmm1-4).
+    #[test]
+    fn a_page_with_text_under_its_edge_shows_the_mark() {
+        let (mut mc, _model) = crate::testing::mc("more-mark", [1280, 720]);
+        mc.show("morning", false).unwrap();
+        let panel = (mc.scenes.get_mut("morning").unwrap().panels.iter_mut())
+            .find(|p| p.id == "overnight")
+            .unwrap();
+        panel.lines = vec!["Then".into(), "Serve it at once.".into()];
+        let edge = {
+            let [_, y, _, h] = mc.geometry("morning").unwrap().text;
+            y + h
+        };
+        let shown = |mc: &crate::Mc, bottom: f64| {
+            let lines = [160.0, edge - 80.0, 600.0, bottom - edge + 80.0];
+            let rects =
+                crate::HashMap::from([("mc-s-morning-panels-overnight-lines".into(), lines)]);
+            match mc.more_update("morning", &rects) {
+                Some(Command::Update { props, .. }) => props.visible,
+                other => panic!("no update of the mark: {other:?}"),
+            }
+        };
+        assert_eq!(
+            shown(&mc, edge + 30.0),
+            Some(true),
+            "a line is under the edge"
+        );
+        assert_eq!(shown(&mc, edge), Some(false), "the text ends on the edge");
     }
 
     /// A key of `input.inject` turned the page, or went back along the

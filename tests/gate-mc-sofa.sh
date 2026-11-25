@@ -52,6 +52,29 @@
 #               as the body of the page, and its ink is no grey: 7 to 1
 #               (mc-40)
 #
+#   keylist-click  a click on the row Show overview of the full key list
+#               (Super+F1) runs its action: the overview shows (rmm1-3)
+#
+#   more        a page that does not fit shows a mark at its foot that more
+#               follows, and none at its end or when it fits (rmm1-4)
+#
+#   launcher-theme  the launcher (Super+Space) and the power menu
+#               (Super+Shift+E) take the theme of mc: the box has the colour
+#               of the page and its text at least 4.5 to 1 on it (rpx1-10)
+#
+#   volume-wheel  a wheel over the volume door in the column raises and
+#               lowers the level, as the keys do (rpx1-15)
+#
+#   page-edges  no line of any built-in scene, every panel full, is cut at the
+#               edge of its page at 1280x720 (rmm1-1)
+#
+#   rooms-card  the page ends over a card of the notice server that stands
+#               higher (rmm1-2)
+#
+#   rooms-pill  the header ends before a state pill of the HUD host that
+#               stands further left; the ends come from the rects the
+#               servers report, not from a constant (rmm1-2)
+#
 #   remote-back a remote without Super leaves a window that has the keys:
 #               a program that the launcher started, then one press of
 #               XF86Back after the Escape that the shell got shows the
@@ -222,7 +245,7 @@ cell_door() {
     click_rect "$(text_rect "Chat with a helper ...")"
     until_ok 'ctl query id:hud-chat | jq -e "length > 0" >/dev/null' 20 || fail "a press on the chat door opens no chat: $(texts | tr '\n' '|')"
     until_ok '[ -z "$(doors_under_chat)" ]' 40 || fail "the chat stays over a door of the column (mc-56): $(doors_under_chat | tr '\n' ' ')"
-    [ -z "$(hits_under_chat)" ] || fail "a hit area of mc lies under the open chat (mc-56): $(hits_under_chat | tr '\n' ' ')"
+    until_ok '[ -z "$(hits_under_chat)" ]' 40 || fail "a hit area of mc lies under the open chat (mc-56): $(hits_under_chat | tr '\n' ' ')"
     shot door
     key Escape
     until_ok '! ctl query id:hud-chat | jq -e "length > 0" >/dev/null' 20 || fail "Escape does not close the chat"
@@ -469,13 +492,109 @@ cell_keylist() {
     until_ok 'has_text "Show overview"' 20 || fail "Super+F1 does not open the full list"
     until_ok 'jq -e ".[1] > 500" <<<"$(text_rect "Back one step")" >/dev/null' 20 || fail "the full list places no last row"
     shot keylist
-    [ -z "$(struck_texts)" ] || fail "a rule of the key list strikes a text (rpx1-9): $(struck_texts)"
+    until_ok '[ -z "$(struck_texts)" ]' 40 || fail "a rule of the key list strikes a text (rpx1-9): $(struck_texts)"
     for t in "Take a screenshot" "Back one step" "Power menu" "Lock the screen"; do
         has_text "$t" || fail "the full list lacks the row \"$t\" at 1280x720"
     done
     [ -z "$(off_screen)" ] || fail "text or a hit area of the full list is off the 1280x720 output (rpx1-9): $(off_screen | tr '\n' ' ')"
     key Super+F1
     until_ok '! has_text "Show overview"' 20 || fail "Super+F1 does not close the list"
+}
+
+cell_keylist_click() {
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    key Super+F1
+    until_ok 'has_text "Show overview"' 20 || fail "Super+F1 does not open the full list"
+    until_ok 'jq -e ".[1] > 100" <<<"$(text_rect "Show overview")" >/dev/null' 20 || fail "the full list places no row Show overview"
+    click_rect "$(text_rect "Show overview")"
+    until_ok '[ "$(current)" = overview ]' 20 || fail "a click on the row Show overview of the full list does not show the overview: $(current)"
+    shot keylist-click
+    key Super+F1
+    until_ok '! has_text "Show overview"' 20 || fail "Super+F1 does not close the full list"
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda after the click: $(current)"
+}
+
+scroll_page() {
+    move_to 400 300
+    echo "[{\"scroll\": {\"dy\": $1}}]" | ctl inject >/dev/null || fail "inject scroll"
+}
+cell_more() {
+    local page more
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    until_ok '[ -z "$(node_rect_of_more mc-s-agenda-more)" ]' 20 || fail "the agenda that fits carries a mark that more follows"
+    key Super+Right
+    until_ok '[ "$(current)" = morning ]' 20 || fail "no morning: $(current)"
+    panel morning overnight '["Then", "Toss the drained spaghetti in the pan with a splash of the pasta water and the parsley, then serve it at once with a little grated cheese on top. Salt it to taste, and put the pan on the table before it cools; the sauce wants the steam.", "Wash up", "Dry the pot and the pan, and put the bowls back on the shelf where the children find them in the morning, with the spoons beside them."]'
+    page=$(node_rect mc-s-morning-page)
+    ctl capture "$work/more.png" >/dev/null || fail "capture more"
+    until_ok '[ -n "$(node_rect_of_more mc-s-morning-more)" ]' 20 || fail "the page that does not fit shows no mark that more follows (rmm1-4)"
+    more=$(node_rect_of_more mc-s-morning-more)
+    jq -ne --argjson m "$more" --argjson p "$page" '$m[1] + $m[3] <= $p[1] + $p[3] + 1 and $m[1] >= $p[1] + $p[3] - 56' >/dev/null ||
+        fail "the mark $more is not at the foot of the page $page (rmm1-4)"
+    shot more
+    scroll_page 2000
+    until_ok '[ -z "$(node_rect_of_more mc-s-morning-more)" ]' 20 || fail "the mark that more follows stays at the end of the page (rmm1-4)"
+    scroll_page -2000
+}
+node_rect_of_more() {
+    ctl query "id:$1" | jq -c "[.[] | select(.visible and (.rects | length) > 0)][0].rects // empty | to_entries[0].value"
+}
+
+
+menu_look() {
+    ctl capture "$work/menu.png" >/dev/null || fail "capture the menu"
+    # shellcheck disable=SC2086 # four words, one for each number of the rect
+    python3 -I "$repo/tests/png-contrast.py" "$work/menu.png" $1 | tr -d '(),'
+}
+menu_theme() {
+    local name=$1 rect="$2 $3 $4 $5" want ratio red green blue
+    case $theme in
+    dark) want="28 28 28" ;;
+    *) want="247 245 237" ;;
+    esac
+    until_ok '[ "$(menu_look "$rect" | cut -d" " -f1)" != 1.00 ]' 40 || fail "the $name shows no text"
+    read -r ratio _ _ _ _ _ red green blue < <(menu_look "$rect")
+    [ "$red $green $blue" = "$want" ] || fail "the $name has the box $red $green $blue, not the page background $want of the $theme theme (rpx1-10)"
+    jq -ne --arg r "$ratio" '($r | tonumber) >= 4.5' >/dev/null || fail "the text of the $name has the contrast $ratio to its box, under 4.5 (rpx1-10)"
+}
+menu_gone() { until_ok '! session_pids -x fuzzel >/dev/null' 40 || fail "a menu stays open"; }
+cell_launcher_theme() {
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    : >"$work/fake/real"
+    key Super+space
+    menu_theme "launcher" 500 246 200 18
+    shot launcher-theme
+    key Escape
+    menu_gone
+    key Super+Shift+e
+    menu_theme "power menu" 570 300 140 100
+    shot power-theme
+    key Escape
+    menu_gone
+    rm -f "$work/fake/real"
+}
+
+cell_volume_wheel() {
+    local door calls=$work/wpctl.calls
+    : >"$calls"
+    # shellcheck disable=SC2016 # the stand-in expands its own arguments
+    printf '#!/bin/sh\necho "$@" >>"%s"\ncase " $* " in *" get-volume "*) echo "Volume: 0.50" ;; esac\n' "$calls" >"$work/fake/wpctl"
+    chmod +x "$work/fake/wpctl"
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    until_ok 'has_text "Volume 50%"' 60 || fail "the volume door does not show the level 50%: $(texts | tr '\n' '|')"
+    door=$(text_rect "Volume 50%")
+    move_to "$(jq -n --argjson r "$door" '$r[0] + 20 | floor')" "$(jq -n --argjson r "$door" '$r[1] + $r[3] / 2 | floor')"
+    echo '[{"scroll": {"dy": -60}}]' | ctl inject >/dev/null || fail "inject scroll"
+    until_ok 'grep -Eq "set-volume .*%\+" "$calls"' 20 || fail "a wheel up over the volume door does not raise the volume (rpx1-15): $(tr '\n' '|' <"$calls")"
+    echo '[{"scroll": {"dy": 60}}]' | ctl inject >/dev/null || fail "inject scroll"
+    until_ok 'grep -Eq "set-volume .*%-" "$calls"' 20 || fail "a wheel down over the volume door does not lower the volume (rpx1-15): $(tr '\n' '|' <"$calls")"
+    shot volume-wheel
+    until_ok '[ "$(ctl call notify state.get "{}" | jq "[.shown[]] | length")" = 0 ]' 160 || fail "the card of the volume stays"
 }
 
 cell_page_end() {
@@ -547,6 +666,71 @@ cell_helpers_empty() {
     case "$words" in *Pagella* | *Serif*) ;; *) fail "the words of the empty helpers page are not in the page type: $words" ;; esac
 }
 
+. "$repo/tests/mc-edges.sh"
+cell_page_edges() { page_edges 1280x720; }
+
+kill_of() {
+    local pid
+    for pid in $(session_pids -x "$1"); do kill "$pid"; done
+    until_ok '! session_pids -x '"$1"' >/dev/null' 40 || fail "$1 does not end"
+    : >/dev/null
+}
+cell_rooms_card() {
+    local card page
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    kill_of chora-notify
+    mkdir -p "$work/notify-high"
+    cp -rL "$notify_slot"/. "$work/notify-high/"
+    sed -i 's/^margin: .*/margin: [160, 140]/' "$work/notify-high/values.yaml"
+    "$bin/chora-notify" --assets "$work/notify-high" --config "$work/notify-high/notify.yaml" >"$work/notify-high.log" 2>&1 &
+    pids+=($!)
+    until_ok 'ctl call notify state.get "{}" >/dev/null 2>&1' 40 || fail "chora-notify does not start: $(tail -n 3 "$work/notify-high.log")"
+    ctl call mc notify.clear '{}' >/dev/null
+    ctl call mc notify.push '{"title": "Timer: spaghetti, 9 minutes", "body": "Started by voice"}' >/dev/null || fail "notify.push"
+    until_ok '[ "$(ctl call notify state.get "{}" | jq "[.shown[].summary] | length")" -ge 1 ]' 20 || fail "no card"
+    card=$(ctl call notify state.get '{}' | jq -c '.shown[0].rect')
+    # shellcheck disable=SC2329 # until_ok evaluates its first argument
+    page_over_card() {
+        page=$(node_rect mc-s-agenda-page)
+        jq -ne --argjson c "$card" --argjson p "$page" '$p[1] + $p[3] <= $c[1]' >/dev/null
+    }
+    until_ok 'page_over_card' 40 || fail "the page $page reaches under the card $card that stands higher: the page end is a constant (rmm1-2)"
+    shot rooms-card
+    ctl call mc notify.clear '{}' >/dev/null
+    kill_of chora-notify
+}
+cell_rooms_pill() {
+    local clock word mark left
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    mkdir -p "$work/data/chora/huds"
+    cp -rL "$repo/plugins/chora-mc/hud" "$work/data/chora/huds/mc"
+    sed -i 's/margin: \[56, 34\]/margin: [470, 34]/' "$work/data/chora/huds/mc/hud.yaml"
+    printf 'enabled: true\nposition: null\nhud: mc\n' >"$work/chora/chora-assistant.yaml"
+    kill_of chora-assistant
+    "$bin/chora-assistant" >"$work/assistant-moved.log" 2>&1 &
+    pids+=($!)
+    ctl wait owner:assistant --timeout 20 >/dev/null || fail "the host does not start: $(tail -n 3 "$work/assistant-moved.log")"
+    emit voice.state '{"state": "listening", "task": "", "said": "", "muted": {"mic": false, "speaker": false}}'
+    until_ok 'jq -e ".[0] < 900" <<<"$(node_rect hud-word)" >/dev/null' 40 || fail "the host does not draw the state word at the new place: $(node_rect hud-word)"
+    # shellcheck disable=SC2329 # until_ok evaluates its first argument
+    clock_rect() {
+        ctl query "owner:mc kind:text" | jq -c "[.[] | $shown | select(.text | test(\"^[A-Z]+ [0-9]+ [A-Z]+ +[0-9]+:[0-9]+\$\"))][0].rects | to_entries[0].value"
+    }
+    # shellcheck disable=SC2329 # until_ok evaluates its first argument
+    header_clear() {
+        clock=$(clock_rect)
+        word=$(node_rect hud-word)
+        mark=$(node_rect hud-figure)
+        left=$(jq -n --argjson w "$word" --argjson m "$mark" '[$w[0], $m[0]] | min')
+        jq -ne --argjson c "$clock" --argjson l "$left" '$c[0] + $c[2] <= $l - 8' >/dev/null
+    }
+    until_ok 'header_clear' 40 || fail "the header $clock reaches the state pill $word that stands further left: the header end is a constant (rmm1-2)"
+    shot rooms-pill
+    kill_of chora-assistant
+}
+
 failed=()
 skipped=()
 ran=0
@@ -565,7 +749,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist page-end pill-clock helpers-empty remote-back launcher-click-row)
+cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist keylist-click more launcher-theme volume-wheel page-end page-edges pill-clock helpers-empty remote-back launcher-click-row rooms-card rooms-pill)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done

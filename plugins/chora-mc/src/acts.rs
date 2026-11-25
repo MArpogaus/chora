@@ -2,7 +2,7 @@ use chora_kit::actions::System;
 use chora_kit::actions::perform::{Failure, Host};
 use std::convert::Infallible;
 
-use super::{Action, Mc, PressState};
+use super::{Action, ClientError, Mc, PressState};
 use crate::config::Look;
 
 impl Mc {
@@ -91,6 +91,25 @@ impl Mc {
     }
 }
 
+impl Mc {
+    /// A wheel over a node: over the volume door it raises the level
+    /// (up) or lowers it (down) by a step, as the volume keys do, the
+    /// mouse path of the remote's volume (rpx1-15); elsewhere it
+    /// scrolls the page under it.
+    pub(crate) fn wheel(&mut self, node: &str, dy: f64) -> Result<(), ClientError> {
+        if !node.ends_with("-doors-volume-hit") {
+            return self.scroll_page(node, dy);
+        }
+        let change = match dy.partial_cmp(&0.0) {
+            Some(std::cmp::Ordering::Less) => chora_kit::volume::Change::Up,
+            Some(std::cmp::Ordering::Greater) => chora_kit::volume::Change::Down,
+            _ => return Ok(()),
+        };
+        self.volume.change(change, true);
+        Ok(())
+    }
+}
+
 /// What mc does for the actions of every look that it has: the volume, the
 /// chat and the key list. The rest has no meaning in mc.
 impl Host for Mc {
@@ -106,9 +125,10 @@ impl Host for Mc {
     /// (mc-44). Another command runs as it is.
     fn run(&mut self, command: &str) -> Result<(), Infallible> {
         let command = match command.trim() {
-            "fuzzel" => "chora-mc --launch fuzzel",
-            other => other,
+            "fuzzel" if self.menu.is_none() => "chora-mc --launch fuzzel".to_owned(),
+            other => self.themed(other),
         };
+        let command = command.as_str();
         let token = self.rt.conn.activation_token();
         let started =
             chora_kit::launch::start(&chora_kit::shared::launcher(command), token.as_deref());
@@ -116,6 +136,21 @@ impl Host for Mc {
             Some(_) => Ok(()),
             None => self.failed(Failure::NotStarted(command.to_owned())),
         }
+    }
+
+    /// The power menu of the shared script with the fuzzel of mc as its
+    /// menu, in the colors of the theme (rpx1-10); plain when the config
+    /// of the menus is not written.
+    fn power(&mut self) -> Result<bool, Infallible> {
+        if self.menu.is_none() {
+            return Ok(false);
+        }
+        let Some(command) = chora_kit::shared::command("power", &[]) else {
+            return Ok(false);
+        };
+        let token = self.rt.conn.activation_token();
+        let started = chora_kit::launch::start(&self.themed(&command), token.as_deref());
+        Ok(started.is_some())
     }
 
     fn keys(&mut self) -> Result<(), Infallible> {

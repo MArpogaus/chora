@@ -2,5 +2,8 @@
 # title, as in the head of a scene. chora-mc fills the panel scenes; a
 # click on a line shows that scene.
 chapter: {title: Overview}
+# Two rows of the grid, so that the list takes the text block and no more at
+# the least height of a row (rmm1-1).
+grid: [4, 2]
 panels:
-- {id: scenes, cell: [0, 0, 2, 3]}
+- {id: scenes, cell: [0, 0, 2, 2]}

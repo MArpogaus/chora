@@ -5,9 +5,11 @@ use super::{
     title_of, translate, wheel_id,
 };
 
-/// The height that the card of the notice server takes at the foot of the
-/// output: its margin of 56 pixels and its two lines.
-const CARD_ROOM: f64 = 135.0;
+/// The mark at the foot of a page that more follows.
+fn more_id(name: &str) -> String {
+    format!("{}-more", super::scene_id(name))
+}
+
 /// The room under a baseline for the descenders of a line.
 const DESCENT: f64 = 8.0;
 
@@ -37,7 +39,7 @@ impl Mc {
     /// (rpx1-11, rpx1-12).
     fn page_bottom(&self, h: f64) -> f64 {
         let (b, phase) = (self.settings.value.scale.baseline, self.phase());
-        let room = h - CARD_ROOM - DESCENT;
+        let room = h - self.card_room() - DESCENT;
         phase + b * ((room - phase) / b).floor() + DESCENT
     }
 
@@ -503,6 +505,7 @@ impl Mc {
         let rect = |id: &str| rects.get(id).copied();
         let indent = geo.note + geo.gap;
         let mut commands = Vec::new();
+        commands.extend(self.more_update(name, &rects));
         commands.extend(self.align_head(name, &scene, &geo, &|id| rect(id)));
         for panel in &scene.panels {
             let id = panel_id(name, &panel.id);
@@ -560,13 +563,7 @@ impl Mc {
         let Some(name) = self.current.clone().filter(over) else {
             return Ok(());
         };
-        let (Some(scene), Some(geo)) = (self.scenes.get(&name), self.geometry(&name)) else {
-            return Ok(());
-        };
-        let bottom = (scene.panels.iter())
-            .filter_map(|p| self.place(&name, p).map(|[_, y, _, h]| y + h))
-            .fold(0.0, f64::max);
-        let most = (bottom - geo.text[1] - geo.text[3]).max(0.0);
+        let most = self.scroll_most(&name);
         let old = self.scroll.get(&name).copied().unwrap_or_default();
         let new = (old + dy).clamp(0.0, most);
         if (new - old).abs() < f64::EPSILON {
@@ -574,7 +571,84 @@ impl Mc {
         }
         self.scroll.insert(name.clone(), new);
         let b = self.settings.value.scale.baseline;
-        self.apply(vec![move_to(panels_id(&name), 0.0, -2.0 * b - new)])
+        self.apply(vec![move_to(panels_id(&name), 0.0, -2.0 * b - new)])?;
+        self.update_more(&name)
+    }
+
+    /// How far the page of a scene can scroll: from its top to the bottom of
+    /// its last panel at the foot of the text block; none when it fits.
+    pub(crate) fn scroll_most(&self, name: &str) -> f64 {
+        let (Some(scene), Some(geo)) = (self.scenes.get(name), self.geometry(name)) else {
+            return 0.0;
+        };
+        let bottom = (scene.panels.iter())
+            .filter_map(|p| self.place(name, p).map(|[_, y, _, h]| y + h))
+            .fold(0.0, f64::max);
+        (bottom - geo.text[1] - geo.text[3]).max(0.0)
+    }
+
+    /// The mark at the foot of the page, beside its text block, that says
+    /// that more follows below (rmm1-4); it stays hidden until `align` or
+    /// a scroll finds text under the edge of the page.
+    pub(crate) fn more_mark(&self, name: &str) -> Option<Command> {
+        let geo = self.geometry(name)?;
+        let b = self.settings.value.scale.baseline;
+        let mut ty = self.ty("data", None);
+        ty.color = (self.settings.value.colors().get("muted").copied()).unwrap_or(ty.color);
+        let x = geo.text[0] + geo.text[2] + 4.0;
+        let y = geo.text[1] + geo.text[3] - ty.line - 2.0 * b;
+        let props = PropsUpdate {
+            transform: Some(translate(x, y)),
+            visible: Some(false),
+            ..ty.props("↓")
+        };
+        Some(create(
+            &more_id(name),
+            NodeKind::Text,
+            &page_id(name),
+            props,
+        ))
+    }
+
+    /// Shows the mark of the page when a text of its panels reaches under
+    /// the edge of the page, so that a page that does not fit never
+    /// looks as if it ended. A text that is wholly under the edge has no
+    /// rect, since the page clips it; it counts when its panel starts
+    /// its lines at or under the edge.
+    pub(crate) fn more_update(
+        &self,
+        name: &str,
+        rects: &HashMap<String, [f64; 4]>,
+    ) -> Option<Command> {
+        let (scene, geo) = (self.scenes.get(name)?, self.geometry(name)?);
+        let edge = geo.text[1] + geo.text[3];
+        let scroll = self.scroll.get(name).copied().unwrap_or_default();
+        let below = scene.panels.iter().filter(|p| !p.is_empty()).any(|panel| {
+            let prefix = format!("{}-", panel_id(name, &panel.id));
+            let mut known = rects
+                .iter()
+                .filter(|(id, _)| id.starts_with(&prefix))
+                .peekable();
+            if known.peek().is_some() {
+                return known.any(|(_, [_, y, _, h])| y + h > edge + 1.0);
+            }
+            self.place(name, panel)
+                .is_some_and(|[_, y, _, _]| y - scroll + self.lines_top(panel) >= edge)
+        });
+        Some(Command::Update {
+            id: more_id(name),
+            props: PropsUpdate {
+                visible: Some(below),
+                ..PropsUpdate::default()
+            },
+        })
+    }
+
+    /// Reads the texts of the page and shows or hides its mark.
+    pub(crate) fn update_more(&mut self, name: &str) -> Result<(), ClientError> {
+        let rects = self.text_rects()?;
+        let command = self.more_update(name, &rects);
+        self.apply(command.into_iter().collect())
     }
 
     /// The rect that the core lays out a node at: x, y, width, height.
