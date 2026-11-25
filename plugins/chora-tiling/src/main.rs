@@ -1300,14 +1300,17 @@ mod tests {
 
     use chora_kit::testing::{FakeCore, Log};
 
+    use super::*;
+
+    /// rtd3-1: the pid is the only input of the name, and one process has one
+    /// pid, so two real connects of one machine cannot be made in a test; the
+    /// pure name function is the guard against a constant name.
     #[test]
     fn two_launches_of_one_machine_connect_under_different_names() {
         let (a, b) = (crate::launch_name(1), crate::launch_name(2));
         assert_ne!(a, b);
         assert!(a.starts_with("chora-tiling.launch") && b.starts_with("chora-tiling.launch"));
     }
-
-    use super::*;
 
     /// A tiling on a fake core that answers every request, `input.grab`
     /// with its binding, and keeps the names of the methods called.
