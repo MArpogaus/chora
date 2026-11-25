@@ -1,0 +1,14 @@
+# gate-ratchets r1 (harness; rc 3, F4: lane gates miss the sleep ratchet; harness backlog "ratchets as the first step of merge-gate.sh")
+
+Model: sonnet, effort medium (one gate step and its self-test; routine harness work)
+Lane: cloud, branch claude/gate-ratchets-r1 at 721be592 (session head t134). Areas: tests/merge-gate.sh, tests/merge-gate-selftest*.sh or the gate's own test (whatever exists; else a new tests/gate-ratchets-selftest.sh), tools/sleep-ratchet, tools/size-ratchet, tools/lint-ratchet (read only unless a flag is missing), CONTRIBUTING.md (one sentence). Stop at 250 k. Cost at most 0.5 %.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`. A failure: send_message the PM "gate-ratchets-r1 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Why: trains t128 and t135 found ratchet breaches only at the PM, after a lane had passed its full gate; the lane gate must refuse them.
+1) Red commit first (tests only, message cites "lane gates miss the ratchets"): a self-test that builds a scratch clone (git worktree in a temp dir) with one added `sleep 1` line in a tests/*.sh file and runs the ratchets step of tests/merge-gate.sh on it; it must fail with a line naming sleep-ratchet; on the clean tree the step passes. Paste the failing lines (the step does not exist yet).
+2) Fix commit: a step `ratchets` right after `identity` in tests/merge-gate.sh (before pre-commit and build), running tools/sleep-ratchet, tools/size-ratchet and tools/lint-ratchet in turn, each output in its log, FAIL naming the ratchet and its count line. The step list in the header comment and `--list` name it. No new sleep; the step is quick (seconds).
+3) Run: the self-test; then the full gate: `setsid nohup bash -c '(CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2 > /tmp/gate.log 2>&1; echo EXIT $? >> /tmp/gate.log)' >/dev/null 2>&1 </dev/null &`, poll in the same turn; paste the last 20 lines. A red cell you did not cause: name it with its log line. Before ending: `pgrep -fa 'chora --headless'` empty.
+Never end a turn to wait; poll any long command in the same turn.
+Done when: red then fix shas with pasted lines; self-test and the full gate green (or foreign reds named); the step shows in `--list`.
+Out of scope: changing any ratchet count or list, the product, other gate steps.
+Report: reports/gate-ratchets.md "## r1" on claude/session-log; send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 5 lines with the head sha.
+Rules: push claude/gate-ratchets-r1 and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).

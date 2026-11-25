@@ -404,3 +404,27 @@ Findings:
   held (75 per join in tiling), though each is taken a moment later on `input.ungrabbed`: for a ricer reading the journal 75 refusals read as
   broken keys (POLS); fix: collect the refusals of one grab set and log one line at `end_grabs` (count, asked again when free), or log only
   a binding still waiting once the earlier look let go.
+
+## minor r1
+
+Lane claude/stray-super-minor-r1, head 8c3ac745 (base 84f66d43). rss-11 stays open (construct, co-79).
+
+| finding | red sha | fix sha | test |
+|---|---|---|---|
+| rss-12 | 201f4015 | 8d03c2c7 | `swallow::tests::a_refused_say_is_said_again_at_the_next_set_of_grabs` (refuse_next `events.emit`; `on` and `off` each lost once, said again at the next set) |
+| rss-13 | 4e709aca | 0d178482 | `runtime::tests::the_refusals_of_a_set_of_grabs_log_one_line` (9 held keys in one set: one stderr line with the count and "asked again") |
+
+- rss-12: `say_swallow` sets `said` only when the core took the emit; a refusal leaves it unset, so the next `grab_swallowed` / `end_grabs` says it again.
+- rss-13: a refusal inside a set (`start_grabs` to `end_grabs`) is collected; `end_grabs` logs one line (the key alone for one, else the count and first to last key). Outside a set the line is logged at once as before.
+- 8c3ac745: the rss-12 test changed to grab in each set (ci-check bans an empty set; clippy bans `ungrab_all`).
+- Ratchets on 8c3ac745: sleep-ratchet ok (sleep 778, sleep-all 929; the list says 779/930, lower it), size-ratchet ok (0 files over 1500), lint-ratchet ok (allow 360, no-reason 0, eprintln 46). No new `sleep` line.
+- Full `tests/merge-gate.sh` (no --only): all steps passed (65 PASS, no FAIL or SKIP), run dir /tmp/merge-gate.0QnR51.
+
+## PM review minor r1 (2026-11-25)
+Range 84f66d43..8c3ac745, +119 -4, crates/chora-kit runtime.rs and swallow.rs only (PM review: under 200 lines).
+- Red first: 201f4015 (rss-12) before 8d03c2c7; 4e709aca (rss-13) before 0d178482. Ok.
+- rss-12: `said` is set only on Ok; an Rpc refusal leaves it unset, so the next set of grabs says it again; the test covers a lost `on` and a lost `off`. Closed.
+- rss-13: refusals inside start_grabs..end_grabs are collected and logged as one line; outside a set the old line stays. Test counts one line for 9 keys. Closed.
+- rssm-1 MINOR: inside a set every refusal is logged as "grabbed already" and its error text is dropped, so a refusal of another kind (bad binding, core error) reads as a held key; and a set left open by an early `?` return before end_grabs keeps its refusals unlogged. Log the error kind with the line, or keep the old line for errors that are not "held".
+- Gate: lane full gate 65 PASS (/tmp/merge-gate.0QnR51); ratchets ok, sleep list to lower 779 -> 778 at the train.
+Verdict (computed): no open MAJOR -> MERGE-OK 8c3ac745; train136.

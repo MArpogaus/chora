@@ -1,0 +1,5 @@
+task T1 pass
+breach I6 in look: on HEADLESS-1 '4:31 AM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in key: on HEADLESS-1 '4:31 AM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 '4:31 AM' (xp-tray-HEADLESS-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breaches 3

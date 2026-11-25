@@ -224,3 +224,20 @@ Findings:
 
 Counts: BLOCK 0, MAJOR 0, MINOR 3.
 Verdict: MERGE-OK.
+
+## r2
+
+Head 88035ec0 (claude/sh42-fix-r2; merged 84f66d43 first). The two fixed `sleep 2` of r1 in tests/gate-handover-shared.sh are gone: join_tiling waits until `ctl state tiling` lists a desk, join-mc waits until `ctl state mc` lists a window, both with until_ok. rsf1-3: unit test `a_click_reclaims_the_keyboard_from_a_foreign_node` in plugins/chora-mc/src/manage.rs. A first try that waited for tiling to list the foot window failed (tiling joins beside it and does not list it), so it waits on the desk.
+
+Ratchets (sleep list lowered 779 to 778, others unchanged):
+- ok: sleep-ratchet (sleep 778, sleep-all 929)
+- ok: size-ratchet (0 files over 1500)
+- ok: lint-ratchet (allow 360, no-reason 0, eprintln 46)
+
+Handover, tests/gate-handover-shared.sh, 10 runs: 1 to 10 all green (10/10).
+
+Full tests/merge-gate.sh (no --only): all steps passed, run dir /tmp/merge-gate.sjMJgM (an earlier run, /tmp/merge-gate.GCyfiD, died with a worker restart at tiling-audit).
+
+## PM review r2
+
+c6e5e2c7..88035ec0, 3 files, +26 -4 (test only plus a unit test). Done-when checks: the two `sleep 2` are gone (join_tiling waits on `ctl state tiling` desks, join-mc on `ctl state mc` windows, both until_ok 40 with a fail line); rsf1-3 unit test `a_click_reclaims_the_keyboard_from_a_foreign_node` in manage.rs; sleep list 779 -> 778; handover 10/10; full gate PASS (/tmp/merge-gate.sjMJgM). Red first holds from r1 (a04b395e, 68a4ff1b, db469100 before 7a110c34, b92de049). PM ratchets on the train head 8e63e0ed: sleep 778, size 0, lint 360/0/46, all ok. No finding. Verdict MERGE-OK; train135 (721be592 + 88035ec0) at once, since r1 is past the 12 h rule.
