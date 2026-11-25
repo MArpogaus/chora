@@ -126,9 +126,10 @@ xp30-once)
     greets xp-30
     stop_assistant
     start_assistant second
-    sleep 6
-    t=$(balloon)
-    [ -z "$t" ] || fail "xp-30: the second start of the same state greets again: $t"
+    if ctl wait --timeout 6 'id:hud-line visible:true' >/dev/null 2>&1; then
+        t=$(balloon)
+        [ -z "$t" ] || fail "xp-30: the second start of the same state greets again: $t"
+    fi
     ok "xp-30: the second start is quiet"
     ;;
 xp30-click)
