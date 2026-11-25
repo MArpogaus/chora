@@ -55,6 +55,9 @@
 #   keylist-click  a click on the row Show overview of the full key list
 #               (Super+F1) runs its action: the overview shows (rmm1-3)
 #
+#   more        a page that does not fit shows a mark at its foot that more
+#               follows, and none at its end or when it fits (rmm1-4)
+#
 #   page-edges  no line of any built-in scene, every panel full, is cut at the
 #               edge of its page at 1280x720 (rmm1-1)
 #
@@ -506,6 +509,33 @@ cell_keylist_click() {
     until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda after the click: $(current)"
 }
 
+scroll_page() {
+    move_to 400 300
+    echo "[{\"scroll\": {\"dy\": $1}}]" | ctl inject >/dev/null || fail "inject scroll"
+}
+cell_more() {
+    local page more
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    until_ok '[ -z "$(node_rect_of_more mc-s-agenda-more)" ]' 20 || fail "the agenda that fits carries a mark that more follows"
+    key Super+Right
+    until_ok '[ "$(current)" = morning ]' 20 || fail "no morning: $(current)"
+    panel morning overnight '["Then", "Toss the drained spaghetti in the pan with a splash of the pasta water and the parsley, then serve it at once with a little grated cheese on top. Salt it to taste, and put the pan on the table before it cools; the sauce wants the steam.", "Wash up", "Dry the pot and the pan, and put the bowls back on the shelf where the children find them in the morning, with the spoons beside them."]'
+    page=$(node_rect mc-s-morning-page)
+    ctl capture "$work/more.png" >/dev/null || fail "capture more"
+    until_ok '[ -n "$(node_rect_of_more mc-s-morning-more)" ]' 20 || fail "the page that does not fit shows no mark that more follows (rmm1-4)"
+    more=$(node_rect_of_more mc-s-morning-more)
+    jq -ne --argjson m "$more" --argjson p "$page" '$m[1] + $m[3] <= $p[1] + $p[3] + 1 and $m[1] >= $p[1] + $p[3] - 56' >/dev/null ||
+        fail "the mark $more is not at the foot of the page $page (rmm1-4)"
+    shot more
+    scroll_page 2000
+    until_ok '[ -z "$(node_rect_of_more mc-s-morning-more)" ]' 20 || fail "the mark that more follows stays at the end of the page (rmm1-4)"
+    scroll_page -2000
+}
+node_rect_of_more() {
+    ctl query "id:$1" | jq -c "[.[] | select(.visible and (.rects | length) > 0)][0].rects // empty | to_entries[0].value"
+}
+
 cell_page_end() {
     local card page foot
     key Super+Home
@@ -656,7 +686,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist keylist-click page-end page-edges pill-clock helpers-empty remote-back launcher-click-row rooms-card rooms-pill)
+cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist keylist-click more page-end page-edges pill-clock helpers-empty remote-back launcher-click-row rooms-card rooms-pill)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done
