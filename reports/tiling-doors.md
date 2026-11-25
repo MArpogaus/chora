@@ -242,3 +242,14 @@ Harness side, evidence:
 - Wording and doors changed three times (r7-r10: goal words, bar word `Looks: xp`, Looks menu); the reading did not move, the L3 prime did not change.
 Decision: **harness, goal order.** A real user in the documented start never sees the xp desktop on a tiling tag, and nobody sends a real user to a second workspace just before asking for the xp look; both come from the harness. Change: the ricer runs T7 before L3 (T1, T7, L3, T2, L2), T7's words stay verbatim, what T7 checks stays; a test in test_check.py pins the order and the words. No product change for this cause.
 Left for the PM (outside this brief): the one-output session layout still shows the xp taskbar under tag 1. If T7 is red in P2-R11 with T7 first, the next step is that layout (xp on an output of its own, as documented), not another door.
+
+## r4
+
+Head e1ec02ee on claude/tiling-doors-r4 (from e39448ad; history kept, no force push). Step 0: `git fetch --unshallow`, `cargo check --workspace` green.
+- Decision (see "## r4 design"): **harness, goal order**. The persona session puts xp on the one output of tiling, so an empty tag shows the xp desktop, and L3 shows it to the persona as tag 2 just before T7. The documented start puts each look on its own output or pane. No product change.
+- Red 375b3364 (test_check.py `TilingGoals`, run on e39448ad's README): `AssertionError: 0 != 1 : one line 'Ricer order: ...' in the Tiling goals` (Ran 64 tests, FAILED failures=1).
+- Fix e1ec02ee: tests/persona/README.md "Tiling goals" gets `Ricer order: T1, T7, L3, T2, L2.` with the reason. T7's words stay verbatim (pinned by `test_the_t7_words_stay`); what T7 checks is unchanged (check.py not touched). test_check.py 64 OK.
+- `cargo test -p chora-tiling`: 211 passed (no tiling code changed).
+- Full gate (--jobs 2, no filter): 44 steps PASS up to mc-sofa, then `mc-sofa FAIL`: "FAIL: a rule of the key list strikes a text (rpx1-9): mc-r1-right-keys-title-rule strikes Super+N; ... FAIL: cells failed: keylist", EXIT 1. This is the known foreign red in lane containers. The gate stops at the first red, so the remaining steps ran with `--only mc-column,mc-handover,launcher-click,voice-acp,voice-events,agent,e2e`: all 7 PASS (e2e 287 s), EXIT 0.
+- Ratchets: sleep ok (778/929), size ok (0 over 1500), lint ok (360/0/46). No `chora --headless` left.
+- For P2-R11: the driver runs the ricer in the README order. If T7 is still red with T7 first, the next step is the session layout (xp on an output of its own), not another door or new wording.
