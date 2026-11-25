@@ -26,7 +26,7 @@ burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head; F7 open (
 | flake-sofa-r2.md (F5; rfs1-2; 0.6 %) | sonnet medium, flake-sofa-r2 3d555e4f | running s..MNzLQKASxWUjMFfX8 |
 | co-reach-r5.md (rc 1, 2; co-79 MAJOR pane path; 1 %) | opus high, co-reach-r5 62a04be0 | running s..P6b9i3yJSwFStLwno |
 | mc-minor-r4.md (rpe-1..3; 0.6 %) | sonnet medium, mc-minor-r4 23cd2b5a | running s..QU1Y2wj95EZqLt6ks |
-| review-xp-tail-r1.md (F7; rv9kb-2 done e4157dbd; 0.5 %) | opus high, xp-tail-r1 e4157dbd | starting |
+| review-xp-tail-r1.md (F7; rv9kb-2 done e4157dbd; 0.5 %) | opus high, xp-tail-r1 e4157dbd | running s..MeR2Xr3ACUujv3EzD |
 | tour-rows-r1.md (F7; 1 %) | sonnet medium, tour-rows-r1 62a04be0 | running s..QUL8RNU6CJCyGVdBb |
 | tiling-focus-r1.md (rc 1, 2; ti-57 MAJOR; 1.2 %) | opus high, tiling-focus-r1 79ed970f | running s..LQrg3Gt2nuQWTHwkr |
 ## Queue (% week; 5 % reserve)
