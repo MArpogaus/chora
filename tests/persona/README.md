@@ -235,3 +235,10 @@ row, a key or a desktop of the product). T7 names its target as the bar names it
 the word of the bar is `Looks: xp` while xp runs.
 
 - T7: "Send the terminal over to the xp look (the other desktop that is running)"
+
+Ricer order: T1, T7, L3, T2, L2.
+
+T7 runs before L3 (ti-55, tiling-doors r4). The persona session starts xp on the
+one output of tiling, so an empty tag shows the xp desktop; with L3 just before T7
+the persona took tag 2 for the xp look in r8, r9 and r10. A real user starts xp on
+an output or pane of its own and is not sent to a second workspace just before.
