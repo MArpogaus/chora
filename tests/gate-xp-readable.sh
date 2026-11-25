@@ -14,6 +14,8 @@
 #                      panel fill, exempt in known-red.toml (white on it 2.1:1)
 #   caption-size       the captions of Lock and Restart of Turn off computer stand 12 px high or more in ink,
 #                      shadow included (11 px type gives 10, 14 px type 12 to 13): the 14 px of body text (xp-9)
+#   caption-gap        neighbouring captions of the big buttons of Turn off computer keep 4 px of
+#                      clear columns between their white ink (rxm1-1)
 #   cancel-target      Cancel of Turn off computer is 24 px high or more
 #   inactive-title     the title of a window that is not active has 4.5:1
 #   bin-clear          the Recycle Bin stands at the bottom right, above the paperclip, and
@@ -128,6 +130,18 @@ for n in 0 4; do
     ink=$(python3 -I "$repo/tests/png-ink.py" "$shots/turnoff.png" "$((x + 8))" "$((y + h - 17))" "$((w - 16))" 16 | tr ' ' '\n' | sort -n | tail -n 1)
     echo "caption $n ink: ${ink:-?} px"
     [ "${ink:-0}" -ge 12 ] || red "caption-size: caption $n of Turn off computer is ${ink:-?} px of ink high, 14 px type gives 12 or more"
+done
+prev=
+for n in 0 1 2 3 4; do
+    read -r x y w h <<<"$(rect "xp-session-button-$n")"
+    read -r left right <<<"$(python3 -I "$repo/tests/png-extent.py" "$shots/turnoff.png" "$x" "$((y + h - 17))" "$w" 16)"
+    if [ "$left" = none ] || [ -z "${left:-}" ]; then
+        red "caption-gap: caption $n of Turn off computer shows no white ink"
+    else
+        [ -z "$prev" ] || [ "$((left - prev - 1))" -ge 4 ] ||
+            red "caption-gap: caption $n of Turn off computer starts $((left - prev - 1)) px after the caption before it (ink ends at x $prev, starts at x $left), wants 4 or more (rxm1-1)"
+        prev=$right
+    fi
 done
 for n in 0 1 2 3 4; do
     read -r x y w h <<<"$(rect "xp-session-button-$n")"

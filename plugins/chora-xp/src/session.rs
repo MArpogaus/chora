@@ -466,6 +466,33 @@ mod tests {
         let _ = std::fs::remove_dir_all(cache);
     }
 
+    /// A caption is centered in its button.
+    #[test]
+    fn neighbouring_captions_of_the_big_buttons_keep_4_px_apart_rxm1_1() {
+        let (theme, cache) = crate::dialog::tests::theme("session-gaps");
+        for mode in [Mode::LogOff, Mode::TurnOff] {
+            let big: Vec<Button> = buttons(mode, true)
+                .into_iter()
+                .filter(|b| b.icon.is_some())
+                .collect();
+            for pair in big.windows(2) {
+                let edge = |b: &Button, side: f64| {
+                    let [x, _, w, _] = b.rect;
+                    let half = theme.text_width(b.title, Font::BodyBold) / 2.0;
+                    f64::from(x) + f64::from(w) / 2.0 + side * half
+                };
+                let gap = edge(&pair[1], -1.0) - edge(&pair[0], 1.0);
+                assert!(
+                    gap >= 4.0,
+                    "{} and {} are {gap:.1} px apart, XP leaves a visible gap of 4 or more",
+                    pair[0].title,
+                    pair[1].title
+                );
+            }
+        }
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
     #[test]
     fn the_dialog_sits_in_the_middle() {
         assert_eq!(center([1280, 800]), [483, 300]);
