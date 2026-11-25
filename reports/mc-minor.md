@@ -168,3 +168,9 @@ Red commits (before fixes): f25d3d022 (rpe-1), 5a115f73e (rpe-2). Reds seen: `a_
 Capture: media/2026-11-25/mc-minor-r4/mc-sofa-keylist-dark.png (134 KB).
 
 Gate: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2`, no step filter: "all steps passed; no --push, nothing is pushed", 0 FAIL, mc-sofa PASS 110s. `pgrep -fa 'chora --headless'` empty.
+
+## PM review r4 (2026-11-25 20:33 UTC)
+Base 23cd2b5a, head 2ad0c45c, 5 files +55 -5 (PM review, under 200 lines). Red f25d3d02 before fix 4363de11 (rpe-1), red 5a115f73 before fix ae7496f7 (rpe-2); rpe-3 is a gate message only. Lane gate: full, all PASS, mc-sofa PASS.
+- rmm4-1 NIT methods.rs:366: learn_card reads notify state.get right after the push; if the notice server shows the card a frame later the room still waits a round (the test fakes the answer). The gate cell page_end covers the real path.
+- rmm4-2 NIT keys.rs:184: the row names Up and Down only; Page Up and Page Down stay unnamed (doc comments name them).
+Verdict: 0 BLOCK, 0 MAJOR: MERGE-OK 2ad0c45c (train145).
