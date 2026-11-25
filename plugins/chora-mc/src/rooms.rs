@@ -67,16 +67,22 @@ impl Mc {
         Ok(rooms)
     }
 
-    /// Reads the pill and the card again; a change builds the header, the
-    /// footer and the pages anew.
+    /// Reads the pill and the card again. A pill that stands elsewhere
+    /// (its word is as wide as the state it says) moves the end of the
+    /// header; a card that stands elsewhere moves the end of the pages
+    /// too, so only that builds them anew.
     pub(crate) fn learn_rooms(&mut self) -> Result<(), ClientError> {
         let rooms = self.read_rooms()?;
         if rooms == self.rooms {
             return Ok(());
         }
+        let card_moved = rooms.card != self.rooms.card;
         self.rooms = rooms;
         self.render()?;
-        self.rebuild_pages()
+        if card_moved {
+            self.rebuild_pages()?;
+        }
+        Ok(())
     }
 
     /// The box of the card on screen, if the notice server runs and shows one.
