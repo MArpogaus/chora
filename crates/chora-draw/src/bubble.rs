@@ -123,10 +123,16 @@ impl Style {
         if self.tail <= 0 || self.tail_inside(width, tail_x) {
             return None;
         }
-        let base_right = width - self.radius;
-        let at = [base_right - self.tail_base, height - 1];
+        let base_right = width - 1 - self.radius / 2;
+        let reach = tail_x - base_right;
+        let base = self
+            .tail_base
+            .max(2 * reach)
+            .min(base_right - self.radius)
+            .max(1);
+        let at = [base_right - base, height - 1];
         let size = [tail_x - at[0] + 1, self.tail + 1];
-        let (left, right) = (0.5, f64::from(self.tail_base) + 0.5);
+        let (left, right) = (0.5, f64::from(base) + 0.5);
         let (tip_x, tip_y) = (f64::from(tail_x - at[0]) - 0.5, f64::from(self.tail) + 0.5);
         let [fill_r, fill_g, fill_b] = self.fill;
         let [line_r, line_g, line_b] = self.border;
@@ -214,6 +220,43 @@ mod tests {
             !plain.contains('L') && tailed.contains("V57.5 L43.5,39.5"),
             "{tailed}"
         );
+    }
+
+    /// rxt-3: the leaning tail is a wedge with a body, not a sliver: its
+    /// thickness at the widest column is at least 12 px.
+    #[test]
+    fn the_leaning_tail_is_a_wedge_and_not_a_sliver() {
+        let style = Style {
+            tail: 18,
+            ..Style::default()
+        };
+        for tip in [110_u32, 120, 130] {
+            let lean = style
+                .lean([100, 40], tip.cast_signed())
+                .expect("a leaning tail");
+            let path = lean.svg.split('"').nth(1).expect("the fill path");
+            let n: Vec<f64> = path
+                .split(|c: char| !(c.is_ascii_digit() || c == '.'))
+                .filter_map(|t| t.parse().ok())
+                .collect();
+            let (left, right, tx, ty) = (n[0], n[2], n[3], n[4]);
+            let widest = (0..=tip + 1)
+                .map(|x| {
+                    let x = f64::from(x) + 0.5;
+                    if x < left || x > tx {
+                        return 0.0;
+                    }
+                    let lower = ty * (x - left) / (tx - left);
+                    let upper = if x <= right {
+                        0.0
+                    } else {
+                        ty * (x - right) / (tx - right)
+                    };
+                    lower - upper
+                })
+                .fold(0.0, f64::max);
+            assert!(widest >= 12.0, "tip {tip}: widest {widest} px");
+        }
     }
 
     #[test]
