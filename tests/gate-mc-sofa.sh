@@ -518,6 +518,20 @@ cell_pill_clock() {
         fail "the state pill $word lies over the clock $clock when the column is hidden (rpx1-13)"
 }
 
+cell_helpers_empty() {
+    local name words
+    for name in $(ctl call mc agent.list '{}' | jq -r '.agents[].name'); do
+        ctl call mc agent.remove "{\"name\": \"$name\"}" >/dev/null
+    done
+    ctl call mc scene.show '{"name": "agents"}' >/dev/null || fail "scene.show agents"
+    until_ok '[ "$(current)" = agents ]' 20 || fail "no helpers page: $(current)"
+    sleep 1.5
+    shot helpers-empty
+    words=$(ctl query "owner:mc kind:text" | jq -r "[.[] | $shown | select((.rects | to_entries[0].value | .[0] < 860 and .[1] > 150) and (.text | test(\"helper\"; \"i\"))) | \"\\(.family)|\\(.text)\"] | join(\"; \")")
+    [ -n "$words" ] || fail "the helpers page without a helper says nothing in words (rpx1-14): $(texts | tr '\n' '|')"
+    case "$words" in *Pagella* | *Serif*) ;; *) fail "the words of the empty helpers page are not in the page type: $words" ;; esac
+}
+
 failed=()
 skipped=()
 ran=0
@@ -536,7 +550,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist page-end pill-clock remote-back launcher-click-row)
+cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist page-end pill-clock helpers-empty remote-back launcher-click-row)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done
