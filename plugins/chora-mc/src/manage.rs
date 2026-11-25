@@ -215,7 +215,9 @@ impl Mc {
         }
         let mut ours = self.windows.values().chain(self.docks.values());
         if ours.any(|s| s == node) {
-            self.focus.take();
+            if self.focus.lost_to_other(crate::NAME) {
+                self.focus.reclaim();
+            }
             if self.focus.sends(Some(node)) {
                 self.focus(Some(node.into()))?;
             }
@@ -520,6 +522,26 @@ mod tests {
         );
         mc.click(&wheel, on_line, false).unwrap();
         assert_eq!(mc.current.as_deref(), Some("morning"), "the person");
+    }
+
+    /// A click on a window of mc that another client took the keyboard
+    /// from gives it back, even when mc sent that window before (sh-42,
+    /// rsf1-3).
+    #[test]
+    fn a_click_reclaims_the_keyboard_from_a_foreign_node() {
+        let (mut mc, model) = testing::mc("reclaim", [1920, 1080]);
+        mc.windows.insert("terminal".into(), "s1".into());
+        mc.click("s1", [0.0, 0.0], false).unwrap();
+        let focuses = || model.lock().unwrap().focuses.len();
+        let sent = focuses();
+        mc.click("s1", [0.0, 0.0], false).unwrap();
+        assert_eq!(focuses(), sent, "it holds the keys: nothing to send");
+        mc.focus.moved(Some("foreign"));
+        assert!(mc.focus.lost_to_other(crate::NAME));
+        mc.click("s1", [0.0, 0.0], false).unwrap();
+        assert_eq!(focuses(), sent + 1, "the click sends the focus again");
+        let last = model.lock().unwrap().focuses.last().cloned().flatten();
+        assert_eq!(last.as_deref(), Some("s1"));
     }
 
     /// Live: a key that switched to the terminal, an app of the launcher

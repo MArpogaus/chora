@@ -16,6 +16,13 @@
 #   node  tiling focuses the window, and the Start menu of xp opens and
 #         closes (method start_menu): its menu, then its desktop icons take
 #         the keyboard with a node; one look says it holds the focus
+#   join-xp, join-mc  (fresh sessions, sh-42) a foot in xp, then on the
+#         page of mc, has the keys; tiling joins with --no-companions; the
+#         next text reaches the foot and the core still focuses it (D119)
+#   mc-back  another client drops the focus of the page window of mc; a
+#         click on it gives it the keys back (with no holder of the keys,
+#         Return reaches no client: mc takes no free keyboard beside
+#         another look)
 #
 # The holder is the act invariant I3 of tests/acts/invariants.py (one_holder
 # prints its breaches), on
@@ -158,4 +165,77 @@ if until_ok icons_focused 8; then
 fi
 start_menu_open || fail "rx-1: the Start menu of xp closed with the window of tiling"
 ok "rx-1: a window of tiling that exits leaves the keys with the open Start menu of xp"
+
+end_session() {
+    kill "${pids[@]}" "${run_pids[@]}" 2>/dev/null
+    wait 2>/dev/null
+    pids=() run_pids=()
+}
+typed() {
+    printf '[{"text": {"text": "%s"}}]' "$1" | ctl inject >/dev/null || fail "inject text $1"
+}
+reaches() { until_ok "grep -q '$1' '$typed_file'" "${2:-20}"; }
+join_tiling() {
+    "$bin/chora-tiling" --no-companions >"$shots/join-tiling-$1.log" 2>&1 &
+    pids+=($!)
+    ctl wait owner:tiling --timeout 20 >/dev/null || fail "join-$1: tiling does not join: $(tail -n 3 "$shots/join-tiling-$1.log")"
+    until_ok "[ \"\$(ctl state tiling | jq -r '.desks | length')\" -gt 0 ]" 40 ||
+        fail "join-$1: tiling has no desk: $(ctl state tiling | jq -c .)"
+}
+keys_stay() {
+    typed "$1 r1"
+    reaches "$1 r1" || fail "join-$1: tiling joined and the text does not reach $w (core focus $(ctl query kind:surface | jq -c '[.[] | select(.focused) | .id]'), $1 $(ctl state "$1" | jq -c .focus), tiling $(ctl state tiling | jq -c .focus))"
+    focused 2 || fail "join-$1: tiling joined and the core focuses no $w"
+}
+writer() {
+    typed_file=$shots/typed-$1.txt
+    : >"$typed_file"
+    foot -f "DejaVu Sans Mono:size=10" "$2" sh -c "stty raw -echo; cat > '$typed_file'" >"$shots/foot-$1.log" 2>&1 &
+    run_pid $!
+    w=$(ctl wait "app_id:$3 kind:surface owner:$1" --timeout 20 | jq -r '.[0].id') ||
+        fail "join-$1: foot does not show in $1: $(ctl query kind:surface | jq -c '[.[] | {id, owner}]')"
+}
+
+end_session
+session_start 1280x800
+grant input.inject screen.capture methods.call methods.privileged
+"$bin/chora-xp" --theme "$repo/flavors/xp/theme" >"$shots/join-xp.log" 2>&1 &
+pids+=($!)
+ctl wait id:xp-icons --timeout 20 >/dev/null || fail "join-xp: xp does not start: $(tail -n 3 "$shots/join-xp.log")"
+writer xp -ajoinxp joinxp
+focused 10 || fail "join-xp: xp does not focus $w"
+typed "xp a1"
+reaches "xp a1" || fail "join-xp: the text does not reach $w before the join"
+join_tiling xp
+keys_stay xp
+ok "join-xp: tiling joins beside the focused window of xp, which keeps the keys"
+
+end_session
+session_start 1280x720
+grant input.inject screen.capture methods.call methods.privileged
+"$bin/chora-mc" --manage-windows >"$shots/join-mc.log" 2>&1 &
+pids+=($!)
+ctl wait owner:mc --timeout 20 >/dev/null || fail "join-mc: mc does not start: $(tail -n 3 "$shots/join-mc.log")"
+writer mc --app-id=joinmc joinmc
+until_ok "[ \"\$(ctl state mc | jq -r '.windows | length')\" -gt 0 ]" 40 ||
+    fail "join-mc: mc does not list $w: $(ctl state mc | jq -c .)"
+key Return
+focused 10 || fail "join-mc: Return does not focus $w on the page of mc"
+typed "mc a1"
+reaches "mc a1" || fail "join-mc: the text does not reach $w before the join"
+join_tiling mc
+keys_stay mc
+ok "join-mc: tiling joins beside the page window of mc, which keeps the keys"
+drop_focus() {
+    echo '[{"focus": {"surface": null}}]' | ctl apply >/dev/null || fail "$1: drop the focus"
+    until_ok '! focused 1' 8 || fail "$1: the core still focuses $w"
+}
+drop_focus mc-back
+rect=$(ctl query "id:$w" | jq -r '.[0].rects | to_entries[0].value | "\(.[0] + .[2] / 2 | floor) \(.[1] + .[3] / 2 | floor)"')
+read -r wx wy <<<"$rect"
+click "$wx" "$wy"
+typed "mc c1"
+reaches "mc c1" || fail "mc-back: another client dropped the focus and a click on $w at $wx,$wy does not give it the keys back (mc $(ctl state mc | jq -c .focus))"
+focused 2 || fail "mc-back: the core focuses no $w after the click"
+ok "mc-back: after another client drops the focus, a click gives the page window of mc the keys back"
 ok "gate-handover-shared: tiling and xp on one output hand over with one holder (${SECONDS}s)"
