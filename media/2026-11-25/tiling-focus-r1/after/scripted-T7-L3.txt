@@ -1,0 +1,9 @@
+before the move: tiling {"holder":"tiling","surface":"s1"} xp {"holder":null} core [{"id":"s1","owner":"tiling"}]
+task T7 pass
+after the move: tiling {"holder":"tiling"} xp {"holder":null} core []
+task L3 pass
+after L3: tiling {"holder":"tiling"} xp {"holder":null} core []
+key list: ["tiling-keys"]
+/tmp/persona.u4LFql/shots/002.png capture=800x500 screen=1280x800 scale=0.625
+after Escape: [] tiling {"holder":"tiling"} xp {"holder":null} core []
+/tmp/persona.u4LFql/shots/003.png capture=800x500 screen=1280x800 scale=0.625

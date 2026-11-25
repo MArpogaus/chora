@@ -1,0 +1,5 @@
+tiling+xp at 79ed970f (tiling HEADLESS-1, xp HEADLESS-2), foot opened with Super+Return, moved with "Looks: xp" -> "Move window to the xp desktop" (Return)
+before the move:  tiling {"holder":"tiling","surface":"s1"}  xp {"holder":null}  core focus s1 (tiling)
+after the move:   tiling {"holder":null}  xp {"holder":"xp","surface":"s1"}  core focus s1 (xp, on HEADLESS-2)
+after Super+2, Super+1: the same; check.py end L3: task L3 FAIL: expected the focus with tiling, holders ['xp']
+Super+F1 opened the key list (003.png), Escape closed it (004.png); the keyboard then went back to s1 of xp (holder xp)
