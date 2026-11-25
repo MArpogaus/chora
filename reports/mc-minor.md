@@ -50,3 +50,37 @@ Base fb9827a0, head 12869800 (3 files, +218 -104; one refactor commit, no test c
 - rmm-1 closed: tools/lint-ratchet.list back to allow 360, equal to the session head 598a34ff; clippy allow count in plugins/chora-mc 13 on both 598a34ff and 12869800. `Mc::panel` (layout.rs) and the region.rs stack split into helpers. Cells: test, clippy, mc-paths, mc-sofa, mc-column, mc-handover (lane gate 11/11 PASS).
 - rmm-2 MINOR (no after-captures) stays open; rmm-3 NIT in backlog.
 Verdict (computed): no BLOCK or MAJOR open -> MERGE-OK on 12869800; joins t99.
+
+## r1 (lane mc-minor-r1, rc1 known issues F7; head 5cb288e2 on claude/mc-minor-r1)
+
+Base 721be592. Step 0: `git fetch --unshallow`, `cargo check --workspace` green. Sofa gate cells (`tests/gate-mc-sofa.sh`, 1280x720, dark, host and chora-notify running) hold one assert per item; `CELLS='^(door|keylist|page-end|pill-clock|helpers-empty)$'` runs them. Full gate `tests/merge-gate.sh --jobs 2`: EXIT 0 on 5cb288e2 (last lines below). Two earlier gate runs stopped on my own commits and were fixed: ci-check cut-check (a note named another crate, 2971340a) and sleep-ratchet (five new `sleep`, replaced by polls, 5cb288e2). No sleep is new now.
+
+| item | red commit | fix commit | red line (product at 721be592) |
+|---|---|---|---|
+| mc-56 | a43de2c9 (green, see below) | none needed | cell passes on the base |
+| rpx1-9 | 2efb203a | edbb70d3 | `FAIL: a rule of the key list strikes a text (rpx1-9): mc-r1-right-keys-title-rule strikes listening; mc-r1-right-keys-title-rule strikes Mute` |
+| rpx1-11, -12 | d38c6ae1 | db20c304 | `FAIL: the page [0.0,56.0,1280.0,608.0] reaches under the timer card [160,585,291,79] (rpx1-11): the page does not reserve its height` |
+| rpx1-12 (cut line) | 31f5161f | 3e355bb2 | `FAIL: a line of the page is cut at the edge of the page [0.0,56.0,1280.0,524.0]: ink 2 in its last two rows (rpx1-12)` |
+| rpx1-13 | 8437e759 | 8a890ef0 | `FAIL: the state pill [1120.0,29.0,80.0,26.0] lies over the clock [797.85,28.0,324.9999999999999,28.0] when the column is hidden (rpx1-13)` |
+| rpx1-14 | fbd20122 | ffe5e815 | `FAIL: the helpers page without a helper says nothing in words (rpx1-14): ...` (the page texts hold the title only) |
+
+The first red run of items 2, 3, 4, 5 was one run of the whole cell file against the base binaries (four FAIL lines, `door` green); the commits then split the file by item. The off-screen assert of rpx1-9 sits behind the strike assert in the same cell, so its own red was not shown separately (mc-11 of rc1-pass shows the doors at y 713).
+
+Decisions
+- mc-56: already fixed on the session head by MH-2 over I6 (8ba700f5, 97efc46a: the chat box ends above the doors, which stay, `the_chat_ends_above_the_doors_on_a_small_output`, cell `door`). Re-run at 1280x720 with a helper: the doors Programs, Lock, Power, Screenshot, Volume are below the chat box (capture 1). The finding row mc-56 reads open because the tour check (e21d21f4, 11-21) is older than the fix; no red was possible. The only addition is the hit-area assert (no `-hit` rect of mc overlaps `hud-chat`). The brief's "hide them" option was not needed. The row can be closed on a new `run.py --check`.
+- rpx1-9: the full list had its rule 14 px over the head, and the head stood on the state line. Now the head of the full list has no rule (`Put::Foot`), and the doors leave while the full list shows: its rows are clickable and name the same keys (Super+Space, Super+Shift+Esc, Super+Shift+E, Super+Print, Vol+, Vol-, Mute). 24 lines fit 1280x720 exactly (capture 2). The brief asked that every row and door stay on screen; the doors are replaced by their rows, not moved. PM to confirm.
+- rpx1-11, -12: the text block and the page node end at a line of the grid at most 135 px (card 56 + 79) and 8 px (descenders) over the foot: y 577 at 1280x720 (the old edge was y 664). The card of chora-notify and the footer band lie outside the page; the edge falls between two lines, so no line is cut (capture 3). Limits, said plainly: (1) a stacked page that does not fit (the tour's "sauce" at 1280x720, "parsley.") still scrolls with the wheel; at rest its last lines past the edge are hidden whole, not shown; this lane did not make the page fit. (2) The card is two lines; a longer text grows into the page as the notify README says. (3) `every_panel_of_a_scene_is_placed_at_1280_by_800` now lets a panel of the least height pass the block by two lines (overview, 3 rows of min_panel 8 em = 512 px, 481 px block): the page scrolls those 31 px, its list does not move.
+- rpx1-13: with the column hidden the header ends 200 px before the right edge (`PILL_ROOM`), the pill (x 1120 at "Listening", "No helper" 85 px) is clear of the clock (capture 4). The room is a constant, not the measured pill; a word wider than 85 px would need a larger value.
+- rpx1-14: the agents scene says "No helper is set up. Ask the person who set up this computer." (`Word::NoHelper`, English or German) in the quiet page type in its first column while no helper is set up; `show` fills the scene first (capture 5). The brief's example words were shorter.
+
+Captures: `media/2026-11-25/mc-minor-r1/` (1-mc-56-door-below-chat, 2-rpx1-9-all-keys-720, 3-rpx1-11-12-page-end-card, 4-rpx1-13-pill-clock, 5-rpx1-14-helpers-empty; all dark, 1280x720, from the cells with SHOTS).
+
+Out of scope, untouched: rpx1-10, -15, -16, -17, rv9j-2, chora-notify, ratchet counts. Findings rows not edited (mc-61 stays for rpx1-10, -15..-17).
+
+Gate tail (5cb288e2):
+```
+e2e        PASS    286s
+all steps passed; no --push, nothing is pushed
+EXIT 0
+```
+mc-paths, mc-sofa, mc-column, mc-handover, mc-scale, mc-host, acts, matrix, layout, doors, leak, e2e all PASS. `pgrep -fa 'chora --headless'` is empty.
