@@ -97,3 +97,10 @@ Head 7987897c0 on claude/tiling-minor-r2 (from e39448ad). Step 0 green.
 - rtd3-1: no test of two real connects: the pid is the only input of the name and one test process has one pid; the pure test guards a constant name (doc comment). rtd3-2: GAP_LINE closes the quote it opened (backreference); red `AssertionError: '20' != '12'`. rtd3-3: the name test sits below `use super::*;`.
 
 Gate: full `tests/merge-gate.sh --jobs 2`, EXIT 1 with one foreign red: cell keylist of mc-sofa (`FAIL: a rule of the key list strikes a text (rpx1-9)`, tests/gate-mc-sofa.sh:472; no file of mine near it). The same step on e39448ad alone also fails (cells door empty-head answer answer-long alarm keylist pill-clock remote-back), so it is not mine. All other cells PASS (ci-check, clippy, test, tiling-*, layout, doors, pixels).
+
+## PM review r2 (lane tiling-minor-r2, 7987897c on e39448ad)
+
++51 -6 over 7 files, test and doc only except the GAP_LINE regex. rtm1-1: the wait is now 4 ticks (2 s), red pasted with the dismiss removed. rtm1-2: new launch_looks test plus FakeCore::socket(); red by mutation (behaviour was right). rtm1-3: existing unit test, red by mutation, doc comment. rtd3-1: named reason accepted (one pid per process; the pure name test is the guard). rtd3-2: test a54a8581 before fix be637d5c. rtd3-3: done.
+Gate: EXIT 1 on one foreign cell (mc-sofa keylist, rpx1-9) that the lane reproduced on e39448ad alone; train140 shows mc-sofa PASS on the PM host, so it is a lane-container red, logged for FLAKE-SERIES r10. The train gate reruns everything.
+Findings: none MAJOR. rtm2-1 NIT: 4 ticks is tight on a loaded runner; watch it in FLAKE-SERIES r10.
+Verdict (computed): MERGE-OK 7987897c, next train141.

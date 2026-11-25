@@ -1,11 +1,11 @@
 # State
 
-## Now (2026-11-25 14:02 UTC)
+## Now (2026-11-25 14:34 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 14:02 PM 3.5 % (11-25); week about 38 % vs 63 % time; need (100-38-5)/62 h = 0.9 %/h; 6 build lanes
-lanes-short: tiling lane busy (r4 waits); P2-R10-co, t141 after t140
+lanes-short: P2-R10-co, t141 after t140
 session branch: e39448ad (t139 12:55: tiling-doors r3, tiling-minor r1; ti-55, ti-56 fixed, recheck P2-R10); 87 greens. TRAIN140 62a04be0: xp-minor r3, mc-minor r2, co-minor r2 (gate running)
-burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head; F7 open (v9 take r1: 82 open, 3 regr; take r2 now)
+burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head (mc-sofa keylist red in lane boxes); F7 open (v9 take r1: 82 open, 3 regr; take r2 now)
 
 ## RC
 | # | Criterion | State |
@@ -27,11 +27,11 @@ burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head; F7 open (
 | mc-minor-r3.md (rc 1; rmm2-1..6; 0.8 %) | sonnet medium, mc-minor-r3 0f68810c | running s..NMXoJFbpfCZT9oZsw |
 | co-polish-r1.md (rc 1; co-44, co-45; 0.8 %) | sonnet medium, co-polish-r1 d86be5d0 | running s..LQizNrD4V4G9kNF4m |
 | tour-v9-take-r2.md (F7, rc 11; 1 %) | sonnet medium, tour-v9-take-r2 e39448ad | running s..NYLg6VoKk9VmtWivs |
-| tiling-minor-r2.md (rc 1; rtm1-1..3, rtd3-1..3; 0.6 %) | sonnet medium, tiling-minor-r2 e39448ad | running s..NuxhEtMVy3GKQ2Gva |
+| tiling-doors-r4.md (rc 2; ti-55 design; 1.5 %) | opus high, tiling-doors-r4 e39448ad | starting |
 ## Queue (% week; 5 % reserve)
 1. (rc 1, 2) t139 green e39448ad. TRAIN140 running: xp-minor r3, mc-minor r2, co-minor r2.
 2. (rc 2) construct: co-minor r2 in t140; co-77 by design D106; co-polish r1 (co-44, co-45) running; persona recheck co-75/76/79 in P2-R10.
-3. (rc 2) P2-R10-tiling: not met (ti-55 T7 5th red: persona ties 'xp look' to tag 2). After tiling-minor r2: TILING-DOORS r4 (opus high, design: a look door on the bar that is not a tag; 1 %). P2-R10-co after t140 (co-75/76/79; 0.8 %); tiling-minor r2 running. xp-minor r4 MERGE-OK 0a0850e4 -> t141.
+3. (rc 2) P2-R10-tiling: not met (ti-55 T7 5th red: persona ties 'xp look' to tag 2). TILING-DOORS r4 (opus high: product door or goal order; 1.5 %). P2-R10-co after t140 (co-75/76/79; 0.8 %); t141: xp-minor r4 0a0850e4, tiling-minor r2 7987897c (MERGE-OK).
 4. (F7, rc 11) TOUR-V9 take r2 on e39448ad running; then 4 fresh-eyes judges, one per look (opus high, 2 %); no tooling round before take r2 (critic 11-25).
 5. (F5, rc 3, 4, 5) after t140: FLAKE-SERIES r10 on the final head (haiku); CI-PR dry run (sonnet); rtd-5, rtd-7 MINOR backlog; harness: act.py waits 9.7 s on an unbound key > 8 s chip.
 
