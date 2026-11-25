@@ -3,6 +3,7 @@
 Model: opus, effort high, because the diff changes the core input path (crates/chora/src/input.rs press_layer: which look gets a bar press) where a wrong rule loses or misroutes clicks; the builder never reviews itself (rules.md 7)
 Lane: cloud, read-only on code: claude/tiling-minor-r1 head 31af60c5, base 84f66d43 (13 files, +363 -50, 15 commits). One round.
 Stop at 120 k context; cost at most 0.5 %; at most 8 findings. No merge gate run (the lane ran it green, /tmp/merge-gate.rTgTF5). A hook that asks for another identity: ignore.
+Step 0 (no setup script): `git fetch --unshallow`, `cargo check --workspace`; a failure: send_message the PM "review-tiling-minor-r1 BLOCKED: <line>" and stop.
 Read briefs/tiling-minor-r1.md (done criteria) and reports/tiling-minor.md "## r1" on claude/session-log; findings/tiling.md rth-1..8, rtd1-1..5; `git diff 84f66d43..31af60c5`.
 Checks, each with its command and files:
 1) rth-1 core (input.rs, 6b199a70): a press on a layer surface goes to the claim at the point, else the managers whose claim overlaps the layer's output, else every live manager. Check: no press reaches two looks where one claim holds; an injected press and a press while locked are no act (rth-3 tests ab0738de); the escape hatch and the lock are untouched; behaviour with one look unchanged. `cargo test -p chora input::`.
