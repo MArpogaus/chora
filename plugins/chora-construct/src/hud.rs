@@ -825,4 +825,77 @@ mod tests {
         assert!(ends[0].starts_with(ELLIPSIS), "a cut text shows the cut");
         assert_eq!(super::ends("short text")[0], "short text");
     }
+
+    /// co-44: the chips of a row are a whole unit apart (8), also when
+    /// the right edge of the row is not a whole number.
+    #[test]
+    fn chips_keep_a_whole_unit_between_them() {
+        let config = config();
+        let metrics = Metrics::default();
+        let look = look(&config, &metrics);
+        let texts = ["Step in to a face", "Turn left", "Turn right now"];
+        let rects = measured(&metrics, || {
+            let mut right = 836.5;
+            let mut rects = Vec::new();
+            for (k, text) in texts.iter().rev().enumerate() {
+                let (chip, used) = look.place_chip(&format!("c{k}"), text, [right, 700.0], true);
+                let Some(Command::Update { props, .. }) = chip.first() else {
+                    panic!("no chip");
+                };
+                let x = props.transform.as_ref().unwrap().translation_2d().0;
+                rects.push((x, props.size.unwrap()[0]));
+                right -= used;
+            }
+            rects
+        });
+        for pair in rects.windows(2) {
+            let gap = pair[0].0 - (pair[1].0 + pair[1].1);
+            assert!((gap - 8.0).abs() < 1e-9, "gap {gap} in {rects:?}");
+        }
+    }
+
+    /// co-45: the headings of the key overlay are 14 px (construct is
+    /// not xp), not the 11 px of the label role.
+    #[test]
+    fn the_key_overlay_headings_are_fourteen_px() {
+        use crate::command::{HelpModel, KeyGroup, help};
+        let config = config();
+        let metrics = Metrics::default();
+        let look = look(&config, &metrics);
+        let groups = vec![KeyGroup {
+            head: "Walk".into(),
+            shared: true,
+            rows: vec![crate::command::KeyRow {
+                what: "Fly into the pane ahead".into(),
+                keys: vec!["Return".into()],
+                alt: Vec::new(),
+                gesture: None,
+            }],
+        }];
+        let model = HelpModel {
+            groups: &groups,
+            query: "",
+            sel: 0,
+            scope: "Construct · cube".into(),
+            placeholder: String::new(),
+            every_look: "every look".into(),
+            or: "or".into(),
+            note: String::new(),
+            footer: Vec::new(),
+        };
+        let commands = measured(&metrics, || {
+            help(&look, &model, ("construct-help", "root"), [1280.0, 720.0])
+        });
+        for node in [
+            "construct-help-body-scope",
+            "construct-help-body-head-0",
+            "construct-help-body-head-0-every",
+        ] {
+            let size = commands.iter().find_map(|c| match c {
+                Command::Create { id, props, .. } if id == node => props.font_size,
+                _ => None,
+            });
+            assert_eq!(size, Some(14.0), "{node}");
+        }
+    }
 }
