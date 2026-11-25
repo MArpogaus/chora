@@ -45,3 +45,44 @@ acts, doors, matrix, e2e and the tiling-* steps among them).
 One slip, corrected before the push: the first red commit of rth-1 failed the
 subject-length hook, and the fix commit then held the tests; I split them
 again (8e2052a7, then 6b199a70), so red-first holds in the history.
+
+## Review r1
+
+Reviewer lane, read-only on code: claude/tiling-minor-r1 head 31af60c5 on 84f66d43
+(13 files, +363 -50, 15 commits). Step 0 green (`git fetch --unshallow`,
+`cargo check --workspace`). No merge gate run (lane gate /tmp/merge-gate.rTgTF5).
+
+Checks:
+1) rth-1 core press_layer: PASS. Claim at the point (claimant_at, one owner),
+   else live claim owners overlapping the shown rect of the layer's output, else
+   every live claim owner. One claim at the point gives one look; with one look
+   the result equals the old `first_manager` (which also needs a claim; the new
+   code adds the `live` filter). Injected press: no `last_real_press`, no act;
+   locked: no act. Escape hatch, grab path and `note_act` lock guard untouched.
+   `cargo test -p chora input::` 65 passed; red confirmed at 8e2052a7 (both rth-1
+   tests FAILED, lock test ok).
+2) Red first: PASS. Every fix sha follows its test sha (ab0738de; 8e2052a7 ->
+   6b199a70; 9fe4649a -> bcc8cb4f; b8b2d3b5 -> 87aa0d1e; 2c928a8b -> 47465ea4;
+   6a20aba7 -> 58270886; f8a15eb7 -> ea5ab55e). rth-8 hardened in b8b2d3b5 with
+   the rth-5 red run pasted: accepted.
+3) rth-4: PASS. The chip shows "title: reason" (70 chars, 5 s) only when
+   `show_or_log` gives None; the only `eprintln` in the diff is the moved line of
+   main.rs; `tools/lint-ratchet`: eprintln 46.
+4) rth-5 gate step: PASS with rtm1-1. A poll (`until_ok no_notice 16`), no new
+   sleep; `tools/sleep-ratchet`: ok, sleep 778, sleep-all 929 (list 779 -> 778 true).
+5) rtd1-2..4: PASS with rtm1-2. en and de for KeyUnboundBare, the theme titles and
+   the Looks notice; chora-tiling 208 unit tests and chora-kit words tests green.
+6) Overlap with claude/tiling-doors-r2 (still at 721be592, nothing pushed): no
+   behaviour conflict. HINT_TIME only feeds `hint_unbound`; the reload chip has its
+   own CHIP_MS. If r2 injects a clock into `show_words`/`chip_until` (its test b),
+   the new call in reload.rs:81 fails to compile on merge, a visible conflict, not
+   a silent one. Word overlap is text only (rtm1-5).
+
+Findings:
+- rtm1-1 MINOR tests/gate-tiling-reload-notice.sh:67: the card expires 12 s after the failed reload and the step waits 8 s after `card_shows`, so when the earlier waits take more than about 4 s the step passes without the fix; fix: wait 2 s at most (`until_ok no_notice 4`), since the dismiss is synchronous.
+- rtm1-2 MINOR plugins/chora-tiling/src/main.rs:375: the rtd1-4 test pins only the words of `unreachable_notice`; nothing checks that a failed clients.list in `launch_looks` shows the notice; fix: a unit or doors cell that runs the Looks launch against a core whose clients.list errors and sees one notice.
+- rtm1-3 NIT crates/chora/src/input.rs:3117: the lock test still passes with the lock guard of `note_act` removed (the lock hides the bar from `surface_under`), so it pins the hit test, not the guard; fix: say so in its doc comment or add a `note_act` unit test under a lock.
+- rtm1-4 NIT crates/chora-kit/src/runtime.rs:568: a good reload through the method `settings.reload` (not the key) leaves the failure card up until it expires; fix: dismiss in a plugin hook on Ok of the method too, or note it in rth-5.
+- rtm1-5 NIT plugins/chora-tiling/src/looks.rs:60: the notice says "Other desktops" / "Andere Desktops" while ti-55 (TILING-DOORS r2) makes "look" the word on screen; fix: align the title with the bar word when r2 lands.
+
+Verdict: MERGE-OK (0 BLOCK, 0 MAJOR, 2 MINOR, 3 NIT).
