@@ -1,6 +1,6 @@
 #!/bin/bash
 # Self-test of the `ratchets` step of tests/merge-gate.sh: on a scratch worktree
-# of HEAD the step passes; with one added wait line in a tests/*.sh file it
+# of HEAD the step passes; with added wait lines in a tests/*.sh file (the list may hold slack: enough lines to pass it) it
 # fails with a line that names sleep-ratchet. The added line is built from two
 # halves so that this file adds no line to the count it tests.
 #
@@ -26,7 +26,9 @@ run() { (cd "$work/wt" && MERGE_GATE_RUNS=$work CHORA_GATE_LOCK=$work/lock tests
 run || fail "clean tree: the ratchets step fails: $(tail -5 "$work/out")"
 grep -q '^ratchets .*PASS' "$work/out" || fail "clean tree: no PASS line for ratchets: $(tail -5 "$work/out")"
 
-printf '%s 1\n' "$word" >>"$work/wt/tests/zz-ratchet-fixture.sh"
+slack=$(cd "$work/wt" && tools/sleep-ratchet 2>&1 | sed -n 's/^lower the list: sleep is \([0-9]*\), listed \([0-9]*\).*/\2 - \1/p' | head -1)
+slack=$(( ${slack:-0} ))
+for _ in $(seq 0 "$slack"); do printf '%s 1\n' "$word" >>"$work/wt/tests/zz-ratchet-fixture.sh"; done
 if run; then
     fail "added wait: the ratchets step passed"
 fi
