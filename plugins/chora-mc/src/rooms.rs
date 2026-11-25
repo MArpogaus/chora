@@ -194,13 +194,9 @@ mod tests {
         let line = mc.ty("body", panel.style.as_ref()).line;
         let top = mc.lines_top(&panel);
         let seen = mc.whole_lines(&panel, h.min(end - y).max(0.0));
-        #[allow(
-            clippy::cast_possible_truncation,
-            clippy::cast_sign_loss,
-            reason = "a few lines"
-        )]
-        let shown = ((seen - top) / line).round().max(0.0) as usize;
-        shown
+        (1_u32..=200)
+            .take_while(|&i| top + f64::from(i) * line <= seen + 0.5)
+            .count()
     }
 
     /// Whether the mark that more follows shows on the page.

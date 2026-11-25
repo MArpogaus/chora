@@ -281,15 +281,11 @@ pub fn lines_at(
             if at > 0.0 {
                 count += 1;
             }
-            let over = ((w / width).ceil() - 1.0).max(0.0);
-            at = w - width * over;
-            #[allow(
-                clippy::cast_possible_truncation,
-                clippy::cast_sign_loss,
-                reason = "a few lines"
-            )]
-            let over = over as usize;
-            count += over;
+            at = w;
+            while at > width + 0.5 {
+                count += 1;
+                at -= width;
+            }
         }
         lines += count;
     }
