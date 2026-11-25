@@ -117,6 +117,13 @@ impl FakeCore {
         Self { path, model }
     }
 
+    /// The path of the socket, for a child process that reads it from
+    /// `CHORA_SOCKET`.
+    #[must_use]
+    pub fn socket(&self) -> &std::path::Path {
+        &self.path
+    }
+
     /// Makes `scene.query` answer every selector (`kind:`, `owner:`, ...)
     /// from the model, as the core does; by default it answers `id:` only.
     #[must_use]
