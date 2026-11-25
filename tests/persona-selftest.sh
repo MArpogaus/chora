@@ -15,6 +15,9 @@ need_bins chora choractl chora-mc chora-tiling chora-assistant chora-xp chora-no
 out=$(python3 -I "$repo/tests/persona/test_check.py" 2>&1) || fail "the selftest of check.py is red: $out"
 ok "check.py: its contracts and reads on planted snapshots"
 
+out=$(python3 -I "$repo/tests/persona/test_act_wait.py" 2>&1) || fail "the selftest of the wait of act.py is red: $out"
+ok "act.py: a slow check does not hold the persona, every check runs, an input waits for the checks before it"
+
 dir=$(mktemp -d /tmp/persona-selftest.XXXXXX)
 tmp_dirs+=("$dir")
 spid=
