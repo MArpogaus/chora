@@ -350,3 +350,27 @@ Findings:
 - rfs8-6 NIT tests/gate-lib-selftest.sh:17: merging with d40142e4 gives a comment-only conflict in the header, which comes from ce866b0d and d40142e4 (not from this branch). Fix: keep both paragraphs at merge.
 
 Verdict: MERGE-OK (0 BLOCK, 0 MAJOR, 3 MINOR, 3 NIT).
+
+## r9
+
+Brief: flake-series-r9 (F5, rc 3): five full gates in a row on the train132 head c3c37c2e, run only (no product, test or harness change). Lane: cloud, branch claude/flake-series-r9 at c3c37c2e. Step 0: `git fetch --unshallow`, `cargo check --workspace` exit 0, `cargo build --workspace` exit 0.
+
+Gate: `tests/merge-gate.sh --jobs 2`, full, no --only, no rerun, one after the other, CARGO_BUILD_JOBS=2.
+
+| run | exit | PASS | red steps | minutes | log |
+|---|---|---|---|---|---|
+| 1 | 0 | 65 | none | 84 | /tmp/gate-1.log |
+| 2 | 0 | 65 | none | 79 | /tmp/gate-2.log |
+| 3 | 0 | 65 | none | 75 | /tmp/gate-3.log |
+| 4 | 0 | 65 | none | 78 | /tmp/gate-4.log |
+| 5 | 0 | 65 | none | 82 | /tmp/gate-5.log |
+
+Run 5 was restarted: the first attempt (`/tmp/gate-5-interrupted.log`) stopped at 24 PASS with no EXIT line when the lane's worker restarted (no red step, no FAIL line in it). It is not counted; run 5 above is the second, complete attempt, started after the restart with the same command.
+
+After each run: no `chora --headless` left (`pgrep` empty), root disk 47 G free (above 5 G, so no sccache cleanup). No SKIP step in any run.
+
+Red steps: none in any of the five runs, so no log was copied to media/ and no known id (sh-38..sh-41) was matched; the sh-38 leak step (the one that flaked in r7 and r8) was PASS in all five.
+
+F5 series: 5/5 green on c3c37c2e
+
+Verdict: the train132 head is green in five full gates in a row (exit 0, 65 PASS each, 75-84 min). Nothing new to file in findings/shared.md.
