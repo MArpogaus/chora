@@ -150,7 +150,9 @@ impl Mc {
     /// manager (D55). The scene of an app goes with it; another scene
     /// stays without its window.
     pub fn give(&mut self, give: Give) -> Result<Value, RpcError> {
-        let Give { surface, to, grab } = give;
+        let Give {
+            surface, to, grab, ..
+        } = give;
         let name = (self.windows.iter())
             .find(|(_, s)| **s == surface)
             .map(|(n, _)| n.clone())

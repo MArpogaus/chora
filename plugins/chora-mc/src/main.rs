@@ -669,6 +669,7 @@ impl chora_kit::give::Windows for Mc {
             surface: surface.into(),
             to: to.into(),
             grab: None,
+            stay: false,
         })
     }
 }
@@ -2734,6 +2735,7 @@ mod tests {
             surface: "s1".into(),
             to: "xp".into(),
             grab: None,
+            stay: false,
         })
         .unwrap();
         let focuses = model.lock().unwrap().focuses.split_off(before);

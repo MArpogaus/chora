@@ -1985,6 +1985,13 @@ mod tests {
             .collect()
     }
 
+    /// `window.give` of `surface` to xp with `stay`, as `give.sh` of the
+    /// Looks door calls it.
+    fn stay(tiling: &mut Tiling, surface: &str) {
+        let params = json!({"surface": surface, "to": "xp", "stay": true});
+        tiling.give(params).unwrap();
+    }
+
     /// The holder that `state.get` of tiling tells.
     fn holder(tiling: &Tiling) -> chora_kit::wm::state::Focus {
         tiling.focus.state(NAME, |s| tiling.wm.has(s))
@@ -2000,7 +2007,7 @@ mod tests {
             beside_xp("keep-next", [100.0, 0.0, 100.0, 80.0], &["s1", "s2"]);
         assert_eq!(tiling.focus.surface.as_deref(), Some("s2"));
         let from = methods.lock().unwrap().len();
-        tiling.hand("s2", "xp").unwrap();
+        stay(&mut tiling, "s2");
         let sent = commands_from(&methods, from);
         let at = |wanted: &dyn Fn(&Value) -> bool| sent.iter().position(wanted);
         let give =
@@ -2024,7 +2031,7 @@ mod tests {
     fn the_last_window_handed_to_another_output_leaves_the_keyboard_with_the_desktop() {
         let (mut tiling, methods) = beside_xp("keep-desk", [100.0, 0.0, 100.0, 80.0], &["s1"]);
         let from = methods.lock().unwrap().len();
-        tiling.hand("s1", "xp").unwrap();
+        stay(&mut tiling, "s1");
         let sent = commands_from(&methods, from);
         let at = |wanted: &dyn Fn(&Value) -> bool| sent.iter().position(wanted);
         let give = at(&|c| c["remove"]["id"] == "s1").expect("the give");
@@ -2056,13 +2063,28 @@ mod tests {
         );
     }
 
+    /// A give without `stay` (a give key, automation, the voice) leaves
+    /// the keyboard to the receiver, also on another output (D55).
+    #[test]
+    fn a_give_without_stay_leaves_the_keyboard_to_the_receiver() {
+        let (mut tiling, methods) = beside_xp("no-stay", [100.0, 0.0, 100.0, 80.0], &["s1", "s2"]);
+        let from = methods.lock().unwrap().len();
+        tiling.hand("s2", "xp").unwrap();
+        let sent = commands_from(&methods, from);
+        assert!(
+            sent.iter()
+                .all(|c| c.get("focus").is_none() && c.get("focus_node").is_none()),
+            "tiling sent a focus: {sent:?}"
+        );
+    }
+
     /// A receiver whose claim lies on the output of the window gets the
     /// keyboard with it, as before: tiling sends no focus.
     #[test]
     fn a_window_handed_to_a_look_on_the_same_output_takes_the_keyboard_along() {
         let (mut tiling, methods) = beside_xp("follow", [20.0, 0.0, 60.0, 80.0], &["s1", "s2"]);
         let from = methods.lock().unwrap().len();
-        tiling.hand("s2", "xp").unwrap();
+        stay(&mut tiling, "s2");
         let sent = commands_from(&methods, from);
         assert!(
             sent.iter()

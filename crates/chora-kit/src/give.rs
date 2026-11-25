@@ -29,6 +29,11 @@ pub struct Give {
     /// button: the receiver goes on with it (`give_grab`).
     #[serde(default)]
     pub grab: Option<GivenGrab>,
+    /// The person moved the window from a menu of the giver and still
+    /// looks there: a receiver on another output gets the window without
+    /// the keyboard, which stays with the giver (D119).
+    #[serde(default)]
+    pub stay: bool,
 }
 
 /// The export of `window.give`, with its description and schema. It is
@@ -45,6 +50,9 @@ pub fn method() -> ExportMethod {
             "grab": {"type": "object", "description":
                 "Gives the drag too, while the user holds its button: point [x, y] of the \
                  window under the pointer, velocity [x, y] and wobble, the state of the effect."},
+            "stay": {"type": "boolean", "description":
+                "The person moved the window from a menu of the giver: a receiver on another \
+                 output gets it without the keyboard, which stays with the giver (D119)."},
         }),
         &["surface", "to"],
     ))

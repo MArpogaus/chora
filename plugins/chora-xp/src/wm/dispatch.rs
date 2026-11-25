@@ -164,7 +164,9 @@ impl Wm {
                 at,
             } => self.move_to_output(&surface, &output, at)?,
             Call::Float(float) => return self.float(float),
-            Call::Give(give::Give { surface, to, grab }) => {
+            Call::Give(give::Give {
+                surface, to, grab, ..
+            }) => {
                 known(self.index(&surface).is_some(), &surface)?;
                 let (answer, commands) = self.give_dragged(&surface, &to, grab)?;
                 self.apply(commands)

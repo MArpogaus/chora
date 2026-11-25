@@ -356,6 +356,7 @@ mod tests {
                 surface: surface.into(),
                 to: to.into(),
                 grab: None,
+                stay: false,
             };
             self.0.give(give).is_ok()
         }

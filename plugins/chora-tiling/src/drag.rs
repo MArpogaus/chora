@@ -13,7 +13,16 @@ impl Tiling {
     /// `window.give`: hands a window to another window manager, and
     /// answers with its id.
     pub(super) fn give(&mut self, params: Value) -> Result<Value, RpcError> {
-        let Give { surface, to, grab } = runtime::params(params)?;
+        let Give {
+            surface,
+            to,
+            grab,
+            stay,
+        } = runtime::params(params)?;
+        if stay && grab.is_none() {
+            self.keep_keys(&surface, &to)
+                .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+        }
         self.hand_dragged(&surface, &to, grab)
     }
 
@@ -32,9 +41,8 @@ impl Tiling {
     }
 
     /// Hands a window to the window manager `to` with a remove with `to`
-    /// (D55); the receiver gives it the focus, unless its claim lies on
-    /// another output than the window (D119, [`Self::keep_keys`]). The
-    /// answer of `window.give`.
+    /// (D55); the receiver gives it the focus. The answer of
+    /// `window.give`.
     pub(super) fn hand(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
         self.hand_dragged(surface, to, None)
     }
@@ -61,10 +69,6 @@ impl Tiling {
                 .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         }
         let dragged = grab.is_some();
-        if !dragged {
-            self.keep_keys(surface, to)
-                .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
-        }
         self.book.give(surface, to);
         let answer = match self.rt.conn.give_dragged(surface, to, grab) {
             Ok(answer) => answer,
@@ -85,14 +89,14 @@ impl Tiling {
         Ok(answer)
     }
 
-    /// The keyboard stays where the person looks (D119): before the
-    /// focused window goes to a look whose claim lies on no part of the
-    /// output of the window, the window focused before it takes the
-    /// keyboard, or without one the desktop of tiling, its root node. Its
-    /// own transaction comes first, so that the receiver hears of the
-    /// holder before the window comes and leaves the keyboard there. A
-    /// drag goes with the pointer, where the person is, and keeps nothing;
-    /// so does a query that fails.
+    /// The keyboard stays where the person looks (D119), for a give with
+    /// `stay` (the Looks door and the Apps rows of tiling, `give.sh`):
+    /// before the focused window goes to a look whose claim lies on no
+    /// part of the output of the window, the window focused before it
+    /// takes the keyboard, or without one the desktop of tiling, its root
+    /// node. Its own transaction comes first, so that the receiver hears of
+    /// the holder before the window comes and leaves the keyboard there.
+    /// A query that fails keeps nothing.
     pub(super) fn keep_keys(&mut self, surface: &str, to: &str) -> Result<(), ClientError> {
         let held = !self.focus.lost && self.focus.surface.as_deref() == Some(surface);
         let Some(area) = self.wm.output_box_of(surface).filter(|_| held) else {
