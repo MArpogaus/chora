@@ -492,7 +492,7 @@ cell_keylist() {
     until_ok 'has_text "Show overview"' 20 || fail "Super+F1 does not open the full list"
     until_ok 'jq -e ".[1] > 500" <<<"$(text_rect "Back one step")" >/dev/null' 20 || fail "the full list places no last row"
     shot keylist
-    [ -z "$(struck_texts)" ] || fail "a rule of the key list strikes a text (rpx1-9): $(struck_texts)"
+    until_ok '[ -z "$(struck_texts)" ]' 40 || fail "a rule of the key list strikes a text (rpx1-9): $(struck_texts)"
     for t in "Take a screenshot" "Back one step" "Power menu" "Lock the screen"; do
         has_text "$t" || fail "the full list lacks the row \"$t\" at 1280x720"
     done
@@ -594,6 +594,7 @@ cell_volume_wheel() {
     echo '[{"scroll": {"dy": 60}}]' | ctl inject >/dev/null || fail "inject scroll"
     until_ok 'grep -Eq "set-volume .*%-" "$calls"' 20 || fail "a wheel down over the volume door does not lower the volume (rpx1-15): $(tr '\n' '|' <"$calls")"
     shot volume-wheel
+    until_ok '[ "$(ctl call notify state.get "{}" | jq "[.shown[]] | length")" = 0 ]' 160 || fail "the card of the volume stays"
 }
 
 cell_page_end() {
@@ -697,6 +698,7 @@ cell_rooms_card() {
     until_ok 'page_over_card' 40 || fail "the page $page reaches under the card $card that stands higher: the page end is a constant (rmm1-2)"
     shot rooms-card
     ctl call mc notify.clear '{}' >/dev/null
+    kill_of chora-notify
 }
 cell_rooms_pill() {
     local clock word mark left
@@ -726,6 +728,7 @@ cell_rooms_pill() {
     }
     until_ok 'header_clear' 40 || fail "the header $clock reaches the state pill $word that stands further left: the header end is a constant (rmm1-2)"
     shot rooms-pill
+    kill_of chora-assistant
 }
 
 failed=()
