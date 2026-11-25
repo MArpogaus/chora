@@ -1,0 +1,40 @@
+run 1 before give:
+mode navigate front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [17.04323619070525, 283.2577286532011, 382.5296363669059, 233.4845426935978]
+{
+  "faces": [
+    {
+      "health": "up",
+      "manager": "xp",
+      "output": "VIRTUAL-1"
+    },
+    {
+      "health": "up",
+      "manager": "xp",
+      "output": "VIRTUAL-2"
+    },
+    {
+      "health": "up",
+      "manager": "xp",
+      "output": "VIRTUAL-3"
+    },
+    {
+      "health": "up",
+      "manager": "xp",
+      "output": "VIRTUAL-4"
+    }
+  ],
+  "front": 0,
+  "mode": "navigate",
+  "turning": false
+}
+
+ after give:
+mode navigate front 0, panes [], construct , xp , core focus: ['s1']
+    surface s1 owner xp visible True rect None
+  bar [Return Ctrl Alt ← Ctrl Alt → Super F1 All keys Super Alt 4 Pull out]
+  xp windows [{"app_id": "foot", "desks": [1], "floating": false, "fullscreen": false, "held": false, "maximized": false, "minimized": false, "origin": "given", "output": "VIRTUAL-1", "rect": [-262032.0, -262120.0, 708.0, 529.0], "shown": true, "surface": "s1", "title": "foot", "z": 0}]
+ after Return:
+mode navigate front 0, panes [], construct , xp , core focus: ['s1']
+    surface s1 owner xp visible True rect None
+  bar [Return Ctrl Alt ← Ctrl Alt → Super F1 All keys Super Alt 4 Pull out]

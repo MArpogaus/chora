@@ -270,3 +270,69 @@ EXIT 0
 Checks: red first (43433ce7 test before 7f519bc8 fix): yes. co-79: `pull_out_hint` is the one source for the pull hint in the face and stood-back sets, gated on `pull_acts` (co-68: never in a pane); reach_tests.rs covers face focused, face unfocused, pane; gate-construct-cube.sh asserts `construct-hint-pull-out` in a face with the keyboard in its window. docs/cube-modes.md says the rule. No new sleep in this round (the 3 of the branch are co-close r2's, gate-construct-close.sh:51, 80, 87).
 Findings: rcr1-1 MINOR: the demo r12 face is empty (Super+t with the key sheet open starts a pane, not a face window), so the hint stays untold there: route with co-78.
 Verdict (computed): 0 BLOCK, 0 MAJOR: MERGE-OK. Train only after the co-close sleeps become waits (t134 sleep-ratchet): CO-CLOSE-WAITS r1.
+
+## r5 (co-79 pane path, 2026-11-25)
+
+Lane: cloud, claude/co-reach-r5 from **base 62a04be0** (t140 green). Step 0: unshallow, `cargo check --workspace`, `cargo build --workspace` green. Area: plugins/chora-construct (hints, overlay, input, pull, reach_tests), tests/gate-construct-cube.sh, docs/cube-modes.md. No core, no xp, no other plugin.
+
+**Head 7d9269ae** (red **58ba73a1**, fix **5025dc47**, test follow-up **7d9269ae**: the unit test names the face manager `xp`, not `chora-xp`, which cut-check counts), pushed to claude/co-reach-r5. Diff 62a04be0..7d9269ae: 7 files +189 -9 (gate-construct-cube.sh +46, reach_tests.rs +42, overlay.rs +39 -2, pull.rs +36 -4, hints.rs +20 -1, input.rs +7 -1, docs/cube-modes.md +8 -1).
+
+### 1. Reproduction on 62a04be0 (fresh compositor per run, 1280x800, script media/2026-11-25/co-reach-r5/hand.sh)
+Steps: start card row `A cube of desktops` (the cube stands back), Programs, Foot (a pane beside the cube, the camera flies in), Alt+Escape.
+- **State**: navigate mode (stood back), front 0, panes [foot], Foot's window s1 is the construct's (a pane), core focus s1 with the keys on `construct-look`. **Bar**: `Click Fly in | Return | Ctrl Alt ← | Ctrl Alt → | Super F1 All keys`: no way into a face is told, **0/5** (before-62a04be-pane-5runs.log; 3 earlier runs the same, before-62a04be-pane.log, before-62a04be-turned.log).
+- The untold key `Super+Alt+2` (give to xp) does move Foot to xp, but (a) onto VIRTUAL-1 (face 0) also with the cube turned to face 1 (xp puts a new window on the output the pointer entered last), and (b) the keyboard stays in Foot while the cube stands back, so the bar's `Return Step in` then types into Foot instead of stepping in (before-62a04be-turned.log). So telling the bare key would break co-68 one step later.
+
+### 2. Decision (docs/cube-modes.md, "The visible way in")
+"Stood back out of a pane, the bar names the way into a face instead, `Super Alt 2 Into face`, the give key of the face manager: while the window of a pane has the keyboard, it puts that window on the face at the front, steps in and gives it the keyboard there, so every key that the bar names then works (co-79)." One key in the state the person is in, no new mode. The key is the existing give key of the face manager (xp: Super+Alt+2, from `chora_kit::give::KEYS`), so the same key means "to xp" everywhere. The flows table and the words table (`Into face`, `In die Seite`) follow.
+
+### 3. Red 58ba73a1 (tests only)
+gate-construct-cube.sh step 7 (after step 5's `Super+C opens the cube`): Super+C stands back, Super+space (the launcher) starts a program beside the cube (a pane, flown in), Alt+Escape stands back, Ctrl+Alt+Right turns to face 1; the bar must name `Super Alt 2` (`construct-hints-put-in-keys-*`), and that key must put the window on face 1's output (owner xp), step in (mode use), give it the keys (a typed `a` reaches it) and the bar must then name the pull key. On 62a04be0: `FAIL: co-79: stood back out of a pane the hint bar names no way into a face (put-in keys:   )`; every earlier cell passed.
+
+### 4. Fix 5025dc47
+- `put_window()` (overlay.rs): stood back (navigate), every face up, the window with the keyboard (else the one noted at the step back) is a pane's own. It is the one predicate of the hint and the key (as `pull_acts` is for the pull key; the two never hold at once).
+- `put_in_hint` (Cube set, after `Click Fly in`): `Super Alt 2 Into face`, keys from `hints::give_key_of(face_manager)`; a click on it does the key. `hint_stamp` adds the predicate.
+- `give_key` (input.rs): with `to == face_manager()` and `put_window()`, `put_in_face` (pull.rs): give the window to the manager, `window.move` it to the front face's output (the call a drop on a face makes, now `place_on`, shared), note it and `StepIn` as the person, so `give_the_keyboard_back` activates it in the face.
+- Unit test `reach_tests::stood_back_out_of_a_pane_the_bar_names_the_way_into_the_face` (pane focus: put named, pull not; face window focus: the other way round). chora-construct 290 passed; clippy clean.
+
+### 5. Counts after (fresh compositor per run, snapshot 5025dc47)
+| Path | Steps | told | acts | state after the key |
+|---|---|---|---|---|
+| pane (co-79 r5) | cube row, Programs, Foot, Alt+Escape, Super+Alt+2 | **5/5** (before **0/5**) | **5/5** | use, front 0, Foot on xp VIRTUAL-1 shown, focused s1; bar `Alt Esc Step back \| Super Alt 4 Pull out \| Super F1 All keys` (after-pane.log) |
+| face (co-79 r1) | cube row, Return, Super+t, Super+Alt+4 | **5/5** | **5/5** (panes [foot]) | unchanged from r1 (after-face.log) |
+| pane, turned to face 1 | gate step 7 | told | on face 1's output, steps in, takes keys | gate-construct-cube EXIT 0 alone on 5025dc47, and in full gate run 2 |
+
+Every told key acts in all runs. Checker rows of the after runs: only co-44 I2 (construct-mode-step-in and turn chips 9 apart) and I6 (xp tray clock contrast), both known.
+
+### 6. Gate
+Run 1 on 5025dc47 (`CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2`, no step filter, detached): **FAIL in ci-check, caused here**: "FAIL: cut-check: names: chora-construct names chora-xp on 6 lines" (the new unit test set the program `chora-xp`); fixed by 7d9269ae (`xp`, cut-check 5 lines as on base). Run 2 on 7d9269ae, the same command, detached: **EXIT 0, 66 PASS, 0 FAIL**, no foreign red (mc-sofa passed, FLAKE-SOFA not seen). Cube cell 144 s with the three co-79 lines ok. `pgrep -fa 'chora --headless'` empty after. Last 20 lines:
+```
+voice-acp  PASS    13s /tmp/merge-gate.G8NbD2/voice-acp.log
+voice-events PASS     2s /tmp/merge-gate.G8NbD2/voice-events.log
+agent      PASS    42s /tmp/merge-gate.G8NbD2/agent.log
+tiling-keys-more PASS    42s /tmp/merge-gate.G8NbD2/tiling-keys-more.log
+tiling-windows PASS   206s /tmp/merge-gate.G8NbD2/tiling-windows.log
+tiling-system PASS    17s /tmp/merge-gate.G8NbD2/tiling-system.log
+handover   PASS    29s /tmp/merge-gate.G8NbD2/handover.log
+mc-scale   PASS    17s /tmp/merge-gate.G8NbD2/mc-scale.log
+watchdog-starved PASS    55s /tmp/merge-gate.G8NbD2/watchdog-starved.log
+acts       PASS  2287s /tmp/merge-gate.G8NbD2/acts.log
+xp-run     PASS    16s /tmp/merge-gate.G8NbD2/xp-run.log
+demo       PASS   270s /tmp/merge-gate.G8NbD2/demo.log
+leak       PASS   478s /tmp/merge-gate.G8NbD2/leak.log
+tiling-theme PASS    19s /tmp/merge-gate.G8NbD2/tiling-theme.log
+tiling-bar PASS   198s /tmp/merge-gate.G8NbD2/tiling-bar.log
+mc-host    PASS    20s /tmp/merge-gate.G8NbD2/mc-host.log
+tiling-disc PASS    73s /tmp/merge-gate.G8NbD2/tiling-disc.log
+e2e        PASS   289s /tmp/merge-gate.G8NbD2/e2e.log
+all steps passed; no --push, nothing is pushed
+EXIT 0
+```
+
+### Captures (media/2026-11-25/co-reach-r5/, each under 200 KB)
+- pane-stood-back-told.png: stood back after Alt+Escape out of Foot, bar `... Click Fly in | Super Alt 2 Into face | Super F1 All keys`.
+- pane-into-face-after.png: after Super+Alt+2, Foot in face 0 at 1:1 with the keyboard, bar `Alt Esc Step back | Super Alt 4 Pull out | Super F1 All keys`.
+- logs: before-62a04be-*.log, after-pane.log, after-face.log; hand.sh (cases rep/repb, rep2, pane5, co79c).
+
+### Open for the PM
+1. Not checked by hand: the drag of a pane onto a face (the mouse way, Max 2 in r13) uses the same give, so it likely leaves the cube stood back with the keyboard in the given window, where `Return Step in` would go to the window (seen on 62a04be0 with the bare key). Not changed here (the key path now steps in); a candidate for the same rule on the drop.
+2. xp puts a given window on the output the pointer entered last, not on the front face; the construct now asks `window.move` after the key give, as after a drop. A give by another client (fuzzel row, voice) still lands where xp chooses.

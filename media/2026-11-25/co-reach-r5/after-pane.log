@@ -1,0 +1,55 @@
+run 1 after Alt+Escape from Foot:
+mode navigate front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [17.04323619070525, 283.2577286532011, 382.5296363669059, 233.4845426935978]
+  bar [Click Fly in Return Ctrl Alt ← Ctrl Alt → Super F1 All keys Super Alt 2 Into face]
+  told: yes
+ after Super+Alt+2:
+mode use front 0, panes [], construct , xp , core focus: ['s1']
+    surface s1 owner xp visible True rect None
+  bar [Super F1 All keys Super Alt 4 Pull out Alt Esc Step back]
+  foot on xp VIRTUAL-1 True, mode use, focused ['s1']
+  pass
+run 2 after Alt+Escape from Foot:
+mode navigate front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [17.04323619070525, 283.2577286532011, 382.5296363669059, 233.4845426935978]
+  bar [Click Fly in Return Ctrl Alt ← Ctrl Alt → Super F1 All keys Super Alt 2 Into face]
+  told: yes
+ after Super+Alt+2:
+mode use front 0, panes [], construct , xp , core focus: ['s1']
+    surface s1 owner xp visible True rect None
+  bar [Super F1 All keys Super Alt 4 Pull out Alt Esc Step back]
+  foot on xp VIRTUAL-1 True, mode use, focused ['s1']
+  pass
+run 3 after Alt+Escape from Foot:
+mode navigate front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [17.04323619070525, 283.2577286532011, 382.5296363669059, 233.4845426935978]
+  bar [Click Fly in Return Ctrl Alt ← Ctrl Alt → Super F1 All keys Super Alt 2 Into face]
+  told: yes
+ after Super+Alt+2:
+mode use front 0, panes [], construct , xp , core focus: ['s1']
+    surface s1 owner xp visible True rect None
+  bar [Super F1 All keys Super Alt 4 Pull out Alt Esc Step back]
+  foot on xp VIRTUAL-1 True, mode use, focused ['s1']
+  pass
+run 4 after Alt+Escape from Foot:
+mode navigate front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [17.04323619070525, 283.2577286532011, 382.5296363669059, 233.4845426935978]
+  bar [Click Fly in Return Ctrl Alt ← Ctrl Alt → Super F1 All keys Super Alt 2 Into face]
+  told: yes
+ after Super+Alt+2:
+mode use front 0, panes [], construct , xp , core focus: ['s1']
+    surface s1 owner xp visible True rect None
+  bar [Super F1 All keys Super Alt 4 Pull out Alt Esc Step back]
+  foot on xp VIRTUAL-1 True, mode use, focused ['s1']
+  pass
+run 5 after Alt+Escape from Foot:
+mode navigate front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [17.04323619070525, 283.2577286532011, 382.5296363669059, 233.4845426935978]
+  bar [Click Fly in Return Ctrl Alt ← Ctrl Alt → Super F1 All keys Super Alt 2 Into face]
+  told: yes
+ after Super+Alt+2:
+mode use front 0, panes [], construct , xp , core focus: ['s1']
+    surface s1 owner xp visible True rect None
+  bar [Super F1 All keys Super Alt 4 Pull out Alt Esc Step back]
+  foot on xp VIRTUAL-1 True, mode use, focused ['s1']
+  pass
