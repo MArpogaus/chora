@@ -31,6 +31,8 @@ pub const VIEW: &str = "hud-chat-view";
 pub const CHAT: &str = "hud-chat";
 /// The hint line above the field.
 pub const HINT: &str = "hud-chat-hint";
+/// The tail of the balloon where it leans out of the box to the figure.
+pub const TAIL_NODE: &str = "hud-chat-tail";
 /// The row that opens the chat.
 pub const ROW: &str = "hud-row-chat";
 /// The button that stops the running prompt.
@@ -826,6 +828,27 @@ fn shape_of(frame: &Frame, size: [i32; 2], colours: Colours) -> String {
     style.shape(size, tail.unwrap_or(0))
 }
 
+/// The tail of the balloon that leans out of its box to the head of the
+/// figure, as a node of its own that takes no press.
+fn lean_node(
+    theme: &mut Theme,
+    frame: &Frame,
+    size: [i32; 2],
+    colours: Colours,
+) -> Option<Command> {
+    let tail = frame
+        .tail()
+        .filter(|_| frame.look.style != ChatStyle::Glass)?;
+    let style = Style {
+        tail: crate::config::TAIL,
+        ..style_of(&frame.look, colours)
+    };
+    let lean = style.lean(size, tail)?;
+    let picture = Picture::new(lean.size[0], lean.size[1]).svg(lean.svg);
+    let props = image(theme.render(&picture), lean.at, "", InputMode::Pass);
+    Some(create(TAIL_NODE, VIEW, props))
+}
+
 /// The rows of the transcript on the picture of the view: the messages in
 /// the face of the look where it has one, the rest in the sans.
 fn rows_picture(mut picture: Picture, parts: &Parts, w: i32) -> Picture {
@@ -1033,8 +1056,7 @@ fn panel(theme: &mut Theme, frame: &Frame, parts: &Parts, colours: Colours) -> V
         .filter(|_| is_glass)
         .map(|colour| glow(theme, [w, h], colour));
     let below = tail.map_or(0, |_| crate::config::TAIL);
-    let reach = tail.map_or(w, |t| w.max(t + 1));
-    let mut picture = Picture::new(reach, h + below).svg(shape);
+    let mut picture = Picture::new(w, h + below).svg(shape);
     if let Some(xp) = &parts.xp {
         picture = xp_header(theme, picture, xp, (w, colours));
     } else {
@@ -1070,7 +1092,14 @@ fn panel(theme: &mut Theme, frame: &Frame, parts: &Parts, colours: Colours) -> V
         VIEW,
         image(rendered, [0, 0], &shown.join("\n"), InputMode::Accept),
     );
-    std::iter::once(view).chain(halo).chain([chat]).collect()
+    let lean = (!parts.margin)
+        .then(|| lean_node(theme, frame, [w, h], colours))
+        .flatten();
+    std::iter::once(view)
+        .chain(halo)
+        .chain([chat])
+        .chain(lean)
+        .collect()
 }
 
 /// The hint line above the field.
