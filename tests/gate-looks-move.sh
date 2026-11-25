@@ -35,14 +35,6 @@ admin() {
 launcher_up() {
     XDG_RUNTIME_DIR=$(sed -n 's/^XDG_RUNTIME_DIR=//p' "$dir/session.env") session_pids -x fuzzel >/dev/null
 }
-until_ok() {
-    local _
-    for _ in $(seq "${2:-40}"); do
-        eval "$1" && return 0
-        sleep 0.25
-    done
-    return 1
-}
 owned() { admin query 'kind:surface app_id:foot' | jq -r --arg o "$1" '[.[] | select(.owner == $o) | .id] | join(" ")'; }
 holder() { admin state "$1" | jq -c '.focus'; }
 holders() { echo "tiling $(holder tiling), xp $(holder xp)"; }
@@ -84,14 +76,18 @@ move() {
     act look >/dev/null || fail "look"
     act click 82 15 >/dev/null || fail "click on the Looks door"
     until_ok launcher_up 80 || fail "the picker of the Looks door did not start"
-    sleep 1
-    act key Return >/dev/null || fail "Return on the row of xp"
-    until_ok "owned xp | grep -qw $window" 80 || fail "$window did not move to xp: tiling [$(owned tiling)], xp [$(owned xp)]"
-    sleep 1
+    local try
+    for try in 1 2 3 4 5; do
+        act key Return >/dev/null || fail "Return on the row of xp"
+        until_ok "owned xp | grep -qw $window" 4 && break
+    done
+    owned xp | grep -qw "$window" || fail "$window did not move to xp in $try tries: tiling [$(owned tiling)], xp [$(owned xp)]"
 }
+steady_holders() { settled holders 10; }
 
 shot before-move
 move "$second"
+steady_holders
 shot after-move-1
 [ "$(holder xp)" = '{"holder":null}' ] || fail "the first move: xp took the keyboard: $(holders)"
 [ "$(holder tiling)" = "{\"holder\":\"tiling\",\"surface\":\"$first\"}" ] ||
@@ -99,6 +95,7 @@ shot after-move-1
 ok "the first move: $second went to xp on HEADLESS-2, the keyboard stays with $first on tiling ($(holders))"
 
 move "$first"
+steady_holders
 shot after-move-2
 [ "$(holder xp)" = '{"holder":null}' ] || fail "the second move: xp took the keyboard: $(holders)"
 [ "$(holder tiling)" = '{"holder":"tiling"}' ] ||
@@ -106,9 +103,10 @@ shot after-move-2
 ok "the second move: the last window went to xp, tiling holds the keyboard with its desktop ($(holders))"
 
 check begin >/dev/null || fail "check.py begin"
-for k in Super+2 Super+1; do
-    act key "$k" >/dev/null || fail "$k"
-    sleep 0.5
+shown_tag() { admin state tiling | jq -e --argjson t "$1" '.desks[0].shown == [$t]' >/dev/null; }
+for t in 2 1; do
+    act key "Super+$t" >/dev/null || fail "Super+$t"
+    until_ok "shown_tag $t" 20 || fail "Super+$t did not show tag $t: $(admin state tiling | jq -c .desks)"
 done
 l3=$(check end L3 2>&1 | grep '^task L3')
 case $l3 in "task L3 pass"*) ;; *) fail "L3 after the moves: $l3 ($(holders))" ;; esac
