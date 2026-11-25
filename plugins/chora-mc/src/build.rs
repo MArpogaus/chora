@@ -318,6 +318,7 @@ impl Mc {
             commands.extend(self.panel(name, panel));
             commands.extend(self.rule(name, panel));
         }
+        commands.extend(self.more_mark(name));
         commands
     }
 

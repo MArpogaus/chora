@@ -24,7 +24,7 @@ fn is_part_of(node: &str, id: &str) -> bool {
     if !id.starts_with("mc-s-") {
         return true;
     }
-    matches!(rest, "panels" | "page" | "wheel" | "rule")
+    matches!(rest, "panels" | "page" | "wheel" | "rule" | "more")
         || rest.starts_with("panels-")
         || rest.starts_with("chapter-")
 }

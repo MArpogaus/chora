@@ -2785,6 +2785,38 @@ mod tests {
         );
     }
 
+    /// A page with a text of a panel that reaches under the edge of the
+    /// page shows the mark that more follows; a page that shows whole shows
+    /// none (rmm1-4).
+    #[test]
+    fn a_page_with_text_under_its_edge_shows_the_mark() {
+        let (mut mc, _model) = crate::testing::mc("more-mark", [1280, 720]);
+        mc.show("morning", false).unwrap();
+        let panel = (mc.scenes.get_mut("morning").unwrap().panels.iter_mut())
+            .find(|p| p.id == "overnight")
+            .unwrap();
+        panel.lines = vec!["Then".into(), "Serve it at once.".into()];
+        let edge = {
+            let [_, y, _, h] = mc.geometry("morning").unwrap().text;
+            y + h
+        };
+        let shown = |mc: &crate::Mc, bottom: f64| {
+            let lines = [160.0, edge - 80.0, 600.0, bottom - edge + 80.0];
+            let rects =
+                crate::HashMap::from([("mc-s-morning-panels-overnight-lines".into(), lines)]);
+            match mc.more_update("morning", &rects) {
+                Some(Command::Update { props, .. }) => props.visible,
+                other => panic!("no update of the mark: {other:?}"),
+            }
+        };
+        assert_eq!(
+            shown(&mc, edge + 30.0),
+            Some(true),
+            "a line is under the edge"
+        );
+        assert_eq!(shown(&mc, edge), Some(false), "the text ends on the edge");
+    }
+
     /// A key of `input.inject` turned the page, or went back along the
     /// pages, as the key of a person (review security a r2, MINOR 4): the
     /// keys of the page are the person's, as the bindings are.
