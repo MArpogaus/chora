@@ -50,8 +50,17 @@ pub fn prompt(language: Language) -> &'static str {
 
 /// The title and the text of the notice for a click on the Looks door
 /// when the list of the running clients cannot be read.
-pub fn unreachable_notice(_language: Language) -> (&'static str, &'static str) {
-    ("", "")
+pub fn unreachable_notice(language: Language) -> (&'static str, &'static str) {
+    match language {
+        Language::De => (
+            "Andere Desktops nicht verfügbar",
+            "Die Liste der anderen Desktops ließ sich nicht lesen.",
+        ),
+        Language::En => (
+            "Other desktops not available",
+            "The list of the other desktops could not be read.",
+        ),
+    }
 }
 
 #[cfg(test)]
