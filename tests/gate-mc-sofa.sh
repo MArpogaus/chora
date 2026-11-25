@@ -632,7 +632,7 @@ cell_page_end() {
             $(jq -r '"160 \(.[1] + .[3] - 2 | floor) 664 2"' <<<"$page")
     }
     until_ok '[ -z "$(ctl call notify state.get "{}" | jq -r ".shown[].summary")" ]' 20 || fail "notify.clear leaves the card"
-    until_ok '! clear_of_card' 40 || fail "the page $page keeps the band of the closed card (rv9ka-1)"
+    until_ok '! clear_of_card' 40 || fail "the page $(node_rect mc-s-morning-page) keeps the band of the closed card (rv9ka-1)"
     page=$(node_rect mc-s-morning-page)
     jq -ne --argjson f "$foot" --argjson p "$page" '$p[1] + $p[3] <= $f[1]' >/dev/null ||
         fail "the page $page reaches under the footer line $foot with no card (rpx1-12)"

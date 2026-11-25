@@ -108,6 +108,14 @@ impl Mc {
         Ok(())
     }
 
+    /// Reads the rooms right after a notice came or went, so that a card
+    /// never covers the last lines of the page until the next round.
+    pub(crate) fn learn_card(&mut self) {
+        if let Err(err) = self.learn_rooms() {
+            tracing::warn!("rooms after a notice: {err}");
+        }
+    }
+
     /// The box of the card on screen, if the notice server runs and shows one.
     fn card_rect(&mut self) -> Option<[f64; 4]> {
         let call = json!({"client": "notify", "method": "state.get", "params": {}});
