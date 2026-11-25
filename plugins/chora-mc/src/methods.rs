@@ -219,7 +219,8 @@ impl Mc {
 
     /// A key without a modifier while a page has the keyboard: Right and
     /// Left turn the page, Home and `XF86HomePage` go to the first page,
-    /// Escape goes back one step.
+    /// Up and Down scroll a long page by a line, Page Up and Page Down
+    /// (`Prior`, `Next`) by a screen, Escape goes back one step.
     pub(crate) fn page_key(&mut self, key: &str, modifiers: &[String], injected: bool) {
         let look = match key {
             _ if !modifiers.is_empty() || !self.by_person(injected) => return,
@@ -362,8 +363,16 @@ impl Mc {
             "agent.remove" => self.remove_agent(&runtime::params(params)?),
             "agent.list" => return Ok(self.list_agents()),
             "agent.focus" => self.focus_agent(&runtime::params(params)?),
-            "notify.push" => self.push(&runtime::params(params)?),
-            "notify.clear" => self.clear_notices(),
+            "notify.push" => {
+                let pushed = self.push(&runtime::params(params)?);
+                self.learn_card();
+                pushed
+            }
+            "notify.clear" => {
+                let cleared = self.clear_notices();
+                self.learn_card();
+                cleared
+            }
             _ => Err(RpcError::new(RpcError::METHOD_NOT_FOUND, method)),
         }
         .map(|()| Value::Null)
