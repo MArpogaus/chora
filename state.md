@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-25 07:43 UTC)
+## Now (2026-11-25 08:00 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC; pace 0.6 %/h = 14 %/day, no day cap; tokens.py 07:43 PM 2.4 % (11-25), week about 34 % vs 55 % pace: under-spending, fill 6 lanes
 session branch: 6f37120b (t136 07:41: co-close r2, co-reach, co-close-waits, stray-super-minor, tour-base r8); 84 greens. TRAIN137 gate-ratchets (+PM fix e25848d6: own sed line counted as a sleep)
@@ -25,10 +25,10 @@ burn-down: audit r6: F1-F4, F6, F8 met; F5 no series; F7 open (v9 take: 82 open,
 | train137 (harness) | PM, 6b89b56f on 6f37120b | gate running |
 | co-minor-r1.md (rc 2; co-77, -78, rcr1-1; 1 %) | sonnet high, claude/co-minor-r1 6f37120b | session_016iS3kPtWQpHRWp48U6q5Xm |
 | xp-minor-r2.md (rc 1; xp-10, -13, -30, rxm1-1; 1 %) | sonnet high, claude/xp-minor-r2 d2a048d5 | session_016iS3kQRG6ST7x32pFZswCM |
-| mc-minor-r1.md (rc 1; mc-56, rpx1-9..14; 1 %) | sonnet high, claude/mc-minor-r1 721be592 | session_016iS3kMCPqruUf56LphN2U8 |
+| mc-minor-r2.md (rc 1; rmm1-1..4, rpx1-10, -15; 1 %) | sonnet high, claude/mc-minor-r2 5cb288e2 | starting |
 | tiling-doors-r2.md (rc 2; 1.0 %) | sonnet high, claude/tiling-doors-r2 721be592 | session_016iS3kPKrsTv7tRKpcW3uAv |
 ## Queue (% week; 5 % reserve)
-1. (rc 1, 2) t136 green 6f37120b (co-75, -76, -79 fixed). TRAIN137 gate-ratchets r1 e25848d6 (harness, alone). TRAIN138: xp-minor r1 d2a048d5 MERGE-OK (rxm1-1 in xp-minor r2).
+1. (rc 1, 2) t136 green 6f37120b (co-75, -76, -79 fixed). TRAIN137 gate-ratchets r1 e25848d6 (harness, alone). TRAIN138: xp-minor r1 d2a048d5, mc-minor r1 5cb288e2 (both MERGE-OK).
 2. (rc 2) construct: CO-MINOR r1 (co-77, co-78, rcr1-1; 1 %); persona recheck of co-75/76/79 in P2-R10.
 3. (rc 2) TILING-DOORS r2 (ti-55, ti-56, rp9-1), review, train, P2-R10 (0.8 %); TILING-MINOR r1 31af60c5 MERGE-OK (rtm1-1..5 minor), merge waits for ti-55, ti-56 (rules.md 6); joins train after DOORS r2.
 4. (F7, rc 11) TOUR-BASE r8 MERGE-OK 27fb2599 (PM), train136; then v9 take; rv9j-1..5 MINOR after.

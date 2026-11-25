@@ -84,3 +84,11 @@ all steps passed; no --push, nothing is pushed
 EXIT 0
 ```
 mc-paths, mc-sofa, mc-column, mc-handover, mc-scale, mc-host, acts, matrix, layout, doors, leak, e2e all PASS. `pgrep -fa 'chora --headless'` is empty.
+
+## PM review r1c (lane mc-minor-r1, 721be592..5cb288e2, +158 -12; PM not the builder)
+Red-then-fix pairs: rpx1-9 2efb203a/edbb70d3, rpx1-11/-12 d38c6ae1/db20c304, rpx1-13 8437e759/8a890ef0, rpx1-14 fbd20122/ffe5e815, rpx1-12 cut 31f5161f/3e355bb2. mc-56: test only (a43de2c9), already fixed by MH-2; hit-area assert added. Lane gate EXIT 0 (lane report).
+- rmm1-1 MINOR: `every_panel_of_a_scene_is_placed_at_1280_by_800` now lets a panel pass the text block by two lines; the page clips there, so a short panel can lose its last line in a scene other than morning (cell page-end checks morning only). Next round: the ink check over every built-in scene, the test back to 0.5 px.
+- rmm1-2 MINOR: PILL_ROOM 200 and CARD_ROOM 135 copy the geometry of the HUD host and chora-notify; read their rects (state.get) instead, or a change there brings the overlap back unseen.
+- rmm1-3 MINOR: the full key list drops the doors (rows clickable); no cell clicks a row of the full list. Accepted for POLS (the same keys, one path), test gap stays.
+- rmm1-4 MINOR (lane note): a stacked page that does not fit at 1280x720 (tour "sauce") still scrolls; "parsley." not visible at rest.
+Verdict (computed): 0 BLOCK, 0 MAJOR -> MERGE-OK 5cb288e2; joins train138 with xp-minor r1 d2a048d5.
