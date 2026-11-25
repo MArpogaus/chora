@@ -885,6 +885,9 @@ impl Tiling {
     }
 
     fn handle_scene(&mut self, event: Event) -> Result<(), ClientError> {
+        if matches!(event, Event::FocusNode { node: None, .. }) && self.focus.node() == Some(NAME) {
+            self.focus.drop_node();
+        }
         if self.focus.hear(&event).is_some() || matches!(event, Event::FocusNode { .. }) {
             return Ok(());
         }
@@ -2032,6 +2035,25 @@ mod tests {
         );
         let held = holder(&tiling);
         assert_eq!((held.holder.as_deref(), held.surface), (Some(NAME), None));
+        tiling.toggle_keys().unwrap();
+        let from = methods.lock().unwrap().len();
+        tiling.hide_keys().unwrap();
+        let back = commands_from(&methods, from);
+        assert!(
+            back.iter().any(|c| c["focus_node"]["node"] == NAME),
+            "the key list gives the keyboard back to the desktop: {back:?}"
+        );
+        tiling
+            .event(Event::FocusNode {
+                node: None,
+                owner: None,
+            })
+            .unwrap();
+        assert_eq!(
+            holder(&tiling).holder,
+            None,
+            "a click elsewhere took the keyboard from the desktop"
+        );
     }
 
     /// A receiver whose claim lies on the output of the window gets the

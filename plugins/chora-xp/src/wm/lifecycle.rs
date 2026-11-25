@@ -5,7 +5,7 @@
 //! `refused`. What a window does once it is xp's (the frame, the focus,
 //! the taskbar) stays in `windows.rs`.
 
-use chora_kit::wm::{Change, Created, Phase, Why};
+use chora_kit::wm::{Change, Created, Origin, Phase, Why};
 use chora_scene::{Event, ipc::ClientError};
 use serde_json::Value;
 
@@ -43,12 +43,13 @@ impl Wm {
     ) -> Result<(), ClientError> {
         for change in changes {
             match change {
-                Change::Adopt { id, .. } => {
+                Change::Adopt { id, origin } => {
                     let (app_id, title) = facts
                         .filter(|created| created.surface == id)
                         .map_or((None, None), |c| (c.app_id.clone(), c.title.as_deref()));
-                    let next = match self.adopt(&id, app_id, title) {
-                        Ok(true) => self.book.confirm(&id),
+                    let keys = self.takes_keys(&origin);
+                    let next = match self.adopt(&id, app_id, title, keys) {
+                        Ok(true) => self.book.confirm_keys(&id, keys),
                         Ok(false) => self.book.refused(&id),
                         Err(err) => {
                             self.book.refused(&id);
@@ -70,6 +71,14 @@ impl Wm {
             }
         }
         Ok(())
+    }
+
+    /// Whether a window that comes from `origin` takes the keyboard: a
+    /// window given in does not while a window or a node of another
+    /// client holds it, as tiling keeps it on the output where the person
+    /// is when it sends a window to xp on another output (D119).
+    fn takes_keys(&self, origin: &Origin) -> bool {
+        *origin != Origin::Given || !(self.focus_away() || self.node_away())
     }
 
     /// Emits `xp.window` for a phase, with the frame of the window while

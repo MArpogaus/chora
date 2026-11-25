@@ -959,6 +959,27 @@ impl Wm {
         }
     }
 
+    /// The whole box of the output of a window, in scene coordinates.
+    pub fn output_box_of(&self, id: &str) -> Option<[f64; 4]> {
+        let name = &self.window(id)?.output;
+        let output = self.outputs.iter().find(|o| &o.name == name)?;
+        Some(output.full.map(f64::from))
+    }
+
+    /// The window that gets the focus when `gone` leaves: the one focused
+    /// before it on the current output, as [`Wm::focused`] says once
+    /// `gone` is gone.
+    pub fn focused_without(&self, gone: &str) -> Option<&str> {
+        let name = &self.outputs.get(self.current)?.name;
+        (self.history.iter().rev())
+            .filter(|id| *id != gone)
+            .find(|id| {
+                self.window(id)
+                    .is_some_and(|w| &w.output == name && self.shows(w))
+            })
+            .map(String::as_str)
+    }
+
     /// The output of tiling under a point in scene coordinates. The claim
     /// is one box around all outputs and may hold outputs of other window
     /// managers in between, so a drop tests the outputs themselves.

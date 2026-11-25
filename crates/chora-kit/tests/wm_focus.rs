@@ -275,3 +275,70 @@ fn a_joining_look_sends_no_empty_focus() {
     look.focus.sent(Some("t1".into()));
     assert!(look.focus.sends(None), "the look drops its own focus");
 }
+
+/// D119: the look keeps the keyboard when its focused window goes to a
+/// look on another output: its next window takes it, or without one its
+/// desktop node; either way the look says it holds the keyboard.
+#[test]
+fn a_kept_keyboard_goes_to_the_next_window_or_the_desktop() {
+    let mut look = Look::new("tiling", &["s1", "s2"]);
+    look.focus.sent(Some("s2".into()));
+    let keep = look.focus.keep(Some("s1".into()), "tiling");
+    assert_eq!(
+        keep,
+        Command::Focus {
+            surface: Some("s1".into())
+        }
+    );
+    look.focus.moved(Some("s1"));
+    assert_eq!(look.state().surface.as_deref(), Some("s1"));
+
+    let mut alone = Look::new("tiling", &["s1"]);
+    alone.focus.sent(Some("s1".into()));
+    let keep = alone.focus.keep(None, "tiling");
+    assert_eq!(
+        keep,
+        Command::FocusNode {
+            node: Some("tiling".into())
+        }
+    );
+    assert_eq!(
+        alone.focus.holder("tiling", |_| false),
+        Holder::Node("tiling".into())
+    );
+    let state = alone.state();
+    assert_eq!(
+        (state.holder.as_deref(), state.surface),
+        (Some("tiling"), None)
+    );
+    assert!(
+        !alone.focus.sends(None),
+        "a relayout without a window sends no focus"
+    );
+}
+
+/// D119: a window given in takes the keyboard when nobody holds it or the
+/// look itself does, and not while a window or a node of another client
+/// holds it.
+#[test]
+fn a_window_given_in_takes_the_keyboard_only_when_no_other_client_holds_it() {
+    let mut xp = Look::new("xp", &["s5"]);
+    let own = |s: &str| s == "s5";
+    assert!(xp.focus.takes_given("xp", own), "nobody holds the keyboard");
+    xp.focus.moved(Some("s5"));
+    assert!(xp.focus.takes_given("xp", own), "the look holds it");
+    xp.focus.moved(Some("s1"));
+    assert!(
+        !xp.focus.takes_given("xp", own),
+        "a window of tiling holds it"
+    );
+    xp.focus.moved(None);
+    xp.focus.hear(&Event::FocusNode {
+        node: Some("tiling".into()),
+        owner: Some("tiling".into()),
+    });
+    assert!(
+        !xp.focus.takes_given("xp", own),
+        "the desktop of tiling holds it"
+    );
+}

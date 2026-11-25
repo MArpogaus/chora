@@ -249,6 +249,30 @@ impl Focus {
         state::Focus { holder, surface }
     }
 
+    /// The command that keeps the keyboard with the look when its focused
+    /// window goes to a look on another output (D119): the look's `next`
+    /// window takes it, or without one its own node `desk`, so that the
+    /// look holds it with its desktop. The look sends it in a transaction
+    /// before the give, so that the receiver sees the holder when the
+    /// window comes and leaves the keyboard where it is.
+    pub fn keep(&mut self, next: Option<String>, desk: &str) -> Command {
+        if next.is_some() {
+            return self.to(next);
+        }
+        self.lost = false;
+        self.sent(None);
+        self.to_node(Some(desk.into()))
+    }
+
+    /// Whether a window given in to the look `name` takes the keyboard
+    /// (D119): not while another client holds it, with a window that the
+    /// core focuses or with a node, as the giver that kept it on the
+    /// output of the person; `own` tells the windows of the look.
+    #[must_use]
+    pub fn takes_given(&self, name: &str, own: impl Fn(&str) -> bool) -> bool {
+        !self.taken_by_other(name) && self.core.as_deref().is_none_or(own)
+    }
+
     /// The focus after the window `gone` went for `why`: `None` when the
     /// look did not hold the keyboard on it or gave it away (the receiver
     /// focuses it), else what the policy says.

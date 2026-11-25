@@ -429,6 +429,19 @@ not for a click on its wallpaper in a smaller claim of that look, which
 the click chose; rule 5 keeps the next new window with the look that was
 there first.
 
+A window handed to a window manager on another output does not take the
+keyboard with it (D119): the keyboard stays with the look that the person
+acted in, on its next window or, without one, on its desktop (its root
+node), until the person moves to that output (a click, a press there)
+or drags the window over, which goes with the person. The giver keeps the
+keyboard in a transaction before the give when no claim of the receiver
+overlaps the output of the window (`chora_kit::wm::give::claims_over`,
+`Focus::keep`), and a receiver gives a window that comes while a window
+or a node of another client holds the keyboard no focus
+(`Focus::takes_given`, `Book::confirm_keys`). chora-tiling keeps it and
+chora-xp yields; a receiver whose claim covers the output of the window
+takes the keyboard with the window, as below.
+
 A press of a real pointer button on a point of a claim with no window
 under it chooses the owner of the smallest such claim, unless that one
 has the keyboard focus anyway: who clicks the empty screen of another
@@ -481,7 +494,8 @@ Every window manager of the repository exports `window.give` with
 `surface` and `to`, and answers with the surface id. The method is
 privileged, because the receiver can focus, close or configure the
 window. It hands the window over with a `remove` with `to`, and the
-receiver focuses it. A `to` that is not connected or holds no claim
+receiver focuses it, unless the window goes to another output (D119,
+above). A `to` that is not connected or holds no claim
 fails, and the window stays. `choractl give
 TO [--surface ID]` calls `window.give` of the owner of the window, by
 default of the focused one. A window dropped outside the claim of its

@@ -352,11 +352,16 @@ impl Tiling {
         Ok(())
     }
 
-    /// Hides the key list and gives the keyboard back.
+    /// Hides the key list and gives the keyboard back: to the focused
+    /// window, or to the desktop of tiling when it held the keyboard
+    /// before (D119).
     pub(super) fn hide_keys(&mut self) -> Result<(), ClientError> {
         self.open.shut(keys::KEYS);
+        let back = (self.focus.node())
+            .filter(|n| *n == crate::NAME)
+            .map(String::from);
         self.apply(vec![
-            Command::FocusNode { node: None },
+            Command::FocusNode { node: back },
             Command::Remove {
                 id: keys::KEYS.into(),
                 to: None,

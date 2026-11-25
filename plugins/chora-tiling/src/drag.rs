@@ -32,8 +32,9 @@ impl Tiling {
     }
 
     /// Hands a window to the window manager `to` with a remove with `to`
-    /// (D55); the receiver gives it the focus. The answer of
-    /// `window.give`.
+    /// (D55); the receiver gives it the focus, unless its claim lies on
+    /// another output than the window (D119, [`Self::keep_keys`]). The
+    /// answer of `window.give`.
     pub(super) fn hand(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
         self.hand_dragged(surface, to, None)
     }
@@ -60,6 +61,10 @@ impl Tiling {
                 .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         }
         let dragged = grab.is_some();
+        if !dragged {
+            self.keep_keys(surface, to)
+                .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+        }
         self.book.give(surface, to);
         let answer = match self.rt.conn.give_dragged(surface, to, grab) {
             Ok(answer) => answer,
@@ -78,6 +83,27 @@ impl Tiling {
         self.forget_window(surface, &Why::Given(to.into()));
         self.relayout().map_err(rejected)?;
         Ok(answer)
+    }
+
+    /// The keyboard stays where the person looks (D119): before the
+    /// focused window goes to a look whose claim lies on no part of the
+    /// output of the window, the window focused before it takes the
+    /// keyboard, or without one the desktop of tiling, its root node. Its
+    /// own transaction comes first, so that the receiver hears of the
+    /// holder before the window comes and leaves the keyboard there. A
+    /// drag goes with the pointer, where the person is, and keeps nothing;
+    /// so does a query that fails.
+    pub(super) fn keep_keys(&mut self, surface: &str, to: &str) -> Result<(), ClientError> {
+        let held = !self.focus.lost && self.focus.surface.as_deref() == Some(surface);
+        let Some(area) = self.wm.output_box_of(surface).filter(|_| held) else {
+            return Ok(());
+        };
+        if self.rt.conn.claims_over(to, area).unwrap_or(true) {
+            return Ok(());
+        }
+        let next = self.wm.focused_without(surface).map(String::from);
+        let keep = self.focus.keep(next, crate::NAME);
+        self.apply(vec![keep])
     }
 
     /// Whether a binding drags: the one of `drag`, or `move`, the

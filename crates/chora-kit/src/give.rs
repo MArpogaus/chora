@@ -275,6 +275,17 @@ impl Conn {
         Ok(claimant_at(&nodes, point, |o| o != me).map(String::from))
     }
 
+    /// Whether a claim of the window manager `to` overlaps `area` in scene
+    /// coordinates, as [`crate::wm::give::claims_over`] (D119).
+    ///
+    /// # Errors
+    ///
+    /// The query fails.
+    pub fn claims_over(&mut self, to: &str, area: [f64; 4]) -> Result<bool, RpcError> {
+        let nodes = self.query("*").map_err(rejected)?;
+        Ok(crate::wm::give::claims_over(&nodes, to, area))
+    }
+
     /// Hands a surface of the plugin to the window manager `to` with a
     /// `remove` with `to`, and returns the answer of `window.give`: the
     /// surface id. The core refuses a `to` that is not connected or holds
