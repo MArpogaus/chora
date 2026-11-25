@@ -953,8 +953,20 @@ mod tests {
         let _ = std::fs::remove_dir_all(root);
     }
 
-    #[allow(clippy::too_many_lines, reason = "a fake core and a whole plugin")]
     fn on_fake_core(tag: &str, chats: bool) -> (Agent, [chora_kit::testing::TempDir; 2]) {
+        let (agent, dirs, _core) = on_core(tag, chats);
+        (agent, dirs)
+    }
+
+    #[allow(clippy::too_many_lines, reason = "a fake core and a whole plugin")]
+    fn on_core(
+        tag: &str,
+        chats: bool,
+    ) -> (
+        Agent,
+        [chora_kit::testing::TempDir; 2],
+        chora_kit::testing::FakeCore,
+    ) {
         let dir = chora_kit::testing::TempDir::new(&format!("chora-assistant-{tag}"));
         std::fs::create_dir_all(&dir).unwrap();
         let core = chora_kit::testing::FakeCore::start();
@@ -1016,7 +1028,7 @@ mod tests {
             flash: None,
             keyboard_told: false,
         };
-        (agent, [dir, cache])
+        (agent, [dir, cache], core)
     }
 
     fn pressed(node: &str, injected: bool) -> Event {
@@ -1128,6 +1140,56 @@ mod tests {
             .map(|l| l.text)
             .collect::<Vec<_>>()
             .join("\n")
+    }
+
+    /// xp-30: the greeting goes with any press of the person, on a window or
+    /// on the desktop, and does not come back with a helper.
+    #[test]
+    fn a_press_anywhere_closes_the_greeting_xp_30() {
+        let (mut agent, _dirs) = xp_agent("greet-press");
+        let now = Instant::now();
+        let text = chora_kit::words::Word::GreetingNoHelper
+            .text(agent.language)
+            .to_owned();
+        agent.said = Some((text.clone(), now + Duration::from_secs(12)));
+        let shown = (agent.assistant.as_mut())
+            .expect("the paperclip shows")
+            .say(&mut agent.theme, &text, Duration::from_secs(12), now);
+        agent.apply(shown).unwrap();
+        agent.event(pressed("s1", false)).unwrap();
+        assert!(
+            agent.said.is_none(),
+            "the press leaves the greeting in the balloon"
+        );
+    }
+
+    /// xp-30: the paperclip does not greet over a window: it waits, and
+    /// the greeting is not spent.
+    #[test]
+    fn the_greeting_waits_while_a_window_lies_under_the_balloon_xp_30() {
+        let (mut agent, _dirs, core) = on_core("greet-window", true);
+        let xp = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/assets/assistant");
+        agent.source.assets = Some(xp);
+        let (theme, values, _) = agent
+            .source
+            .load(NEUTRAL, &Context::default())
+            .expect("the XP folder loads");
+        agent.theme = theme;
+        agent.values = values;
+        agent.sync_assistant(Instant::now()).unwrap();
+        core.answer_with(
+            "scene.query",
+            serde_json::json!([{
+                "id": "s1", "kind": "surface", "visible": true,
+                "rects": {"DP-1": [0, 0, 1920, 1030]},
+                "surface": {"app_id": "foot"}
+            }]),
+        );
+        let now = Instant::now();
+        agent.greet = Some(now);
+        agent.greet_step(now + Duration::from_millis(1)).unwrap();
+        assert!(agent.said.is_none(), "the paperclip greeted over a window");
+        assert!(agent.greet.is_some(), "the greeting is still due");
     }
 
     /// xp-47: the agent tells its first state after the greeting.

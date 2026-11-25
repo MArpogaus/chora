@@ -10,13 +10,15 @@
 #   xp30-none       the same with no helper set up: the honest "no helper"
 #                   text
 #   xp30-once       the second start of the same state: no greeting
+#   xp30-click      a click anywhere else on the desktop takes the greeting away
+#   xp30-window     a window under the balloon: no greeting until the window is gone
 #   xp28-editor     xp-28: a new window starts right of the desktop icons
 # BIN: directory with the binaries, SHOTS: directory for the logs.
 set -u
 . "$(dirname "$0")/gate-lib.sh"
 cell=${1:-all}
 if [ "$cell" = all ]; then
-    for c in xp29-click xp29-none xp30-helper xp30-none xp30-once xp28-editor; do
+    for c in xp29-click xp29-none xp30-helper xp30-none xp30-once xp30-click xp30-window xp28-editor; do
         bash "$0" "$c" || exit 1
     done
     exit 0
@@ -66,6 +68,9 @@ stop_assistant() {
 }
 click() {
     echo "[{\"pointer_move\": {\"node\": \"$1\", \"point\": [10, 10]}}, {\"button\": {\"state\": \"pressed\"}}, {\"button\": {\"state\": \"released\"}}]" | ctl inject >/dev/null
+}
+click_at() {
+    echo "[{\"pointer_move\": {\"position\": [$1, $2]}}, {\"click\": {\"button\": 272}}]" | ctl inject - >/dev/null
 }
 balloon() { ctl query id:hud-line | jq -r '.[0] | select(.visible != false) | (.meta.text // .props.text // "")'; }
 wait_balloon() {
@@ -126,12 +131,40 @@ xp30-once)
     [ -z "$t" ] || fail "xp-30: the second start of the same state greets again: $t"
     ok "xp-30: the second start is quiet"
     ;;
+xp30-click)
+    start_assistant clicked
+    greets xp-30
+    click_at 400 300
+    for _ in $(seq 20); do
+        [ -z "$(balloon)" ] && break
+        sleep 0.2
+    done
+    t=$(balloon)
+    [ -z "$t" ] || fail "xp-30: a click elsewhere leaves the greeting in the balloon: $t"
+    ok "xp-30: a click on the desktop takes the greeting away"
+    ;;
+xp30-window)
+    need foot
+    foot --window-size-pixels=1180x640 -T cover sleep 600 >"$shots/foot.log" 2>&1 &
+    fpid=$!
+    pids+=("$fpid")
+    ctl wait --timeout 15 'kind:surface' >/dev/null || fail "xp-30: no window to cover the balloon"
+    sleep 1.5
+    read -r wx wy ww wh < <(ctl query 'kind:surface' | jq -r '.[0].rects | to_entries[0].value | map(floor) | join(" ")')
+    { [ "$wx" -lt 1184 ] && [ $((wx + ww)) -gt 900 ] && [ "$wy" -lt 700 ] && [ $((wy + wh)) -gt 400 ]; } ||
+        fail "xp-30: the window $wx,$wy ${ww}x$wh does not lie under the place of the balloon"
+    start_assistant covered
+    sleep 5
+    t=$(balloon)
+    [ -z "$t" ] || fail "xp-30: the paperclip greets over a window: $t"
+    ctl capture "$shots/xp-30-covered.png" >/dev/null
+    kill "$fpid"
+    wait_balloon || fail "xp-30: the greeting never comes after the window is gone"
+    ok "xp-30: no greeting over a window, it comes when the window is gone: $t"
+    ;;
 xp28-editor)
     need foot
     need bc
-    click_at() {
-        echo "[{\"pointer_move\": {\"position\": [$1, $2]}}, {\"click\": {\"button\": 272}}]" | ctl inject - >/dev/null
-    }
     click_at 50 785
     for _ in $(seq 40); do
         ctl query id:xp-menu | jq -e '.[0].visible == true' >/dev/null && break
