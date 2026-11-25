@@ -138,15 +138,19 @@ impl<A> Runtime<A> {
     /// Says to the other window managers whether the plugin swallows, on
     /// a change only: a window manager that came earlier lets its swallow
     /// go while the plugin swallows (D118). A refusal of the core, such
-    /// as its limit of events per second, is no error.
+    /// as its limit of events per second, is no error, but the plugin did
+    /// not say it: it says it again at the next set of grabs (rss-12).
     pub(crate) fn say_swallow(&mut self, on: bool) -> Result<(), ClientError> {
         if self.said == on {
             return Ok(());
         }
-        self.said = on;
         let said = json!({"event": said_event(&self.name), "data": {"on": on}});
         match self.conn.call::<_, Value>("events.emit", said) {
-            Ok(_) | Err(ClientError::Rpc(_)) => Ok(()),
+            Ok(_) => {
+                self.said = on;
+                Ok(())
+            }
+            Err(ClientError::Rpc(_)) => Ok(()),
             Err(err) => Err(err),
         }
     }
@@ -521,6 +525,48 @@ mod tests {
             look.rt.action("Super+1"),
             Some(&"tag 1"),
             "rss-1: Super+1 of tiling stays dead after the swallow of mc let it go"
+        );
+    }
+
+    /// The core refuses more than 32 emits per second per client: a lost
+    /// `on` leaves the joiner's keys dead (rss-1), a lost `off` leaves
+    /// nobody swallowing (rss-7). The plugin says it again at the next
+    /// set of grabs.
+    #[test]
+    fn a_refused_say_is_said_again_at_the_next_set_of_grabs() {
+        let said = |core: &FakeCore| -> Vec<Value> {
+            (core.model().lock().unwrap().emits.iter())
+                .filter(|e| e["event"] == "construct.swallow")
+                .map(|e| e["data"]["on"].clone())
+                .collect()
+        };
+        let core = FakeCore::start();
+        let mut rt = core.runtime::<&str>("construct");
+        core.refuse_next("events.emit");
+        rt.start_grabs();
+        rt.grab_swallowed("Super", &"swallow").unwrap();
+        rt.end_grabs().unwrap();
+        assert_eq!(said(&core), Vec::<Value>::new(), "the core refused `on`");
+        rt.start_grabs();
+        rt.grab_swallowed("Super", &"swallow").unwrap();
+        rt.end_grabs().unwrap();
+        assert_eq!(
+            said(&core),
+            [json!(true)],
+            "rss-12: the refused `on` is lost for good"
+        );
+        core.refuse_next("events.emit");
+        rt.start_grabs();
+        rt.grab("Super+d".parse().unwrap(), "drag").unwrap();
+        rt.end_grabs().unwrap();
+        assert_eq!(said(&core), [json!(true)], "the core refused `off`");
+        rt.start_grabs();
+        rt.grab("Super+d".parse().unwrap(), "drag").unwrap();
+        rt.end_grabs().unwrap();
+        assert_eq!(
+            said(&core),
+            [json!(true), json!(false)],
+            "rss-12: the refused `off` is lost for good"
         );
     }
 
