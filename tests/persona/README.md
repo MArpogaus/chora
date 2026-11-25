@@ -41,8 +41,11 @@ driver here gives it exactly that.
   `$PERSONA_DIR/fake/calls.log` (`PERSONA_CALLS` in `session.env`) and none
   reaches the host. `tests/persona-selftest.sh` shows it.
 - `session.sh tiling+xp` starts a second look beside the first, as the
-  looks of a handover are (`PERSONA_FLAVORS` in `session.env`). The first
-  look is where the person is: the session clicks once on the empty claim of
+  looks of a handover are (`PERSONA_FLAVORS` in `session.env`). Each look
+  has its own output (D55): the first one `HEADLESS-1`, which `act.py look`
+  captures, the second `HEADLESS-2` to the right of it
+  (`choractl capture --output HEADLESS-2`). The first look is where the
+  person is: the session clicks once on the empty claim of
   the first look, so that its keys and the windows they start (Super+Return
   of tiling) stay with it, and the desktop of the look that joined last does
   not hold the keyboard. The click chooses a look only with
