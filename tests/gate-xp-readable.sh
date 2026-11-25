@@ -6,6 +6,8 @@
 #                      taskbar (our own element, not Luna) have 4.5:1 in
 #                      every state: at rest, under the pointer, and dimmed
 #                      behind Turn off computer
+#   pager-current      the current workspace button differs from each other one by 3:1 at rest and under
+#                      the pointer (rv9j-1), measured on the fill pixels at the left edge of the buttons
 #   session-labels     the captions of Lock, Log Off and Restart of Turn off
 #                      computer (our own buttons) have 7:1, the bar of a button, as white on their
 #                      backing; Stand By and Turn Off are Luna's and lie on its
@@ -74,6 +76,28 @@ pager_digits() {
     done
 }
 
+pager_apart() {
+    local file=$1 label=$2 n x y w h cur=
+    read -r x y w h <<<"$(rect xp-pager-0-HEADLESS-1)"
+    cur=$(python3 -I "$repo/tests/png-pixel.py" "$file" "$((x + 3))" "$((y + h / 2))")
+    for n in 1 2 3; do
+        read -r x y w h <<<"$(rect "xp-pager-$n-HEADLESS-1")"
+        at_least "$(python3 -I - "$cur" "$(python3 -I "$repo/tests/png-pixel.py" "$file" "$((x + 3))" "$((y + h / 2))")" <<'PY'
+import sys
+
+
+def lum(p):
+    lin = [c / 255 / 12.92 if c / 255 <= 0.04045 else ((c / 255 + 0.055) / 1.055) ** 2.4 for c in map(int, p.split()[:3])]
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+
+a, b = sorted((lum(sys.argv[1]), lum(sys.argv[2])), reverse=True)
+print(f"{(a + 0.05) / (b + 0.05):.2f}")
+PY
+)" 3.0 "pager-current: $label: workspace button $((n + 1)) beside the current one"
+    done
+}
+
 sleep 1
 read -r bx by bw bh <<<"$(rect xp-icon-2)"
 { [ "$((bx + bw))" -ge 1256 ] && [ "$by" -ge 400 ] && [ "$((by + bh))" -le 770 ]; } ||
@@ -81,11 +105,13 @@ read -r bx by bw bh <<<"$(rect xp-icon-2)"
 bin_clear "greeting of the paperclip"
 ctl capture "$shots/rest.png" >/dev/null || fail "no capture"
 pager_digits "$shots/rest.png" "pager at rest"
+pager_apart "$shots/rest.png" "pager at rest"
 read -r x y w h <<<"$(rect xp-pager-1-HEADLESS-1)"
 inj "[{\"pointer_move\": {\"position\": [$((x + w / 2)), $((y + h / 2))]}}]"
 sleep 0.6
 ctl capture "$shots/hover.png" >/dev/null
 pager_digits "$shots/hover.png" "pager under the pointer"
+pager_apart "$shots/hover.png" "pager under the pointer"
 inj '[{"pointer_move": {"position": [640, 200]}}]'
 
 key Super+Shift+e

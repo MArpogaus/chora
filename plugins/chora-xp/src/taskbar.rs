@@ -1303,6 +1303,53 @@ mod tests {
         assert!(rects[DESKTOPS - 1][0] + 22 <= 1280 - bar.tray_width());
     }
 
+    /// The WCAG 2 relative luminance of a `#RRGGBB` color.
+    fn luminance(hex: &str) -> f64 {
+        let channel = |i: usize| {
+            let c = f64::from(u8::from_str_radix(&hex[1 + 2 * i..3 + 2 * i], 16).unwrap()) / 255.0;
+            if c <= 0.04045 {
+                c / 12.92
+            } else {
+                ((c + 0.055) / 1.055).powf(2.4)
+            }
+        };
+        0.2126 * channel(0) + 0.7152 * channel(1) + 0.0722 * channel(2)
+    }
+
+    fn ratio(a: &str, b: &str) -> f64 {
+        let (a, b) = (luminance(a), luminance(b));
+        (a.max(b) + 0.05) / (a.min(b) + 0.05)
+    }
+
+    #[test]
+    fn the_current_desktop_button_differs_from_the_others_by_3_to_1_rv9j_1() {
+        for hovered in [false, true] {
+            let current = pager_colors(true, false).0;
+            let other = pager_colors(false, hovered).0;
+            assert!(
+                ratio(current, other) >= 3.0,
+                "current {current} on {other} (hovered {hovered}): {:.2}:1",
+                ratio(current, other)
+            );
+        }
+    }
+
+    /// The tray of Luna is #0D8DEA (13, 141, 234) at its middle row; a button
+    /// is that hue darkened for the white digit, not a blue square of its own.
+    #[test]
+    fn the_desktop_buttons_keep_the_tray_tone_and_a_readable_digit_xp_19() {
+        for hovered in [false, true] {
+            let fill = pager_colors(false, hovered).0;
+            assert!(
+                ratio(fill, "#FFFFFF") >= 4.5,
+                "{fill} under the white digit"
+            );
+            let [r, g, b] = [1, 3, 5].map(|i| i32::from_str_radix(&fill[i..i + 2], 16).unwrap());
+            assert!(b > g && g > r + 60, "{fill} is not of the tray hue");
+        }
+        assert!(ratio(pager_colors(true, false).0, "#FFFFFF") >= 4.5);
+    }
+
     #[test]
     fn a_minimized_window_never_has_the_pressed_look_of_the_active_one() {
         let (mut theme, cache) = crate::dialog::tests::theme("taskbar-minimized");
