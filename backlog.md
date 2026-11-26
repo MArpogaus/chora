@@ -443,3 +443,6 @@ rr9-1 | MINOR | review-record-v9 r4 (reports/record-v9.md "## Review r4") | open
 - tour harness: rtl1-1 MINOR (ensure_notify does not wait until notify serves), rtl1-2 NIT (fuzzel parse not shared with the gate); reports/tour-launch.md Review r1.
 - rtf2-1 MAJOR (mc keeps and yields keys on give; mc hand_kept, confirm_keys) and rtf2-2 NIT (D119/api.md xp Control Panel rows): TILING-FOCUS r3 after MC-MINOR r5; reports/tiling-focus.md Review r2.
 - rfpn1-1 NIT (PERSONA_ROW_LAG default 3 not named in the header comment); reports/flake-persona-notepad.md Review r1.
+
+- rmm5-1 MINOR mc: long foot card has no capture (mc-minor r5); next mc tour take shows it.
+- rmm5-2 NIT mc acts/tests_moved.rs: wheel test sleeps 600 ms; pass an Instant.

@@ -192,3 +192,12 @@ Base 157be195, head 1ab2e6a70 (red 79fe8dac, fix 1ab2e6a7), branch claude/mc-min
 - rmm3-4: wheel_acc rest dropped after a 300 ms pause; reversal still resets.
 - Gate: `tests/merge-gate.sh --jobs 2`: all steps passed, none red (log tail pasted to the PM).
 - Capture media/2026-11-26/mc-minor-r5/mc-sofa-alarm-dark.png (1280x720, the gate's alarm cell): a two-line card, not the 8-line one; the long card is covered by the unit test only.
+
+## Review r5 (PM)
+
+PM review (68 lines, rules: under 200). claude/mc-minor-r5 157be195..1ab2e6a7, 5 files +68 -10.
+Checks: red 79fe8dac before fix 1ab2e6a7 (3 tests fail at red, per the lane); rmm3-1 rooms.rs reads the card rect output-local, test with a foot card off the origin (135); rmm3-2 foot told by its bottom in the lower third, room clamped to a third, test of a long card (240); rmm3-3 docs/mc-style.md:129 faint behind the selected row, accent for the match, matches the code; rmm3-4 acts.rs GESTURE_GAP 300 ms, a fresh gesture or a reversal resets wheel_acc. Gate: all steps passed, no red cell.
+Findings:
+- rmm5-1 MINOR: step 3 asked for a capture of a long foot card at 1280x720 with the last page line whole above it; the capture is the gate's two-line alarm card, so the long card has a unit test but no capture (rules.md 7). Filed: the next mc take of tour v9 (F7 judges) shows a long foot card.
+- rmm5-2 NIT acts/tests_moved.rs: the wheel test sleeps 600 ms on the wall clock; a passed-in Instant would be faster and exact. Backlog.
+Counts: BLOCK 0, MAJOR 0, MINOR 1, NIT 1. Verdict: **MERGE-OK** (1ab2e6a7): train 149.
