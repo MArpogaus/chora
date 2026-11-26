@@ -263,7 +263,7 @@ red_first_range() {
     local base=$1 cap=10 shas=() fixes=() i j sha subject prev=-1 ids paired c file name crate wt bad=0 body
     local proven=0 notrun=0 edits
     local -A names=() files=()
-    local line verdict gate runs passes
+    local line verdict gate runs passes unp
     git rev-parse --verify -q "$base" >/dev/null || return 1
     mapfile -t shas < <(git rev-list --reverse --no-merges --topo-order "$base..HEAD")
     for i in "${!shas[@]}"; do
@@ -326,6 +326,7 @@ red_first_range() {
             }
             runs=0
             passes=0
+            unp=0
             for crate in "${!names[@]}"; do
                 # shellcheck disable=SC2086
                 line=$(cd "$wt/wt" && run_named "$crate" "${files[$crate]}" ${names[$crate]})
@@ -340,14 +341,16 @@ red_first_range() {
                     echo "red-first: $(git log -1 --format=%h "$sha")${line#pass} passes on the parent"
                     ;;
                 unproven)
+                    unp=1
                     echo "red-first: $(git log -1 --format=%h "$sha") ${line#unproven }"
                     ;;
                 esac
             done
             if [ "$runs" = 1 ]; then
                 proven=$((proven + 1))
-            elif [ "$passes" = 1 ] && [ "$gate" = 1 ]; then
-                echo "red-first: $(git log -1 --format=%h "$sha") gate cell too, not run"
+            elif [ "$passes" = 1 ] && [ "$gate$edits$unp" != 000 ]; then
+                [ "$gate" = 0 ] || echo "red-first: $(git log -1 --format=%h "$sha") gate cell too, not run"
+                [ "$edits" = 0 ] || echo "red-first: $(git log -1 --format=%h "$sha") test commit edits tests too, not run"
                 notrun=$((notrun + 1))
             elif [ "$passes" = 1 ]; then
                 echo "RED-FIRST NOT RED: $(git log -1 --format='%h %s' "$sha")"
