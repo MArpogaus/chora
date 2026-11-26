@@ -867,6 +867,10 @@ poll_for 50 leaky_gone
 check "stray: an interrupted gate leaves no chora process of its steps" "$(leaky_alive)" 0
 leaky_end
 
+check "docs: the gate has a docs step" "$("$gate" --list | grep -cx docs)" 1
+check "docs: the step builds the site strict and says NOT RUN without mkdocs" \
+    "$(grep '^docs|' "$gate" | grep -c 'NOT RUN: mkdocs.*mkdocs build --strict')" 1
+
 [ "$failures" = 0 ] || {
     echo "FAIL: $failures checks of merge-gate-selftest"
     exit 1
