@@ -161,7 +161,7 @@ impl Mc {
     /// output of mc, the margin column holds it: the notifications fold,
     /// the key list goes, and mc emits the box under the head `Chat` as
     /// `mc.chat.slot {output, rect}`; `rect` is `null` when it closes.
-    fn chat_drawer(&mut self, data: &Value) -> Result<(), ClientError> {
+    pub(crate) fn chat_drawer(&mut self, data: &Value) -> Result<(), ClientError> {
         let Some(output) = self.output.as_ref().map(|o| o.name.clone()) else {
             return Ok(());
         };
