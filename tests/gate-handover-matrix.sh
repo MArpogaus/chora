@@ -278,31 +278,20 @@ arrived() {
     return 1
 }
 
+kept_now() {
+    local all nodes
+    all=$(ctl query kind:surface 2>/dev/null) || all='[]'
+    last_all=$all
+    nodes=$(ctl query '*' 2>/dev/null) || nodes='[]'
+    echo "$all" | jq -e --arg w "$w" --arg o "$1" "
+        $surfaces_clean and any(.[]; .id == \$w and .owner == \$o and .focused != true)" >/dev/null &&
+        echo "$nodes" | jq -e --arg g "$2" 'any(.[]; .focused == true and .owner == $g)' >/dev/null &&
+        on_top "$all" "$1"
+}
+
 kept_by() {
-    local all nodes held=0
-    for _ in $(seq "$(awk -v s="$3" 'BEGIN {print s * 5}')"); do
-        all=$(ctl query kind:surface 2>/dev/null) || all='[]'
-        last_all=$all
-        echo "$all" | jq -e --arg w "$w" --arg o "$1" 'any(.[]; .id == $w and .owner == $o)' >/dev/null && break
-        sleep 0.2
-    done
-    for _ in $(seq "$(awk -v s="$4" 'BEGIN {print s * 5}')"); do
-        all=$(ctl query kind:surface 2>/dev/null) || all='[]'
-        last_all=$all
-        nodes=$(ctl query '*' 2>/dev/null) || nodes='[]'
-        if echo "$all" | jq -e --arg w "$w" --arg o "$1" "
-            $surfaces_clean and any(.[]; .id == \$w and .owner == \$o and .focused != true)" >/dev/null &&
-            echo "$nodes" | jq -e --arg g "$2" 'any(.[]; .focused == true and .owner == $g)' >/dev/null &&
-            on_top "$all" "$1"; then
-            [ "$held" = 1 ] && return 0
-            held=1
-            sleep 1
-            continue
-        fi
-        held=0
-        sleep 0.2
-    done
-    return 1
+    until_ok "kept_now $1 $2" "$(awk -v a="$3" -v b="$4" 'BEGIN {print int((a + b) * 2)}')" &&
+        holds "kept_now $1 $2" 1
 }
 
 construct_pane() {
