@@ -40,6 +40,12 @@ U3 | 11-11 | rc | one surface per helper conversation in every look: while the c
 MC1 | 11-11 | rc | open from the mc round: N4 hover marks on card buttons, N3 chat field style in services/voice/chat, C6 picker row (MINOR: only if they sit on a main path).
 A13 | 11-09 | rc | after an mc drag onto the construct output, construct loses its panes (`pane: none`); the matrix gate repaired it in setup with `window.show`. Check whether it still happens (no known window loss).
 
+- rmmr1-3 NIT (mc keys.rs:251): 21-row bound counts shipped mc.yaml rows, not the column; a user key leaves the column without a more mark.
+- rmmr1-4 NIT (mc layout.rs:33): one frame of panel lines at the old width after a side toggle; with rpm2-5 b.
+
+- rksr1-4 NIT (gate-swallow-chords.sh:99): xp cell never red on 1c57c3d5; no fix.
+
+- rpc2-5 NIT (demo/tour/chapters/construct.py:103): act 9 clicks the hidden chip node; acts 9, 10 red; for tour take r3.
 ## Review, docs, logging (rc 6, 8, 9a)
 A2 | 11-09 | rc | security audit as part of the per-area review (rc.md 6 lists charter 11 (a)-(c)); details in archive/charter.md section 15 item 2; the attacker check of the voice paths ran on 11-09 (reports/week-1.md).
 G1 | 11-10 | rc | open from grants2, for the security review: a HUD name whose HUD is not running is free to any process; hello accepts the same executable (several choractl).
@@ -451,3 +457,15 @@ rr9-1 | MINOR | review-record-v9 r4 (reports/record-v9.md "## Review r4") | open
 - harness: rth1-1 MINOR mkdocs missing in the cloud env: docs SKIP, trains need --allow-skip docs; add mkdocs to the environment setup. reports/tour-harness.md Review r1.
 - harness (P2 r12): persona L2 needs a plain editor or act.py writing the config (haiku ricer cannot drive the modal editor, red 2/2 without a product line); check.py T3 scores with a question in flight (wait until the answer settles); ti-56 persona side and T7 "reached, not verified" still unobserved. reports/p2-r12-tiling.md "## r12".
 - tour (rc1-pass r2 xp): handover acts 7, 8 red twice on 3be27e32 ("expected the focus with mc, holders ['tiling']"): rows predate D119 (the giver keeps the keys after a give key). PM decision 11:2x: D119 holds (ti-57 fix, POLS: keys stay where the person was); the rows follow it (click the page before the next give key). Next TOUR-ROWS round (r5). reports/rc1-pass.md "## r2 xp" Notes.
+- XP-LAYER-FOCUS (rpx2-5, xp-49, XP-MINOR r5): the core sends no focus event when a layer surface (xp chat field) takes the keys, so xp keeps the active title; needs a core event (crates/chora); after the rc.
+
+## HANDOVER-DRAG-FOCUS (rpm2-6, after the rc)
+After Super+Alt+3 into mc, a Super+drag onto xp leaves the keyboard on tiling's empty desktop (D119: a drag gives without stay). Shared focus handover, needs core; findings/shared.md rpm2-6.
+- rtr4r-2, rtr4r-4 (MINOR, tour rows): m8b..m10 row causes miscite 675ebd55; v8 replay compares the Agents page with the v9 agenda (reports/tour-rows.md "## Review r4"). After tour take r3.
+- lanes.py rule 9: count only docs(state) commits of the PM, not lane reports (20/h on 11-26 14:16 were mostly lane pushes).
+- rpt2-2 (MINOR, tiling): Looks picker on an empty tag offers a move; hide it without a focused window.
+- rhrf2r2-3 NIT (harness): SIGTERM to the gate lead pid orphans the red_first_run subshell; worktree and tmp stay until cargo ends (reports/h-rf2.md Review r2).
+- rtf1r-1 MINOR (harness): test_tour_diff.py:845 a row citing a merge sha passes; reject a cited sha with more than one parent. rtf1r-2 MINOR red-first commit order; rtf1r-3 NIT source-grep test; rtf1r-4 NIT guard the cube.list fallback with TOUR_BASELINE (reports/tour-rows.md Review fix r1).
+
+## MC-PILL-BOUND (rmmr3-1, MINOR)
+The assistant pill drop under the header is unbounded and can leave the output in bottom-anchored looks; clamp to the output. reports/mc-minor.md "## Review r3 (mc-minor-r3)"; rmmr3-2..4 NIT there.

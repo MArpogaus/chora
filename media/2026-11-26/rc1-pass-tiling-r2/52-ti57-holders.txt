@@ -1,0 +1,37 @@
+ti-57 recheck, rc1-pass-tiling r2, binaries of f484a92d (round.sh snapshot), tiling+xp 1280x800 per output
+(tiling HEADLESS-1, xp HEADLESS-2), a fresh compositor per run (round.sh start/stop), PERSONA_CHECK=1.
+Path (P2 r12 ricer run 2): Super+Return; click Looks (128,24); Return (Move window to the xp desktop);
+click Looks again; Escape; then L3: run 1 and 3 Super+2, Super+1; run 2 clicks on tag 2 (223,24) and tag 1 (198,24);
+run 4 opens Looks again and clicks tag 2 and tag 1 into the open picker, then Escape. Then: type "strayRn" with no
+window on the tag; Super+s, quit vi; Super+Return; type "echo TYPED-Rn", Return; Super+F1; Escape.
+Each line: tiling state.get focus | xp state.get focus | the scene's focused nodes.
+
+run 1 (keys)
+[1-SuperReturn]  tiling={'holder': 'tiling', 'surface': 's1'} | xp={'holder': None} | focused=[s1 surface tiling]
+[2-LooksClick]   tiling={'holder': 'tiling', 'surface': 's1'} | xp={'holder': None} | focused=[s1 surface tiling]
+[3-Return-give]  tiling={'holder': 'tiling'} | xp={'holder': None} | focused=[tiling group tiling]
+[4-LooksAgain]   tiling={'holder': 'tiling'} | xp={'holder': None} | focused=[tiling group tiling]
+[5-Escape]       tiling={'holder': 'tiling'} | xp={'holder': None} | focused=[tiling group tiling]
+[6-Super2]       tiling={'holder': 'tiling'} | xp={'holder': None} | focused=[tiling group tiling]
+[7-Super1]       tiling={'holder': 'tiling'} | xp={'holder': None} | focused=[tiling group tiling]
+[8-type-noWindow] tiling={'holder': 'tiling'} | xp={'holder': None} | focused=[tiling group tiling]   (xp foot unchanged, 04)
+[9-Supers]       tiling={'holder': 'tiling', 'surface': 's2'} (editor opened)
+[9b-quit-editor] tiling={'holder': None} | focused=[]   (last window closed; next Super key works)
+[10-SuperReturn] tiling={'holder': 'tiling', 'surface': 's3'}
+[11-typed]       tiling={'holder': 'tiling', 'surface': 's3'}   TYPED-R1 in the tiling foot (05)
+[12-keylist]     open [tiling-keys sheet modal] focused=[s3, tiling-keys]
+[13-Escape-keylist] tiling={'holder': 'tiling', 'surface': 's3'} open []   (06)
+breaches: I6 x52 (xp tray clock and task button contrast, known), no I3
+
+run 2 (tag bar clicks, the persona's path): every line as run 1; 6-tag2click and 7-tag1click
+  tiling={'holder': 'tiling'} focused=[tiling group tiling]; TYPED-R2 in the tiling foot (07); breaches I6 x46, no I3
+
+run 3 (keys, with check.py begin after T7 and end L3 after Super+1): every line as run 1;
+  "task L3 pass"; TYPED-R3 (08); breaches I6 x46, no I3
+
+run 4 (tag clicks into the open Looks picker): 5b-LooksOpen, 6-tag2-into-picker, 7-tag1-into-picker, 7b-Escape all
+  tiling={'holder': 'tiling'} focused=[tiling group tiling]; "task L3 pass"; TYPED-R4 (11); breaches I6 x56, no I3
+  extra (rpt2-2): on the empty tag 2, click Looks, Return:
+  [after-empty-give] tiling={'holder': None} | xp={'holder': None} | focused=[]
+  calls: notify-send -a Desktop Window not moved choractl: no focused window   (13)
+  [e2-Super1] tiling={'holder': 'tiling', 'surface': 's3'}; "echo AFTER-EMPTY-GIVE" reached the foot

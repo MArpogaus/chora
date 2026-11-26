@@ -1,0 +1,6 @@
+ok: co-79: in a face with the keyboard in its window the hint bar names the pull key
+ok: co-79: stood back out of a pane, the hint bar names Super Alt 2, the give key of the face manager
+ok: co-79: Super+Alt+2 puts the window of the pane on face 1 at the front, steps in, the window takes keys, and the bar names the pull key
+ok: co-79: stepped out of the pane of the Terminal row, the hint bar names Super C Cube
+ok: co-79: Terminal row, Alt+Escape, the told Super+C and the told Super+Alt+2: the window is in face 0 and takes keys
+ok: co-79: Alt+Escape out of a pane pulled from a face stands back, and the told Super+Alt+2 puts the window back

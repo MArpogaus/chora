@@ -356,3 +356,175 @@ Findings:
 - rcr5-2, MINOR (pre-existing; MAJOR if a by-hand run confirms), plugins/chora-construct/src/pull.rs:224, a drop of a pane onto a face stood back gives the window but stays in navigate without noting it or taking the keyboard back; if the core focus follows the given window, as with the bare key on 62a04be0 (before-62a04be-turned.log), the told `Return Step in` types into the window (co-68 on the documented mouse way); fix: end a drop onto the front face like `put_in_face` (note, StepIn as the person), and onto another face take the keyboard back to the construct, with a gate cell.
 - rcr5-3, NIT, docs/cube-modes.md:137, the sentence says "while the window of a pane has the keyboard", the code also needs every face up (`host.works()`) and falls back to the window noted at the step back; fix: add "with every face up".
 - rcr5-4, NIT, plugins/chora-construct/src/cube/tests_construct/reach_tests.rs:86, the unit test came with the fix commit, so `cargo test reach` is green at the red commit 58ba73a1 and the red is the gate cell only; fix: none for this merge, next time land the unit test in the red commit too.
+
+## r6 (co-79 every pane path, 2026-11-26)
+
+Lane: cloud, claude/co-reach-r6 from **base 4d8bbe36** (t153+154). Step 0: unshallow, `cargo check --workspace`, `cargo build --workspace` green. Area: plugins/chora-construct (hints, overlay, input, modes, reach_tests), tests/gate-construct-cube.sh, docs/cube-modes.md. No core, no other plugin.
+
+**Head bcecb671** (red **5f8f0c84**, fix **1916f517**, fix follow-up **bcecb671**: the walk keeps Terminal beside Cube, at most six, and gate-construct-layout.sh's three pinned walk sets name ), pushed to claude/co-reach-r6. Diff 4d8bbe36..bcecb671: 8 files +190 -28 (gate-construct-cube.sh +70, hints.rs +30 -8, reach_tests.rs +25, overlay.rs +18 -3, input.rs +15 -1, modes.rs +15, docs/cube-modes.md +14 -13, gate-construct-layout.sh +3 -3). **Outside the named area**: gate-construct-layout.sh pins the exact walk hint set after Alt+Escape out of a pane, which the decided hint changes; only its three expected strings changed ().
+
+### 1. Reproduction on 4d8bbe36 and every pane path
+The Terminal row (start card, 1280x800, fresh compositor per run, Alt+Escape out of Foot): **0/5** (hand-term-head.log): `mode use front 0 faces 0, panes ['foot'], core focus ['construct-look', 's1']`, bar `Return Fly in | F1 All keys | Super T Terminal | W A S D Walk`, Super+Alt+2 does nothing. The root cause is not a mode split: **no cube is open at all** (`cube.list` says `mode use` with 0 faces, its default). The person stands in the space, and the walk hints have named no cube since 14f7d3f6 (11-11, "the hint Cube is gone, since the start card and the help name it"); the start card hides as soon as a pane exists. A second fault: Super+C there opens the cube, but the cube that covers the pane takes the keyboard from its window (`covered_focus_to_nobody`, co-46), so `Into face` is not told there either (1 run, before the fix).
+
+| Way a pane gets the keyboard | before (4d8bbe36): state after Alt+Escape | way into a face told | after (1916f517): state after Alt+Escape, told keys | 5 runs after |
+|---|---|---|---|---|
+| start card Terminal row (no cube) | walk, faces 0, keys on look + s1 | none (0/5) | walk; bar `Super C Cube`; Super+C: navigate with `Super Alt 2 Into face`; Super+Alt+2: use, Foot on xp VIRTUAL-1, `Pull out` told | **5/5** |
+| start card All programs row, Foot (no cube) | walk, faces 0 | none | same as the Terminal row | **5/5** |
+| launcher Super+space, Foot (no cube) | walk, faces 0 | none | same | **5/5** |
+| Super+t in the space (no cube) | walk, faces 0 | none | same | **5/5** |
+| Super+t in a pane (no cube, 2 panes) | walk, faces 0, bar adds `Tab Windows` | none | same; bar `W A S D Walk, Return Fly in, Tab Windows, Super C Cube, Super T Terminal, F1 All keys` (six) | **5/5** (on bcecb671) |
+| cube row, Programs, Foot (r5 path) | navigate, `Super Alt 2 Into face` | yes | unchanged | **5/5** |
+| Super+C, Super+t stood back | navigate, `Into face` | yes | unchanged | **5/5** |
+| pulled from a face by Super+Alt+4 (camera flies into the pane) | **use**, keys on the look, bar `Alt Esc Step back` only | no (one more Alt+Escape) | navigate, `Super Alt 2 Into face`; the key puts it back, use | **5/5** |
+| face path (cube row, Return, Super+t, Super+Alt+4) | `Pull out` told, pulls | yes | unchanged | **5/5** |
+| Super+C, launcher stood back, Foot (fuzzel) | Foot opens beside the cube and is flown into in 2 of 5 runs only; then as the r5 path | (2/5) | unchanged: flown in 2/5, those pass; 3/5 Foot never gets the keyboard (no pane path), and Alt+Escape stood back then steps into the face (seen on base too) | 2/5, open point 1 |
+
+### 2. Decision (docs/cube-modes.md, replaces r5's sentence)
+"`Alt+Escape` out of any pane stands back: from the cube when one is open, also from a pane flown into from a face, and there the bar names `Super Alt 2 Into face`, …; with no cube open into the space, where the bar names `Super C Cube`, which opens the cube stood back with that window told `Into face` the same way, so the keys that the bar names lead from every pane into a face (co-79)." With a cube, every pane path now lands in the r5 state (the brief's preference). Without a cube, landing in the r5 state would mean that Alt+Escape out of a terminal opens a cube of four xp desktops unasked: a POLS break, a start of chora-xp on every step out, and a change to the fly-out that the walk gates of other construct cells hold; so the space stays, and its bar tells the one key that leads to the r5 state. One rule, two places, no hint per path.
+
+### 3. Red 5f8f0c84 (gate only)
+gate-construct-cube.sh step 8 (at the end, on the empty floor): the Terminal row of the start card, Alt+Escape, the bar must name `Super C` (`construct-hints-cube-keys-*`), Super+C must stand back with `Super Alt 2` told, Super+Alt+2 must put the window on face 0, step in and give it the keys (typed `a` reaches it) with `Pull out` told; then Super+Alt+4 pulls it out (camera flies in), Alt+Escape must stand back with `Super Alt 2` told, and the key must put it back. On 4d8bbe36 (head construct, the final gate): `FAIL: co-79: stepped out of the pane of the Terminal row, with no cube open, the hint bar names no way to a cube (cube keys:  ; bar: ; focus: ["s12"]): {"mode":"use","faces":0}`; every earlier cell passed, r5's step 7 included (gate-cube-red-4d8bbe36.log).
+
+### 4. Fix 1916f517
+- `step_out()` (modes.rs): the fly-out key (`Grab::FlyOut`) and the hint `Step back` fly out of the pane and, with the cube in use mode, stand back as the person (`mode_act(StepBack, Person)`, which notes the pane's window): the pull path lands in the r5 state.
+- `cube_window()` (overlay.rs): no cube, camera out of the panes, the window with the keyboard is a pane's. It decides the walk hint `Super C Cube` (`hints::walking(panes, ahead, cube)`; at most six; 1916f517 let Terminal give way at five, which the layout gate's click on the Terminal hint after a step out of a pane caught, so bcecb671 keeps it) and the hint stamp; a click on it does the key (`hint_press` "cube" exists).
+- `cube_key()` (input.rs): notes that window in the new cube when nothing is noted, as a step back does, so `put_window` (r5, unchanged) names and puts it.
+- Unit tests: `reach_tests::stepped_out_of_a_pane_without_a_cube_the_walk_names_the_cube`, `hints::stepped_out_of_a_pane_the_walk_names_the_cube_and_stays_at_six`. chora-construct 302 passed; clippy clean.
+- Gate cell details: before Super+Alt+2 the cell waits until the new cube's xp exports `window.move` (see open point 2), and after Super+Alt+4 until the camera has flown into the pulled pane (else Alt+Escape steps back first and the late fly-in lands in the pane stood back, a gate-speed race).
+
+### 5. Counts after (fresh compositor per run, script hand.sh)
+Snapshot 1916f517: every pane path of the table 5/5 (told and acts), the face path 5/5; snapshot bcecb671 (the six hints): Terminal row 5/5 and Super+t in a pane 5/5 again (hand-term-final.log, hand-supertpane-final.log); launcher stood back 2/5 (only those 2 got a pane with the keyboard; open point 1). Before: Terminal row 0/5 (hand-term-head.log).
+
+### 6. Gate
+Run 1 (1916f517) stopped at gate-lib, **caused by this lane's setup**: the selftest's nested gate refused to start while my persona hand runs held a `chora --headless`. Run 2 stopped at ci-check, **caused by this lane's setup**: the mkdocs venv on PATH shadowed python3 (no PIL), so the clock selftest skipped for PIL instead of Inter (TF-1); later runs put only mkdocs on PATH. Run 3 (1916f517): layout FAIL, **caused here**: `FAIL: light-1280x720: the hints with one pane are:` (the walk set gained `cube`, and with three panes Terminal gave way, so the click on the Terminal hint broke); fixed by bcecb671, layout cell alone EXIT 0 (97 ok). Run 4 on **bcecb671**, `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2`, no step filter, detached, nothing else running: **all steps passed, 68 PASS, 0 FAIL** (this gate version prints no EXIT line; its last line is the pass line); cube 159 s, layout 1388 s; no foreign flake seen. `pgrep -fa 'chora --headless'` empty after. Last 20 lines:
+```
+launcher-mc PASS    40s /tmp/merge-gate.85JUPx/launcher-mc.log
+voice-acp  PASS    13s /tmp/merge-gate.85JUPx/voice-acp.log
+voice-events PASS     2s /tmp/merge-gate.85JUPx/voice-events.log
+agent      PASS    42s /tmp/merge-gate.85JUPx/agent.log
+tiling-keys-more PASS    44s /tmp/merge-gate.85JUPx/tiling-keys-more.log
+acts       PASS  2317s /tmp/merge-gate.85JUPx/acts.log
+tiling-system PASS    16s /tmp/merge-gate.85JUPx/tiling-system.log
+handover   PASS   103s /tmp/merge-gate.85JUPx/handover.log
+mc-scale   PASS    16s /tmp/merge-gate.85JUPx/mc-scale.log
+watchdog-starved PASS    60s /tmp/merge-gate.85JUPx/watchdog-starved.log
+tiling-windows PASS   222s /tmp/merge-gate.85JUPx/tiling-windows.log
+xp-run     PASS    15s /tmp/merge-gate.85JUPx/xp-run.log
+demo       PASS   271s /tmp/merge-gate.85JUPx/demo.log
+leak       PASS   480s /tmp/merge-gate.85JUPx/leak.log
+tiling-theme PASS    19s /tmp/merge-gate.85JUPx/tiling-theme.log
+tiling-bar PASS   208s /tmp/merge-gate.85JUPx/tiling-bar.log
+mc-host    PASS    25s /tmp/merge-gate.85JUPx/mc-host.log
+tiling-disc PASS    74s /tmp/merge-gate.85JUPx/tiling-disc.log
+e2e        PASS   289s /tmp/merge-gate.85JUPx/e2e.log
+all steps passed; no --push, nothing is pushed
+```
+
+### Captures (media/2026-11-26/co-reach-r6/, each under 400 KB)
+- term-head1-run1-*.png (4d8bbe36): in the pane; stood back in the space, bar without a way to a cube; after Super+Alt+2 nothing changed.
+- term-fix-run1-*.png (1916f517): in-pane; stood-back (bar `W A S D Walk | Return Fly in | Super C Cube | Super T Terminal | F1 All keys`); cube (navigate, `Super Alt 2 Into face`); after-key (Foot in face 0, `Pull out` told).
+- pull-fix-run1-*.png: in the pulled pane; stood back with `Into face`; after the key back in the face.
+- supertpane-final-run1-stood-back.png (bcecb671): two panes, the six hints.
+- logs: hand-<path>.log (after, 5 runs each, 1916f517), hand-term-final.log and hand-supertpane-final.log (bcecb671), hand-term-head.log (before, 5 runs), gate-cube-red-4d8bbe36.log, gate-cube-fix-1916f517.log, hand.sh.
+
+### Open for the PM
+1. Launcher stood back (Super+C, Super+space, fuzzel, foot): the new window is flown into in only 2 of 5 runs; in 3 it stays beside the cube without the keyboard (`Click Fly in` is told and works), and Alt+Escape there steps into the face. Seen on base; not a pane path, not changed. The gate's chora-probe launcher always flies in.
+2. A cube's xp connects (faces Up, taskbars drawn) about 1.5 s before it exports `window.move`; a give key pressed in that gap gives the window but leaves the cube stood back with "XP took the window but not onto that face" (r5's put, pre-existing; a person is slower, the gate waits).
+3. gate-construct-layout.sh changed outside the named area (three expected strings, see the head line); docs/configuration.md still lists the walk hints without `Super C Cube` (outside this lane's area).
+
+## r6 (co-79 every pane path, 2026-11-26)
+
+Lane: cloud, claude/co-reach-r6 from **base 4d8bbe36** (t153+154). Step 0: unshallow, `cargo check --workspace`, `cargo build --workspace` green. Area: plugins/chora-construct (hints, overlay, input, modes, reach_tests), tests/gate-construct-cube.sh, docs/cube-modes.md. No core, no other plugin.
+
+**Head bcecb671** (red **5f8f0c84**, fix **1916f517**, fix follow-up **bcecb671**: the walk keeps Terminal beside Cube, at most six, and gate-construct-layout.sh's three pinned walk sets name `cube`), pushed to claude/co-reach-r6. Diff 4d8bbe36..bcecb671: 8 files +190 -28 (gate-construct-cube.sh +70, hints.rs +30 -8, reach_tests.rs +25, overlay.rs +18 -3, input.rs +15 -1, modes.rs +15, docs/cube-modes.md +14 -13, gate-construct-layout.sh +3 -3). **Outside the named area**: gate-construct-layout.sh pins the exact walk hint set after Alt+Escape out of a pane, which the decided hint changes; only its three expected strings changed (`cube fly-in keys terminal walk[ windows]`).
+
+### 1. Reproduction on 4d8bbe36 and every pane path
+The Terminal row (start card, 1280x800, fresh compositor per run, Alt+Escape out of Foot): **0/5** (hand-term-head.log): `mode use front 0 faces 0, panes ['foot'], core focus ['construct-look', 's1']`, bar `Return Fly in | F1 All keys | Super T Terminal | W A S D Walk`, Super+Alt+2 does nothing. The root cause is not a mode split: **no cube is open at all** (`cube.list` says `mode use` with 0 faces, its default). The person stands in the space, and the walk hints have named no cube since 14f7d3f6 (11-11, "the hint Cube is gone, since the start card and the help name it"); the start card hides as soon as a pane exists. A second fault: Super+C there opens the cube, but the cube that covers the pane takes the keyboard from its window (`covered_focus_to_nobody`, co-46), so `Into face` is not told there either (1 run, before the fix).
+
+| Way a pane gets the keyboard | before (4d8bbe36): state after Alt+Escape | way into a face told | after (1916f517): state after Alt+Escape, told keys | 5 runs after |
+|---|---|---|---|---|
+| start card Terminal row (no cube) | walk, faces 0, keys on look + s1 | none (0/5) | walk; bar `Super C Cube`; Super+C: navigate with `Super Alt 2 Into face`; Super+Alt+2: use, Foot on xp VIRTUAL-1, `Pull out` told | **5/5** |
+| start card All programs row, Foot (no cube) | walk, faces 0 | none | same as the Terminal row | **5/5** |
+| launcher Super+space, Foot (no cube) | walk, faces 0 | none | same | **5/5** |
+| Super+t in the space (no cube) | walk, faces 0 | none | same | **5/5** |
+| Super+t in a pane (no cube, 2 panes) | walk, faces 0, bar adds `Tab Windows` | none | same; bar `W A S D Walk, Return Fly in, Tab Windows, Super C Cube, Super T Terminal, F1 All keys` (six) | **5/5** (on bcecb671) |
+| cube row, Programs, Foot (r5 path) | navigate, `Super Alt 2 Into face` | yes | unchanged | **5/5** |
+| Super+C, Super+t stood back | navigate, `Into face` | yes | unchanged | **5/5** |
+| pulled from a face by Super+Alt+4 (camera flies into the pane) | **use**, keys on the look, bar `Alt Esc Step back` only | no (one more Alt+Escape) | navigate, `Super Alt 2 Into face`; the key puts it back, use | **5/5** |
+| face path (cube row, Return, Super+t, Super+Alt+4) | `Pull out` told, pulls | yes | unchanged | **5/5** |
+| Super+C, launcher stood back, Foot (fuzzel) | Foot opens beside the cube and is flown into in 2 of 5 runs only; then as the r5 path | (2/5) | unchanged: flown in 2/5, those pass; 3/5 Foot never gets the keyboard (no pane path), and Alt+Escape stood back then steps into the face (seen on base too) | 2/5, open point 1 |
+
+### 2. Decision (docs/cube-modes.md, replaces r5's sentence)
+"`Alt+Escape` out of any pane stands back: from the cube when one is open, also from a pane flown into from a face, and there the bar names `Super Alt 2 Into face`, …; with no cube open into the space, where the bar names `Super C Cube`, which opens the cube stood back with that window told `Into face` the same way, so the keys that the bar names lead from every pane into a face (co-79)." With a cube, every pane path now lands in the r5 state (the brief's preference). Without a cube, landing in the r5 state would mean that Alt+Escape out of a terminal opens a cube of four xp desktops unasked: a POLS break, a start of chora-xp on every step out, and a change to the fly-out that the walk gates of other construct cells hold; so the space stays, and its bar tells the one key that leads to the r5 state. One rule, two places, no hint per path.
+
+### 3. Red 5f8f0c84 (gate only)
+gate-construct-cube.sh step 8 (at the end, on the empty floor): the Terminal row of the start card, Alt+Escape, the bar must name `Super C` (`construct-hints-cube-keys-*`), Super+C must stand back with `Super Alt 2` told, Super+Alt+2 must put the window on face 0, step in and give it the keys (typed `a` reaches it) with `Pull out` told; then Super+Alt+4 pulls it out (camera flies in), Alt+Escape must stand back with `Super Alt 2` told, and the key must put it back. On 4d8bbe36 (head construct, the final gate): `FAIL: co-79: stepped out of the pane of the Terminal row, with no cube open, the hint bar names no way to a cube (cube keys:  ; bar: ; focus: ["s12"]): {"mode":"use","faces":0}`; every earlier cell passed, r5's step 7 included (gate-cube-red-4d8bbe36.log).
+
+### 4. Fix 1916f517
+- `step_out()` (modes.rs): the fly-out key (`Grab::FlyOut`) and the hint `Step back` fly out of the pane and, with the cube in use mode, stand back as the person (`mode_act(StepBack, Person)`, which notes the pane's window): the pull path lands in the r5 state.
+- `cube_window()` (overlay.rs): no cube, camera out of the panes, the window with the keyboard is a pane's. It decides the walk hint `Super C Cube` (`hints::walking(panes, ahead, cube)`; at most six; 1916f517 let Terminal give way at five, which the layout gate's click on the Terminal hint after a step out of a pane caught, so bcecb671 keeps it) and the hint stamp; a click on it does the key (`hint_press` "cube" exists).
+- `cube_key()` (input.rs): notes that window in the new cube when nothing is noted, as a step back does, so `put_window` (r5, unchanged) names and puts it.
+- Unit tests: `reach_tests::stepped_out_of_a_pane_without_a_cube_the_walk_names_the_cube`, `hints::stepped_out_of_a_pane_the_walk_names_the_cube_and_stays_at_six`. chora-construct 302 passed; clippy clean.
+- Gate cell details: before Super+Alt+2 the cell waits until the new cube's xp exports `window.move` (see open point 2), and after Super+Alt+4 until the camera has flown into the pulled pane (else Alt+Escape steps back first and the late fly-in lands in the pane stood back, a gate-speed race).
+
+### 5. Counts after (fresh compositor per run, script hand.sh)
+Snapshot 1916f517: every pane path of the table 5/5 (told and acts), the face path 5/5; snapshot bcecb671 (the six hints): Terminal row 5/5 and Super+t in a pane 5/5 again (hand-term-final.log, hand-supertpane-final.log); launcher stood back 2/5 (only those 2 got a pane with the keyboard; open point 1). Before: Terminal row 0/5 (hand-term-head.log).
+
+### 6. Gate
+Run 1 (1916f517) stopped at gate-lib, **caused by this lane's setup**: the selftest's nested gate refused to start while my persona hand runs held a `chora --headless`. Run 2 stopped at ci-check, **caused by this lane's setup**: the mkdocs venv on PATH shadowed python3 (no PIL), so the clock selftest skipped for PIL instead of Inter (TF-1); later runs put only mkdocs on PATH. Run 3 (1916f517): layout FAIL, **caused here**: `FAIL: light-1280x720: the hints with one pane are:` (the walk set gained `cube`, and with three panes Terminal gave way, so the click on the Terminal hint broke); fixed by bcecb671, layout cell alone EXIT 0 (97 ok). Run 4 on **bcecb671**, `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2`, no step filter, detached, nothing else running: **all steps passed, 68 PASS, 0 FAIL** (this gate version prints no EXIT line; its last line is the pass line); cube 159 s, layout 1388 s; no foreign flake seen. `pgrep -fa 'chora --headless'` empty after. Last 20 lines:
+```
+launcher-mc PASS    40s /tmp/merge-gate.85JUPx/launcher-mc.log
+voice-acp  PASS    13s /tmp/merge-gate.85JUPx/voice-acp.log
+voice-events PASS     2s /tmp/merge-gate.85JUPx/voice-events.log
+agent      PASS    42s /tmp/merge-gate.85JUPx/agent.log
+tiling-keys-more PASS    44s /tmp/merge-gate.85JUPx/tiling-keys-more.log
+acts       PASS  2317s /tmp/merge-gate.85JUPx/acts.log
+tiling-system PASS    16s /tmp/merge-gate.85JUPx/tiling-system.log
+handover   PASS   103s /tmp/merge-gate.85JUPx/handover.log
+mc-scale   PASS    16s /tmp/merge-gate.85JUPx/mc-scale.log
+watchdog-starved PASS    60s /tmp/merge-gate.85JUPx/watchdog-starved.log
+tiling-windows PASS   222s /tmp/merge-gate.85JUPx/tiling-windows.log
+xp-run     PASS    15s /tmp/merge-gate.85JUPx/xp-run.log
+demo       PASS   271s /tmp/merge-gate.85JUPx/demo.log
+leak       PASS   480s /tmp/merge-gate.85JUPx/leak.log
+tiling-theme PASS    19s /tmp/merge-gate.85JUPx/tiling-theme.log
+tiling-bar PASS   208s /tmp/merge-gate.85JUPx/tiling-bar.log
+mc-host    PASS    25s /tmp/merge-gate.85JUPx/mc-host.log
+tiling-disc PASS    74s /tmp/merge-gate.85JUPx/tiling-disc.log
+e2e        PASS   289s /tmp/merge-gate.85JUPx/e2e.log
+all steps passed; no --push, nothing is pushed
+```
+
+### Captures (media/2026-11-26/co-reach-r6/, each under 400 KB)
+- term-head1-run1-*.png (4d8bbe36): in the pane; stood back in the space, bar without a way to a cube; after Super+Alt+2 nothing changed.
+- term-fix-run1-*.png (1916f517): in-pane; stood-back (bar `W A S D Walk | Return Fly in | Super C Cube | Super T Terminal | F1 All keys`); cube (navigate, `Super Alt 2 Into face`); after-key (Foot in face 0, `Pull out` told).
+- pull-fix-run1-*.png: in the pulled pane; stood back with `Into face`; after the key back in the face.
+- supertpane-final-run1-stood-back.png (bcecb671): two panes, the six hints.
+- logs: hand-<path>.log (after, 5 runs each, 1916f517), hand-term-final.log and hand-supertpane-final.log (bcecb671), hand-term-head.log (before, 5 runs), gate-cube-red-4d8bbe36.log, gate-cube-fix-1916f517.log, hand.sh.
+
+### Open for the PM
+1. Launcher stood back (Super+C, Super+space, fuzzel, foot): the new window is flown into in only 2 of 5 runs; in 3 it stays beside the cube without the keyboard (`Click Fly in` is told and works), and Alt+Escape there steps into the face. Seen on base; not a pane path, not changed. The gate's chora-probe launcher always flies in.
+2. A cube's xp connects (faces Up, taskbars drawn) about 1.5 s before it exports `window.move`; a give key pressed in that gap gives the window but leaves the cube stood back with "XP took the window but not onto that face" (r5's put, pre-existing; a person is slower, the gate waits).
+3. gate-construct-layout.sh changed outside the named area (three expected strings, see the head line); docs/configuration.md still lists the walk hints without `Super C Cube` (outside this lane's area).
+
+## Review r6 (co-79 every pane path, 2026-11-26; reviewer not the builder)
+
+Reviewed claude/co-reach-r6 **4d8bbe36..bcecb671** (8 files +190 -28), one round, read-only on code. Step 0: unshallow, `cargo check --workspace` green. On head: `cargo test -p chora-construct` 302 passed; `cargo clippy -p chora-construct --all-targets` clean; `tests/gate-construct-cube.sh` EXIT 0, 68 ok (three co-79 r6 lines among them).
+
+**Verdict: MERGE-OK** (no open BLOCK or MAJOR).
+
+Checks:
+1. Red first: confirmed by a run of my own. The gate of 5f8f0c84 (only that file changed, +70, nothing removed; identical to the gate on bcecb671) on a 4d8bbe36 build: EXIT 1 at `FAIL: co-79: stepped out of the pane of the Terminal row, with no cube open, the hint bar names no way to a cube (cube keys:  ; bar: ; focus: ["s12"]): {"mode":"use","faces":0}`, every earlier cell ok (r5's step 7 included); on bcecb671 EXIT 0. The pull half of step 8 never ran on base (the gate stops at the first fail), so its red rests on hand-pull.log only (rcrr6-2).
+2. co-79, one rule: yes. With a cube, every pane exit goes through `step_out` (modes.rs:317, key `Grab::FlyOut` and the hint `step-back`), which stands back when the cube was in use; the voice and `view.step_back` already did (`mode_act` flies out first). With no cube, one predicate, `cube_window` (overlay.rs:690), decides the walk hint, the hint stamp and what `cube_key` (input.rs:648) notes; r5's `put_window` does the rest unchanged. No hint or case per path; two places, as the decision sentence says. The three step-back entries could be one (rcrr6-4, NIT).
+3. POLS: r5's step 7 and the face path cell pass on head (my run). The pull path change (one Alt+Escape stands back instead of landing in use with the keys on the look and only `Step back` told) removes a dead state; nothing relied on it: no other gate pins it and the full gate of the lane passed. Return from that stood-back state steps into the face with the pane window noted: `activate_in_face` on a pane window logs a warning and the keys stay on the look, the same end state as before r6 (r5 has it on the Programs path too), not new. Super+C: `cube_window` is the core focus filtered to an attached pane's window, with no cube and the camera out of the panes; `unseen_focus_to_walk` clears it once that pane leaves sight, a press on another pane moves it, and `cube_key` fills it only when the step back noted nothing. It cannot put a non-pane or a face window; with two panes in sight it puts the one that last had the keyboard, not the one ahead, unnamed (rcrr6-6, NIT).
+4. Hints: `walking()` holds at most six (unit test over 0..8 panes); the six fit (layout gate 97 ok on the lane). The layout gate's `hints_are` is exact equality over drawn hint rects, so the three strings now require `cube` to be shown: tighter, not loosened; honest.
+5. Launcher stood back 2/5: a finding of its own, pre-existing, not caused by this diff (rcrr6-3): the diff touches no launch or fly-in code, `cube_window` is None there (a cube is open), and `step_out` only stands back, never steps in, so "Alt+Escape steps into the face" comes from elsewhere.
+6. docs/cube-modes.md says what the code does (table row, the pane paragraph, the walk hint "while the window of a pane has the keyboard", the decision sentence). docs/configuration.md does not (rcrr6-1).
+
+Findings:
+- rcrr6-1, MINOR, docs/configuration.md:1200: "at most five" and the walk list without `Super C Cube` now contradict the code (six, `cube` while a pane's window has the keyboard); fix: add `Super C Cube` with its condition and say at most six.
+- rcrr6-2, MINOR, tests/gate-construct-cube.sh (step 8): only the Terminal row and the pull path have a cell; All programs, launcher, Super+t in the space and in a pane (all 0 told on base by hand) have none, and the layout gate pins the `cube` hint but not that Super+C then leads into a face; fix: one looped cell that runs Super+t in the space and Super+t in a pane through Alt+Escape, Super+C, Super+Alt+2.
+- rcrr6-3, MINOR (pre-existing, own finding, not this merge), launcher path stood back (Super+C, Super+space, Foot): the new window is flown into 2/5, in 3/5 it stays beside the cube without the keyboard (`Click Fly in` is told and works) and Alt+Escape then steps into the face; fix: make the fly-in of a window launched stood back deterministic and add a gate cell with a real launcher, not chora-probe (which always flies in).
+- rcrr6-4, NIT, modes.rs:317, overlay.rs:1149-1152: three entries for one step back (`step_out`, `mode_act(StepBack)` with its own fly-out, the hint's two `step-back` arms); fix: let `mode_act` use `in_pane()` for its fly-out and route the key and the hint through it when a cube is open.
+- rcrr6-5, NIT, reports/co-reach.md:360-434: "## r6" is there twice, the first copy with its backtick spans lost ("name )", "changed ()"); fix: drop the first copy.
+- rcrr6-6, NIT, overlay.rs:690, input.rs:648: with two panes in sight, Super+C notes the pane that last had the keyboard, not the one ahead, and `Into face` does not name it; fix (optional): name the window in the put hint or the HUD notice.

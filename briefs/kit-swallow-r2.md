@@ -1,0 +1,15 @@
+# kit-swallow r2 (rc 8 docs, rc 1 shared bar; rksr1-1..3 MINOR): D118 true, one bound new-class chord shown, give-keys order safe
+
+Model: sonnet, effort high (routine: a docs amend, one gate cell line, one kit guard with a test)
+Red on head: rksr1-1 D118 on 02e745c3 says Shift/Ctrl and about 200 grabs; rksr1-2 no cell for a bound Super+Ctrl+Shift chord; rksr1-3 give_keys() after grab_swallowed loses the give keys on 02e745c3
+Lane: cloud, branch claude/kit-swallow-r2 at 02e745c3 (claude/kit-swallow-r1 head, review MERGE-OK, joins train 158). Area: docs/decisions.md D118, tests/gate-swallow-chords.sh, crates/chora-kit/src/runtime.rs and its tests. Stop at 250 k. Cost at most 0.4 %.
+Why: reports/kit-swallow.md "## Review r1" on claude/session-log (b4dc442e), findings rksr1-1, -2, -3 with their fixes.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`. A failure: send_message the PM "kit-swallow-r2 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1. rksr1-3, red first in its own commit: a chora-kit unit test fails on 02e745c3: a plugin that calls grab_swallowed and then give_keys still has its give keys served. Fix (KISS): grab_give_keys takes over a give key held as swallowed (swaps its action); no new API, no new option.
+2. rksr1-2: in cell_tiling of tests/gate-swallow-chords.sh send Super+Ctrl+Shift+2 and assert the focused tile gets tag 2 (bound chord of the newly swallowed class acts); show it fails if the tiling binding is removed (note in report, no commit).
+3. rksr1-1: amend D118 (every Shift, Ctrl, Alt combination with Super without the safety layer, 586 chords, give keys left out, MAX_GRABS 1024); api.md and architecture.md stay consistent.
+Out of scope (backlog): rksr1-4 NIT, rpt2-2.
+Run: `cargo test -p chora-kit`, `tests/gate-swallow-chords.sh`, and the full gate, no step filter: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` (no --push) detached with setsid nohup, poll in the same turn; paste the last 20 lines. A red cell you did not cause: name it with its log line, rerun that step alone and then the steps after it. Never end a turn to wait. Before ending: `pgrep -fa 'chora --headless'` empty.
+Done when: red commit before the rksr1-3 fix; gate-swallow-chords EXIT 0 in tiling, xp, mc with the new line; D118 matches the code; gate EXIT 0 (or a named foreign flake and every later step run); reports/kit-swallow.md "## r2" on claude/session-log (base, head, diffstat, cell line, gate line).
+Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 5 lines): head sha, red commit, cell result, findings left, gate result.
+Rules: push claude/kit-swallow-r2 and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).

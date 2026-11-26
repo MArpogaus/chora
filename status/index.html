@@ -57,7 +57,7 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-26T10:12:00Z",
+  updated: "2026-11-26T19:53:00Z",
   start: "2026-11-21T04:00:00Z",   // budget reset (owner)
   end: "2026-11-28T03:59:00Z",     // next reset; F5, F7 carried over
   budget: 51,                       // % of the new week used (reset 04:00)
@@ -67,16 +67,17 @@ const S = {
     ["F3", "Window-manager core, first slices", "done", "met by audit r2: wm parts and records D107-D116"],
     ["F4", "No file over 1,500 lines", "done", "met again by audit r6: 0 files over, debt 17 of 47; but sleep lines in tests are exactly at their limit (779), so a guard lane now freezes that count"],
     ["F5", "No flaky tests, coverage over 80 %", "risk", "coverage 91.76 % holds; five full gates in a row were green on c3c37c2e (series r9); the series reruns on the final head after train 140"],
-    ["F6", "Every change through the merge gate", "done", "97 green merges, all reviewed (one, 689bff45, without its test first: logged); train 152 (xp busy state, mc restart, tiling focus, tiling bar) green 10:00 UTC (17:00 Bangkok); train 153 (tour harness) runs now"],
+    ["F6", "Every change through the merge gate", "done", "101 green merges, all reviewed (one, 689bff45, without its test first: logged; a new gate step that runs each fix's test before the fix is in review); train 157 (tour fixes) green 20:00 UTC (03:00 Bangkok); train 158 (construct pane path, mc and tiling key fixes) runs"],
     ["F7", "No visual regression vs tour v8", "behind", "new v9 take today on the session head, video below. Against v8: 1 act same, 10 regressions (6 in mc, 4 in the handover) and 88 differences whose cause is not yet proven; the stricter check no longer lets a broad reason cover a difference it does not name. Two reviews on the strongest model now judge each act by eye, then one fix lane per look"],
     ["F8", "Docs and decision records", "done", "met by audit r6 (01:40 UTC, 08:40 Bangkok): the kit log module is documented and decision record D120 exists; every decision named in a commit has its record"]
   ],
   now: [
-    "Train 152 is merged (10:00 UTC, 17:00 Bangkok): xp Working state after a send, mc host restart, tiling keyboard focus after a handover, tiling bar after a waybar restart.",
-    "Train 153 (tour harness fix, alone) runs now; train 154 follows with construct cut texts at 1024x768 and the mc boil page side panel (both reviewed, ready).",
-    "Tiling: the simulated users rerun now on the new head to check the focus fix (round 12).",
-    "Running: tour rows r4, xp focus after resume, tiling chip, launcher icons.",
-    "Spending is under pace (51 % vs 74 %): five build lanes, a sixth after train 154."
+    "Train 156 (xp small fixes, tiling keyboard focus after the Looks picker) is merged (17:27 UTC, 00:27 Bangkok).",
+    "Tiling: an independent pass confirmed the lost-keyboard fix, but found that Super+Alt key chords leak into programs; a fix lane runs (it affects all looks).",
+    "Tour: the review of the new intended-difference rows asked for fixes; a fix lane corrects them and the construct chapter, then a fresh take follows.",
+    "Construct: a fix lane is making one rule for every way out of a window (the start card's Terminal row path).",
+    "Running: tour fix, key-chord fix, construct reach, mc small fixes, flake series, review of the stricter test-first gate step.",
+    "Spending is under pace (about 51 % vs 77 % time): six lanes full."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
 };

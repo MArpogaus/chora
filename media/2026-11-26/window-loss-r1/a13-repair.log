@@ -1,0 +1,142 @@
+run rc rounds_none setup_none panes_result
+1 0 0 0 mc construct panes pass
+2 0 0 0 mc construct panes pass
+3 0 0 0 mc construct panes pass
+4 0 0 0 mc construct panes pass
+5 0 0 0 mc construct panes pass
+6 0 0 0 mc construct panes pass
+7 0 0 0 mc construct panes pass
+8 0 0 0 mc construct panes pass
+9 0 0 0 mc construct panes pass
+10 0 0 0 mc construct panes pass
+total_rounds_none 0 of 10 runs
+
+== run-1 rc=0
+phase startup 2s
+mc construct panes round 1: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes round 2: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes round 3: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes pass
+phase panes 12s
+-- gate.out tail:
+ONLY is set: the table is not fully checked
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13-repair/run-1/matrix.log)
+run time: 14s
+ok: gate-handover-matrix: every cell as in EXPECTED that ran in 14s of at most 387s
+
+== run-2 rc=0
+phase startup 2s
+mc construct panes round 1: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes round 2: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes round 3: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes pass
+phase panes 12s
+-- gate.out tail:
+ONLY is set: the table is not fully checked
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13-repair/run-2/matrix.log)
+run time: 14s
+ok: gate-handover-matrix: every cell as in EXPECTED that ran in 14s of at most 387s
+
+== run-3 rc=0
+phase startup 2s
+mc construct panes round 1: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes round 2: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes round 3: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes pass
+phase panes 12s
+-- gate.out tail:
+ONLY is set: the table is not fully checked
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13-repair/run-3/matrix.log)
+run time: 14s
+ok: gate-handover-matrix: every cell as in EXPECTED that ran in 14s of at most 387s
+
+== run-4 rc=0
+phase startup 3s
+mc construct panes round 1: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes round 2: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes round 3: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes pass
+phase panes 11s
+-- gate.out tail:
+ONLY is set: the table is not fully checked
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13-repair/run-4/matrix.log)
+run time: 14s
+ok: gate-handover-matrix: every cell as in EXPECTED that ran in 14s of at most 387s
+
+== run-5 rc=0
+phase startup 3s
+mc construct panes round 1: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes round 2: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes round 3: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes pass
+phase panes 10s
+-- gate.out tail:
+ONLY is set: the table is not fully checked
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13-repair/run-5/matrix.log)
+run time: 13s
+ok: gate-handover-matrix: every cell as in EXPECTED that ran in 13s of at most 387s
+
+== run-6 rc=0
+phase startup 2s
+mc construct panes round 1: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes round 2: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes round 3: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes pass
+phase panes 12s
+-- gate.out tail:
+ONLY is set: the table is not fully checked
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13-repair/run-6/matrix.log)
+run time: 14s
+ok: gate-handover-matrix: every cell as in EXPECTED that ran in 14s of at most 387s
+
+== run-7 rc=0
+phase startup 3s
+mc construct panes round 1: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes round 2: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes round 3: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes pass
+phase panes 11s
+-- gate.out tail:
+ONLY is set: the table is not fully checked
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13-repair/run-7/matrix.log)
+run time: 14s
+ok: gate-handover-matrix: every cell as in EXPECTED that ran in 14s of at most 387s
+
+== run-8 rc=0
+phase startup 2s
+mc construct panes round 1: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes round 2: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes round 3: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes pass
+phase panes 12s
+-- gate.out tail:
+ONLY is set: the table is not fully checked
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13-repair/run-8/matrix.log)
+run time: 14s
+ok: gate-handover-matrix: every cell as in EXPECTED that ran in 14s of at most 387s
+
+== run-9 rc=0
+phase startup 3s
+mc construct panes round 1: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes round 2: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes round 3: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes pass
+phase panes 11s
+-- gate.out tail:
+ONLY is set: the table is not fully checked
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13-repair/run-9/matrix.log)
+run time: 14s
+ok: gate-handover-matrix: every cell as in EXPECTED that ran in 14s of at most 387s
+
+== run-10 rc=0
+phase startup 2s
+mc construct panes round 1: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes round 2: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes round 3: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"filler2","owner":"construct","pane":"aside"},{"name":"filler3","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"}]
+mc construct panes pass
+phase panes 12s
+-- gate.out tail:
+ONLY is set: the table is not fully checked
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13-repair/run-10/matrix.log)
+run time: 14s
+ok: gate-handover-matrix: every cell as in EXPECTED that ran in 14s of at most 387s

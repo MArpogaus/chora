@@ -1,0 +1,45 @@
+run 1 after Alt+Escape from the pane:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [373.76, 233.59999999999997, 532.4799999999999, 332.7999999999999]
+  bar [Super C Cube Return Fly in F1 All keys Super T Terminal W A S D Walk]
+  told: NO
+ after Super+Alt+4:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [373.76, 233.59999999999997, 532.4799999999999, 332.7999999999999]
+  bar []
+run 2 after Alt+Escape from the pane:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [373.76, 233.59999999999997, 532.4799999999999, 332.7999999999999]
+  bar [Super C Cube Return Fly in F1 All keys Super T Terminal W A S D Walk]
+  told: NO
+ after Super+Alt+4:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [373.76, 233.59999999999997, 532.4799999999999, 332.7999999999999]
+  bar []
+run 3 after Alt+Escape from the pane:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [373.76, 233.59999999999997, 532.4799999999999, 332.7999999999999]
+  bar [Super C Cube Return Fly in F1 All keys Super T Terminal W A S D Walk]
+  told: NO
+ after Super+Alt+4:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [373.76, 233.59999999999997, 532.4799999999999, 332.7999999999999]
+  bar []
+run 4 after Alt+Escape from the pane:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [373.76, 233.59999999999997, 532.4799999999999, 332.7999999999999]
+  bar [Super C Cube Return Fly in F1 All keys Super T Terminal W A S D Walk]
+  told: NO
+ after Super+Alt+4:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [373.76, 233.59999999999997, 532.4799999999999, 332.7999999999999]
+  bar []
+run 5 after Alt+Escape from the pane:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [373.76, 233.59999999999997, 532.4799999999999, 332.7999999999999]
+  bar [Super C Cube Return Fly in F1 All keys Super T Terminal W A S D Walk]
+  told: NO
+ after Super+Alt+4:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True rect [373.76, 233.59999999999997, 532.4799999999999, 332.7999999999999]
+  bar []

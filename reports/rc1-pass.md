@@ -587,3 +587,367 @@ takes). The yellow square at the pointer in persona captures is the injection ma
   end); the menu is in p1-01.
 - `run.py --help` still runs every chapter.
 - Context used about 175 k; `pgrep -fa 'chora --headless'` empty at the end.
+
+## r2 mc
+
+Lane rc1-pass-mc-r2, opus high, cloud, head 4d8bbe36 (claude/rc1-pass-mc-r2, t153+154: 3be27e32 plus tour-harness r2,
+co-drop r4, mc-boil r1, xp-focus r1, tiling-chip r1). Run and read only, no product, test or design change. Step 0 green:
+`git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`, `run.py --help` (still no help: it starts
+the chapters).
+
+Runs, each from a fresh compositor:
+- tour1: `TOUR_OUT=<scratch>/tour1 python3 demo/tour/run.py mc handover`: mc 22 acts, 22 green; handover 11 acts, 9 green,
+  2 red (acts 7, 8; see Notes). tour2, tour3: `run.py handover`: the same two red, 3 of 3. tour4: `run.py mc`: 22 green.
+- pm1: `CHORA_TEST_FLAGS=--test-injected-press-is-real tests/persona/session.sh mc 1280x720` (dark), then
+  `tests/persona/act.py`. pm2: `session.sh mc 1024x768` (second takes). hx1, hx2: `session.sh tiling+mc 1280x720`
+  (give keys, two takes); hx3: `session.sh tiling+xp` (control). Host calls went to the stand-ins (`calls.log`,
+  p00-calls-pm1.txt); no host power call.
+
+Captures: `media/2026-11-26/rc1-pass-mc-r2/` (45 PNG and one text file, 4 MB in all, each under 600 KB). The brief puts
+them on the code branch; its hook `no-session-files` refuses `media/` (no --no-verify), so they sit beside this report
+on claude/session-log, as in r1 and r2 xp. `m-` = tour stills (mc chapter, take 1), `h-` = handover (tour and hx
+sessions), `p-` = pm1, `q-` = pm2, `f-` = frames and timed captures of the layout jumps.
+
+### Verdict
+
+**mc: confirms rc 1.** No BLOCK or MAJOR found. The r1 MAJOR is gone: rpx1-8 / mc-60 (p04: 14 unbound chords, Super+x
+k m q z b g y, Super+Alt+9, Super+Shift+x, Super+Ctrl+x, Super+period, Super+F5, Super+Delete, between `|` in foot from
+Programs: `start:||||...|:end`, no letter). New: 6 MINOR (rpm2-1..rpm2-6). sh-42 (shared, open MAJOR: tiling joining
+beside an mc window) was not retested here and stays open in findings/shared.md.
+
+### mc: shared RC bar and main paths (every r1 row rerun)
+
+| Item | Result | Capture |
+|---|---|---|
+| Start a program (mouse) | pass with rpm2-2: Programs door opens the launcher (themed now: dark box, `faint` row, accent match, 16 px mono, 11.5:1), Foot starts as page 7 | p03, p04, m09 |
+| Start a program (keys, remote) | pass: Super+Space opens the launcher, typing filters; Return on an unknown name says Nothing found (cut: rpx1-10 seen again) | q02, p03 |
+| Key list (mouse) | pass: six rows always in the column; a click on the Super+F1 row opens the full list | p01, p15 |
+| Key list (keys) | pass with rpm2-1: Super+F1 shows all keys and fits at 1280x720 and 1024x768, no hairline through Mute (rpx1-9 gone), Esc shuts it | p02, q01 |
+| Helper (mouse) | pass: "Chat with a helper ..." opens the chat in the column, the typed question goes, helper row "working", Stop on the head line | p11 |
+| Helper (keys) | pass: Super+a reopens the chat with the draft kept ("draft text") and the caret in the field; with rpm2-5 (date jumps) | p14, f03 |
+| Helper: Working, Stop, answer | pass with rpm2-4: Stop sends `agent.cancel` (2 of 2 in the fake's log) and leaves the head; the answer "Hello" arrives after 3 s (the stand-in ignores a cancel); no "Stopped." line | p11, p12, p13 |
+| No stray keys into clients | pass (rpx1-8 / mc-60 fixed): no letter of 14 unbound chords in foot; on a window page shown by Left, typed `zz` stays out of foot | p04, p17 |
+| Lock | pass: Lock door runs `swaylock -f` (stand-in page 8) | p05, p00 |
+| Power | pass: Power door opens the themed menu (Lock, Log out, Restart, Shut down, Screenshot), Shut down runs `systemctl poweroff` (stand-in) | p06, p00 |
+| Volume | pass (rpx1-15 fixed): a click mutes ("Muted"), the wheel over the door gives `set-volume 5%+` per step and unmutes, remote Vol+ runs; readout "Volume 85%" | p07, p00, m11 |
+| Screenshot | pass: the door runs grim and `notify-send Screenshot saved <path>` (no notify server in the persona mc, as r1) | p00 |
+| Clock | pass with rpm2-3: header "THURSDAY 26 NOVEMBER 13:41"; with the column hidden the Listening pill no longer covers it (rpx1-13 gone for Listening) | p08 |
+| Honest failure states | pass: Nothing found, Muted, "Microphone off. Click to turn it on.", Helpers page "No helper is set up. Ask the person who set up this computer." (rpx1-14 gone), "1 running" with Atlas idle | p03, p07, p09, m08, p18 |
+| Handover from and to mc | pass with rpm2-6: tiling > mc by Super+Alt+3 shows page 7 with every line, the keyboard stays with the giver (D119, by design; a click on the page gives it, h06); mc > tiling by Super+Alt+1 the same (h08); mc > xp by Super+drag keeps every line (tour acts 9, 10, 3 of 3); no window lost | h01, h03, h04, h05..h08 |
+| Cook (light): voice next, timer, answer, mouse Next, remote Left/Right/Home, Super+F1, Super+n, alarm | pass with rpm2-5; the timer card no longer covers a line (rpx1-11 gone), the last line is whole with a ↓ (rpx1-12 gone); the alarm card has no red (rpx1-17 seen again) | m01..m06 |
+| Sofa (dark, remote): Right twice, Home, Programs, chat, Vol+ | pass: page turns, Helpers page words, launcher themed, chat in the column, Vol+ readout | m07..m11 |
+| Remote on a window page | pass: Left shows page 7 with the keys on the page; XF86Back and Right turn; Return gives foot the keys (`echo remote` arrives) | p16, p17 |
+| Nurse at a distance (dark, 1280x720) | pass with rpm2-2: page and column text 14 px or more (column Inter caps 11 px = 15 px face); foot from Programs is about 10 px | p01, p04 |
+| Style (mc-style.md, mc-v2) | rpm2-1, rpm2-3, rpm2-5; seen again rpx1-16, rpx1-17, rv9j-2, mc-16, mc-50, sh-13, sh-16 | as listed |
+
+### Findings
+
+| id | look | severity | text |
+|---|---|---|---|
+| rpm2-1 | mc | MINOR | the full key list (Super+F1) leaves out Super+drag, the move key that shared.md asks every look's help to list |
+| rpm2-2 | mc | MINOR | Programs > Foot draws an unthemed foot: about 10 px text that starts at x 0 on the page edge |
+| rpm2-3 | mc | MINOR | muted: the host pill "Microphone off. Click to turn it on." is a white box on the dark page; with the column hidden it covers the date and the clock |
+| rpm2-4 | mc | MINOR | the chat drops its oldest lines at the top without "↑ N earlier"; wheel and Page Up do not bring them back |
+| rpm2-5 | mc | MINOR | the page moves when the column changes: the date jumps 96 px left for about 1 s after Super+a; one frame of a rebuild collapses the scene head and moves the margin times |
+| rpm2-6 | mc (handover) | MINOR | after a give key into mc, a Super+drag of the window onto xp leaves the keyboard on tiling's empty desktop: the dragged window has no focus |
+
+**rpm2-1 (MINOR; shared.md "Give and move keys": "Every one of these keys is listed in each look's help").** The full
+list names `Super+Alt+1-4 Give window to a look` but no Super+drag row, at 1280x720 (p02) and 1024x768 (q01). Cause
+(read): `plugins/chora-mc/src/keys.rs:165` drops `System::Drag` with the aliases (unit
+`the_full_list_has_a_row_for_each_task_but_the_drag_...`); xp's help lists it (`plugins/chora-xp/src/help.rs:126`).
+mc binds `Super+BTN_LEFT: drag` (mc.yaml:194) and the tour uses it (handover act 9). Repro: `session.sh mc 1280x720`,
+`act.py key Super+F1`.
+
+**rpm2-2 (MINOR; P7 readable, checklist 2 "no text touches an edge").** Programs > type Foot > Return: page 7 FOOT shows
+foot's own default: two text lines in y 57..81 (about 10 px face, 12 px line), ink from x 0, the left edge of the
+output (p04). The sofa and the nurse read it from metres away; the tour's Notepad page (h01) has a 14 px inset. The
+tiling twin is rpt1-5. Repro: `session.sh mc 1280x720`; `click 918 658`, `type Foot`, `key Return`. Seen in pm1 and
+again in hx1 (Super+Return of tiling, themed foot, given to mc: readable, h05), so the cause is the unthemed program,
+not the page.
+
+**rpm2-3 (MINOR; checklist 8 theme, mc-style 11 no boxes; RC bar clock).** A click on Mute turns the state line into a
+white pill with dark text "Microphone off. Click to turn it on." on the dark page (p09). With the column hidden
+(Super+n) the pill stays in the header and covers "...VEMBER 13:41" (p10 at 1280x720; q03 at 1024x768: "26 NO" then the
+pill). rpx1-13 was fixed for the Listening pill (p08); the muted pill is wider. Workaround: Super+n back or unmute.
+Repro (2 of 2, pm1 and pm2): `session.sh mc WxH`; `click` on "Mute" (905 42 at 1280, 649 42 at 1024), `key Super+n`.
+
+**rpm2-4 (MINOR; mc-v2 "older lines leave at the top behind '↑ 3 earlier' (click or Page Up scrolls)").** After five
+turns the first question "When is my next appointment?" leaves the top of the chat; no line says that earlier lines
+exist (p12 right); a wheel of 200 px over the chat and Page Up in the field change nothing (p13). A person who asked
+by voice cannot read back the start. Repro: pm1, open the chat, send four messages to the fake helper, `scroll 0 -200`
+at 1000 350, `key Page_Up`.
+
+**rpm2-5 (MINOR; mc-v2 "The page never moves for the margin", checklist 7 jitter and frame flashes).** (a) Super+a with
+the chat closed: the header date moves from x 525..833 to x 429..737 and back after about 1 s (f03, f04; 2 of 3 tries
+in pm1, captures at 0.2 s steps). (b) A rebuild of the page shows one frame in another geometry: the scene head reads
+"1|AGENDA" (number, bar and title touching, the title doubled) and the margin times stand 35 px further left (f01: dark
+take 1, frame 72 of the last 6 s; f02: light take 2, frame 160, the frame after the timer card leaves). The tour's
+still 03-14 (m12) is that frame; the judged capture 0.5 s later (m11) is right. Repro: `run.py mc`, then
+`ffmpeg -i 03b-mc-dark.mp4 -vf fps=12` and compare each frame with its neighbours (2 of 2 takes).
+
+**rpm2-6 (MINOR; D119 "A drag gives without `stay` (the pointer is there)").** Handover chapter: after Super+Alt+3
+(tiling > mc, keyboard kept by tiling, as D119 wants) the Super+drag of the page window onto xp lands it in xp with all
+lines, but the core focus stays on the node `tiling` (captures h5, h6 of the tour JSON, 3 of 3 takes) and the Notepad
+cursor is hollow (h04): typed keys go to tiling's empty desktop on another output, not into the window the person just
+dragged. D119's "a give of a window that does not hold the keyboard leaves the keyboard with its holder" wins over its
+drag rule here. Workaround: a click on the window. Repro: `run.py handover`, act 10 capture JSON (`s1` focused null,
+`tiling` focused true).
+
+### Known ids seen again (not new)
+
+rpx1-10 (launcher themed now; "Nothing found for "nosuchpro…" still cut, p03), rpx1-16 (bordered state pill, "Super+a"
+on the page and "Super+A" in the list, lowercase "atlas", "idle", "speaking": sh-13), rpx1-17 (alarm card without red or
+word, m06), rv9j-2 (the notice card is dark on the light page and bold, m02, m06; a light card on the dark page, m11),
+mc-16 (running head "1 AGENDA" above "1 | AGENDA"), mc-50 (yellow square in the persona capture, p12), sh-16 (launcher
+">" with no label), rfc1-1 not met.
+
+### Notes for the PM
+
+- Handover chapter acts 7 and 8 are red 3 of 3 on 4d8bbe36 (as r2 xp found on 3be27e32): act 7 expects the focus with
+  mc, D119 keeps it with tiling (hx1, hx2 and the tiling+xp control hx3 agree: the receiver never takes it); act 8 then
+  runs Super+Alt+4 in tiling with nothing focused, so the window stays in mc (h02: the construct still says "Nothing is
+  open yet") and act 9 drags it from mc, not from the construct. The chapter no longer shows mc > construct. A tour row
+  fix or a D119 decision; not an mc product finding.
+- The mc chapter's `hud.say` leaves "speaking" and "Four cloves, sliced thin." on screen from act 6 to the end
+  (m04..m06): mc's own HUD line keeps a say until the next `hud.set`; the real voice path (`voice.say`, the host line)
+  is the gate's (gate-mc-sofa answer). The stills read as a stuck state.
+- `run.py --help` still runs every chapter.
+- Context used about 190 k; `pgrep -fa 'chora --headless'` empty at the end.
+
+## r2 tiling
+
+Lane rc1-pass-tiling-r2, opus high, cloud, head f484a92d (claude/rc1-pass-tiling-r2: session head 4d8bbe36 with
+tiling-focus r4 7ef97ab8). Run and read only, no product, test or design change. Step 0 green: `git fetch --unshallow`,
+`cargo check --workspace`, `cargo build --workspace`. One binary set for every run (`round.sh snapshot`, sha f484a92d).
+
+Runs, each from a fresh compositor (`ROUND_DIR=<scratch> tests/persona/round.sh start NAME FLAVOR SIZE`, `stop`):
+- ti-57: four tiling+xp sessions at 1280x800 per output (r1..r4), driven by a script of `act.py` actions with
+  `choractl state tiling|xp` and the scene's focused nodes dumped after each step (52-ti57-holders.txt).
+- tour: `TOUR_OUT=<scratch> python3 demo/tour/run.py tiling` (28 acts, 28 green, 0 red) and `run.py handover`
+  (11 acts, 9 green, 2 red: acts 7, 8, the known D119 row item, backlog.md:453; window kept, see below) (51).
+- persona walk: p1 tiling 1280x720 with `choractl run -- chora-notify`, p2 tiling 1280x800, p3 tiling 1280x720.
+  Host calls go to the stand-ins (calls.log); no host power call.
+
+Captures: media/2026-11-26/rc1-pass-tiling-r2/ on claude/session-log, 52 files, each under 600 KB. A number below is
+the file prefix in that folder.
+
+### Verdict
+
+- **tiling: does not confirm: rpt2-1** (one MAJOR, reproduced 3 of 3 from a fresh compositor; it was already present
+  on d40142e4: the r1 capture media/rc1-pass/tiling-03-stray-20-chords.png shows 28 bars for 20 chords, Alt+9 taken by
+  bash as a digit argument; r1 missed it). ti-57 is fixed (4 of 4).
+
+### ti-57 (keyboard holder after the Looks picker): fixed, 4 of 4
+
+| Run | L3 path | Holders at every step | Typed text | Capture |
+|---|---|---|---|---|
+| r1 | Super+2, Super+1 | tiling (s1, then the desktop node after the give) | TYPED-R1 in the tiling foot; nothing in xp's foot | 01-06 |
+| r2 | clicks on tag 2, tag 1 (the persona's r12 path) | tiling | TYPED-R2 | 07 |
+| r3 | Super+2, Super+1; `check.py begin` after T7, `end L3` | tiling; `task L3 pass` | TYPED-R3 | 08 |
+| r4 | Looks opened again, clicks on tag 2 and 1 into the open picker, Escape | tiling; `task L3 pass` | TYPED-R4 | 09-11 |
+
+No I3 in any run (breaches only the known xp I6 tray and task contrast). Escape closes the key list after the path
+(06). The second Looks click and its Escape keep the desktop node, as review r4 read it. rtf4-1..4 not re-reported.
+
+### Ledger ids asked
+
+| id | Result | Capture |
+|---|---|---|
+| ti-57 | gone (above) | 01-11, 52 |
+| ti-55 | gone: the bar names the other look ("Looks: xp"), the picker row says "Move window to the xp desktop", the give lands on xp's output (P2 r11/r12 T7 4 of 4) | 01, 03 |
+| ti-56 | gone: Super+q gives the chip "Super+Q does nothing here. Super+F1 shows all keys." at 1 s and still at 6 s; "Chat with a helper" is the first Apps row. Super+q itself stays unbound (ti-28) | 27, 28, 24 |
+| rp9-1 | gone: `verify_reloaded` compares the value of gap_inner on disk with the begin (tests/persona/check.py:703-718), a changed file with the same value is red; `pytest tests/persona/test_check.py -k "L2 or reload or gap"` 3 passed; P2 r12 L2 red 2 of 2 on an unchanged value | read, test run |
+
+### tiling: shared RC bar and main paths
+
+| Item | Result | Capture |
+|---|---|---|
+| Start a program (mouse) | pass with rpt1-5: Apps, click Foot starts a terminal with the focus; rpt1-6 gone (first row "Chat with a helper (atlas)") | 24, 25 |
+| Start a program (keys) | pass: Super+Return (themed foot, focus); tour t8 Super+r/Space | 26, 39 |
+| Key list (mouse) | pass with rpt1-3: Keys opens it, Mouse line; Escape closes, keys back to foot | 32 |
+| Key list (keys) | pass with rpt1-3: Super+F1, Super+/ toggles (state open, then closed); fits at 1280x800 | 14, 15, 48 |
+| Helper (mouse) | pass: the bar word opens the chat with the keys; "echo LEAKED-H" reached the helper, not foot (ti-52 fixed) | 29 |
+| Helper (keys) | pass: Super+a, the question reaches the helper ("Hello" answer shown), Escape gives the keys back to foot | 30, 31 |
+| No stray keys into clients | **rpt2-1 MAJOR**: Super, Super+Shift, Super+Ctrl chords swallowed (20 of 21), but every Super+Alt chord and Super+Ctrl+Shift+key reach the client | 26, 50, 45, 49 |
+| Lock | pass with rpt1-10: power > Lock runs `swaylock -C <theme> -f` (stand-in window); Super+Shift+Escape runs `loginctl lock-session` | 33, 34, 44 |
+| Power | pass: power > Shut down runs `systemctl poweroff` (stand-in) | 33, 44 |
+| Volume | pass: wheel on the word gives 55 % (`wpctl set-volume 5%+`), click shows "Muted", a second click toggles back | 35, 44 |
+| Screenshot | pass with rpt1-4: Super+Print runs grim and the notice "Screenshot saved" with the path (tour; in the persona session the stand-in notify-send has no notice daemon, 36, 44) | 16, 36 |
+| Clock | pass: "Thu 26 Nov 14:29" centred in its island | 23 |
+| Honest failure states | pass for a broken yaml line (chip "Settings not applied: chora-tiling.yaml: simple key expected ':' at line 24, column 3", ti-53 fixed), a wrong action (chip "... unknown variant", rth-6), Apps "frobnicate" (Nothing found), Looks alone ("No other look is running"); still silent: rpt1-7 (Super+Alt+2 without xp), rpt1-8 (missing run program); rpt2-2 | 37, 38, 17, 42, 41, 40, 12 |
+| Handover to and from tiling | pass: xp > tiling by Send To with the lines kept and typing on tiling; tiling > mc by Super+Alt+3 with the lines kept; AUDIT kept the window. Acts 7, 8 red = the known D119 rows (backlog.md:453), not product | 21, 22, 51 |
+| Power user (keys) | pass: tour 28 green (layouts with the chip, master, tags, float, Super+drag, key list, chat); the Super+Alt leak (rpt2-1) is on this user's path | 20, 14 |
+| Ricer: edit and reload | pass: Super+s opens the yaml in vi, `:%s` gap_inner 12 > 32 and a new `MOD+y: {run: foot}`, `:wq`, Super+Ctrl+r: get_layout gap_inner 32, the gap shows 32 px, "Super+Y Run foot" in the key list | 46, 47, 48 |
+| Ricer: a broken line | pass (ti-53 fixed, chip with line and column); old settings stay | 37, 39 |
+| Beginner, mouse only | pass: Apps > Foot, Keys, power menu, volume, helper word all by mouse; not stranded (Escape and the bar always back out); rpt1-5 on the way | 24, 25, 32, 33, 35, 29 |
+| Style (tiling-v2) | pass with rpt1-3, rpt1-4, rpt1-5, rpt1-9 and sh-13 (below); bar, tags, chip, gaps, radius, focus glow, picker as designed | 23, 20, 01 |
+
+### Findings
+
+| id | severity | text |
+|---|---|---|
+| rpt2-1 | MAJOR | Super+Alt+any key and Super+Ctrl+Shift+key are not swallowed: the client gets Alt+key or Ctrl+key (`^[9 ^[5 ^[x ^[q ^[d ^X ^[X` in `cat -v`) |
+| rpt2-2 | MINOR | the Looks picker on a tag with no window offers "Move window to the xp desktop"; choosing it says "Window not moved" with the body "choractl: no focused window" (a tool name, English only) |
+
+**rpt2-1 (MAJOR; bar: no stray keys into clients; design/looks/shared.md "an unbound Super key never types into a
+window", tiling-v2 "tiling swallows every MOD+key it does not bind").** In a focused foot running `cat -v`:
+Super+Alt+9, Super+Alt+5, Super+Alt+x, Super+Alt+q, Super+Alt+d, Super+Ctrl+Shift+x, Super+Shift+Alt+x each print
+their Alt or Ctrl sequence (`start:^[9|^[5|^[x|^[q|^[d|^X|^[X|...`), while Super+q, Super+Shift+x, Super+Ctrl+x in the
+same line print nothing (49). In a shell Alt+d deletes a word, Alt+. inserts the last argument, Alt+9 repeats the next
+key nine times (r1 capture); in vi Escape+key runs a command; Ctrl+X is the exit of nano. A keyboard-first user who
+tries Super+Alt+5 after Super+Alt+2-4 in the key list sends Alt+5 into the window. Workaround: do not press them.
+Cause (read): crates/chora-kit/src/swallow.rs:97 `const WITH: [&str; 3] = ["", "Shift+", "Ctrl+"]`, so `chords()`
+grabs no Super+Alt and no Super+Ctrl+Shift chord; the kit list is shared, so the other looks that swallow with it
+likely leak the same (not run). The gate tests/gate-tiling-swallow.sh:24 tries Super+q, z, F5, Shift+x only.
+Repro: fresh `round.sh start NAME tiling 1280x720`; `key Super+Return`, type `clear; echo -n 'start:'; cat -v`,
+Return, then `key Super+Alt+9`, `type |`, `key Super+Ctrl+Shift+x`, `type |`, `look`. R1 p1 (26, zoom 50: Super+Alt+9
+as `^[9`, the other 19 chords clean), R2 p2 (45), R3 p3 (49). Not new on this head: on d40142e4 too (r1 tiling-03).
+
+**rpt2-2 (MINOR; honest failure states, words).** After T7 the tag is empty; Looks still lists "Move window to the xp
+desktop" (09); Super+2 on an empty tag, Looks, Return: flavors/tiling/give.sh:19-20 sends `notify-send -a Desktop
+"Window not moved" "choractl: no focused window"` (13), the stderr of `choractl give` as the body (shared.md: no
+internal terms; read: with a German locale the title is German and this body stays English). No notice showed in the persona session (no daemon on its bus,
+12); the words are from calls.log. Not stranded: Super+1 gives the keys back to the foot (52, e2). Repro: fresh
+tiling+xp session, Super+2, click Looks, Return.
+
+### Known ids seen again (not new)
+
+rpt1-3 (key list at 1280x720: the keycap of "Super+Shift+S" runs 4 px past the panel border at y 667, 14, 15, 32),
+rpt1-4 and rv9j-3 (white notice card on Ink, 16), rpt1-5 (Apps > Foot unthemed, 25), rpt1-7 (41), rpt1-8 (40),
+rpt1-9 (the tile keeps the glow while the chat field has the keys, 29), rpt1-10 (44), rth-6 (wrong action: "unknown
+variant" with no name or line, 38), sh-13 (bar and panel say "atlas" in lower case in the persona session, "Atlas" in
+the tour; a "Listening" pill and dot float over the bottom right tile while the bar says idle or working, 23, 29),
+ti-9 ("Window that asks", 32), ti-15 (the right island shrinks from "Volume 55%" to "Muted", 35), ti-25 (raw launcher
+rows Foot Client, Foot Server, ImageMagick, 24; the floated window runs past the right edge, 18; vi drew a torn wrap
+after the re-tile, 43), ti-28 (Super+q unbound, now with the chip, 27). The key list lists "Other desktops: xp, media
+center, construct" and Super+Alt+2-4 also when no other look runs (32; with rpt1-7). Gone since r1: rpt1-1 (ti-52),
+rpt1-2 (ti-53), rpt1-6.
+
+### Notes for the PM
+
+- rpt2-1 is in the shared kit list (chora_kit::swallow); a fix there touches every look that swallows with it; a gate
+  row with one Super+Alt and one Super+Ctrl+Shift chord would hold it.
+- The handover acts 7, 8 stay red on this head as on 3be27e32 (rows predate D119, backlog.md:453).
+- A lock stand-in window (`timeout 8 chora-probe`) closes by itself; a close key pressed after it closes the window
+  under it (my p1 action, not a product fault).
+- Context used about 170 k; `pgrep -fa 'chora --headless'` empty at the end.
+
+## r2 construct
+
+Lane rc1-pass-construct-r2, opus high, cloud, head 57ce1480 (claude/rc1-pass-construct-r2: session head 7c6955c8 with
+claude/co-reach-r6 bcecb671, co-79 fixed there). Run and read only, no product, test or design change. Step 0 green:
+`git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`, `run.py --help` (no help: it runs the
+chapters, as in every pass; not a failure).
+
+Runs, each from a fresh compositor:
+- tour1: `run.py construct`: 18 acts, 10 green, 8 red. Six red rows are the I2 gap only (co-44, acts 4, 14 to 18); acts 9
+  and 10 fail their `expect` because the tour clicks a hidden node (rpc2-5, harness).
+- tour2: `run.py handover`: acts 7, 8 red = the known D119 rows (backlog.md:453, r2 xp and r2 tiling notes); the window
+  stays in mc with its lines, nothing lost. The chapter no longer shows mc > construct, so I ran the handovers by hand.
+- persona (`CHORA_TEST_FLAGS=--test-injected-press-is-real tests/persona/session.sh`, then `tests/persona/act.py`):
+  a1, a2, a3 (construct 1280x800: rpc1-1, rpc1-2, co-79), b1 (1280x720: chip, stray keys, doors, notice with chora-notify
+  started by hand), c1 (failure states, beginner), d1 (ricer, glass), m1 (construct+mc), x1 (construct+xp), t1
+  (construct+tiling); h1, h2 discarded (rpc2-6). Host calls go to the stand-ins (`calls.log`); no host power call.
+
+Captures: `media/rc1-pass/construct-r2-NN-*.png` on claude/session-log (40 PNG, 7.2 MB, each under 500 KB).
+claude/rc1-pass-construct-r2 refuses `media/` (hook `no-session-files`, no --no-verify), so they sit beside this report
+as in r1. A number below is `construct-r2-NN`.
+
+### Verdict
+
+- **construct: confirms rc 1** (no BLOCK or MAJOR found). rpc1-1, rpc1-2 and co-79 are closed, each 2 of 2 or more from a
+  fresh compositor; new: four MINOR or COSMETIC and two harness NIT.
+
+### Re-checks
+
+| id | result | runs | captures |
+|---|---|---|---|
+| rpc1-1 BLOCK | closed: Super+x in an empty face closes nothing, the Terminal pane beside the cube stays (list "1 WINDOW"); with a face window focused ("echo faceA"/"faceB") Super+x closes that window and spares the pane; foot of the pane still runs | a1 (both variants), a2, a3 | 01, 02, 03 |
+| rpc1-2 MAJOR | closed: in a pane the bar "Alt Esc Step back · Super F1 All keys" is still there after 7 s and 9 s; a click on "All keys" opens the sheet, a click on "Step back" steps out | a2, a3 | 05, 06, 08, 12, 13 |
+| co-79 MAJOR | closed: out of the Terminal row pane with no cube the walk bar names "Super C Cube"; Super+C stands the cube back with "Super Alt 2 Into face" told and the key puts the window on the face with its text ("zz" kept), keys reach it; a pane pulled out of a face (Super+Alt+4) and Alt+Escape stands back (no use mode) with "Into face" told | a2, a3 | 08, 09, 10, 11, 17, 18 |
+
+### construct: shared RC bar, vision card and main paths
+
+| Item | Result | Capture |
+|---|---|---|
+| Start a program (mouse) | pass with rpc1-6: start card row Terminal flies into a terminal; door Programs opens fuzzel | 05, 27 |
+| Start a program (keys) | pass: Super+t in the walk and in a face, Super+Space; a binding of the file (Super+n terminal) works | 20, 21, 35 |
+| Key list (mouse) | pass with rpc2-1: hint All keys in a pane, door Keys stood back at 1280x720 (footer and Close on screen: rpc1-4 not seen) | 06, 13, 28 |
+| Key list (keys) | pass: Super+F1 in a pane says "IN A PANE", Escape gives the keys back ("zz" reached the terminal: rpc1-3 not seen) | 06, 07 |
+| Helper (mouse) | pass with rpc2-3, sh-13: door Helper opens the chat with the field ready ("by mouse" typed) | 25 |
+| Helper (keys) | pass: Super+a, "hello", Atlas answers "Hello" | 26 |
+| No stray keys into clients | pass: 29 unbound chords (Super+b f g h i j k l m n o p q r s u v w y z 1 5 9 0 Return Tab minus comma period) between markers: the pane shows `SE`, the face window `SE` | 20, 21 |
+| Lock | pass with co-57: door and Super+Shift+Escape run `swaylock -f` (stand-in window "Screen locked") | 23 |
+| Power | pass with rpc1-6: door and Super+Shift+e open the menu; Shut down runs `systemctl poweroff` (stand-in) | 24 |
+| Volume | pass with rpc1-7: a click mutes ("Volume Muted"), the media key gives 55 %, the wheel calls nothing | 22 |
+| Screenshot | pass: door and Super+Print run grim and `notify-send ... Screenshot saved <path>` (calls.log; the persona has no notice server) | calls.log b1 |
+| Clock | pass: strip 19:16 to 19:37 real time (19:26 in 22), the xp face tray the same minute (7:26 PM in 21) | 21, 22 |
+| Honest failure states | pass with rpc1-9, rpc1-10, co-7: "Media center did not take the window: it is not running." (and Tiling); failed face card with the reason; a broken file refused on reload with file, line and reason ("unclosed bracket '[' at line 3, column 14"), the old settings stay | 29, 31 |
+| No lost window in a handover | pass: construct > mc (Super+Alt+3, page "7 FOOT" with the line) and back (Super+Alt+4, pane, typing reaches it); construct > xp and back; construct > tiling and back; every line kept, keys follow; face pulls of the Re-checks | 36, 37, 38, 39, 40 |
+| Step out and in | pass: Alt+Escape, the hint Step back, Return, a click on a face | 08, 32, 34 |
+| Pull windows across faces | pass with rpc2-2, rpc2-4: Super+Alt+4 pulls, Super+Alt+2 puts back; tour1 stills 04-10 to 04-13 (title drag over the edge, pane, back on the face) | 10, 11, 16, 17 |
+| Glass, calm, minimal HUD | pass with rpc1-8, co-44, co-45, co-14: rest pose with depth, lit edge and hover fill, live turn with Step in dimmed, one accent | 09, 34 |
+| Explorer (mouse first) | pass with rpc2-1, rpc2-3: start card, hints by click, doors, a click on a face | 05, 06, 08, 25 |
+| Demo watcher | pass with rpc2-5: tour1 acts tell each step; act 9's still shows face 3 stepped into under the caption "The cube turns back one face" (harness) | 04, 19 |
+| Ricer (keys, config) | pass: Super+n bound in the file works after `settings.reload`; a one-line `bindings` map drops the defaults, as documented ("a map such as `bindings` in the file replaces the default map", configuration.md:241), and the hints follow (only "All keys", no key); broken file refused | 35 |
+| Beginner in the stood-back cube | pass with rpc1-5: hints name Turn, Step in, Fly in, Into face, All keys; a click on a face steps in; Escape closes the cube | 09, 32 |
+
+### Findings
+
+| id | severity | text |
+|---|---|---|
+| rpc2-1 | MINOR | the key sheet in a pane ("CONSTRUCT · IN A PANE") lists the walk and cube keys, which type into the window there, under "Only the keys that work now are listed." |
+| rpc2-2 | MINOR | after the key sheet in a pane, the step back does not name "Super Alt 2 Into face", though the key works |
+| rpc2-3 | COSMETIC | the chat panel covers the right end of the stood-back hint bar: "Into face" and "All keys" hidden, a key cap cut |
+| rpc2-4 | MINOR | a pane pulled out of a face and stood back by Alt+Escape once stood half behind the cube (1 of 2) |
+| rpc2-5 | NIT (tour harness) | tour act 9 clicks the hidden node `construct-mode-turn-left`; the click lands on the cube and steps into face 3; acts 9, 10 red |
+| rpc2-6 | NIT (persona harness) | two-look sessions: `first_look_takes_the_keyboard` clicks the start card's All programs row; a joining construct gets no `--output` |
+
+**rpc2-1 (MINOR; honest states, POLS).** Start card row Terminal, wait, click the hint "All keys" (772,724): the sheet says
+"CONSTRUCT · IN A PANE" and lists WALK (W A S D, Q E, R F, H, Return "Fly into the pane ahead", Tab, Super C) (06); with a
+cube open also CUBE ("Step into the face Return", "Close the cube, stood back Esc", "Show these keys, stood back F1") (13).
+In the pane these keys reach the window (after Escape "zz" is in the terminal, 07), yet the footer says "Only the keys that
+work now are listed." Repro: a2 (06, 07), a3 (13).
+
+**rpc2-2 (MINOR; co-79 family, rcrr6-6 neighbour).** Cube open, fly into the Terminal pane by a click, click "All keys",
+Escape, click "Step back": the stood-back bar ends "Click Fly in · Super F1 All keys", no "Into face" (14, 15); Super+Alt+2
+still puts the window on the face (16). Without the sheet the same click or Alt+Escape names it (18; a3-hintback). A told
+way stays (Fly in, then Alt+Escape). Repro: a3 twice (14, 15).
+
+**rpc2-3 (COSMETIC; overlap; sh-15 family).** Stood back with a pane beside the cube (7 hints), Super+a or the door Helper:
+the chat panel (x 848 to 1248) lies over the hint bar, "Super Alt 2 Into face" and "Super F1 All keys" hidden, the cap
+"Super" cut at the panel edge (25 at 1280x720, 33 at 1280x800).
+
+**rpc2-4 (MINOR; overlap; seen 1 of 2).** Terminal pane put into face 1 (Super+Alt+2), Super+Alt+4 pulls it out, Alt+Escape:
+the "Foot" pane stands at x 266 and its right half is behind the cube's front face (11); the same steps in a3 leave a gap
+(17). Not reproduced; noted for the next construct round.
+
+**rpc2-5 (NIT, tour harness).** demo/tour/chapters/construct.py:103 centres on `id:construct-mode-turn-left`; the snapshot
+of the act has that node `visible: false` at (1159,650), the drawn chip is `construct-hints-construct-mode-turn-left-*`
+under `construct-hints`. The click lands on the cube and steps into face 3 (04: xp face 3, caption "The cube turns back one
+face"); act 10's Ctrl+Alt+Left then turns in use mode. By hand the drawn chip turns face 3 > 2 > 1 at 1280x720 (19). A demo
+recording made from this head shows the wrong thing for one act.
+
+**rpc2-6 (NIT, persona harness).** tests/persona/session.sh:407 `first_look_takes_the_keyboard` clicks the middle of the
+first look's claim; for the construct that is the start card's "All programs" row, so every construct+X session starts
+with fuzzel open over the card (m1, x1, t1; calls.log "fuzzel" before any action) and the persona's first click closes it.
+session.sh:246 starts a joining construct without `--output` (it has none): tiling+construct draws the construct over
+tiling's HEADLESS-1 and the window of the Terminal row goes to tiling, hidden under the space (h1). Use construct first.
+
+### Known ids seen again (not new)
+
+rpc1-5 (wordless bar and face label under the start card after the cube closes, also after a failed cube: 30, 32),
+rpc1-6 (fuzzel unthemed: 24, 27), rpc1-7 (the wheel calls nothing), rpc1-8 (grey pill in a pane: 05, 12), rpc1-9
+(notice at the bottom right over "All keys": 29), rpc1-10 ("The other faces still work." with every face failed: 31), co-7
+(card spills left of the face: 31), co-14 (yellow square of the harness pointer, d1 mid-turn), co-17 ("foot" in the list,
+"Foot" label: 11), co-44 (tour1 I2), co-45 (11 px heads), co-57 (lock stand-in drawn as a pane: 23), sh-13 ("IDLE" in the
+chat head, "LISTENING" on the pill: 25), D119 tour rows (tour2 acts 7, 8). rpc1-3 and rpc1-4 did not show (06, 07, 28).
+
+### Notes for the PM
+
+- Seen once, not filed: in a1 an empty capsule stood at the hint bar's place under the window list (x 427 to 555, y 732
+  to 764) on three looks; a2 and a3 with the same steps do not show it.
+- After a give from construct to mc the construct output shows mc's helper pill (dark "Listening" and a red dot) instead of
+  the glass pill until the window comes back (m1); the assistant follows the focused look. Not filed: a design question
+  for shared.
+- Context used about 215 k; no `chora --headless` left.

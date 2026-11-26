@@ -1,0 +1,50 @@
+run 1 in the face with a window:
+mode use front 0 faces 4, panes [], core focus: ['s1']
+    surface s1 owner xp visible True focused True
+  bar [Super F1 All keys Super Alt 4 Pull out Alt Esc Step back]
+  told: yes
+ after Super+Alt+4:
+mode use front 0 faces 4, panes ['foot'], core focus: ['s1']
+    surface s1 owner construct visible True focused True
+  bar [Super F1 All keys Alt Esc Step back]
+  RESULT pass
+run 2 in the face with a window:
+mode use front 0 faces 4, panes [], core focus: ['s1']
+    surface s1 owner xp visible True focused True
+  bar [Super F1 All keys Super Alt 4 Pull out Alt Esc Step back]
+  told: yes
+ after Super+Alt+4:
+mode use front 0 faces 4, panes ['foot'], core focus: ['s1']
+    surface s1 owner construct visible True focused True
+  bar [Super F1 All keys Alt Esc Step back]
+  RESULT pass
+run 3 in the face with a window:
+mode use front 0 faces 4, panes [], core focus: ['s1']
+    surface s1 owner xp visible True focused True
+  bar [Super F1 All keys Super Alt 4 Pull out Alt Esc Step back]
+  told: yes
+ after Super+Alt+4:
+mode use front 0 faces 4, panes ['foot'], core focus: ['s1']
+    surface s1 owner construct visible True focused True
+  bar [Super F1 All keys Alt Esc Step back]
+  RESULT pass
+run 4 in the face with a window:
+mode use front 0 faces 4, panes [], core focus: ['s1']
+    surface s1 owner xp visible True focused True
+  bar [Super F1 All keys Super Alt 4 Pull out Alt Esc Step back]
+  told: yes
+ after Super+Alt+4:
+mode use front 0 faces 4, panes ['foot'], core focus: ['s1']
+    surface s1 owner construct visible True focused True
+  bar [Super F1 All keys Alt Esc Step back]
+  RESULT pass
+run 5 in the face with a window:
+mode use front 0 faces 4, panes [], core focus: ['s1']
+    surface s1 owner xp visible True focused True
+  bar [Super F1 All keys Super Alt 4 Pull out Alt Esc Step back]
+  told: yes
+ after Super+Alt+4:
+mode use front 0 faces 4, panes ['foot'], core focus: ['s1']
+    surface s1 owner construct visible True focused True
+  bar [Super F1 All keys Alt Esc Step back]
+  RESULT pass

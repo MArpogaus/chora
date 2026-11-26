@@ -1,18 +1,16 @@
-# tour-fix r2 (F7, rc 11): fix round after review r1 (FIX, 3 MAJOR)
+# tour-fix r2 (F7, rc 1, 11; rtf1-2, rtr4-1 MAJOR): the two MAJOR tour findings before take r3
 
-Model: sonnet, effort high (tour harness fixes with red tests; scene-id mapping needs care)
-Lane: cloud, claude/tour-fix at faf958fe (r1 head). Cost at most 0.8 %; stop at 250 k context. One area: demo/tour and tests/tour-*.py, tests/acts (harness only); no product code.
-Why: reports/tour-fix.md "## Review r1" on claude/session-log (bf0a2d18): verdict FIX, MAJOR rw-1, rw-2, rw-3; MINOR rw-4..rw-7.
-Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`; a failure: send_message the PM "tour-fix-r2 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
-Each fix: red test commit first (it fails alone), then the fix commit (rules.md 8).
-1) rw-1 (tour.py:569): a new take never keeps a stale png: clear the capture dir at take start or always overwrite; red test: a run dir with an old png gets the new one.
-2) rw-2 (tour.py:68,451; intended.toml:10,15,20): dumps and intended.toml use one id: the scene id of design/tour-v9.md; red test: the h2 Send To row matches the Send To act (h5), not "Click Start".
-3) rw-3 (tour.py:226,246-247): OldCore and the "missing boxes" filter apply only with TOUR_BASELINE; red test: on the candidate, an act with I5, I6, I8 or I9 breach prints it. Name the new red count per look and invariant; each new red gets a findings row (never a known-red row to hide it).
-4) rw-4 (run.py:82-95): catch only the old-build errors; others fail loud; baseline-none.json holds the `<act>.<capture>` names.
-5) rw-6: findings rows for tiling t26 and t28 (fixed waybar pixels) in findings/tiling.md on claude/session-log.
-6) rw-7 (harness.py:708): settled_scene logs or raises after its last try, never silent.
-7) rw-5 (tiling-audit.py:89-110, gap 10 vs ti-31 4 px grid): do not decide; revert to the design value of design/looks/tiling.md if the check changed it, and note the question in the report.
-Gate: `python3 -m pytest tests/test_acts.py tests/test_tour.py -q`, `python3 demo/tour/run.py --check` (red count before/after), full `tests/merge-gate.sh --jobs 1` (no --only) green on claude/tour-fix merged with origin/claude/autonomous-dev-session-3w-i33pg7. A red cell you did not cause: name it with its log line; do not rerun to green. Run long steps in the background and poll in the same turn; never end a turn to wait.
-Done when: rw-1..rw-4, rw-6, rw-7 closed with red and fix commits, rw-5 noted, the gate green.
-Report: reports/tour-fix.md "## r2" on claude/session-log (shas, each rw line closed, red counts, findings rows); send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 5 lines with the head sha.
-Rules: push claude/tour-fix and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report and findings/ rows); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages.
+Model: sonnet, effort high (routine: one chapter step and three rows, causes already traced in the report)
+Red on head: rtf1-2 handover acts 7, 8 red on 84e31324 (h3b, h4); rtr4-1 m2 m2b m3 regressions on 84e31324
+Lane: cloud, branch claude/tour-fix-r2 at 84e31324c554821d5fac27c46c3995f8bf8618d2 (claude/tour-fix-r1 head, review MERGE-OK, in train 157). Area: demo/tour/ (chapters/handover.py, intended.toml), tests/test_tour.py, tests/test_tour_diff.py; no product code. Stop at 250 k. Cost at most 0.6 %.
+Why: reports/tour-rows.md "## fix r1" (rtf1-2, rtr4-1 paragraphs) and "## Review fix r1" on claude/session-log.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`. A failure: send_message the PM "tour-fix-r2 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1. Red first, its own commit: a test in tests/test_tour.py fails on 84e31324: handover act 7 must not expect mc focus after Super+Alt+3 (41ddd4ba2, rtf2-1: a window given to mc while another look holds the keyboard arrives without it), and a click into mc comes before act 8's key.
+2. rtf1-2: change demo/tour/chapters/handover.py as step 1 says; acts 7, 8 green on the head build (two runs).
+3. rtr4-1: rows in demo/tour/intended.toml for m2 m2b m3: `rect` mc-s-boil-panels lead/side and `cut` side-lines, cause c3925fc55; each row only as wide as the judged act (no `*`, no whole-frame box); test_tour_diff.py passes.
+4. Re-take v9 (head) and v8 (733967aa, TOUR_BASELINE=1); counts of tests/tour-diff.py: h3b, h4, m2, m2b, m3 leave the regression column; every regression left keeps its filed id (rtf1-1, -3..-7, rtr4-2).
+Out of scope (backlog): rtf1-1, rtf1-3..rtf1-7, rtr4-2, rtf1r-1..4 (MINOR and NIT; rules.md 6).
+Run: `python3 -m pytest tests/test_tour_diff.py tests/test_tour.py -q` and the full gate, no step filter: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2 --allow-skip docs` (no --push) detached with setsid nohup, poll in the same turn; paste the last 20 lines. A red cell you did not cause: name it with its log line, rerun that step alone and then the steps after it. Never end a turn to wait. Before ending: `pgrep -fa 'chora --headless'` empty.
+Done when: red commit before the fix; acts 7, 8 green twice; the three rows pass; re-take counts in the report; gate EXIT 0 (or a named foreign flake and every later step run); reports/tour-rows.md "## fix r2" on claude/session-log (base, head, diffstat, counts, gate line); stills under media/2026-11-26/tour-fix-r2/.
+Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 5 lines): head sha, red commit, counts, findings left (ids and severity), gate result.
+Rules: push claude/tour-fix-r2 and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report and media folder); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).

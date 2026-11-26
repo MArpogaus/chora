@@ -1,0 +1,8 @@
+Header clock x (mc-r0-header-clock transform) and the rect of the pill word, sampled about
+every 85 ms while Super+a opens the chat (persona mc 1280x720, build of 4fdf1b9fd).
+The host moves the pill word 1120 -> 764 for about 0.2 s while the chat opens.
+Before: mc read that rect later (about 1 s, learn_rooms) and moved the header date 96 px left
+  (capture rpm2-5-before-date-shift.png, rc1-pass r2 f03; unit red: header 576 vs 672 wide).
+After: 36 of 37 samples clock x 364.85 with word 1120, 1 of 37 clock x 364.85 with word 764:
+  the pill moves, the date does not. A second open after Esc showed clock x 468.85 (r0) for
+  3 samples and a measuring probe at x 0: not the pill; named in the report as open.
