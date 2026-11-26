@@ -337,8 +337,9 @@ pub fn margin(width: f64) -> f64 {
 }
 
 /// A keycap shows a key as a person reads it: a single letter in capitals,
-/// the arrows as arrows, `Escape` as `Esc` and the volume keys as `Vol+`,
-/// `Vol-` and `Mute`, in the key list of every look.
+/// the arrows as arrows, `Escape` as `Esc`, the volume keys as `Vol+`,
+/// `Vol-` and `Mute`, `Prior` and `Next` as Page Up and Page Down and a
+/// punctuation key as the mark on it, in the key list of every look.
 #[must_use]
 pub fn cap(key: &str) -> String {
     match key {
@@ -349,6 +350,18 @@ pub fn cap(key: &str) -> String {
         "Right" => "→".into(),
         "period" => ".".into(),
         "slash" => "/".into(),
+        "comma" => ",".into(),
+        "semicolon" => ";".into(),
+        "apostrophe" => "'".into(),
+        "grave" => "`".into(),
+        "minus" => "-".into(),
+        "equal" => "=".into(),
+        "backslash" => "\\".into(),
+        "bracketleft" => "[".into(),
+        "bracketright" => "]".into(),
+        "Prior" | "Page_Up" => "Page Up".into(),
+        "Next" | "Page_Down" => "Page Down".into(),
+        "BackSpace" => "Backspace".into(),
         "space" => "Space".into(),
         "Return" | "KP_Enter" => "Return".into(),
         "XF86AudioRaiseVolume" => "Vol+".into(),
