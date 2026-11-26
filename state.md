@@ -1,12 +1,12 @@
 # State
 
-## Now (2026-11-26 19:43 UTC)
+## Now (2026-11-26 19:44 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 19:43 PM 5.7 % (11-26 BKK); week est. 51 % (unmeasured, owner reads) vs 76 % time; need (100-51-5)/40 h = 1.1 %/h; lanes 6 build
+budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 19:44 PM 5.7 % (11-26 BKK); week est. 51 % (unmeasured, owner reads) vs 76 % time; need (100-51-5)/40 h = 1.1 %/h; lanes 6 build
 session branch: 7c6955c8 (t156 17:27); 100 greens. t153 red sh-37; t154, t155 flake sh-44; t156 flake launcher-mc (mc dark), rerun green; t157 runs
 
 lanes: 6 of 6 (tour-fix-r2, p2-r15-co, kit-swallow-r2, co-minor-r1, mc-minor-r3, flake-series-r10)
-burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88, 10 regr)
+burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88,10 regr)
 
 ## RC
 | # | Criterion | State |
@@ -25,7 +25,7 @@ burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88, 10 
 | Lane | Model, branch | State |
 |---|---|---|
 | tour-fix-r2.md (Q 4, 0.6 %) | sonnet high, 84e31324 | s..LaZa9mxvCe9PHc5BE |
-| p2-r15-co.md (Q 2, 0.8 %) | sonnet med, 57ce1480 | starting |
+| p2-r15-co.md (Q 2, 0.8 %) | sonnet med, 57ce1480 | s..NHXCPxMZEuPJpvGu6 |
 | kit-swallow-r2.md (Q 3, 0.4 %) | sonnet high, 02e745c3 | s..N37HHuzX8ujDusKFR |
 | co-minor-r1.md (Q 2, 0.5 %) | sonnet high, 57ce1480 | s..QfdXoTJwAHB4ThLKn |
 | mc-minor-r3.md (Q 4c, 0.5 %) | sonnet high, 59dd6894 | s..NjzArxCW9sJ9LRKQ1 |
