@@ -1,0 +1,172 @@
+run rc xp_cells xp_no_focus cells_not_pass
+1 0 6 0 0
+2 0 6 0 0
+3 0 6 0 0
+4 0 6 0 0
+5 0 6 0 0
+total_xp_no_focus 0 of 5 runs
+
+== run-1 rc=0
+phase startup 3s
+tiling xp cgive pass owner=xp focus=true pane= 2s
+tiling mc cgive pass owner=mc focus=true pane= 2s
+tiling construct cgive pass owner=construct focus=true pane=shown 3s
+xp tiling cgive pass owner=tiling focus=true pane= 2s
+xp mc cgive pass owner=mc focus=true pane= 1s
+xp construct cgive pass owner=construct focus=true pane=shown 3s
+construct tiling cgive pass owner=tiling focus=true pane= 1s
+construct xp cgive pass owner=xp focus=true pane= 2s
+construct mc cgive pass owner=mc focus=true pane= 2s
+mc tiling cgive pass owner=tiling focus=true pane= 2s
+mc xp cgive pass owner=xp focus=true pane= 3s
+mc construct cgive pass owner=construct focus=true pane=shown 3s
+phase voice-start 1s
+tiling xp voice pass owner=xp focus=true pane= 7s
+tiling mc voice pass owner=mc focus=true pane= 7s
+tiling construct voice pass owner=construct focus=true pane=shown 8s
+xp tiling voice pass owner=tiling focus=true pane= 7s
+xp mc voice pass owner=mc focus=true pane= 7s
+xp construct voice pass owner=construct focus=true pane=shown 7s
+construct tiling voice pass owner=tiling focus=true pane= 6s
+construct xp voice pass owner=xp focus=true pane= 7s
+construct mc voice pass owner=mc focus=true pane= 7s
+mc tiling voice pass owner=tiling focus=true pane= 6s
+mc xp voice pass owner=xp focus=true pane= 8s
+mc construct voice pass owner=construct focus=true pane=shown 8s
+-- gate.out tail:
+ONLY is set: the table is not fully checked
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a17-load/run-1/matrix.log)
+run time: 114s
+ok: gate-handover-matrix: every cell as in EXPECTED that ran in 114s of at most 387s
+
+== run-2 rc=0
+phase startup 4s
+tiling xp cgive pass owner=xp focus=true pane= 2s
+tiling mc cgive pass owner=mc focus=true pane= 2s
+tiling construct cgive pass owner=construct focus=true pane=shown 3s
+xp tiling cgive pass owner=tiling focus=true pane= 2s
+xp mc cgive pass owner=mc focus=true pane= 2s
+xp construct cgive pass owner=construct focus=true pane=shown 2s
+construct tiling cgive pass owner=tiling focus=true pane= 1s
+construct xp cgive pass owner=xp focus=true pane= 2s
+construct mc cgive pass owner=mc focus=true pane= 2s
+mc tiling cgive pass owner=tiling focus=true pane= 2s
+mc xp cgive pass owner=xp focus=true pane= 3s
+mc construct cgive pass owner=construct focus=true pane=shown 2s
+phase voice-start 1s
+tiling xp voice pass owner=xp focus=true pane= 8s
+tiling mc voice pass owner=mc focus=true pane= 7s
+tiling construct voice pass owner=construct focus=true pane=shown 8s
+xp tiling voice pass owner=tiling focus=true pane= 7s
+xp mc voice pass owner=mc focus=true pane= 6s
+xp construct voice pass owner=construct focus=true pane=shown 8s
+construct tiling voice pass owner=tiling focus=true pane= 6s
+construct xp voice pass owner=xp focus=true pane= 7s
+construct mc voice pass owner=mc focus=true pane= 7s
+mc tiling voice pass owner=tiling focus=true pane= 6s
+mc xp voice pass owner=xp focus=true pane= 8s
+mc construct voice pass owner=construct focus=true pane=shown 8s
+-- gate.out tail:
+ONLY is set: the table is not fully checked
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a17-load/run-2/matrix.log)
+run time: 115s
+ok: gate-handover-matrix: every cell as in EXPECTED that ran in 115s of at most 387s
+
+== run-3 rc=0
+phase startup 4s
+tiling xp cgive pass owner=xp focus=true pane= 1s
+tiling mc cgive pass owner=mc focus=true pane= 2s
+tiling construct cgive pass owner=construct focus=true pane=shown 3s
+xp tiling cgive pass owner=tiling focus=true pane= 1s
+xp mc cgive pass owner=mc focus=true pane= 2s
+xp construct cgive pass owner=construct focus=true pane=shown 2s
+construct tiling cgive pass owner=tiling focus=true pane= 1s
+construct xp cgive pass owner=xp focus=true pane= 2s
+construct mc cgive pass owner=mc focus=true pane= 2s
+mc tiling cgive pass owner=tiling focus=true pane= 2s
+mc xp cgive pass owner=xp focus=true pane= 2s
+mc construct cgive pass owner=construct focus=true pane=shown 3s
+phase voice-start 1s
+tiling xp voice pass owner=xp focus=true pane= 8s
+tiling mc voice pass owner=mc focus=true pane= 7s
+tiling construct voice pass owner=construct focus=true pane=shown 7s
+xp tiling voice pass owner=tiling focus=true pane= 7s
+xp mc voice pass owner=mc focus=true pane= 7s
+xp construct voice pass owner=construct focus=true pane=shown 8s
+construct tiling voice pass owner=tiling focus=true pane= 5s
+construct xp voice pass owner=xp focus=true pane= 7s
+construct mc voice pass owner=mc focus=true pane= 7s
+mc tiling voice pass owner=tiling focus=true pane= 6s
+mc xp voice pass owner=xp focus=true pane= 8s
+mc construct voice pass owner=construct focus=true pane=shown 8s
+-- gate.out tail:
+ONLY is set: the table is not fully checked
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a17-load/run-3/matrix.log)
+run time: 112s
+ok: gate-handover-matrix: every cell as in EXPECTED that ran in 112s of at most 387s
+
+== run-4 rc=0
+phase startup 3s
+tiling xp cgive pass owner=xp focus=true pane= 2s
+tiling mc cgive pass owner=mc focus=true pane= 2s
+tiling construct cgive pass owner=construct focus=true pane=shown 2s
+xp tiling cgive pass owner=tiling focus=true pane= 2s
+xp mc cgive pass owner=mc focus=true pane= 2s
+xp construct cgive pass owner=construct focus=true pane=shown 2s
+construct tiling cgive pass owner=tiling focus=true pane= 1s
+construct xp cgive pass owner=xp focus=true pane= 1s
+construct mc cgive pass owner=mc focus=true pane= 3s
+mc tiling cgive pass owner=tiling focus=true pane= 1s
+mc xp cgive pass owner=xp focus=true pane= 3s
+mc construct cgive pass owner=construct focus=true pane=shown 3s
+phase voice-start 1s
+tiling xp voice pass owner=xp focus=true pane= 8s
+tiling mc voice pass owner=mc focus=true pane= 7s
+tiling construct voice pass owner=construct focus=true pane=shown 7s
+xp tiling voice pass owner=tiling focus=true pane= 7s
+xp mc voice pass owner=mc focus=true pane= 7s
+xp construct voice pass owner=construct focus=true pane=shown 8s
+construct tiling voice pass owner=tiling focus=true pane= 6s
+construct xp voice pass owner=xp focus=true pane= 7s
+construct mc voice pass owner=mc focus=true pane= 7s
+mc tiling voice pass owner=tiling focus=true pane= 6s
+mc xp voice pass owner=xp focus=true pane= 7s
+mc construct voice pass owner=construct focus=true pane=shown 9s
+-- gate.out tail:
+ONLY is set: the table is not fully checked
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a17-load/run-4/matrix.log)
+run time: 113s
+ok: gate-handover-matrix: every cell as in EXPECTED that ran in 113s of at most 387s
+
+== run-5 rc=0
+phase startup 4s
+tiling xp cgive pass owner=xp focus=true pane= 2s
+tiling mc cgive pass owner=mc focus=true pane= 1s
+tiling construct cgive pass owner=construct focus=true pane=shown 3s
+xp tiling cgive pass owner=tiling focus=true pane= 2s
+xp mc cgive pass owner=mc focus=true pane= 1s
+xp construct cgive pass owner=construct focus=true pane=shown 3s
+construct tiling cgive pass owner=tiling focus=true pane= 1s
+construct xp cgive pass owner=xp focus=true pane= 2s
+construct mc cgive pass owner=mc focus=true pane= 2s
+mc tiling cgive pass owner=tiling focus=true pane= 2s
+mc xp cgive pass owner=xp focus=true pane= 3s
+mc construct cgive pass owner=construct focus=true pane=shown 2s
+phase voice-start 2s
+tiling xp voice pass owner=xp focus=true pane= 8s
+tiling mc voice pass owner=mc focus=true pane= 7s
+tiling construct voice pass owner=construct focus=true pane=shown 8s
+xp tiling voice pass owner=tiling focus=true pane= 7s
+xp mc voice pass owner=mc focus=true pane= 6s
+xp construct voice pass owner=construct focus=true pane=shown 8s
+construct tiling voice pass owner=tiling focus=true pane= 5s
+construct xp voice pass owner=xp focus=true pane= 7s
+construct mc voice pass owner=mc focus=true pane= 7s
+mc tiling voice pass owner=tiling focus=true pane= 6s
+mc xp voice pass owner=xp focus=true pane= 7s
+mc construct voice pass owner=construct focus=true pane=shown 9s
+-- gate.out tail:
+ONLY is set: the table is not fully checked
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a17-load/run-5/matrix.log)
+run time: 113s
+ok: gate-handover-matrix: every cell as in EXPECTED that ran in 113s of at most 387s
