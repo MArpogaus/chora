@@ -1171,7 +1171,7 @@ class LauncherEnv(unittest.TestCase):
             launch.os.environ["PATH"] = path
             launch.os.environ["XDG_DATA_DIRS"] = data_dirs
             launch.os.environ["XDG_CONFIG_DIRS"] = data_dirs
-            with mock.patch.object(launch.Launcher, "path_without_writer", lambda self, p: "FARM"):
+            with mock.patch.object(launch.Launcher, "path_without_writer", lambda self, p: "FARM"), mock.patch.object(launch, "supported_fuzzel", lambda: "/usr/bin/fuzzel"):
                 with tempfile.TemporaryDirectory() as scratch, mock.patch.object(launch, "SCRATCH", scratch):
                     return launch.Launcher("t").base_env()
         finally:
@@ -1185,6 +1185,54 @@ class LauncherEnv(unittest.TestCase):
             self.assertIn(key, a)
             self.assertEqual(a[key].replace(a["XDG_DATA_HOME"][: -len("/data")], "D"), b[key].replace(b["XDG_DATA_HOME"][: -len("/data")], "D"), key)
         self.assertNotIn("/opt/", a["PATH"] + a["XDG_DATA_DIRS"])
+
+
+class LauncherSupported(unittest.TestCase):
+    """TOUR-LAUNCH r1 (rml1-1): the tour judges a supported setup: the fuzzel of its sessions is
+    >= 1.11 (the package minimum of tests/gate-package-deps.sh) or the tour stops with one line, and
+    every look has chora-notify serving."""
+
+    @staticmethod
+    def version(binary):
+        import re
+
+        out = subprocess.run([binary, "--version"], capture_output=True, text=True).stdout
+        found = re.match(r"^[^0-9]*([0-9][0-9.]*)", out)
+        return tuple(int(x) for x in found.group(1).split(".")) if found else ()
+
+    def test_the_fuzzel_of_a_session_is_supported_or_the_tour_stops(self):
+        with tempfile.TemporaryDirectory() as scratch, mock.patch.object(launch, "SCRATCH", scratch):
+            try:
+                env = launch.Launcher("t").base_env()
+            except RuntimeError as err:
+                self.assertEqual(len(str(err).splitlines()), 1, "one clear line")
+                self.assertIn("fuzzel", str(err))
+                return
+            found = launch.shutil.which("fuzzel", path=env["PATH"])
+            self.assertIsNotNone(found, "no fuzzel on the PATH of the session")
+            self.assertGreaterEqual(self.version(found), (1, 11), found)
+
+    def test_every_look_has_chora_notify_serving(self):
+        calls = []
+
+        def fake_run(argv, *a, **kw):
+            calls.append(list(argv))
+            return subprocess.CompletedProcess(argv, 1, "", "")
+
+        with tempfile.TemporaryDirectory() as scratch, mock.patch.object(launch, "SCRATCH", scratch):
+            L = launch.Launcher("t")
+            out = f"{L.dir}/headless.out"
+
+            def fake_spawn(argv, env, log, **kw):
+                if log == "headless.out":
+                    open(out, "w").write("CHORA_SOCKET=/s\nXDG_RUNTIME_DIR=/r\nWAYLAND_DISPLAY=w\n")
+                return mock.Mock(pid=1)
+
+            with mock.patch.object(launch.subprocess, "run", fake_run), mock.patch.object(L, "spawn", fake_spawn), mock.patch.object(launch, "supported_fuzzel", lambda: "/usr/bin/fuzzel"), \
+                 mock.patch.object(launch.time, "sleep", lambda s: None):
+                L.start(None, voice=False)
+        started = [c for c in calls if any(str(x).endswith("chora-notify") for x in c) and "call" not in c]
+        self.assertTrue(started, f"no chora-notify started: {calls}")
 
 
 if __name__ == "__main__":
