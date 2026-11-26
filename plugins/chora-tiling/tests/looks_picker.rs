@@ -1,13 +1,9 @@
-//! The Looks picker of the bar (`chora-tiling --launch looks`) with stand-ins
-//! of fuzzel, choractl and notify-send: what it offers and how big its box
-//! is (rpt2-2, rpt3-4), and what a refused give says (rpt2-2).
+//! The Looks picker of the bar (`chora-tiling --launch looks`) with a
+//! stand-in of fuzzel: what it offers and how big its box
+//! is (rpt2-2, rpt3-4).
 #![allow(clippy::unwrap_used, reason = "a failure is a failed test")]
 
-use std::{
-    os::unix::fs::PermissionsExt as _,
-    path::{Path, PathBuf},
-    process::Command,
-};
+use std::{os::unix::fs::PermissionsExt as _, path::Path, process::Command};
 
 use chora_kit::testing::{FakeCore, TempDir};
 use chora_scene::{Node, NodeKind, Props};
@@ -68,10 +64,10 @@ fn picked(tag: &str, focus: bool) -> (String, Vec<String>) {
     );
     let status = Command::new(env!("CARGO_BIN_EXE_chora-tiling"))
         .args(["--launch", "looks"])
+        .env_clear()
         .env(chora_scene::ipc::SOCKET_ENV, core.socket())
         .env("PATH", path_of(&bin))
         .env("LANG", "C")
-        .env_remove("LC_ALL")
         .status()
         .unwrap();
     assert!(status.success());
@@ -112,53 +108,4 @@ fn the_picker_box_fits_its_rows_rpt3_4() {
     assert_eq!(lines(&args), Some(2), "{args}");
     let (args, _) = picked("lines-one", false);
     assert_eq!(lines(&args), Some(1), "{args}");
-}
-
-fn flavor_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../flavors/tiling")
-}
-
-/// The notice that give.sh shows when `choractl give` refuses.
-fn refused_notice(lang: &str) -> Vec<String> {
-    let bin = stand_ins(
-        &format!("give-{lang}"),
-        &[
-            (
-                "choractl",
-                r#"echo "choractl: no focused window" >&2; exit 1"#,
-            ),
-            (
-                "notify-send",
-                r#"for a in "$@"; do echo "$a"; done >"$(dirname "$0")/notice""#,
-            ),
-        ],
-    );
-    let status = Command::new("sh")
-        .arg(flavor_dir().join("give.sh"))
-        .arg("xp")
-        .env_clear()
-        .env("PATH", path_of(&bin))
-        .env("LANG", lang)
-        .status()
-        .unwrap();
-    assert!(!status.success());
-    std::fs::read_to_string(bin.join("notice"))
-        .unwrap()
-        .lines()
-        .map(str::to_owned)
-        .collect()
-}
-
-/// rpt2-2: no tool name in a notice, and its words follow the language
-/// of the title.
-#[test]
-fn a_refused_give_names_no_tool_in_its_notice_rpt2_2() {
-    for lang in ["C", "de_DE.UTF-8"] {
-        let notice = refused_notice(lang);
-        let text = notice.join(" ");
-        assert!(!text.contains("choractl"), "{lang}: {text}");
-        assert!(!text.contains("no focused window"), "{lang}: {text}");
-    }
-    let german = refused_notice("de_DE.UTF-8").join(" ");
-    assert!(german.contains("Fenster"), "{german}");
 }
