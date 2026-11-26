@@ -1018,7 +1018,7 @@ impl Mc {
         let gap = self.settings.value.page.gap * self.settings.value.scale.base;
         let (mut heights, mut widths, mut lefts) = (Vec::new(), Vec::new(), Vec::new());
         for item in items {
-            let [_, _, w, h] = self.measure(&item.id, probed)?;
+            let [_, _, w, h] = self.measure(&item.id, probed)?.unwrap_or_default();
             heights.push(h.max(baseline));
             widths.push(w);
             let after = lefts.last().zip(widths.last()).map(|(l, w)| l + w + gap);
@@ -1096,7 +1096,8 @@ impl Mc {
 
     /// Places the items of a line: the end keeps its place, the start ends
     /// before it, and the middle sits between them; what does not fit is
-    /// cut.
+    /// cut. A probe of a shown item that the core did not lay out yet
+    /// leaves the line where it is, not measured as 0 wide (rmmr1-2).
     #[allow(
         clippy::too_many_lines,
         reason = "one pass over the three groups of a line"
@@ -1111,7 +1112,13 @@ impl Mc {
         let (baseline, gap) = (config.scale.baseline, config.page.gap * config.scale.base);
         let mut sizes = Vec::new();
         for item in items {
-            let [_, _, w, h] = self.measure(&item.id, probed)?;
+            let Some([_, _, w, h]) = self.measure(&item.id, probed)? else {
+                if probed && item.props.visible != Some(false) {
+                    return Ok(Vec::new());
+                }
+                sizes.push((item, lead(item), 0.0));
+                continue;
+            };
             sizes.push((item, w + lead(item), h));
         }
         let group = |pick: fn(i32) -> bool| -> Vec<(&Item, f64, f64)> {

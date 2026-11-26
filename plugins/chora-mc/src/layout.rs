@@ -772,14 +772,18 @@ impl Mc {
         Ok(rects.collect())
     }
 
-    /// The rect of an item, or of its hidden copy when `probed`.
-    pub(crate) fn measure(&mut self, id: &str, probed: bool) -> Result<[f64; 4], ClientError> {
-        let rect = if probed {
+    /// The rect of an item, or of its hidden copy when `probed`; none
+    /// when the core laid the node out nowhere yet.
+    pub(crate) fn measure(
+        &mut self,
+        id: &str,
+        probed: bool,
+    ) -> Result<Option<[f64; 4]>, ClientError> {
+        if probed {
             self.rect(&region::probe(id))
         } else {
             self.rect(id)
-        };
-        Ok(rect?.unwrap_or_default())
+        }
     }
 
     /// The effect of the blur of a panel, if it has one and the watchdog
