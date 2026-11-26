@@ -1559,16 +1559,55 @@ mod tests {
         );
     }
 
+    type Pill = std::sync::Arc<std::sync::Mutex<crate::HashMap<String, f64>>>;
+
+    /// mc on a core whose HUD nodes stand at the left edges of `pill`.
+    fn mc_with_pill(size: [i32; 2], pill: &Pill) -> crate::Mc {
+        let core = chora_kit::testing::FakeCore::start().selecting();
+        let seen = std::sync::Arc::clone(pill);
+        core.respond(move |method, params| {
+            let id = params["selector"].as_str()?.strip_prefix("id:")?;
+            let x = *seen.lock().unwrap().get(id)?;
+            let rects = serde_json::json!({"T": [x, 27.0, 40.0, 32.0]});
+            (method == "scene.query").then(|| serde_json::json!([{"id": id, "rects": rects}]))
+        });
+        crate::testing::mc_on(&core, "header-chat", size)
+    }
+
+    /// Super+a with the chat opening: the host moves the word of the pill
+    /// into the chat for a moment, and the header end and the date stay
+    /// where they are, with the column shown and hidden (Super+n), the
+    /// pill alone and with the badge of a muted mic, at 1280x720 and
+    /// 1024x768 (rmmr1-1, rpm2-5 a); a badge that appears while the chat
+    /// is open may still move the end to the left.
     #[test]
-    fn the_header_stays_where_it_is_while_the_pill_moves_into_the_chat() {
-        let (mut mc, _) = crate::testing::mc("header-pill", [1280, 720]);
-        let visible = [Region::Header, Region::Right];
-        let header =
-            |mc: &crate::Mc| mc.boxes("agenda", &visible).unwrap().regions[&Region::Header];
-        let before = header(&mc);
-        mc.rooms.pill_left = Some(764.0);
-        mc.chat = crate::Chat::Open;
-        assert_eq!(header(&mc), before, "Super+a moves the date (rpm2-5)");
+    fn the_header_end_stays_while_the_chat_opens_over_the_pill() {
+        let cases = [[1280, 720], [1024, 768]]
+            .into_iter()
+            .flat_map(|size| [false, true].map(|badge| (size, badge)))
+            .flat_map(|(size, badge)| [false, true].map(|shown| (size, badge, shown)));
+        for (size, badge, shown) in cases {
+            let right = f64::from(size[0]) - 160.0;
+            let pill = Pill::default();
+            pill.lock().unwrap().insert("hud-word".into(), right);
+            if badge {
+                (pill.lock().unwrap()).insert("hud-badge".into(), right - 173.0);
+            }
+            let mut mc = mc_with_pill(size, &pill);
+            mc.learn_rooms().unwrap();
+            mc.toggled.insert(Region::Right, shown);
+            let case = format!("{size:?} badge {badge} column shown {shown}");
+            let before = mc.boxes_of("agenda")[&Region::Header];
+            mc.chat = crate::Chat::Open;
+            pill.lock().unwrap().insert("hud-word".into(), 764.0);
+            mc.learn_rooms().unwrap();
+            let open = mc.boxes_of("agenda")[&Region::Header];
+            assert_eq!(open, before, "Super+a moves the date: {case}");
+            pill.lock().unwrap().insert("hud-badge".into(), 700.0);
+            mc.learn_rooms().unwrap();
+            let moved = mc.boxes_of("agenda")[&Region::Header][2];
+            assert!(moved < before[2], "the badge may move it left: {case}");
+        }
     }
 
     #[test]
