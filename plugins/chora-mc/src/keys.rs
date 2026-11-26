@@ -139,7 +139,7 @@ pub fn short(config: &Config, plain: bool) -> Vec<Row> {
 /// the footer, the rest, and Esc last. The two keys of the page are one
 /// row, as in the short list, and only the first key of the key list has
 /// a row: the others are aliases. The give keys, which no file binds,
-/// are one row: `Super+Alt+1-4`.
+/// are one row: `Super+Alt+1-4`, and the drag follows it.
 pub fn all(config: &Config, plain: bool) -> Vec<Row> {
     let scene_at = |name: &str| config.order.iter().position(|n| n == name);
     let mut found: Vec<(u8, usize, Row)> = Vec::new();
@@ -156,14 +156,14 @@ pub fn all(config: &Config, plain: bool) -> Vec<Row> {
             }
             Action::Look(Look::Solo { .. }) => (7, 0),
             Action::System(System::Give(_)) => (8, 0),
+            Action::System(System::Drag) => (8, usize::MAX),
             Action::System(System::Lock) => (9, 0),
             Action::System(System::Power) => (9, 1),
             Action::System(System::Screenshot) => (9, 2),
             Action::System(System::Volume(_)) => (9, 3 + place),
             Action::Look(Look::PreviousScene | Look::Back | Look::Swallow)
             | Action::System(
-                System::Drag
-                | System::Terminal
+                System::Terminal
                 | System::Launcher
                 | System::Close
                 | System::Desk(_)
@@ -186,7 +186,7 @@ pub fn all(config: &Config, plain: bool) -> Vec<Row> {
         }
     }
     let (give, words) = keysheet::give_row(Language::En);
-    found.push((8, usize::MAX, Row::new(&give, &words, None)));
+    found.push((8, usize::MAX - 1, Row::new(&give, &words, None)));
     found.sort_by_key(|(rank, at, _)| (*rank, *at));
     let mut rows: Vec<Row> = found.into_iter().map(|(_, _, row)| row).collect();
     rows.push(Row::new("Esc", "Back one step", None));
