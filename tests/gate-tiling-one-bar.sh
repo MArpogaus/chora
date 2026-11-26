@@ -26,7 +26,13 @@
 # and a machine without flock says so on stderr once instead of skipping the
 # lock silently.
 #
-# Usage: tests/gate-tiling-one-bar.sh [lock|product|unit|persona ...]
+# The cell "fork", with no session: waybar forks a shell for each of its custom
+# modules, and the child keeps the name waybar until it execs (a loaded host
+# stretches that to milliseconds, sh-41: "3 waybar processes on one config" with
+# one bar). A fake waybar with a forked child that keeps its name must count as
+# one bar, and a second waybar beside it (a parent that is no waybar) as two.
+#
+# Usage: tests/gate-tiling-one-bar.sh [lock|fork|product|unit|persona ...]
 #   BIN: the binaries (default target/debug); the cells to run (default all)
 set -u
 . "$(dirname "$0")/gate-lib.sh"
@@ -66,7 +72,7 @@ stop_session() {
 }
 
 cells=("$@")
-[ ${#cells[@]} -gt 0 ] || cells=(lock product unit persona)
+[ ${#cells[@]} -gt 0 ] || cells=(lock fork product unit persona)
 want() { [[ " ${cells[*]} " == *" $1 "* ]]; }
 
 temp_config
@@ -113,6 +119,34 @@ FAKE
 
 if want lock; then
     lock_cell
+fi
+
+fork_cell() {
+    local d fakebin
+    d=$(mktemp -d /tmp/gate-one-bar-fork.XXXXXX)
+    tmp_dirs+=("$d")
+    fakebin=$d/bin
+    mkdir -p "$fakebin" "$d/run"
+    chmod 700 "$d/run"
+    cat >"$fakebin/waybar" <<'FAKE'
+#!/bin/sh
+( sleep 30; true ) &
+sleep 30
+FAKE
+    chmod +x "$fakebin/waybar"
+    XDG_RUNTIME_DIR=$d/run setsid "$fakebin/waybar" >"$d/log" 2>&1 &
+    run_pid $!
+    until_ok "[ \"\$(XDG_RUNTIME_DIR=$d/run session_pids -x waybar | wc -l)\" -ge 2 ]" 40 ||
+        fail "fork: the fake waybar did not fork a child named waybar: $(XDG_RUNTIME_DIR=$d/run session_pids -x waybar | tr '\n' ' ')"
+    [ "$(bars "$d/run")" = 1 ] || fail "fork: a waybar with a forked child of its name counts as $(bars "$d/run") bars, not 1 (sh-41)"
+    XDG_RUNTIME_DIR=$d/run setsid "$fakebin/waybar" >"$d/log2" 2>&1 &
+    run_pid $!
+    until_ok "[ \"\$(bars $d/run)\" -ge 2 ]" 40 || fail "fork: a second waybar that is no child of a waybar does not count: $(bars "$d/run")"
+    ok "fork: a forked child named waybar is no second bar, a second waybar is"
+}
+
+if want fork; then
+    fork_cell
 fi
 
 if want product || want unit; then
