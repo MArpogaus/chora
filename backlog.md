@@ -459,3 +459,4 @@ After Super+Alt+3 into mc, a Super+drag onto xp leaves the keyboard on tiling's 
 - lanes.py rule 9: count only docs(state) commits of the PM, not lane reports (20/h on 11-26 14:16 were mostly lane pushes).
 - rpt2-2 (MINOR, tiling): Looks picker on an empty tag offers a move; hide it without a focused window.
 - rhrf2r2-3 NIT (harness): SIGTERM to the gate lead pid orphans the red_first_run subshell; worktree and tmp stay until cargo ends (reports/h-rf2.md Review r2).
+- rtf1r-1 MINOR (harness): test_tour_diff.py:845 a row citing a merge sha passes; reject a cited sha with more than one parent. rtf1r-2 MINOR red-first commit order; rtf1r-3 NIT source-grep test; rtf1r-4 NIT guard the cube.list fallback with TOUR_BASELINE (reports/tour-rows.md Review fix r1).
