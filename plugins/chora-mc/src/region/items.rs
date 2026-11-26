@@ -306,9 +306,16 @@ impl Mc {
         items
     }
 
-    /// The token of the hit `node`, as its item names it.
+    /// The token of the hit `node`, as its item names it. A hit of the
+    /// set before the current one, which fades out and takes the pointer
+    /// until it is gone, has the token of its item in the current set.
     pub(super) fn hit_token(&self, node: &str) -> Option<String> {
         let base = node.strip_suffix("-hit")?;
+        let before = format!("mc-r{}-", self.set ^ 1);
+        let base = base.strip_prefix(&before).map_or_else(
+            || base.to_owned(),
+            |rest| format!("mc-r{}-{rest}", self.set),
+        );
         let name = self.current.clone().unwrap_or_default();
         (self.items(&name).into_values())
             .flat_map(|(items, _)| items)
