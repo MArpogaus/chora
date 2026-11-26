@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-26 20:54 UTC)
+## Now (2026-11-26 20:55 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 20:54 PM 5.7 % (11-26 BKK); week est. 51 % (unmeasured, owner reads) vs 76 % time; need (100-51-5)/40 h = 1.1 %/h; lanes 6 build
+budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 20:55 PM 5.7 % (11-26 BKK); week est. 51 % (unmeasured, owner reads) vs 76 % time; need (100-51-5)/40 h = 1.1 %/h; lanes 6 build
 session branch: 0e18f14c (t157 19:53); 101 greens. t153 red sh-37; t154, t155 flake sh-44; t156 flake launcher-mc; t158 runs (h-rf2-r3, mc-minor-r2, kit-swallow-r1, co-reach-r6)
 
 lanes: 4 of 6 (tour-fix-r2, co-minor-r1, rc1-pass-tiling-r3, flake-launcher-r1)
@@ -27,7 +27,7 @@ burn-down: F1-4, F6, F8 met; F5 open (r10 4/5), flake-launcher runs; F7 open (88
 | tour-fix-r2.md (Q 4, 0.6 %) | sonnet high, 84e31324 | s..LaZa9mxvCe9PHc5BE |
 | co-minor-r1.md (Q 2, 0.5 %) | sonnet high, 57ce1480 | s..QfdXoTJwAHB4ThLKn |
 | rc1-pass-tiling-r3.md (Q 3, 1.2 %) | opus high, 7822a66c | s..M3tsq3SF7RgUqsCwy |
-| flake-launcher-r1.md (Q 5, 0.7 %) | sonnet high, 0e18f14c | starting |
+| flake-launcher-r1.md (Q 5, 0.7 %) | sonnet high, 0e18f14c | s..LmRg8qngXai5j1EAo |
 ## Queue (% week; 5 % reserve)
 1. (rc 3) FLAKE-BAR-FULL r1 t152, TOUR-HARNESS r2 t153 merged.
 2. (rc 1, 2) co r14: co-75, co-76 5/5; co-79: CO-REACH r6 bcecb671 MERGE-OK, t158; pass r2 57ce1480 confirms rc 1; CO-MINOR r1 runs; r15 NO (co-79 open MAJOR): CO-REACH r7 after co-minor-r1.
