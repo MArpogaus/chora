@@ -879,6 +879,69 @@ class IntendedCommits(unittest.TestCase):
         self.assertEqual(self.no_product_code("19348b95"), ["tests/persona-selftest.sh"])
 
 
+class MinorRegressionsOfTakeR5(unittest.TestCase):
+    """tour-rows r5 (F7, rc 11): take r2 left 24 MINOR regressions on b16c888f. Each was judged on the v8 and v9 stills:
+    the change is the intended result of a named commit and the capture meets design/looks/ (whole text, nothing
+    under 12 px, aligned chips), or it stays a regression with its finding. `tour-diff-take-r5.json` holds, per act,
+    the diffs of the r5 take (v9 head, v8 733967aa, TOUR_BASELINE=1) that no row of b16c888f named."""
+
+    TAKE = json.loads((HERE / "tour-diff-take-r5.json").read_text())
+    ROWS = "c2b c3b c3c c3d c4 c4b m1 m1b m1c m4 m4b t3f t5 t6 t6b t6c t6d t7 t10c x1 x5b".split()
+    """The 21 acts that get rows; c5d and c5e (rtf1-1: v9 steps into the face, every pixel differs) and m8 (rtr4-2: the
+    launcher has no icons) stay regressions."""
+
+    @classmethod
+    def rows(cls):
+        import tomllib
+
+        return tomllib.loads((HERE.parent / "demo/tour/intended.toml").read_text())["change"]
+
+    def verdict(self, act):
+        u = self.TAKE[act]
+        scene = [{"kind": k, "id": i, "detail": ""} for k, i in u["scene"]]
+        return diff.verdict(act, scene, not u["blobs"], self.rows(), blobs=[tuple(b) for b in u["blobs"]])
+
+    def test_every_diff_the_take_shows_in_the_judged_acts_is_named(self):
+        wrong = {act: self.verdict(act) for act in self.ROWS if self.verdict(act)["verdict"] != "change"}
+        self.assertEqual(wrong, {})
+
+    def test_m8_keeps_its_launcher_diff_unnamed_and_the_c5_acts_have_no_box_of_the_frame(self):
+        """rtr4-2: no row may name the launcher of m8 (463, 198, 354, 324); rtf1-1: no box may name the whole frame of c5d, c5e."""
+        self.assertEqual(self.verdict("m8")["verdict"], "regression")
+        self.assertEqual(self.verdict("m8")["unnamed"], ["pixel"])
+        boxes = [b for r in self.rows() if r["act"] in ("c5d", "c5e", "m8") and r["kind"] == "pixel" for b in r.get("boxes", [])]
+        self.assertEqual([b for b in boxes if b[2] * b[3] > 1280 * 720 // 2], [])
+
+    def test_the_x1_row_boxes_the_tail_node_of_the_balloon_and_cites_its_commits(self):
+        """rtf1-6: the blob (1182, 560, 50, 18) lies in the rect of `hud-line-tail` (1067, 559, 166, 19) in the r5 take of x1: the
+        greeting (4fec75c3) has a tail node of its own (e4157dbd); the v8 build has neither."""
+        rows = [r for r in self.rows() if r["act"] == "x1" and r["kind"] == "pixel" and "e4157dbd" in r["cause"]]
+        self.assertEqual([r["boxes"] for r in rows], [[[1067, 559, 166, 19]]])
+        self.assertIn("4fec75c3", rows[0]["cause"])
+
+    def test_the_tiling_acts_box_the_left_island_of_the_bar_with_the_chip_commit(self):
+        """rtf1-3: the blob is the left island of the tiling bar, [12, 8, 438, 32] and the layout word in its chip; e6afbf97
+        gives the word its own chip. One box of the island, no wider than the island (x 12 to 538)."""
+        for act in "t3f t5 t6 t6b t6c t6d t7 t10c".split():
+            mine = [r for r in self.rows() if r["act"] == act and r["kind"] == "pixel" and "e6afbf97" in r["cause"]]
+            self.assertEqual([r["boxes"] for r in mine], [[[12, 8, 526, 32]]], act)
+
+    def test_the_mc_lead_panels_name_their_rects_with_the_whole_lines_commit(self):
+        """rtf1-4: c3925fc5 (a panel takes whole lines at the page edge): the lead panel is 287 px for 10 lines of 28 (was 280,
+        the last line cut at 273); a rect row per node, no pixel row."""
+        want = {"m1": ["mc-s-ingredients-panels-lead"], "m1b": ["mc-s-ingredients-panels-lead"], "m1c": ["mc-s-boil-panels-lead", "mc-s-boil-panels-lead-lines"],
+                "m4": ["mc-s-sauce-panels-lead", "mc-s-sauce-panels-lead-lines"], "m4b": ["mc-s-boil-panels-lead", "mc-s-boil-panels-lead-lines"]}
+        for act, nodes in want.items():
+            mine = [r for r in self.rows() if r["act"] == act and r["kind"] == "rect" and "c3925fc5" in r["cause"] and set(nodes) <= set(r["nodes"])]
+            self.assertEqual(len(mine), 1, act)
+            self.assertFalse(mine[0].get("open"), act)
+
+    def test_x5b_names_the_working_header_with_the_send_commit(self):
+        """rtf1-5: the header of the chat reads Working at once after a send (88951ae4), where v8 still read Idle."""
+        mine = [r for r in self.rows() if r["act"] == "x5b" and r["kind"] == "meta" and "hud-chat" in r.get("nodes", ())]
+        self.assertEqual([("88951ae4" in r["cause"]) for r in mine], [True])
+
+
 def load_launch(repo):
     """demo/tour/launch.py as a take on the build in REPO loads it (TOUR_REPO; the v8 tree of the replay)."""
     from unittest import mock
