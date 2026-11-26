@@ -8,6 +8,8 @@
 # the face over the edge of the screen, onto a second output.
 #
 # PULL_SHOT: a PNG path that keeps a capture of the pane in the pull.
+# TURNED_SHOT: a PNG path that keeps a capture after the drop onto face 2
+# from face 1.
 # BEHIND_SHOT: a PNG path that keeps a capture of the pane after the step
 # back.
 # PAIR_ONLY: set, runs only the two-pane part of the cell (about 7 s), the
@@ -40,7 +42,9 @@
 #    face at the front steps in, and the window has the keyboard there, as
 #    the give key of xp does (co-79); a drop onto face 1 beside it keeps
 #    the cube stood back with the keyboard, so Return steps in and no key
-#    goes into the window on a face the person does not see.
+#    goes into the window on a face the person does not see. The same
+#    with a turn (co-drop r2, rcdr1-1): from face 1 a drop onto face 2,
+#    a turn back to face 0 and Return type into no window.
 # 2b. Stood back (K12): a drag on the floating plane of a window turns
 #    the cube and pulls nothing out; an injected drag on a plane pulls nothing where the construct takes
 #    no injected input (CHORA_TEST_ACCEPT_INJECTED_KEYS=0). A
@@ -394,9 +398,10 @@ ok "a key typed during the fly-in reaches the window"
 end_session
 
 keys_in() { grep -c "^key $2\$" "$1"; }
-for how in super plain side; do
+for how in super plain side turned; do
     drop_face=0
     [ "$how" != side ] || drop_face=1
+    [ "$how" != turned ] || drop_face=2
     to=VIRTUAL-$((drop_face + 1))
     if [ "$how" = super ]; then
         mod_down='{"key": {"key": "Super_L", "state": "pressed"}},'
@@ -444,6 +449,10 @@ print(bool(nodes and nodes[0].get("visible") and nodes[0]["rects"].get("HEADLESS
     settle
     [ "$(pane_rect)" = "$aside_rect" ] || fail "the pane is not beside the cube again: $(pane_rect), the first time $aside_rect"
     ok "stepped in again the pane is home at $home_rect, and beside the cube again when stood back"
+    if [ "$how" = turned ]; then
+        call cube.turn '{"by": 1}' >/dev/null || fail "cube.turn to face 1"
+        settle
+    fi
     read -r px py <<<"$(pane_middle)"
     face=$(ctl query "id:construct-cube-face-$drop_face" | python3 -I -c '
 import json, sys
@@ -474,14 +483,19 @@ print("%d %d" % (r[0] + r[2] * (0.4 if sys.argv[1] == "0" else 0.5), r[1] + r[3]
         ok "rcr5-2: a drop ($how) onto the face at the front steps in, and the window there takes keys"
     else
         settle
-        [ "$(mode)" = navigate ] || fail "rcr5-2: after the drop onto face 1 the cube did not stay stood back: mode $(mode)"
+        [ -z "${TURNED_SHOT:-}" ] || [ "$how" != turned ] || ctl capture "$TURNED_SHOT" >/dev/null
+        if [ "$how" = turned ]; then
+            call cube.turn '{"by": -1}' >/dev/null || fail "cube.turn back to face 0"
+            settle
+        fi
+        [ "$(mode)" = navigate ] || fail "rcr5-2: after the drop onto face $drop_face the cube did not stay stood back: mode $(mode)"
         before=$(keys_in "$log" 28)
         inject '[{"key": {"key": "Return", "state": "pressed"}}, {"key": {"key": "Return", "state": "released"}}]'
         until_ok 'test "$(mode)" = use' 20 ||
-            fail "rcr5-2: after the drop onto face 1 the told Return did not step in: mode $(mode), keyboard $(keyboard_holder)"
+            fail "rcr5-2: after the drop onto face $drop_face the told Return did not step in: mode $(mode), keyboard $(keyboard_holder)"
         [ "$(keys_in "$log" 28)" = "$before" ] ||
-            fail "rcr5-2: after the drop onto face 1 the told Return typed into the window on that face, which the person does not see: $(keyboard_holder)"
-        ok "rcr5-2: a drop onto face 1 keeps the cube stood back with the keyboard: Return steps in and types into no window"
+            fail "rcr5-2: after the drop onto face $drop_face the told Return typed into the window on that face, which the person does not see: $(keyboard_holder)"
+        ok "rcr5-2: a drop ($how) onto face $drop_face keeps the cube stood back with the keyboard: Return steps in and types into no window"
     fi
     end_session
 done
