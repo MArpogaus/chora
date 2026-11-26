@@ -1466,7 +1466,11 @@ mod tests {
             let door = presented["door"].as_str().unwrap_or_default();
             assert!(header.contains(word), "header: {header}");
             assert_eq!(door, "atlas \u{b7} ".to_owned() + word, "door of {state}");
-            assert_eq!(presented["helper"], word, "state word of {state}");
+            assert_eq!(
+                presented["helper"],
+                agent.machine.word(),
+                "the word of state.get is the one of the machine, as the acts read it"
+            );
         }
     }
 
