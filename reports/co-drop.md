@@ -41,3 +41,20 @@ Stood back, the window of a pane that goes to the face manager by a drop onto a 
 
 ### Open
 - A drop from use mode onto the front face is unchanged (the window is seen there); a failed `window.move` in use mode is now told but the keyboard stays where xp put it.
+
+## Review r1 (2026-11-26)
+
+Reviewer lane (cloud, read-only on code), claude/co-drop-r1 **head 75d4623e**, base 7d9269ae, 6 files +365 -18 (only plugins/chora-construct, tests/gate-construct-pull.sh, docs/cube-modes.md; no other look, no core). Step 0: unshallow, `cargo check --workspace` green. No merge gate run (the lane's run 2: EXIT 0, 66 PASS).
+
+**Verdict: MERGE-OK** (0 BLOCK, 0 MAJOR, 1 MINOR, 1 NIT).
+
+Checks:
+1. Red first: 730cc738 before 75d4623e. `cargo test -p chora-construct drop_tests`: at 730cc738 4 failed, 1 passed (the put control), each red at its behaviour assertion (drop_tests.rs:114, 146, 185, 210); at 75d4623e 5 passed. The fix commit changes the fixture only (adds the look node), no assertion. Gate cell 2a now loops `super plain side`: front drop asserts mode use and a typed `x` reaching the window; side drop asserts navigate after `settle`, `Return` steps in, no new `key 28`. Holds.
+2. Rule: `given_from_a_pane` (pull.rs:313) is the one end of the drop and the put. Front and placed: note, `mode_act(StepIn, By::Person)`, which activates the noted window (the mode is checked navigate first, so the step in always changes). Another face or not placed: told when not placed (`names::not_placed`), stays navigate, `walk_keys` and `the_keyboard_to_the_look` (release + focus look), and the window is forgotten as the noted focus. Use mode: only the notice. The take comes after xp's answer to `window.move`, so after xp's own focus on adopt (the gate's side case confirms no `key 28`). docs/cube-modes.md:245 says the same. No path found where no look holds the keyboard; one path where the step in still gives keys to a hidden window (rcdr1-1).
+3. D119 and the give menu (list.rs:253 "After a give the keyboard is left to `to`", rtf1-2 class): the side drop and the failed place keep the keyboard with the giver (the construct), as TILING-FOCUS r2 asks. The front drop gives it to the receiver's window, but by the person's step in into the face they see, exactly as the give key of co-79 already did; this diff does not widen that. Note, not a finding (the stale comment is rcdr1-2).
+4. No other look changed. The gate polls (`until_ok`, `settle` = `settled` render-stats, no new `sleep`/`pace`). On 75d4623e: sleep-ratchet ok (778/929), size-ratchet ok (0 over 1500), lint-ratchet ok (allow 360, no-reason 0, eprintln 46).
+5. Captures media/2026-11-25/co-drop-r1/ (83 to 216 KB): before-drop-side-navigate.png stood back with `Super Alt 4 Pull out` told (keys in the window); after-drop-side-stood-back.png the same view without `Pull out`; after-drop-front-stepped-in.png chora-probe active on face 1 of xp, bar `Alt Esc Step back | Super Alt 4 Pull out | Super F1 All keys`. They match the report. The session has 4 faces ("face 1 of 4").
+
+Findings:
+- rcdr1-1, MINOR, plugins/chora-construct/src/pull.rs:333, the side drop forgets the window as the noted focus only through `noted_focus()`, which answers None when the cube was turned since the step back, so with 3 or more faces (the gate session has 4): pane window with the keyboard in use on face 0, step back (noted s1 at face 0), turn to face 1, drop the pane onto face 2, turn back to face 0, `Return`: `take_focus` gives s1 and `activate_in_face` sends the keys into the window on face 2, which the person does not see; fix: forget the noted window whatever its face (a `Host::forget_focus(surface)` on the raw `focus`), and add that case to drop_tests with a third output.
+- rcdr1-2, NIT, plugins/chora-construct/src/list.rs:253, the comment of `give` says the keyboard is left to `to` after a give, which no longer holds for a drop or put stood back onto another face or not placed; fix: add "unless the cube stands back: see `given_from_a_pane`".
