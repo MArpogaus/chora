@@ -41,7 +41,12 @@ impl Mc {
     }
 
     /// Does what the book says, in order. A detached window of mc leaves
-    /// no data: the proposal that follows puts it back.
+    /// no data: the proposal that follows puts it back. A window given in
+    /// while a window or the desktop of another look holds the keyboard
+    /// comes without it ([`Focus::takes_given`], D119): its scene shows,
+    /// and mc sends no focus.
+    ///
+    /// [`Focus::takes_given`]: chora_kit::wm::focus::Focus::takes_given
     /// A new window that the core reserved for mc (mc holds the claim of
     /// its output, `to` names it) is `new` in the book and keeps the token
     /// of its `surface.created`, which finds the scene that started it
@@ -62,8 +67,10 @@ impl Mc {
                         (Origin::New { token: None } | Origin::Given, Named::Ask)
                         | (Origin::Kept, _) => None,
                     };
-                    let next = match self.take(&id, named, token) {
-                        Ok(true) => self.book.confirm(&id),
+                    let keys =
+                        origin != Origin::Given || self.focus.takes_given(NAME, |s| self.holds(s));
+                    let next = match self.take(&id, named, token, keys) {
+                        Ok(true) => self.book.confirm_keys(&id, keys),
                         Ok(false) => self.book.refused(&id),
                         Err(err) => {
                             self.book.refused(&id);
@@ -103,13 +110,15 @@ impl Mc {
     }
 
     /// Takes a surface that the book proposes: one that mc holds goes
-    /// back where it was (the detach policy of mc), another is adopted.
+    /// back where it was (the detach policy of mc), another is adopted,
+    /// with the keyboard only with `keys`.
     /// False when the core refused or mc is not built yet.
     fn take(
         &mut self,
         surface: &str,
         named: &Named,
         token: Option<&str>,
+        keys: bool,
     ) -> Result<bool, ClientError> {
         if self.holds(surface) {
             self.put_back(surface)?;
@@ -124,13 +133,14 @@ impl Mc {
                 found.map(str::to_owned)
             }
         };
-        self.adopt(surface, app_id.as_deref(), token)
+        self.adopt(surface, app_id.as_deref(), token, keys)
     }
 
     /// Takes a new window into the scene that started it, or into a new
     /// scene of its own, and shows it. True when it is mc's now.
     /// The start adopts the free surfaces that events then announce too.
-    /// A new window takes the keyboard, except one of app.open.
+    /// A new window takes the keyboard, except one of app.open, or one
+    /// without `keys`.
     /// Another window manager took it first; the new scene goes.
     /// The overview lists the new scene.
     pub(crate) fn adopt(
@@ -138,12 +148,13 @@ impl Mc {
         surface: &str,
         app_id: Option<&str>,
         token: Option<&str>,
+        keys: bool,
     ) -> Result<bool, ClientError> {
         if !self.built {
             return Ok(false);
         }
         let started = token.and_then(|t| self.starting.remove(t));
-        let user = !token.is_some_and(|t| self.quiet.remove(t));
+        let user = !token.is_some_and(|t| self.quiet.remove(t)) && keys;
         if let Some(Target::Dock(content)) = &started
             && !self.docks.contains_key(content)
         {

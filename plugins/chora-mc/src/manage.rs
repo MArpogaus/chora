@@ -138,39 +138,103 @@ impl Mc {
         if self.current.as_deref() != Some(name) {
             return;
         }
-        let back = (self.previous.clone())
-            .filter(|p| p != name && self.scenes.contains_key(p))
-            .unwrap_or_else(|| self.settings.value.default_scene.clone());
+        let back = self.after(name);
         if let Err(err) = self.show(&back, keyboard) {
             chora_kit::runtime::report(crate::NAME, &format_args!("{}: {}", back, err.message));
         }
     }
 
+    /// The scene that shows once `name` leaves ([`Self::leave`]): the
+    /// scene before it, else the default scene; the scene that shows when
+    /// it is another one.
+    fn after(&self, name: &str) -> String {
+        if let Some(current) = self.current.as_deref().filter(|c| *c != name) {
+            return current.to_owned();
+        }
+        (self.previous.clone())
+            .filter(|p| p != name && self.scenes.contains_key(p))
+            .unwrap_or_else(|| self.settings.value.default_scene.clone())
+    }
+
     /// `window.give`: hands the window of a scene to another window
     /// manager (D55). The scene of an app goes with it; another scene
-    /// stays without its window.
+    /// stays without its window. With `stay` and without a drag, a give
+    /// of the person ([`Self::hand_kept`]).
     pub fn give(&mut self, give: Give) -> Result<Value, RpcError> {
         let Give {
-            surface, to, grab, ..
+            surface,
+            to,
+            grab,
+            stay,
         } = give;
+        if stay && grab.is_none() {
+            return self.hand_kept(&surface, &to);
+        }
+        self.hand_dragged(&surface, &to, grab)
+    }
+
+    /// A give of the person (a give key, D119): as [`Self::give`], and
+    /// the keyboard stays with mc when `to` is on another output
+    /// ([`Self::keep_keys`]); when the give fails, the window takes the
+    /// keyboard back.
+    pub(crate) fn hand_kept(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
+        let kept = self.keep_keys(surface, to).map_err(rejected)?;
+        let given = self.hand_dragged(surface, to, None);
+        if given.is_err() && kept {
+            let back = self.focus.to(Some(surface.into()));
+            self.apply(vec![back]).map_err(rejected)?;
+        }
+        given
+    }
+
+    /// Before the focused window goes to a look whose claim lies on no
+    /// part of the output of mc, the window of the scene that shows next
+    /// takes the keyboard, or without one the root node of mc, in a
+    /// transaction of its own, so that the receiver hears of the holder
+    /// before the window comes (D119, [`chora_kit::wm::focus::Focus::keep`]).
+    /// A query that fails keeps nothing. True when mc kept it.
+    fn keep_keys(&mut self, surface: &str, to: &str) -> Result<bool, ClientError> {
+        let held = !self.focus.lost && self.focus.surface.as_deref() == Some(surface);
+        let (Some(output), true) = (&self.output, held) else {
+            return Ok(false);
+        };
+        let ([x, y], [w, h]) = (output.position, output.size);
+        let area = [x, y, w, h].map(f64::from);
+        if self.rt.conn.claims_over(to, area).unwrap_or(true) {
+            return Ok(false);
+        }
+        let name = (self.windows.iter()).find_map(|(n, s)| (s == surface).then(|| n.clone()));
+        let next = name.and_then(|name| self.windows.get(&self.after(&name)).cloned());
+        let keep = self.focus.keep(next.filter(|s| s != surface), crate::NAME);
+        self.apply(vec![keep]).map(|()| true)
+    }
+
+    /// Hands the window of a scene to `to`, with the drag `grab`; the
+    /// answer of `window.give`.
+    fn hand_dragged(
+        &mut self,
+        surface: &str,
+        to: &str,
+        grab: Option<chora_scene::GivenGrab>,
+    ) -> Result<Value, RpcError> {
         let name = (self.windows.iter())
             .find(|(_, s)| **s == surface)
             .map(|(n, _)| n.clone())
             .ok_or_else(|| {
                 RpcError::new(RpcError::REJECTED, format!("mc has no window {surface}"))
             })?;
-        self.book.give(&surface, &to);
-        let answer = match self.rt.conn.give_dragged(&surface, &to, grab) {
+        self.book.give(surface, to);
+        let answer = match self.rt.conn.give_dragged(surface, to, grab) {
             Ok(answer) => answer,
             Err(err) => {
-                self.book.refused(&surface);
+                self.book.refused(surface);
                 return Err(err);
             }
         };
-        let given = self.book.confirm(&surface);
+        let given = self.book.confirm(surface);
         self.settle(given, &crate::windows::Named::Ask)
             .map_err(rejected)?;
-        self.gave(&name, &surface).map_err(rejected)?;
+        self.gave(&name, surface).map_err(rejected)?;
         Ok(answer)
     }
 
@@ -563,11 +627,11 @@ mod tests {
         surface("s1");
         mc.starting
             .insert("t1".into(), crate::Target::Scene("terminal".into()));
-        mc.adopt("s1", Some("foot"), Some("t1")).unwrap();
+        mc.adopt("s1", Some("foot"), Some("t1"), true).unwrap();
         assert_eq!(last().as_deref(), Some("s1"));
         // The launcher, without a token.
         surface("s2");
-        mc.adopt("s2", Some("firefox"), None).unwrap();
+        mc.adopt("s2", Some("firefox"), None, true).unwrap();
         assert_eq!(last().as_deref(), Some("s2"));
         // app.open of voice or an agent.
         let count = model.lock().unwrap().focuses.len();
@@ -576,7 +640,7 @@ mod tests {
             .insert("t3".into(), crate::Target::Scene(open.clone()));
         mc.quiet.insert("t3".into());
         surface("s3");
-        mc.adopt("s3", Some("foot"), Some("t3")).unwrap();
+        mc.adopt("s3", Some("foot"), Some("t3"), true).unwrap();
         assert_eq!(mc.current.as_deref(), Some(open.as_str()));
         assert_eq!(model.lock().unwrap().focuses.len(), count);
         // Its window closes: the scene before it takes the keyboard.
