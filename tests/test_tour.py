@@ -1197,5 +1197,39 @@ class LauncherEnv(unittest.TestCase):
         self.assertNotIn("/opt/", a["PATH"] + a["XDG_DATA_DIRS"])
 
 
+class TilingWaitsForText(unittest.TestCase):
+    """rtr2-1: the Q captures t3..t3h of the tiling chapter are taken after the typed text (the
+    "chora" page of content.py, printed TILE_WAIT s after the window opens) landed in the tiles."""
+
+    def tiling(self):
+        return importlib.import_module("chapters.tiling")
+
+    def test_the_t3_loop_waits_for_the_text_between_flush_and_done(self):
+        tree = ast.parse((ROOT / "demo" / "tour" / "chapters" / "tiling.py").read_text())
+        loop = next(n for n in ast.walk(tree) if isinstance(n, ast.For) and "enumerate" in ast.dump(n.iter) and "'page'" in ast.dump(n.iter))
+        calls = [n.func.attr if isinstance(n.func, ast.Attribute) else getattr(n.func, "id", "") for n in ast.walk(loop) if isinstance(n, ast.Call)]
+        self.assertIn("wait_for_text", calls, "the window loop never waits for the typed text")
+        self.assertLess(calls.index("flush"), calls.index("wait_for_text"))
+        self.assertLess(calls.index("wait_for_text"), calls.index("done"))
+
+    def test_wait_for_text_returns_when_the_text_landed(self):
+        wait = self.tiling().wait_for_text
+        pending = iter([["sh -c sleep 3; python3 -I content.py page"], []])
+        wait(2, pending=lambda: next(pending), shown=lambda: 2, timeout=5, sleep=lambda s: None)
+
+    def test_wait_for_text_names_the_tile_that_never_got_its_text(self):
+        wait = self.tiling().wait_for_text
+        clock = iter(range(0, 100, 10))
+        with self.assertRaises(RuntimeError) as err:
+            wait(3, pending=lambda: ["python3 -I content.py notes"], shown=lambda: 3, timeout=30, sleep=lambda s: None, now=lambda: next(clock))
+        self.assertEqual(len(str(err.exception).splitlines()), 1)
+        self.assertIn("tile 3", str(err.exception))
+
+    def test_wait_for_text_waits_for_the_window(self):
+        wait = self.tiling().wait_for_text
+        shown = iter([1, 1, 2])
+        wait(2, pending=lambda: [], shown=lambda: next(shown), timeout=5, sleep=lambda s: None)
+
+
 if __name__ == "__main__":
     unittest.main()
