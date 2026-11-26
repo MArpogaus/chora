@@ -663,7 +663,6 @@ cell_boil_lines() {
     # shellcheck disable=SC2329 # until_ok evaluates its first argument
     clear_of_card() { jq -ne --argjson c "$card" --argjson p "$(node_rect mc-s-boil-page)" '$p[1] + $p[3] <= $c[1]' >/dev/null; }
     until_ok clear_of_card 40 || fail "the boil page $(node_rect mc-s-boil-page) stays over the card $card"
-    sleep 1
     page=$(node_rect mc-s-boil-page)
     bad=$(ctl query "owner:mc kind:text" | jq -r --argjson p "$page" "
         .[] | $shown | select(.id | test(\"^mc-s-boil-panels-.*-lines\$\")) |
