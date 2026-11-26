@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-26 18:14 UTC)
+## Now (2026-11-26 18:15 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 18:14 PM 5.7 % (11-26 BKK); week est. 51 % (unmeasured, owner reads) vs 76 % time; need (100-51-5)/40 h = 1.1 %/h; lanes 6 build
+budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 18:15 PM 5.7 % (11-26 BKK); week est. 51 % (unmeasured, owner reads) vs 76 % time; need (100-51-5)/40 h = 1.1 %/h; lanes 6 build
 session branch: 7c6955c8 (t156 17:27); 100 greens. t153 red sh-37; t154, t155 flake sh-44; t156 flake launcher-mc (mc dark), rerun green; t157 runs
 
 lanes: 6 of 6 (tour-fix-r2, h-rf2-r3, review-kit-swallow-r1, co-reach-r6, review-mc-minor-r2, flake-series-r10)
@@ -28,7 +28,7 @@ burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88 open
 | h-rf2-r3.md (Q 4b, 0.4 %) | sonnet high, 59ba5c21 | running s..QLhjzgv69C4GHjfvD |
 | review-kit-swallow-r1.md (Q 3, 0.5 %) | opus high, 02e745c3 | run s..NbYuyBKy63NcmywQu |
 | co-reach-r6.md (Q 2, 1.0 %) | opus high, 4d8bbe36 | running s..Lj635mZvdmt7myT7J |
-| review-mc-minor-r2.md (Q 4c, 0.4 %) | opus high, 59dd6894 | starting |
+| review-mc-minor-r2.md (Q 4c, 0.4 %) | opus high, 59dd6894 | run s..PFL1czssLnqedBExZ |
 | flake-series-r10.md (Q 5, 0.6 %) | haiku high, 4d8bbe36 | running s..MrWJ1FZ4X7WVbaJa6 |
 ## Queue (% week; 5 % reserve)
 1. (rc 3) FLAKE-BAR-FULL r1 t152, TOUR-HARNESS r2 t153 merged.
