@@ -201,3 +201,58 @@ Findings:
 - rmm5-1 MINOR: step 3 asked for a capture of a long foot card at 1280x720 with the last page line whole above it; the capture is the gate's two-line alarm card, so the long card has a unit test but no capture (rules.md 7). Filed: the next mc take of tour v9 (F7 judges) shows a long foot card.
 - rmm5-2 NIT acts/tests_moved.rs: the wheel test sleeps 600 ms on the wall clock; a passed-in Instant would be faster and exact. Backlog.
 Counts: BLOCK 0, MAJOR 0, MINOR 1, NIT 1. Verdict: **MERGE-OK** (1ab2e6a7): train 149.
+
+## r1
+
+Lane mc-minor-r1, sonnet high, cloud, branch claude/mc-minor-r1, base 4d8bbe36 (t153+154). Head 1dd7edc9 (13 commits, 6 red tests first).
+Step 0 green (`git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`). The local branch
+of the container pointed at 721be592 (tour-base-r7); reset to origin/claude/mc-minor-r1 (4d8bbe36) first.
+Diffstat (plugins/chora-mc only): keys.rs, layout.rs, main.rs, region.rs, rooms.rs, 5 files, +152 -39.
+Captures: `media/2026-11-26/mc-minor-r1/` (before = the r2 captures of rc1-pass-mc-r2, copied; after = this
+lane's persona session mc 1280x720 on the head build), 0.5 MB.
+
+| id | state | red line (commit) | fix (commit) |
+|---|---|---|---|
+| rpm2-1 | fixed | `the_full_list_names_the_drag_beside_the_give_keys`: left None, right Some("Super+drag") (e82d3a69b); then `the_full_list_has_no_more_rows_than_the_column_holds_at_720`: 22 rows (a7a1fb9bb) | f2ca01461 the drag row after the give keys; 4fdf1b9fd the row "Super+F1 All keys" leaves the full list (it is the list itself; with the drag row Esc left the column at 1280x720, 22 rows + 1 wrap); Esc closes it |
+| rpm2-2 | part | `a_window_that_no_scene_started_keeps_off_the_edge`: "the window starts at x 0" (6b51ec102) | faea552c2 the window of a page without scene starts at 2 baselines (the text edge of the header) and ends 2 baselines before the right edge. NOT fixed: the 10 px face of a bare foot from Programs, see below |
+| rpm2-3 | part | `the_header_ends_before_the_badge_of_a_muted_mic`: left Some(1204.0), right Some(947.0) (63500155b) | 60f92d43a mc reads the rect of `hud-badge` with the pill (hud-word, hud-figure); the header ends a baseline before it, column hidden or shown (a3). NOT fixed: the white box |
+| rpm2-4 | skipped | no red | the chat view is the host's (chora-assistant chat/view.rs `keep_newest`, shared by every look), not mc's |
+| rpm2-5 a | fixed (rule narrowed, see below) | `the_header_stays_where_it_is_while_the_pill_moves_over_the_column`: left [160,0,576,56], right [160,0,672,56] (ec5e03d52) | 365c90267 then 1dd7edc9a: the header ignores the pill while the chat is open (the first rule, "column shown", broke the gate cell mc-sofa rooms-pill: a HUD folder with its pill left of the column must still end the header before it, rmm1-2; found by the gate, 1dd7edc9a narrows it; the test now sets `mc.chat = Open`) |
+| rpm2-5 b | fixed | `a_rebuild_creates_the_head_where_it_stays`: the first transaction creates the title at a guess, no update of it (5cfc6ec49) | 4891017c9 `align` split into `align_commands`; `rebuild_pages` reads the rects of the old page and applies the aligning moves in the transaction that creates the new one (no timer); the measure after it stays for a title that wraps differently |
+
+Notes per item.
+
+- rpm2-1: shown at 1280x720 in rpm2-1-after-all-keys-720.png: 21 rows, Super+drag "Drag window" after "Super+Alt+1-4 Give
+  window to a look", Esc at y 685, no cut. At 1024x768 (more height) not captured; the 1280x720 case is the tight one.
+- rpm2-2: the part for mc is done (page-edge inset, rpm2-2-after-foot-page-720.png: ink from x 56). The face stays about
+  10 px: Programs runs `chora-mc --launch fuzzel` -> `chora_kit::launcher::run`, and the Foot entry's command is a bare
+  `foot` the kit starts with `choractl run`. To start it as mc's themed shell command mc would need the kit's entry
+  list: `shared::entries_in` is pub(crate) and `launcher::tell` private (the "Run could not start" notice); a kit
+  hook (a command rewrite per program, or `terminal` applying to the Foot entry) is the change. Needs chora-kit: skipped.
+- rpm2-3: no more cover of date and clock (rpm2-3-after-muted-hidden-720.png: date ends at x 919, the pill starts at
+  947, column hidden). The badge itself (white fill, dark text, 8 px corners) is `Ink::HOST` in
+  chora-assistant card.rs `badge()`; hud.md says "A folder styles them and cannot hide, cut, relabel or move them",
+  and the badge takes no folder colours. mc-style "no white box" needs the host: skipped, named.
+- rpm2-4: the transcript is cut by whole messages in the host (`keep_newest`), has no scroll state, no wheel, no
+  Page Up and no "↑ N earlier" line; adding them is a feature of chora-assistant for all looks. Not done.
+- rpm2-5 a: cause read with a probe at 85 ms: the host moves the pill word from x 1120 to 764 for about 0.2 s while the
+  chat opens (a transient of the host); mc re-read it about a second later and the header followed both ways.
+  rpm2-5-after-date-samples.txt: the clock x stays 364.85 with the pill at 764. One open after Esc showed clock x
+  468.85 for 3 samples and a measuring probe at 0.0 (not the pill; open, worth a look in the next pass).
+- rpm2-5 b: not seen in a capture here (one frame), the red is the transaction check with rects planted in the fake
+  core (`respond` on `scene.query kind:text`). Other callers with the same two-step (apply, then align) remain:
+  content.rs panel replacement, show.rs; not a page rebuild, not touched.
+- Foreign: none so far.
+
+Gate (`CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2`, detached): run 1 on 4fdf1b9f: red-first, identity, ratchets,
+pre-commit, docs, gate-lib PASS; ci-check FAIL, foreign: `skip: clock selftest, the Python module PIL is missing` then
+`FAIL: without Inter the clock selftest did not print a skip line naming Inter (TF-1)` (the machine has no PIL; the venv in
+the scratchpad got pillow, mkdocs from docs/requirements.txt). Run 2 `--only ci-check .. last step` (62 steps, no filter
+beyond the start): ci-check, build, test, clippy, 2d-guard, package-*, xp .. mc-paths PASS, then mc-sofa FAIL, mine:
+`FAIL: the header [524.85,28.0,310.0,28.0] reaches the state pill [701.0,29.0,85.0,26.0] ... (rmm1-2)`, cells rooms-pill and
+rooms-pill-status (the first rpm2-5 a rule); fixed in 1dd7edc9a. Run 3 on 1dd7edc9: build, test, clippy, mc-sofa, mc-column,
+mc-handover, mc-scale, mc-host, tiling-disc, e2e and every step from mc-sofa on PASS (25 PASS, no FAIL, no SKIP; "partial run: nothing
+is pushed" is the --only line). Run 4: mc-paths, keys, pixels PASS on 1dd7edc9. Steps 2d-guard .. mc-handover before the
+fix ran green on 4fdf1b9f; the change after it is mc-only (rooms.rs, region.rs), covered by run 3 and 4. Gate not one
+full run on the head: EXIT 0 not shown; every step passed on some run after the commit it covers, none red but the
+foreign ci-check (PIL). Last 20 lines of run 3 are in /tmp/merge-gate.ZgexZE (not kept).
