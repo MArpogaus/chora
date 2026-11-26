@@ -1,0 +1,172 @@
+run rc rounds_none setup_none panes_result
+1 1 6 3 mc construct panes gap
+2 1 6 3 mc construct panes gap
+3 1 6 3 mc construct panes gap
+4 1 6 3 mc construct panes gap
+5 1 6 3 mc construct panes gap
+6 1 6 3 mc construct panes gap
+7 1 6 3 mc construct panes gap
+8 1 6 3 mc construct panes gap
+9 1 6 3 mc construct panes gap
+10 1 6 3 mc construct panes gap
+total_rounds_none 60 of 10 runs
+
+== run-1 rc=1
+phase startup 3s
+setup filler1: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"}]
+setup filler2: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"},{"name":"filler2","owner":"construct","pane":"none"}]
+setup filler3: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 1: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 2: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 3: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes gap
+phase panes 22s
+-- gate.out tail:
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13/run-1/matrix.log)
+run time: 25s
+MISMATCH mc construct panes: measured gap, expected pass: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+FAIL: 1 cells differ from EXPECTED; see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13/run-1/matrix.log
+
+== run-2 rc=1
+phase startup 3s
+setup filler1: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"}]
+setup filler2: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"},{"name":"filler2","owner":"construct","pane":"none"}]
+setup filler3: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 1: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 2: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 3: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes gap
+phase panes 21s
+-- gate.out tail:
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13/run-2/matrix.log)
+run time: 24s
+MISMATCH mc construct panes: measured gap, expected pass: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+FAIL: 1 cells differ from EXPECTED; see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13/run-2/matrix.log
+
+== run-3 rc=1
+phase startup 3s
+setup filler1: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"}]
+setup filler2: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"},{"name":"filler2","owner":"construct","pane":"none"}]
+setup filler3: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 1: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 2: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 3: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes gap
+phase panes 22s
+-- gate.out tail:
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13/run-3/matrix.log)
+run time: 25s
+MISMATCH mc construct panes: measured gap, expected pass: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+FAIL: 1 cells differ from EXPECTED; see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13/run-3/matrix.log
+
+== run-4 rc=1
+phase startup 3s
+setup filler1: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"}]
+setup filler2: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"},{"name":"filler2","owner":"construct","pane":"none"}]
+setup filler3: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 1: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 2: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 3: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes gap
+phase panes 21s
+-- gate.out tail:
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13/run-4/matrix.log)
+run time: 24s
+MISMATCH mc construct panes: measured gap, expected pass: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+FAIL: 1 cells differ from EXPECTED; see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13/run-4/matrix.log
+
+== run-5 rc=1
+phase startup 3s
+setup filler1: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"}]
+setup filler2: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"},{"name":"filler2","owner":"construct","pane":"none"}]
+setup filler3: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 1: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 2: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 3: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes gap
+phase panes 21s
+-- gate.out tail:
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13/run-5/matrix.log)
+run time: 24s
+MISMATCH mc construct panes: measured gap, expected pass: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+FAIL: 1 cells differ from EXPECTED; see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13/run-5/matrix.log
+
+== run-6 rc=1
+phase startup 3s
+setup filler1: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"}]
+setup filler2: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"},{"name":"filler2","owner":"construct","pane":"none"}]
+setup filler3: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 1: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 2: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 3: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes gap
+phase panes 22s
+-- gate.out tail:
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13/run-6/matrix.log)
+run time: 25s
+MISMATCH mc construct panes: measured gap, expected pass: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+FAIL: 1 cells differ from EXPECTED; see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13/run-6/matrix.log
+
+== run-7 rc=1
+phase startup 3s
+setup filler1: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"}]
+setup filler2: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"},{"name":"filler2","owner":"construct","pane":"none"}]
+setup filler3: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 1: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 2: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 3: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes gap
+phase panes 22s
+-- gate.out tail:
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13/run-7/matrix.log)
+run time: 25s
+MISMATCH mc construct panes: measured gap, expected pass: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+FAIL: 1 cells differ from EXPECTED; see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13/run-7/matrix.log
+
+== run-8 rc=1
+phase startup 2s
+setup filler1: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"}]
+setup filler2: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"},{"name":"filler2","owner":"construct","pane":"none"}]
+setup filler3: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 1: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 2: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 3: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes gap
+phase panes 22s
+-- gate.out tail:
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13/run-8/matrix.log)
+run time: 24s
+MISMATCH mc construct panes: measured gap, expected pass: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+FAIL: 1 cells differ from EXPECTED; see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13/run-8/matrix.log
+
+== run-9 rc=1
+phase startup 3s
+setup filler1: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"}]
+setup filler2: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"},{"name":"filler2","owner":"construct","pane":"none"}]
+setup filler3: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 1: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 2: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 3: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes gap
+phase panes 22s
+-- gate.out tail:
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13/run-9/matrix.log)
+run time: 25s
+MISMATCH mc construct panes: measured gap, expected pass: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+FAIL: 1 cells differ from EXPECTED; see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13/run-9/matrix.log
+
+== run-10 rc=1
+phase startup 2s
+setup filler1: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"}]
+setup filler2: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"},{"name":"filler2","owner":"construct","pane":"none"}]
+setup filler3: [{"name":"filler1","owner":"construct","pane":"shown"},{"name":"probe","owner":"mc","pane":"none"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 1: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 2: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes round 3: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+mc construct panes gap
+phase panes 22s
+-- gate.out tail:
+repairs of the setup: 0 (see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13/run-10/matrix.log)
+run time: 24s
+MISMATCH mc construct panes: measured gap, expected pass: [{"name":"filler1","owner":"construct","pane":"aside"},{"name":"probe","owner":"construct","pane":"shown"},{"name":"filler2","owner":"construct","pane":"none"},{"name":"filler3","owner":"construct","pane":"none"}]
+FAIL: 1 cells differ from EXPECTED; see /tmp/claude-0/-home-user-chora/d5523172-ae2e-5224-8492-5869afea7e15/scratchpad/a13/run-10/matrix.log

@@ -1,0 +1,75 @@
+run 1 in the pane:
+mode navigate front 0 faces 4, panes ['foot'], core focus: ['construct-look']
+    surface s1 owner construct visible True focused None
+  bar [Click Fly in Return Ctrl Alt ← Ctrl Alt → Super F1 All keys]
+ after Alt+Escape:
+mode use front 0 faces 4, panes ['foot'], core focus: ['construct-look']
+    surface s1 owner construct visible True focused None
+  bar [Super F1 All keys Alt Esc Step back]
+  told: NO
+ after Super+Alt+2:
+mode use front 0 faces 4, panes [], core focus: ['s1']
+    surface s1 owner xp visible True focused True
+  bar [Super F1 All keys Super Alt 4 Pull out Alt Esc Step back]
+  foot on xp: VIRTUAL-1 True, mode use
+  RESULT FAIL
+run 2 in the pane:
+mode navigate front 0 faces 4, panes ['foot'], core focus: ['construct-look']
+    surface s1 owner construct visible True focused None
+  bar [Click Fly in Return Ctrl Alt ← Ctrl Alt → Super F1 All keys]
+ after Alt+Escape:
+mode use front 0 faces 4, panes ['foot'], core focus: ['construct-look']
+    surface s1 owner construct visible True focused None
+  bar [Super F1 All keys Alt Esc Step back]
+  told: NO
+ after Super+Alt+2:
+mode use front 0 faces 4, panes [], core focus: ['s1']
+    surface s1 owner xp visible True focused True
+  bar [Super F1 All keys Super Alt 4 Pull out Alt Esc Step back]
+  foot on xp: VIRTUAL-1 True, mode use
+  RESULT FAIL
+run 3 in the pane:
+mode navigate front 0 faces 4, panes ['foot'], core focus: ['s1']
+    surface s1 owner construct visible True focused True
+  bar [Super F1 All keys Alt Esc Step back]
+ after Alt+Escape:
+mode navigate front 0 faces 4, panes ['foot'], core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True focused True
+  bar [Click Fly in Return Ctrl Alt ← Ctrl Alt → Super F1 All keys Super Alt 2 Into face]
+  told: yes
+ after Super+Alt+2:
+mode use front 0 faces 4, panes [], core focus: ['s1']
+    surface s1 owner xp visible True focused True
+  bar [Super F1 All keys Super Alt 4 Pull out Alt Esc Step back]
+  foot on xp: VIRTUAL-1 True, mode use
+  RESULT pass
+run 4 in the pane:
+mode navigate front 0 faces 4, panes ['foot'], core focus: ['construct-look']
+    surface s1 owner construct visible True focused None
+  bar [Click Fly in Return Ctrl Alt ← Ctrl Alt → Super F1 All keys]
+ after Alt+Escape:
+mode use front 0 faces 4, panes ['foot'], core focus: ['construct-look']
+    surface s1 owner construct visible True focused None
+  bar [Super F1 All keys Alt Esc Step back]
+  told: NO
+ after Super+Alt+2:
+mode use front 0 faces 4, panes [], core focus: ['s1']
+    surface s1 owner xp visible True focused True
+  bar [Super F1 All keys Super Alt 4 Pull out Alt Esc Step back]
+  foot on xp: VIRTUAL-1 True, mode use
+  RESULT FAIL
+run 5 in the pane:
+mode navigate front 0 faces 4, panes ['foot'], core focus: ['s1']
+    surface s1 owner construct visible True focused True
+  bar [Super F1 All keys Alt Esc Step back]
+ after Alt+Escape:
+mode navigate front 0 faces 4, panes ['foot'], core focus: ['construct-look', 's1']
+    surface s1 owner construct visible True focused True
+  bar [Click Fly in Return Ctrl Alt ← Ctrl Alt → Super F1 All keys Super Alt 2 Into face]
+  told: yes
+ after Super+Alt+2:
+mode use front 0 faces 4, panes [], core focus: ['s1']
+    surface s1 owner xp visible True focused True
+  bar [Super F1 All keys Super Alt 4 Pull out Alt Esc Step back]
+  foot on xp: VIRTUAL-1 True, mode use
+  RESULT pass
