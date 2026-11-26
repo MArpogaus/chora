@@ -147,6 +147,20 @@ check "an edited test is named, not run" "$(grep -c "^red-first: $fix test commi
 check "an edited test exits 0" "$(red >/dev/null; echo $?)" 0
 
 fresh
+add_src 'a + b'
+add_test
+rr_commit "chore: an inline test"
+git -C "$rr" tag base2
+sed -i 's/(1, 2), 3/(2, 2), 4/' "$rr/src/lib.rs"
+rr_commit "test(x): adds is 4"
+add_src 'a + b + 0'
+rr_commit "fix(x): add stays right"
+fix=$(git -C "$rr" rev-parse --short HEAD)
+out=$(cd "$rr" && tests/merge-gate.sh --red-first-check --red-first-run --base base2 2>&1)
+check "an edit of an inline test is named, not run" "$(grep -c "^red-first: $fix test commit edits tests, not run" <<<"$out")" 1
+git -C "$rr" tag -d base2 >/dev/null
+
+fresh
 add_src 'a - b'
 add_test
 rr_commit "test(x): adds is 3 (sh-9, red)"
