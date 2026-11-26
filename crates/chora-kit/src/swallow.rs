@@ -4,7 +4,8 @@
 //! plugin that holds them: the tiling look, and the construct while the
 //! keyboard is with a window in a pane. A program keeps the keys of other
 //! modifiers, such as `Alt+b` of readline and `Alt+Left` of a browser, so
-//! another modifier swallows nothing.
+//! another modifier swallows nothing. With `Super` every other modifier
+//! counts: `Super+Alt+9` is no key of a program either.
 
 use chora_scene::{
     Binding, Event,
@@ -94,12 +95,32 @@ pub const KEYS: &[&str] = &[
     "Print",
 ];
 
-/// The extra modifiers of the swallowed chords: none, Shift and Ctrl.
-const WITH: [&str; 3] = ["", "Shift+", "Ctrl+"];
+/// The extra modifiers of the swallowed chords: none and every
+/// combination of Shift, Ctrl and Alt. A program gets no key that is
+/// pressed with Super (rpt2-1: `Super+Alt+9` typed `^[9` into a terminal).
+const WITH: [&str; 8] = [
+    "",
+    "Shift+",
+    "Ctrl+",
+    "Alt+",
+    "Ctrl+Shift+",
+    "Alt+Shift+",
+    "Ctrl+Alt+",
+    "Ctrl+Alt+Shift+",
+];
 
-/// Every chord of [`KEYS`] with `modifier`, `modifier+Shift` and
-/// `modifier+Ctrl`, when `modifier` is `Super`; with another modifier
-/// none.
+/// The keys of [`KEYS`] that the core keeps for its safety layer with
+/// Ctrl+Alt, also with Super: it refuses to grab them.
+fn safety(key: &str) -> bool {
+    matches!(key, "BackSpace" | "Escape" | "i")
+        || key
+            .strip_prefix('F')
+            .is_some_and(|n| n.parse::<u8>().is_ok())
+}
+
+/// Every chord of [`KEYS`] with `modifier` and each of [`WITH`], without
+/// the chords of the safety layer, when `modifier` is `Super`; with
+/// another modifier none.
 #[must_use]
 pub fn chords(modifier: &str) -> Vec<String> {
     if modifier != "Super" {
@@ -107,7 +128,9 @@ pub fn chords(modifier: &str) -> Vec<String> {
     }
     (WITH.iter())
         .flat_map(|with| {
-            KEYS.iter()
+            let layer = with.contains("Ctrl+Alt+");
+            (KEYS.iter())
+                .filter(move |key| !(layer && safety(key)))
                 .map(move |key| format!("{modifier}+{with}{key}"))
         })
         .collect()
@@ -218,7 +241,7 @@ impl<A: Clone> Runtime<A> {
     }
 
     /// Grabs the chords `asked` for the swallow in one batch, so that the
-    /// plugin takes one round trip for about 200 chords and a press of the
+    /// plugin takes one round trip for about 600 chords and a press of the
     /// person meets a plugin that listens soon; a refused one waits.
     fn ask_swallowed(&mut self, asked: Vec<String>, swallow: &A) -> Result<(), ClientError> {
         if asked.is_empty() {
@@ -586,9 +609,9 @@ mod tests {
     }
 
     #[test]
-    fn super_chords_with_shift_and_ctrl_are_swallowed() {
+    fn super_chords_are_swallowed() {
         let chords = chords("Super");
-        assert_eq!(chords.len(), 3 * KEYS.len());
+        assert_eq!(chords.len(), 8 * KEYS.len() - 2 * 15);
         for chord in [
             "Super+d",
             "Super+q",
@@ -602,14 +625,6 @@ mod tests {
         for chord in &chords {
             assert!(chord.parse::<Binding>().is_ok(), "{chord}");
         }
-    }
-
-    /// The keys that the core keeps for its safety layer with Ctrl+Alt.
-    fn is_safety(key: &str) -> bool {
-        matches!(key, "BackSpace" | "Escape" | "i")
-            || key
-                .strip_prefix('F')
-                .is_some_and(|n| n.parse::<u8>().is_ok())
     }
 
     /// rpt2-1: a chord with Super and any other modifiers reaches no
@@ -633,7 +648,7 @@ mod tests {
             for key in KEYS {
                 let chord = format!("Super+{with}{key}");
                 let normal = chord.parse::<Binding>().unwrap().to_string();
-                let safety = with.contains("Ctrl+Alt+") && is_safety(key);
+                let safety = with.contains("Ctrl+Alt+") && safety(key);
                 assert_eq!(
                     swallowed.contains(&normal),
                     !safety,
@@ -659,9 +674,20 @@ mod tests {
         let mut rt = core.runtime::<&str>("swallow");
         rt.start_grabs();
         rt.grab("Super+q".parse().unwrap(), "close").unwrap();
+        rt.grab("Super+Alt+2".parse().unwrap(), "give").unwrap();
+        rt.grab("Super+Ctrl+Shift+Left".parse().unwrap(), "turn")
+            .unwrap();
         rt.grab_swallowed("Super", &"swallow").unwrap();
         rt.end_grabs().unwrap();
         assert_eq!(rt.action("Super+q"), Some(&"close"));
+        let action = |chord: &str| {
+            let normal = chord.parse::<Binding>().unwrap().to_string();
+            rt.action(&normal).copied()
+        };
+        assert_eq!(action("Super+Alt+2"), Some("give"));
+        assert_eq!(action("Super+Ctrl+Shift+Left"), Some("turn"));
+        assert_eq!(action("Super+Alt+9"), Some("swallow"));
+        assert_eq!(action("Super+Ctrl+Alt+x"), Some("swallow"));
         assert_eq!(rt.action("Super+d"), Some(&"swallow"));
         assert_eq!(rt.action("Shift+Super+x"), Some(&"swallow"));
     }
@@ -685,7 +711,7 @@ mod tests {
         let mut rt = core.runtime::<&str>("swallow");
         rt.grab_swallowed("Super", &"swallow").unwrap();
         let first = grabs.lock().unwrap().len();
-        assert_eq!(first, 3 * KEYS.len());
+        assert_eq!(first, chords("Super").len());
         rt.start_grabs();
         rt.grab_swallowed("Super", &"swallow").unwrap();
         rt.end_grabs().unwrap();

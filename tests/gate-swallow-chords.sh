@@ -6,7 +6,7 @@
 # binds still acts. One cell for each look that swallows with a window:
 #
 #   tiling  the foot is a tile; Super+2 views tag 2
-#   xp      the foot is a window of xp; Super+space opens the Start menu
+#   xp      the foot is a window of xp; Super+d shows the desktop and back
 #   mc      the foot is a window page of mc, with the keyboard; Super+F1
 #           shows the key list
 #
@@ -96,9 +96,12 @@ cell_xp() {
     start_stray xp
     until_ok stray_focused 40 || fail "xp: the typing foot does not hold the keyboard"
     no_stray xp
-    key Super+space
-    until_ok "ctl query id:xp-item-0 | jq -e '.[0].rects | length > 0' >/dev/null" 40 ||
-        fail "xp: Super+space opens no Start menu"
+    key Super+d
+    until_ok "ctl state xp | jq -e '[.windows[] | select(.shown)] | length == 0' >/dev/null" 40 ||
+        fail "xp: Super+d puts no window away: $(ctl state xp | jq -c '[.windows[] | .shown]')"
+    key Super+d
+    until_ok "ctl state xp | jq -e '[.windows[] | select(.shown)] | length == 1' >/dev/null" 40 ||
+        fail "xp: a second Super+d does not bring the window back"
     ok "xp: a chord that xp binds still acts"
     end_session
 }

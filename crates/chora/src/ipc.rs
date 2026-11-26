@@ -71,8 +71,10 @@ const HELLO_TIMEOUT: Duration = Duration::from_secs(5);
 /// How long the core keeps the nodes of a client with `resume` after its
 /// last connection closed, so that a restart gets them back.
 const GRACE: Duration = Duration::from_secs(10);
-/// The most grabs of one connection.
-const MAX_GRABS: usize = 256;
+/// The most grabs of one connection: the swallow of a look holds about
+/// 600 chords of Super with every other modifier (rpt2-1) beside its
+/// own bindings.
+const MAX_GRABS: usize = 1024;
 
 /// The connections of the IPC socket.
 #[derive(Default)]
@@ -3640,12 +3642,19 @@ mod tests {
         let mut core = Core::new();
         let mut client = core.named("wm");
         let mods = ["Super", "Ctrl", "Alt", "Super+Ctrl", "Super+Alt"];
-        let keys = "abcdefghijklmnopqrstuvwxyz0123456789";
+        let named = "minus equal comma period slash semicolon apostrophe grave backslash \
+            bracketleft bracketright space Tab Return Left Right Up Down Home End Prior Next \
+            Insert Delete Print";
+        let keys: Vec<String> = ("abcdefghijklmnopqrstuvwxyz0123456789".chars())
+            .map(String::from)
+            .chain((1..=35).map(|f| format!("F{f}")))
+            .chain((0..=9).map(|n| format!("KP_{n}")))
+            .chain(named.split_whitespace().map(String::from))
+            .collect();
         let mut bindings = mods
             .iter()
             .flat_map(|m| [format!("{m}+"), format!("{m}+Shift+")])
-            .flat_map(|m| keys.chars().map(move |k| format!("{m}{k}")))
-            .chain((1..=12).map(|f| format!("Super+F{f}")));
+            .flat_map(|m| keys.iter().map(move |k| format!("{m}{k}")));
         for binding in bindings.by_ref().take(MAX_GRABS) {
             client.ok(&mut core, "input.grab", json!({"binding": binding}));
         }
