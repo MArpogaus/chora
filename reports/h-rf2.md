@@ -87,3 +87,23 @@ Results:
 3. Full gate `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2`, no --push, on 59ba5c21e: all steps PASS (docs SKIP, mkdocs missing), `all steps passed`. An earlier run on 0e4d426ab stopped at ratchets: the selftest's two `sleep 0.5` raised the sleep ratchet (779 > 778); fixed by 59ba5c21e. No flakes. `pgrep -fa 'chora --headless'` empty at the end.
 
 Open: none of rhrf2-1..6. Known limits: an edited test is named, not run; the `lint-ratchet` note `allow is 359, listed 360` is old.
+
+## Review r2
+
+Review of claude/h-rf2-r2 a2b080ab..59ba5c21e (sonnet, high; one round, read-only on code). **Verdict: FIX** (one MAJOR open).
+
+Checks:
+
+1. Red first: `tests/red-first-selftest.sh` at c44aaa752 (parent's script) fails 11 checks (rc 1, 26 s: total line, mixed commit x4, edited test, failed checkout, build error x2, signal x2); at 23dc8ec22 passes; at 1e1d7ab7d fails 1 (inline edit); at 0e4d426ab and 59ba5c21e passes (10 s). `cargo check --workspace` ok.
+2. rhrf2-1..6: one selftest case each, all closed as reported. Reproduced rhrf2-1 (mixed commit rc 0, `gate cell too, not run`) and rhrf2-4 (broken module outside the test is `unproven`, not red) through the selftest. But the rhrf2-1 rule is not general: see rhrf2r2-1.
+3. False reds: functions of the head sourced at 4d8bbe36, range 3be27e32..4d8bbe36: rc 0, `2 proven red, 6 not run` in 50 s (target shared); each of the 6 lines has its named reason (4 gate cells, 142260b96 edits tests, 07654d7c2 no test function); 8582a5284 and c3925fc55 red. No valid commit of the real range flagged.
+4. Cleanup: after the real range `git worktree list` has no extra entry and `/tmp/red-first-run.*` is absent. Traps INT/TERM restored after return (`mine`/`t` survive; none stay when none were set). Group SIGTERM: selftest case passes. Lead-pid SIGTERM: see rhrf2r2-3. Range time 50 s, far under 5 min.
+5. Shell: `bash -n` ok; shellcheck not installed (not run); `set -u` fine, arrays declared; sleep ratchet unchanged (`ok: sleep-ratchet (sleep 778, sleep-all 929)`).
+
+Findings:
+
+- rhrf2r2-1 MAJOR tests/red-first.sh:347-352: a passing added test beside an edited test (the real red, not run) is flagged `RED-FIRST NOT RED`, a valid commit blocked. Reproduced in a temp repo: test(x) edits `tests/it.rs` (red on the parent), test(x) adds a passing `#[test]`, fix(x): `RED-FIRST NOT RED`, rc 1. Same class as rhrf2-1, closed only for the gate cell. Fix: treat `passes = 1` with `edits = 1` like `gate = 1` (print `edited test too, not run`, count not run, do not set bad), and add the selftest case.
+- rhrf2r2-2 MINOR tests/red-first.sh:347-352 (by reading, not reproduced): a crate whose test passes beside another crate whose result is `unproven` (build error outside the test, none ran) also reaches `RED-FIRST NOT RED`, although the unproven crate may be the red. Fix: record any `unproven` verdict in a flag and let it excuse a pass like the gate and edit cases.
+- rhrf2r2-3 NIT tests/red-first.sh:251-262, tests/merge-gate.sh:239: SIGTERM to the gate pid alone (not its group) kills the main shell at once (the trap at merge-gate.sh:562 is not set on the `--red-first-check` path), the `( ... red_first_run )` subshell is orphaned and keeps running; its trap runs only when the foreground cargo ends, so the worktree and `red-first-run.*` stay until then (reproduced: 10 files, 2 worktrees until the fake cargo ended, 20 s; a real cargo test runs minutes). The selftest kills the group only. Fix: run red_first_run without the subshell (or trap TERM in the check path and kill the group) and add a lead-pid case.
+
+Not findings: shellcheck absent; merge-gate.sh:52-57 comment runs the red-first paragraph into the `pre-commit` sentence (old, now longer).
