@@ -107,3 +107,17 @@ Findings:
 - rhrf2r2-3 NIT tests/red-first.sh:251-262, tests/merge-gate.sh:239: SIGTERM to the gate pid alone (not its group) kills the main shell at once (the trap at merge-gate.sh:562 is not set on the `--red-first-check` path), the `( ... red_first_run )` subshell is orphaned and keeps running; its trap runs only when the foreground cargo ends, so the worktree and `red-first-run.*` stay until then (reproduced: 10 files, 2 worktrees until the fake cargo ended, 20 s; a real cargo test runs minutes). The selftest kills the group only. Fix: run red_first_run without the subshell (or trap TERM in the check path and kill the group) and add a lead-pid case.
 
 Not findings: shellcheck absent; merge-gate.sh:52-57 comment runs the red-first paragraph into the `pre-commit` sentence (old, now longer).
+
+## r3
+
+Branch claude/h-rf2-r3, base 59ba5c21e, head 4b0d327a0 (2 commits, 2 files, +44 -3: tests/red-first.sh +6 -3, tests/red-first-selftest.sh +38).
+
+- Red first, 0270d2bc4: two selftest groups, 7 checks fail on 59ba5c21e (rc 1, `NOT RED`): a passing added test beside an edited test (rhrf2r2-1), a passing crate beside an unproven crate (rhrf2r2-2; second crate `rfy` with a broken module in a workspace).
+- Fix, 4b0d327a0: one rule. `unp` flag set on any `unproven` verdict; a pass with `gate`, `edits` or `unp` set prints `gate cell too, not run` and/or `test commit edits tests too, not run` (the unproven crate prints its own line), counts not run, does not set bad. The gate-cell special case is replaced, not joined by a third.
+- rhrf2r2-1, rhrf2r2-2 closed. rhrf2r2-3 NIT and the merge-gate.sh:52-57 comment not in scope (backlog).
+
+Results:
+
+1. Selftest on 4b0d327a0: all ok. On 59ba5c21e with the new cases: 7 FAIL.
+2. Real range `--base 3be27e32` (head's own range, HEAD included): rc 0, 47 s, `2 proven red, 6 not run` (8582a5284, c3925fc55 red; 07654d7c2 no test function; 369cf96fd, e6afbf977, 23dc8ec22, 0e4d426ab gate cell; 142260b96 edits tests).
+3. Full gate `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2`, no --push, on 4b0d327a0: every step PASS (docs SKIP, mkdocs missing), last lines: `e2e PASS 278s`, `skipped: docs (mkdocs is not installed (docs unchanged))`, `all steps passed; no --push, nothing is pushed`. No flakes. `pgrep -fa 'chora --headless'` empty.
