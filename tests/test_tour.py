@@ -1215,13 +1215,13 @@ class TilingWaitsForText(unittest.TestCase):
     def test_wait_for_text_returns_when_the_text_landed(self):
         wait = self.tiling().wait_for_text
         pending = iter([["sh -c sleep 3; python3 -I content.py page"], []])
-        wait(2, pending=lambda: next(pending), shown=lambda: 2, timeout=5, sleep=lambda s: None)
+        wait(2, pending=lambda: next(pending), started=lambda: 1, timeout=5, sleep=lambda s: None)
 
     def test_wait_for_text_names_the_tile_that_never_got_its_text(self):
         wait = self.tiling().wait_for_text
         clock = iter(range(0, 100, 10))
         with self.assertRaises(RuntimeError) as err:
-            wait(3, pending=lambda: ["python3 -I content.py notes"], shown=lambda: 3, timeout=30, sleep=lambda s: None, now=lambda: next(clock))
+            wait(3, pending=lambda: ["python3 -I content.py notes"], started=lambda: 2, timeout=30, sleep=lambda s: None, now=lambda: next(clock))
         self.assertEqual(len(str(err.exception).splitlines()), 1)
         self.assertIn("tile 3", str(err.exception))
 
@@ -1233,8 +1233,8 @@ class TilingWaitsForText(unittest.TestCase):
 
     def test_wait_for_text_waits_for_the_window(self):
         wait = self.tiling().wait_for_text
-        shown = iter([1, 1, 2])
-        wait(2, pending=lambda: [], shown=lambda: next(shown), timeout=5, sleep=lambda s: None)
+        started = iter([0, 0, 1])
+        wait(2, pending=lambda: [], started=lambda: next(started), timeout=5, sleep=lambda s: None)
 
 
 if __name__ == "__main__":
