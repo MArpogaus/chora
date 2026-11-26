@@ -43,6 +43,8 @@ A13 | 11-09 | rc | after an mc drag onto the construct output, construct loses i
 - rmmr1-3 NIT (mc keys.rs:251): 21-row bound counts shipped mc.yaml rows, not the column; a user key leaves the column without a more mark.
 - rmmr1-4 NIT (mc layout.rs:33): one frame of panel lines at the old width after a side toggle; with rpm2-5 b.
 
+- rksr1-4 NIT (gate-swallow-chords.sh:99): xp cell never red on 1c57c3d5; no fix.
+
 ## Review, docs, logging (rc 6, 8, 9a)
 A2 | 11-09 | rc | security audit as part of the per-area review (rc.md 6 lists charter 11 (a)-(c)); details in archive/charter.md section 15 item 2; the attacker check of the voice paths ran on 11-09 (reports/week-1.md).
 G1 | 11-10 | rc | open from grants2, for the security review: a HUD name whose HUD is not running is free to any process; hello accepts the same executable (several choractl).
