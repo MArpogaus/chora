@@ -40,3 +40,12 @@ Findings
 - rxb2-1 MINOR plugins/chora-assistant/src/chat/host.rs:511-519 with main.rs serve_wait: chat_due still adds FIELD_POLL to the held clock time and serve_wait measures it against the real clock, so with the chat open during a held recording the wait falls to 1 ms again (the spin of rxb1-2 on the chat path). Fix: chat_due on the real clock as the other timers, or in the held branch drop dues at or before the held time.
 
 Verdict (computed): 0 BLOCK, 0 MAJOR, MERGE-OK 312a5ff10; rxb2-1 to the backlog (rules.md 6). Train 149.
+
+## r3
+
+- Base 312a5ff10, head 3fd3a3bba (branch claude/xp-blink-r3, merged session head 6daaaab8 first).
+- Red commit 1c6764a52 (serve_wait with the clock held and the chat open: 100 ms to HELD_RECHECK, failed before the fix); fix commit 3fd3a3bba (chat_pulled, chat_due and chat_step on Instant::now()).
+- Diffstat vs 312a5ff10: plugins/chora-assistant/src/chat/host.rs 4 +-, src/main.rs 30 +++- (2 files, 29 insertions, 5 deletions).
+- rxb2-1 fixed. `cargo test -p chora-assistant`: 267 passed.
+- Gate: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2`: all steps passed, no FAIL, nothing pushed.
+- Tour: `demo/tour/run.py xp` once: 31 acts, 30 green, 1 known, 0 red; eyes open in x7, x10, x11; captures in media/2026-11-26/xp-blink-r3/ (each under 500 KB).
