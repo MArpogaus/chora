@@ -429,7 +429,7 @@ rr9-1 | MINOR | review-record-v9 r4 (reports/record-v9.md "## Review r4") | open
 - xp: rxm3-1 MINOR (rxm2-1 test vacuous when the real greeted file exists), rxm3-2 NIT (unrelated rewrites in Agent::new); reports/xp-minor.md PM review r3.
 - mc: rmm2-1..5 MINOR (card room assumes foot card; page end follows last card height; wheel 5 %/event on touchpad; ink cell x band fixed; 761c0b29 no red test), rmm2-6 NIT (mc-style.md); reports/mc-minor.md Review r2.
 - (critic 11-25) design/rc.md table rewrite: dropped; state.md RC table is the live view, rc.md keeps the criteria.
-- mc: rmm3-1 MINOR (card rect output-local, mc on a non-origin output; needs notify to name its output), rmm3-2 MINOR (long foot card over 1/3 counts as none), rmm3-3, -4 NIT; reports/mc-minor.md Review r3.
+- (MC-MINOR r5) mc: rmm3-1 MINOR (card rect output-local, mc on a non-origin output; needs notify to name its output), rmm3-2 MINOR (long foot card over 1/3 counts as none), rmm3-3, -4 NIT; reports/mc-minor.md Review r3.
 - F7 judges r2 (reports/tour-v9-judge.md r2a, r2b): rv9ka-2 MINOR kit launcher without app icons (or PM decision: text only); rv9kb-3 MINOR construct key sheet at 1280x720 runs 50 px past the bottom; rv9kb-4 COSMETIC tiling layout chip word left in its well.
 - rcd1-1 (ci-dry r1 PM review, MINOR): docs strict build runs only on push to main/dev; run `mkdocs build --strict` in pre-commit or the gate so a broken site shows before the release merge.
 - rfs2-1 (MINOR, mc host): restart within the 10 s grace keeps old nodes and ignores a new hud config (reports/flake-sofa.md PM review r2).
@@ -439,3 +439,4 @@ rr9-1 | MINOR | review-record-v9 r4 (reports/record-v9.md "## Review r4") | open
 - rfc1-1 MINOR (xp late on focus after a program ends in the cube cell, 2/26 natural; measure adopt-to-focus), rfc1-2 NIT (until_ok false 6 is a hidden timer); reports/flake-cube.md Review r1.
 - rml1-2 follow-up (harness): tests/persona/session.sh starts chora-notify for mc, tiling, construct personas (only xp has it); after HARNESS-MINOR r1; reports/launcher-notice.md PM decision r1.
 - harness: rhm1-1 NIT (gate docs step passes as NOT RUN without mkdocs); rsl1-1 (product: chora-construct --output for persona join); reports/harness-minor.md Review r1.
+- tour harness: rtl1-1 MINOR (ensure_notify does not wait until notify serves), rtl1-2 NIT (fuzzel parse not shared with the gate); reports/tour-launch.md Review r1.
