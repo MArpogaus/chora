@@ -82,6 +82,12 @@
 #    lists only keys that work with a window holding the keyboard: no
 #    Return Fly in, no Step into the face, no Esc; Escape closes it, and a
 #    click on Step back names Super Alt 2 as it does without the sheet.
+# 10. One told key out of a pane into a face (co-79 r7): the Terminal row
+#    of the start card starts a pane with no cube open; right after
+#    Alt+Escape the bar names Super Alt 2 Into face, and that one key opens
+#    the cube and puts the window of the pane on face 0, where it takes
+#    keys. Pulled out again by Super+Alt+4, the camera in the pane, the
+#    bar there names Super Alt 2 too, and the key puts the window back.
 #
 # Usage: tests/gate-construct-cube.sh   BIN: directory with the binaries
 #   SHOT  a PNG path that keeps a capture of the cube during a turn
@@ -1155,3 +1161,50 @@ until_ok 'test "$(put_keys)" = " Super Alt 2"' 20 ||
 ok "rpc2-2: after the key list in a pane the step back names Super Alt 2 as it does without it"
 call cube.close >/dev/null || fail "cube.close after step 9"
 until_ok 'test -z "$(virtuals)"' || fail "cube.close after step 9 left $(virtuals)"
+
+python3 -I - "$CHORA_SOCKET" <<'PY'
+import os, signal, sys
+for pid in filter(str.isdigit, os.listdir("/proc")):
+    try:
+        cmd = open(f"/proc/{pid}/cmdline", "rb").read().split(b"\0")
+        env = open(f"/proc/{pid}/environ", "rb").read().split(b"\0")
+    except OSError:
+        continue
+    if cmd[0].endswith(b"chora-probe") and b"CHORA_SOCKET=" + sys.argv[1].encode() in env:
+        os.kill(int(pid), signal.SIGTERM)
+PY
+had=" $(probe | awk '{print $1}' | tr '\n' ' ') "
+until_ok 'ctl query id:construct-start-row-0 | jq -e ".[0].rects | length > 0" >/dev/null' 40 ||
+    fail "co-79 r7: no start card with its Terminal row on the empty floor: $(call construct.list | jq -c '[.panes[].name]') $(probe)"
+read -r x y <<<"$(center construct-start-row-0)"
+inject "[{\"pointer_move\": {\"position\": [$x, $y]}}, {\"click\": {}}]"
+until_ok 'fresh | grep -q " construct "' 100 || fail "co-79 r7: the Terminal row of the start card started no pane: $(probe)"
+read -r term _ <<<"$(fresh | head -n 1)"
+until_ok 'test "$(prop construct-hint-step-back visible)" = True' 40 || fail "co-79 r7: in the pane of the Terminal row no Step back shows"
+key Alt+Escape
+until_ok 'test "$(put_keys)" = " Super Alt 2"' 20 ||
+    fail "co-79 r7: right after Alt+Escape out of the pane of the Terminal row the hint bar names no key into a face (put-in keys:$(put_keys); bar: $(hint_words); panes: $(call construct.list | jq -c '[.panes[].name]')): $(call cube.list | jq -c '{mode, faces: (.faces | length)}')"
+ok "co-79 r7: right after Alt+Escape out of the pane of the Terminal row the bar names Super Alt 2 Into face"
+key Super+Alt+2
+until_ok 'test "$(virtuals | wc -w)" = 4' 80 || fail "co-79 r7: the told Super+Alt+2 opened no cube: $(virtuals)"
+front0=$(call cube.list | jq -r '.faces[0].output')
+until_ok 'probe | grep -q "^$term xp $front0 "' 80 ||
+    fail "co-79 r7: the one told Super+Alt+2 did not put the window of the Terminal row on the face at the front ($front0): $(probe | grep "^$term "), cube $(call cube.list | jq -c '{mode, front}'), panes $(call construct.list | jq -c '[.panes[].name]')"
+until_ok 'test "$(call cube.list | jq -r .mode)" = use' 40 || fail "co-79 r7: after the told Super+Alt+2 the cube did not step into the face: $(call cube.list | jq -c '{mode, front}')"
+before=$(keys_in "$work/term.log")
+plain a
+until_ok 'test "$(keys_in "$work/term.log")" -gt "$before"' 20 || fail "co-79 r7: the window of the Terminal row put into the face has no keyboard"
+ok "co-79 r7: Terminal row, Alt+Escape, one told Super+Alt+2: the window is in face 0 and takes keys"
+# shellcheck disable=SC2034 # used in the until_ok string
+cam_before=$(camera)
+key Super+Alt+4
+until_ok 'probe | grep -q "^$term construct "' 40 || fail "co-79 r7: Super+Alt+4 did not pull the window out of the face: $(probe | grep "^$term ")"
+until_ok 'test "$(camera)" != "$cam_before" && test "$(camera)" = "$(camera)"' 40 || fail "co-79 r7: the camera did not fly into the pulled pane: $(camera)"
+until_ok 'test "$(put_keys)" = " Super Alt 2"' 20 ||
+    fail "co-79 r7: in the pane pulled out of the face the hint bar names no key into a face (put-in keys:$(put_keys); bar: $(hint_words))"
+key Super+Alt+2
+until_ok 'probe | grep -q "^$term xp $front0 "' 40 || fail "co-79 r7: the told Super+Alt+2 in the pulled pane did not put the window back on the face at the front: $(probe | grep "^$term ")"
+until_ok 'test "$(call cube.list | jq -r .mode)" = use' 40 || fail "co-79 r7: after the told Super+Alt+2 in the pulled pane the cube did not step into the face: $(call cube.list | jq -c '{mode, front}')"
+ok "co-79 r7: in a pane pulled out of a face the told Super+Alt+2 puts the window back"
+call cube.close >/dev/null || fail "cube.close after step 10"
+until_ok 'test -z "$(virtuals)"' || fail "cube.close after step 10 left $(virtuals)"

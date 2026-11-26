@@ -144,6 +144,38 @@ fn stepped_out_of_a_pane_without_a_cube_the_walk_names_the_cube() {
     );
 }
 
+/// co-79 r7: right after `Alt+Escape` out of a pane with no cube open, the
+/// walk names `Super Alt 2 Into face`, the one key that puts that pane's
+/// window into a face; in a pane, flown in (from a face or by its `Fly
+/// in` click), the bar names the same key, beside `Step back`.
+#[test]
+fn out_of_a_pane_and_in_one_the_bar_names_the_key_into_a_face() {
+    let (mut construct, core, _lines) = super::with_hint_bar("reach-r7-walk");
+    construct.cube = None;
+    construct.hints.until = Some(std::time::Instant::now() + crate::hints::WALK);
+    construct.core_focus = Some("s1".into());
+    construct.draw_hints().unwrap();
+    assert!(
+        has(&core.model(), "construct-hint-put-in"),
+        "stepped out of the pane with no cube, the walk names the key into a face"
+    );
+    let (mut construct, core, _lines) = super::with_hint_bar("reach-r7-pane");
+    construct.cube.as_mut().unwrap().program = "xp".into();
+    construct.fly_in(0).unwrap();
+    construct.flown = crate::camera::take_flight(&mut construct.glide);
+    construct.core_focus = Some("s1".into());
+    construct.hints.until = Some(std::time::Instant::now() + crate::hints::FLOWN);
+    construct.draw_hints().unwrap();
+    assert!(
+        has(&core.model(), "construct-hint-step-back"),
+        "in the pane the bar names the way out"
+    );
+    assert!(
+        has(&core.model(), "construct-hint-put-in"),
+        "in the pane the bar names the key into a face"
+    );
+}
+
 /// The window `s1` of the pane of `with_hint_bar`, which exists and sits in
 /// the panes, so that the core can focus it and answers the query for the
 /// window with the keyboard.
