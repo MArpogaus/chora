@@ -699,8 +699,11 @@ impl Assistant {
 
     /// Moves the figure and its word clear of an open chat panel (x, y,
     /// width, height), `PANEL_GAP` away from its side, and back to its
-    /// place when there is none; the move, if the place changed.
-    pub fn clear_of(&mut self, panel: Option<[i32; 4]>) -> Option<Command> {
+    /// place when there is none; the move, if the place changed. Where
+    /// that puts it over one of the `texts` of the other servers (the
+    /// header of a page), it stands below the lowest of them instead
+    /// (rmmr2-1).
+    pub fn clear_of(&mut self, panel: Option<[i32; 4]>, texts: &[[i32; 4]]) -> Option<Command> {
         let before = self.origin;
         self.origin = self.home;
         let mut origin = self.home;
@@ -714,6 +717,8 @@ impl Assistant {
                 } else {
                     px + pw + PANEL_GAP - x
                 };
+                self.origin = origin;
+                origin[1] += below(self.with_word(), texts);
             }
         }
         self.origin = origin;
@@ -1249,6 +1254,23 @@ fn inside([x, y]: [i32; 2], [w, h]: [i32; 2], [sw, sh]: [i32; 2]) -> bool {
     x >= 0 && y >= 0 && x + w <= sw && y + h <= sh
 }
 
+/// How far down a picture (x, y, width, height) goes to stand `PANEL_GAP`
+/// under every one of the `texts` that it covers; 0 when it covers none.
+fn below([x, y, w, h]: [i32; 4], texts: &[[i32; 4]]) -> i32 {
+    let covered = |top: i32| {
+        texts
+            .iter()
+            .filter(|[tx, ty, tw, th]| x < tx + tw && *tx < x + w && top < ty + th && *ty < top + h)
+            .map(|[_, ty, _, th]| ty + th)
+            .max()
+    };
+    let mut top = y;
+    while let Some(bottom) = covered(top) {
+        top = bottom + PANEL_GAP;
+    }
+    top - y
+}
+
 /// The top-left corner of the figure of `values` on an output of a size.
 fn origin_of(values: &Values, area: [i32; 4]) -> [i32; 2] {
     origin(values.anchor, area, values.figure.size(), values.margin)
@@ -1341,17 +1363,48 @@ mod tests {
             before[0] + before[2] > panel[0],
             "the panel covers it: {before:?}"
         );
-        let moved = figure.clear_of(Some(panel));
+        let moved = figure.clear_of(Some(panel), &[]);
         assert!(moved.is_some());
         let [x, _, w, _] = figure.with_word();
         assert_eq!(x + w, panel[0] - PANEL_GAP, "beside the panel, 12 away");
         assert_eq!(figure.origin[1], 740, "at its height");
         assert!(
-            figure.clear_of(Some(panel)).is_none(),
+            figure.clear_of(Some(panel), &[]).is_none(),
             "nothing moved again"
         );
-        assert!(figure.clear_of(None).is_some());
+        assert!(figure.clear_of(None, &[]).is_some());
         assert_eq!(figure.origin, [976, 740], "home again");
+    }
+
+    /// Whether two rectangles, x, y, width and height, share no pixel.
+    fn apart([ax, ay, aw, ah]: [i32; 4], [bx, by, bw, bh]: [i32; 4]) -> bool {
+        ax + aw <= bx || bx + bw <= ax || ay + ah <= by || by + bh <= ay
+    }
+
+    /// The pill that steps aside of the open chat panel at the top right
+    /// stands below the header line, never over its date or its clock
+    /// (rmmr2-1), at both sizes of the review.
+    #[test]
+    fn the_pill_beside_the_chat_panel_stands_below_the_header() {
+        let now = Instant::now();
+        let (_, values, _) = crate::tests::loaded("dodge");
+        for [w, h] in [[1280, 720], [1024, 768]] {
+            let mut figure = assistant(&values, "listening", now);
+            figure.word = [85, 26];
+            figure.home = [w - 56 - figure.rect()[2] - 85, 29];
+            figure.origin = figure.home;
+            figure.area = [0, 0, w, h];
+            let panel = [w - 400, 0, 400, h];
+            let header = [[160, 28, 103, 28], [panel[0] - 100 - 310, 28, 310, 28]];
+            assert!(figure.clear_of(Some(panel), &header).is_some());
+            let pill = figure.with_word();
+            assert_eq!(pill[0] + pill[2], panel[0] - PANEL_GAP, "beside: {w}x{h}");
+            for t in header {
+                assert!(apart(pill, t), "{pill:?} covers {t:?} at {w}x{h}");
+            }
+            assert!(figure.clear_of(Some(panel), &[]).is_some());
+            assert_eq!(figure.origin[1], figure.home[1], "no text, no drop");
+        }
     }
 
     /// Inside a pane of the construct the island dims to 0.6 (HUD spec,

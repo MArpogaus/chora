@@ -1617,6 +1617,25 @@ mod tests {
         }
     }
 
+    /// The word of the pill changes its width while the chat is open
+    /// (Working, then Idle): the edge counts as the chat closes, not at the
+    /// next round of the rooms (rmmr2-3).
+    #[test]
+    fn a_pill_that_changed_while_the_chat_was_open_counts_as_it_closes() {
+        let pill = Pill::default();
+        pill.lock().unwrap().insert("hud-word".into(), 1000.0);
+        let mut mc = mc_with_pill([1280, 720], &pill);
+        mc.learn_rooms().unwrap();
+        let open = serde_json::json!({"output": "test", "open": true});
+        mc.chat_drawer(&open).unwrap();
+        pill.lock().unwrap().insert("hud-word".into(), 940.0);
+        mc.learn_rooms().unwrap();
+        assert_eq!(mc.rooms.pill_left, Some(1000.0), "kept while open");
+        let closed = serde_json::json!({"output": "test", "open": false});
+        mc.chat_drawer(&closed).unwrap();
+        assert_eq!(mc.rooms.pill_left, Some(940.0), "read as the chat closed");
+    }
+
     /// How many items of the header an update of the regions moves.
     fn header_moves(mc: &mut crate::Mc) -> usize {
         let header = mc.region_id(Region::Header);
