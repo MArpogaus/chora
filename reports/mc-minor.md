@@ -174,3 +174,21 @@ Base 23cd2b5a, head 2ad0c45c, 5 files +55 -5 (PM review, under 200 lines). Red f
 - rmm4-1 NIT methods.rs:366: learn_card reads notify state.get right after the push; if the notice server shows the card a frame later the room still waits a round (the test fakes the answer). The gate cell page_end covers the real path.
 - rmm4-2 NIT keys.rs:184: the row names Up and Down only; Page Up and Page Down stay unnamed (doc comments name them).
 Verdict: 0 BLOCK, 0 MAJOR: MERGE-OK 2ad0c45c (train145).
+
+## r5
+
+Base 157be195, head 1ab2e6a70 (red 79fe8dac, fix 1ab2e6a7), branch claude/mc-minor-r5.
+```
+ docs/mc-style.md                         |  4 +--
+ plugins/chora-mc/src/acts.rs             |  8 +++++-
+ plugins/chora-mc/src/acts/tests_moved.rs | 17 ++++++++++++
+ plugins/chora-mc/src/main.rs             |  3 +++
+ plugins/chora-mc/src/rooms.rs            | 46 +++++++++++++++++++++++++++-----
+ 5 files changed, 68 insertions(+), 10 deletions(-)
+```
+- rmm3-1: card rect read as output-local (no subtraction of the output position).
+- rmm3-2: foot card told by its bottom in the lower third; room clamped to a third.
+- rmm3-3: docs/mc-style.md names faint behind the selected row, accent for the match.
+- rmm3-4: wheel_acc rest dropped after a 300 ms pause; reversal still resets.
+- Gate: `tests/merge-gate.sh --jobs 2`: all steps passed, none red (log tail pasted to the PM).
+- Capture media/2026-11-26/mc-minor-r5/mc-sofa-alarm-dark.png (1280x720, the gate's alarm cell): a two-line card, not the 8-line one; the long card is covered by the unit test only.
