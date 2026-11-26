@@ -162,7 +162,7 @@ pub struct Runtime<A> {
     pub(crate) said: bool,
     /// Makes the action of a give key; none when the plugin has no give
     /// keys.
-    give_keys: Option<fn(&'static str) -> A>,
+    pub(crate) give_keys: Option<fn(&'static str) -> A>,
     /// The last try to grab give keys that another client held.
     give_tried: Option<Instant>,
     /// Whether a key of `input.inject` runs a binding (test sessions).

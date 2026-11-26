@@ -269,12 +269,12 @@ before=$(keys_got 30)
 plain a
 until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "on the front face a plain a does not reach the probe window"
 sleep 2
-for chord in Super+q Super+Tab Super+1 Super+Shift+x Super+Ctrl+z; do
+for chord in Super+q Super+Tab Super+1 Super+Shift+x Super+Ctrl+z Super+Alt+9 Super+Alt+x Super+Ctrl+Shift+x Super+Alt+Shift+x Super+Ctrl+Alt+x; do
     key "$chord"
 done
 sleep 1
 reached=0
-for code in 16 15 2 45 44; do
+for code in 16 15 2 45 44 10; do
     [ "$(keys_got "$code")" = 0 ] || reached=1
 done
 start_menu_open() { ctl query id:xp-item-0 | python3 -I -c 'import json, sys; n = json.load(sys.stdin); sys.exit(0 if n and n[0]["rects"] else 1)'; }
@@ -286,7 +286,7 @@ before=$(keys_got 30)
 plain a
 until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "after the swallowed chords the probe window has no keyboard"
 if [ "$reached" = 0 ]; then
-    ok "co-25: on the front face Super+q, Tab, 1, Shift+x and Ctrl+z reach no window, a plain a does"
+    ok "co-25: on the front face Super+q, Tab, 1, Shift+x, Ctrl+z, Alt+9, Alt+x, Ctrl+Shift+x, Alt+Shift+x and Ctrl+Alt+x reach no window, a plain a does"
 else
     fail "co-25: on the front face a Super chord that nothing binds reaches the probe window, as the face manager swallows none"
 fi
