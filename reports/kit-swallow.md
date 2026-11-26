@@ -62,3 +62,47 @@ Findings:
 - rksr1-2, MINOR, tests/gate-swallow-chords.sh:80: the bound chord shown per look (Super+2, Super+d, Super+F1) is of the class that was swallowed before; no cell shows that a bound chord of the newly swallowed class still acts (only the unit test does); fix: in cell_tiling send Super+Ctrl+Shift+2 and assert the tile gets tag 2.
 - rksr1-3, MINOR, crates/chora-kit/src/runtime.rs:256: `give_keys()` after the first `grab_swallowed` silently loses the give keys (the xp bug of 02e745c3), an ordering trap for the next look; fix: let `grab_give_keys` take a give key that the plugin holds as swallowed (swap its action) or document the order on `give_keys`.
 - rksr1-4, NIT, tests/gate-swallow-chords.sh:99: the fix 37af9880 changed the red cell of xp (Super+space opens the Start menu; xp binds Super+space to the launcher), so the xp cell was never red; fix: none needed, the report already says xp and mc were not run on red.
+
+## r2
+
+kit-swallow-r2, branch `claude/kit-swallow-r2`, base 02e745c3, head bbfcf1c0 (4 commits, 4 files, +34 -3), sonnet, cloud. Fixes the findings rksr1-1, rksr1-2, rksr1-3 of "Review r1". Out of scope and left: rksr1-4 (NIT), rpt2-2.
+
+Commits:
+
+- 4d4c0326 `test: give keys after the swallow take over its chords (rksr1-3)`: the red commit. `cargo test -p chora-kit give_keys_set_after` fails on it with `Super+Alt+1 gives to tiling: left Some("swallow"), right Some("tiling")`.
+- fa9141604 `fix: give keys take over a swallowed chord (rksr1-3)`: `grab_give_keys` grabs a give key that the plugin holds as a swallow, which swaps its action and drops it from `swallowed`. No new API, no new option. `cargo test -p chora-kit`: 340 passed in the lib, 0 failed.
+- bf7101ab `test: a bound chord of the new swallowed class acts (rksr1-2)`.
+- bbfcf1c0 `docs: D118 says every Shift, Ctrl, Alt chord, 570 grabs (rksr1-1)`.
+
+Diffstat: crates/chora-kit/src/runtime.rs +7 -1, crates/chora-kit/src/swallow.rs +20, docs/decisions.md +1 -1, tests/gate-swallow-chords.sh +6 -1.
+
+Cell line (rksr1-2): `tests/gate-swallow-chords.sh` EXIT 0 in tiling, xp, mc, with the new line `ok: tiling: Super+Ctrl+Shift+2, a bound chord of a swallowed class, gives the tile tag 2` (`MOD+Ctrl+Shift+2: {toggle_window_tag: 2}` of tiling.yaml, so the stray tile has desks [1,2]). Red when the binding is removed from `plugins/chora-tiling/tiling.yaml` (and tiling rebuilt, the file restored after, no commit): `FAIL: tiling: Super+Ctrl+Shift+2 gives the tile no tag 2: [[1]]`.
+
+D118 (rksr1-1): the chords are now with every combination of Shift, Ctrl and Alt, without the core's safety layer, give keys left out; cost 570 grabs, MAX_GRABS 1024; a join lets go up to 570; the amendment names rpt2-1, rksr1-1, rksr1-3. The number is **570, not the 586 of review r1**: `chords("Super").len()` is 570 (75 keys x 8 modifier sets = 600, minus 15 safety keys x 2 sets with Ctrl+Alt = 30); a plugin with give keys grabs 566. api.md and architecture.md say 1024 and stayed as they are.
+
+Gate line: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` (no --push) on bbfcf1c0 is green in the end, with two host gaps that are not from the branch: the container has no mkdocs, no PIL and no numpy. `docs` failed ("mkdocs is not installed and docs changed"), and `ci-check` and `xp-paperclip` failed on `No module named 'PIL'` ("without Inter the clock selftest did not print a skip line naming Inter (TF-1)"). I installed mkdocs, mkdocs-material, pillow and numpy into a venv outside the repository (no system package) and put it on PATH; `mkdocs build --strict` is clean. The gate stops at the first red, so I ran it in three parts: part 1 red-first, identity, ratchets, pre-commit, docs (with mkdocs), gate-lib PASS; part 2 build, test, clippy, 2d-guard, package-deps, package-lists, xp, virtual, xp-faces PASS; part 3 `--only ci-check` and every step after it, all PASS (ci-check, build, test ... tiling-windows, ... e2e). Last 20 lines of part 3:
+
+```
+launcher-mc PASS    35s /tmp/merge-gate.bGFhBB/launcher-mc.log
+acts       PASS  2068s /tmp/merge-gate.bGFhBB/acts.log
+voice-events PASS     2s /tmp/merge-gate.bGFhBB/voice-events.log
+voice-acp  PASS    11s /tmp/merge-gate.bGFhBB/voice-acp.log
+agent      PASS    38s /tmp/merge-gate.bGFhBB/agent.log
+tiling-keys-more PASS    41s /tmp/merge-gate.bGFhBB/tiling-keys-more.log
+tiling-system PASS    15s /tmp/merge-gate.bGFhBB/tiling-system.log
+handover   PASS    90s /tmp/merge-gate.bGFhBB/handover.log
+mc-scale   PASS    15s /tmp/merge-gate.bGFhBB/mc-scale.log
+watchdog-starved PASS    57s /tmp/merge-gate.bGFhBB/watchdog-starved.log
+tiling-windows PASS   204s /tmp/merge-gate.bGFhBB/tiling-windows.log
+xp-run     PASS    14s /tmp/merge-gate.bGFhBB/xp-run.log
+demo       PASS   226s /tmp/merge-gate.bGFhBB/demo.log
+tiling-bar PASS   181s /tmp/merge-gate.bGFhBB/tiling-bar.log
+tiling-theme PASS    18s /tmp/merge-gate.bGFhBB/tiling-theme.log
+leak       PASS   469s /tmp/merge-gate.bGFhBB/leak.log
+mc-host    PASS    21s /tmp/merge-gate.bGFhBB/mc-host.log
+tiling-disc PASS    73s /tmp/merge-gate.bGFhBB/tiling-disc.log
+e2e        PASS   277s /tmp/merge-gate.bGFhBB/e2e.log
+partial run: nothing is pushed
+```
+
+`pgrep -fa 'chora --headless'`: empty after the runs.
