@@ -446,7 +446,7 @@ impl Agent {
             claim_due: true,
             state_ask: None,
             chat: Session::new(),
-            chat_pulled: clock::now(),
+            chat_pulled: Instant::now(),
             announced: None,
             chat_seen: None,
             chat_retried: Instant::now(),
@@ -633,7 +633,7 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         agent.ask_step(Instant::now())?;
         agent.greet_step(clock::now())?;
         agent.flash_step(clock::now())?;
-        agent.chat_step(clock::now())?;
+        agent.chat_step(Instant::now())?;
         agent.assistant_step(clock::now())?;
         agent.switch_step(clock::now())?;
     }
@@ -656,7 +656,7 @@ fn serve_wait(agent: &mut Agent) -> Duration {
             agent.flash_due(),
         ]
     };
-    let timers = [agent.chat_due(now), agent.ask_due()];
+    let timers = [agent.chat_due(real), agent.ask_due()];
     let wait = [animations, timers.to_vec()]
         .concat()
         .into_iter()
