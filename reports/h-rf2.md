@@ -43,3 +43,24 @@ covers the last 10 fix commits (`red-first: run capped ...` is printed when it c
 
 `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` (no --push) on a2b080ab2: EXIT 0, all steps passed;
 `skipped: docs (mkdocs is not installed (docs unchanged))`; no flakes. No `chora --headless` left.
+
+## Review r1
+
+Review of claude/h-rf2-r1 4d8bbe36..a2b080ab (sonnet, high; one round, read-only on code). **Verdict: FIX** (one MAJOR open).
+
+Checks:
+
+1. Red first: `tests/red-first-selftest.sh` fails at 36a41daa (9 of 10 checks, exit 2 from the unknown option) and passes at a2b080ab (13 ok, 9 s).
+2. Rule: the selftest cases pass (passing test on the parent is NOT RED, red test is green, gate cell named, `No test:` opts out, second fix of one id). Hand-made temp repos: cap prints `run capped to the last 10 of 12 fix commits` and runs 10; a mixed commit is flagged (rhrf2-1).
+3. Real range 3be27e32..4d8bbe36 (no gate run): rc 0, 21 to 37 s (cold target 37 s). No valid commit flagged red. 8582a5284 and c3925fc55 red on the parent; 06c3f7cc6, f396ebe63, 369cf96fd, e6afbf977 gate cells; 142260b96 "test in the fix commit"; 07654d7c2 no test function; d590aae69, 822d5be4a opt out. Only 2 of 11 fixes are proven red.
+4. Gaps: 689bff45's range (b710ead48^1..^2) rc 0, 9 s; 689bff45f is a gate cell, not run: reported honestly in the report and CONTRIBUTING (named `gate cell, not run`). After a normal run no worktree or `/tmp/red-first-run.*` is left (`git worktree list` clean); the shared target does not grow over 3 runs (503 M).
+5. Shell: `bash -n` ok; shellcheck is not installed (not run).
+
+Findings:
+
+- rhrf2-1 MAJOR tests/red-first.sh:286-289: a test commit that adds a Rust test passing on the parent and a gate cell (the real red) is flagged `RED-FIRST NOT RED` although `gate=1` (reproduced in a temp repo: test(x) adds tests/gate-q.sh exit 1 plus a passing #[test]; fix flagged, rc 1) - a valid commit blocked. Fix: when `gate=1` and no Rust test is red, print `gate cell too, not run` and do not set bad.
+- rhrf2-2 MINOR tests/red-first.sh:151-160: only added `#[test]` functions are run; a red test written as an edit of an existing test (64d9a7a42, in the real range) is invisible, and its fix 142260b96 prints the misleading `test in the fix commit, not run`. Fix: when a paired test commit changes Rust tests but adds none, print `test commit edits tests, not run`.
+- rhrf2-3 MINOR tests/red-first.sh:232,265,298: no trap; an interrupt or SIGPIPE leaves the worktree and `/tmp/red-first-run.*` (seen once), the `|| return 1` after `worktree add` leaks the mktemp dir, and a failed `checkout` of the parent `continue`s silently (a fix skipped with no line). Fix: `trap` cleanup on RETURN/INT/TERM and print `red-first: <sha> checkout of the parent failed, not run`.
+- rhrf2-4 MINOR tests/red-first.sh:202: any `error: could not compile` of the crate on the parent counts as red, also an unrelated breakage (missing dependency, offline) - a false green. Fix: count it only when the first error names a file of the added test, else `unproven`.
+- rhrf2-5 NIT tests/red-first.sh:290-297: the unproven outcomes (gate cell, in the fix, no function) exit 0 with no total, so a range with 2 proven of 11 reads as green; CONTRIBUTING.md:116-124 does not say that these pass. Fix: print `red-first: N proven red, M not run` and one clause in CONTRIBUTING.
+- rhrf2-6 NIT tests/red-first-selftest.sh:8: no case for the cap line, the mixed commit or an edited test; the red cell at 36a41daa fails on the unknown option (exit 2) for 9 of 10 checks, not on behaviour; `set -u` only, no `-e`/`pipefail` (the library is sourced). Fix: add the three cases.
