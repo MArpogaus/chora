@@ -20,7 +20,7 @@
 # 3. L3 after it (Super+2, Super+1) holds with tiling after each key:
 #    the contract of tests/persona/check.py.
 # 4. Super+F1 opens the key list of tiling, Escape closes it, and the
-#    keyboard does not go to xp then.
+#    keyboard goes back to the desktop of tiling, not to xp.
 #
 # Usage: tests/gate-looks-move.sh   BIN: directory with the binaries
 #   SHOTS: a folder for the captures (before and after the moves)
@@ -146,5 +146,7 @@ shot keys
 act key Escape >/dev/null || fail "Escape"
 until_ok '! keys_open' 20 || fail "Escape did not close the key list ($(holders))"
 [ "$(holder xp)" = '{"holder":null}' ] || fail "after the key list, xp has the keyboard: $(holders)"
+until_ok "[ \"\$(holder tiling)\" = '{\"holder\":\"tiling\"}' ]" 20 ||
+    fail "after the key list, tiling does not hold the keyboard with its desktop: $(holders)"
 shot after-keys
-ok "Super+F1 opens the key list, Escape closes it, and the keyboard stays off xp ($(holders))"
+ok "Super+F1 opens the key list, Escape closes it, and the keyboard goes back to the desktop of tiling ($(holders))"

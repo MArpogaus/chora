@@ -644,6 +644,18 @@ impl Plugin for Tiling {
         Some(&mut self.settings)
     }
 
+    /// Drops the desktop node that tiling holds the keyboard with when the
+    /// core does not focus it any more: a lock, a click on a layer
+    /// surface or a node of another client end it, but a picker over it
+    /// does not (`Focus::refresh_node`, as mc). The key list of tiling
+    /// holds the keyboard over the desktop and gives it back when it
+    /// hides, so the desktop stays while it shows.
+    fn refresh(&mut self) {
+        if !self.keys_open() {
+            self.focus.refresh_node(&mut self.rt.conn, NAME);
+        }
+    }
+
     fn state(&self) -> Option<Value> {
         Some(self.state_value())
     }
@@ -889,9 +901,6 @@ impl Tiling {
     }
 
     fn handle_scene(&mut self, event: Event) -> Result<(), ClientError> {
-        if matches!(event, Event::FocusNode { node: None, .. }) && self.focus.node() == Some(NAME) {
-            self.focus.drop_node();
-        }
         if self.focus.hear(&event).is_some() || matches!(event, Event::FocusNode { .. }) {
             return Ok(());
         }
@@ -2078,7 +2087,10 @@ mod tests {
     /// holds the keyboard with its own desktop, the root of its nodes.
     #[test]
     fn the_last_window_handed_to_another_output_leaves_the_keyboard_with_the_desktop() {
-        let (mut tiling, methods) = beside_xp("keep-desk", [100.0, 0.0, 100.0, 80.0], &["s1"]);
+        use std::sync::atomic::Ordering;
+        let (mut tiling, methods, desk) =
+            beside_xp_desk("keep-desk", [100.0, 0.0, 100.0, 80.0], &["s1"]);
+        desk.store(true, Ordering::SeqCst);
         let from = methods.lock().unwrap().len();
         stay(&mut tiling, "s1");
         let sent = commands_from(&methods, from);
@@ -2092,6 +2104,10 @@ mod tests {
         let held = holder(&mut tiling);
         assert_eq!((held.holder.as_deref(), held.surface), (Some(NAME), None));
         tiling.toggle_keys().unwrap();
+        desk.store(false, Ordering::SeqCst);
+        let open = holder(&mut tiling).holder;
+        assert_eq!(open.as_deref(), Some(NAME), "the key list holds it");
+        desk.store(true, Ordering::SeqCst);
         let from = methods.lock().unwrap().len();
         tiling.hide_keys().unwrap();
         let back = commands_from(&methods, from);
@@ -2099,6 +2115,7 @@ mod tests {
             back.iter().any(|c| c["focus_node"]["node"] == NAME),
             "the key list gives the keyboard back to the desktop: {back:?}"
         );
+        desk.store(false, Ordering::SeqCst);
         tiling
             .event(Event::FocusNode {
                 node: None,

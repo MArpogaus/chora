@@ -401,7 +401,11 @@ cases:
 - A surface gets the focus, by a command or by the core.
 
 A layer surface that takes the keyboard exclusively, for example a
-launcher, gets the keys before the node. Some layer surfaces take the
+launcher, gets the keys before the node. The node keeps the focus under
+it: `focus.node` tells no node while the layer has the keys and the node
+again when the layer goes, so a look that holds the keyboard with a node
+asks `scene.query` with the filter `focused` before it says that it lost
+it (kit `Focus::refresh_node`, I3). Some layer surfaces take the
 keyboard on demand, for example the search field of a panel. A click on
 such a surface ends the focus of the node and gives it the keyboard.
 

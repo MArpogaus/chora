@@ -8,9 +8,14 @@
 //! none until one of its windows takes it back, so that no relayout of
 //! the look steals the keyboard.
 
-use chora_scene::{Command, Event};
+use chora_scene::{
+    Command, Event,
+    ipc::{Filter, Query},
+};
+use serde_json::Value;
 
 use super::{Why, state};
+use crate::conn::Conn;
 
 /// The rules of focus that a look decides; it sees its own model.
 pub trait Policy {
@@ -81,6 +86,9 @@ pub struct Focus {
     /// The node of `away` is the desktop of its look, its root node,
     /// which holds the keyboard in place of a window (D119).
     away_desk: bool,
+    /// The error of the last query of [`Focus::refresh_node`], if it
+    /// failed: a failure logs once and not on every `state.get`.
+    query_error: Option<String>,
 }
 
 impl Focus {
@@ -109,6 +117,42 @@ impl Focus {
     /// the keyboard with a node, which tells the look nothing.
     pub fn drop_node(&mut self) {
         self.node = None;
+    }
+
+    /// Asks the core whether it still focuses the own node, and drops it
+    /// when not; the look `name` calls it in `refresh`, before `state.get`
+    /// answers. A `focus.node` without a node does not tell: a layer
+    /// surface that takes the keyboard exclusively, as a picker, leaves
+    /// the node focused under it, and the core tells it again when the
+    /// layer goes (I3, tiling-focus r4); a lock, a click on a layer
+    /// surface or a node of another client end it. A failed query keeps
+    /// the node and is reported once.
+    pub fn refresh_node(&mut self, conn: &mut Conn, name: &str) {
+        let Some(node) = self.node.clone() else {
+            return;
+        };
+        let query = Query {
+            selector: format!("id:{node}"),
+            filter: Some(Filter {
+                focused: true,
+                ..Filter::default()
+            }),
+        };
+        match conn.call::<_, Vec<Value>>("scene.query", query) {
+            Ok(nodes) => {
+                self.query_error = None;
+                if nodes.is_empty() {
+                    self.drop_node();
+                }
+            }
+            Err(err) => {
+                let text = err.to_string();
+                if self.query_error.as_deref() != Some(&text) {
+                    crate::runtime::report(name, &format_args!("focus query: {text}"));
+                    self.query_error = Some(text);
+                }
+            }
+        }
     }
 
     /// The surface that the core focuses, as it told or the look sent.

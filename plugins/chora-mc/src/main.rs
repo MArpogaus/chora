@@ -306,9 +306,6 @@ struct Mc {
     /// the window that comes keeps no keyboard from the page, as when the
     /// program already ran (mc-42).
     plain_start: Option<String>,
-    /// The error of the last focus query of `refresh`, if it failed: a
-    /// failure logs once and not on every `state.get`.
-    focus_query_error: Option<String>,
     settings: settings::File<Config>,
     /// The directory of the scene files.
     dir: PathBuf,
@@ -552,7 +549,6 @@ impl Mc {
             page_keys: keys::PageKeys::Plain,
             plain_turn: false,
             plain_start: None,
-            focus_query_error: None,
             appeared: scenes.keys().cloned().collect(),
             scenes,
             settings,
@@ -691,33 +687,10 @@ impl Plugin for Mc {
     /// Drops the node that mc holds the keyboard with when the core does
     /// not focus it: `focus.node` names the node that another client
     /// takes (heard, `Focus::away`), but not that the node of mc lost the
-    /// keyboard to a surface, so `state.get` still asks the core.
+    /// keyboard to a surface, so `state.get` still asks the core
+    /// (`Focus::refresh_node`, as tiling).
     fn refresh(&mut self) {
-        let Some(node) = self.focus.node().map(str::to_owned) else {
-            return;
-        };
-        let query = Query {
-            selector: format!("id:{node}"),
-            filter: Some(chora_scene::ipc::Filter {
-                focused: true,
-                ..chora_scene::ipc::Filter::default()
-            }),
-        };
-        match self.rt.conn.call::<_, Vec<Value>>("scene.query", query) {
-            Ok(nodes) => {
-                self.focus_query_error = None;
-                if nodes.is_empty() {
-                    self.focus.drop_node();
-                }
-            }
-            Err(err) => {
-                let text = err.to_string();
-                if self.focus_query_error.as_deref() != Some(&text) {
-                    chora_kit::runtime::report(NAME, &format_args!("focus query: {text}"));
-                    self.focus_query_error = Some(text);
-                }
-            }
-        }
+        self.focus.refresh_node(&mut self.rt.conn, NAME);
     }
 
     fn state(&self) -> Option<Value> {
