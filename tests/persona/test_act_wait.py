@@ -9,6 +9,7 @@ Usage: python3 -I tests/persona/test_act_wait.py
 
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -20,21 +21,29 @@ HERE = pathlib.Path(__file__).resolve().parent
 SLOW = 4
 FAST = 3
 
-FAKE_CHECK = f"""
+FAKE_CHECK = """
 import pathlib, sys, time
 d = pathlib.Path(sys.argv[0]).parent
-time.sleep({SLOW})
+time.sleep(SLEEP)
 with open(d / "checked", "a") as f:
     f.write(sys.argv[2] + "\\n")
 """
 
 
-class ActWait(unittest.TestCase):
+class Base(unittest.TestCase):
+    check_sleep = SLOW
+    slow_start = None
+
     def setUp(self):
         self.dir = pathlib.Path(tempfile.mkdtemp(prefix="act-wait-"))
         self.addCleanup(shutil.rmtree, self.dir, True)
         shutil.copy(HERE / "act.py", self.dir / "act.py")
-        (self.dir / "check.py").write_text(FAKE_CHECK)
+        (self.dir / "check.py").write_text(FAKE_CHECK.replace("SLEEP", str(self.check_sleep)))
+        if self.slow_start:
+            act = (self.dir / "act.py").read_text()
+            delay = f'    import time as _t; _t.sleep(1) if {self.slow_start!r} == action else None\n'
+            act = re.sub(r"(def run_check\((\w+)[^)]*\):\n)", lambda m: m.group(1) + delay.replace("action", m.group(2)), act)
+            (self.dir / "act.py").write_text(act)
         bin_dir = self.dir / "bin"
         bin_dir.mkdir()
         choractl = bin_dir / "choractl"
@@ -63,6 +72,8 @@ class ActWait(unittest.TestCase):
         path = self.dir / "checked"
         return path.read_text().split() if path.exists() else []
 
+
+class ActWait(Base):
     def test_key_returns_before_the_check_ends(self):
         took = self.act("key", "Super+q")
         self.assertLess(took, FAST, f"act.py held the persona {took:.1f} s for the checker")
@@ -84,6 +95,19 @@ class ActWait(unittest.TestCase):
         self.act("key", "Super+q")
         self.act("key", "Super+w")
         self.assertEqual(self.checked(), ["key"], "the second input ran before the first check ended")
+
+
+class CheckOrder(Base):
+    check_sleep = 0
+    slow_start = "key"
+
+    def test_checks_keep_the_order_of_their_actions(self):
+        self.act("key", "Super+q")
+        self.act("look")
+        deadline = time.monotonic() + 8
+        while len(self.checked()) < 2 and time.monotonic() < deadline:
+            time.sleep(0.2)
+        self.assertEqual(self.checked(), ["key", "look"])
 
 
 if __name__ == "__main__":
