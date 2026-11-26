@@ -316,7 +316,7 @@ impl Agent {
                 Ok(commands)
             }
             Some("confirm") => {
-                let commands = self.confirm(data, now)?;
+                let commands = self.confirm(data)?;
                 self.chat_voice(event, data);
                 Ok(commands)
             }
@@ -474,11 +474,11 @@ impl Agent {
     }
 
     /// A card for a question on an output, not placed yet.
-    fn new_card(&self, question: Question, (buttons, output): (bool, &str), now: Instant) -> Shown {
+    fn new_card(&self, question: Question, (buttons, output): (bool, &str)) -> Shown {
         let (ink, face) = self.card_ink();
         Shown {
             id: question.answer_id.clone(),
-            card: chora_kit::ask::Card::new(question, now),
+            card: chora_kit::ask::Card::new(question, Instant::now()),
             buttons,
             output: output.to_owned(),
             origin: [0, 0],
@@ -495,11 +495,7 @@ impl Agent {
     /// The question of `voice.confirm` as a card, once and in one place
     /// until it ends; its end takes the card away. A question whose whole
     /// text does not fit has no buttons and is refused at once.
-    pub(crate) fn confirm(
-        &mut self,
-        data: &Value,
-        now: Instant,
-    ) -> Result<Vec<Command>, ClientError> {
+    pub(crate) fn confirm(&mut self, data: &Value) -> Result<Vec<Command>, ClientError> {
         let Some(mut question) = Question::from_event(data, None) else {
             return Ok(self.end_card(data));
         };
@@ -521,7 +517,7 @@ impl Agent {
         let top = self.ensure_top(&output.name);
         self.apply(top)?;
         let mut commands = Vec::new();
-        let mut shown = self.new_card(question, (data["buttons"] == true, &output.name), now);
+        let mut shown = self.new_card(question, (data["buttons"] == true, &output.name));
         self.place_card(&mut shown, figure, &output)?;
         if self.chat.question_asked() == Where::Chat && self.chat.is_open() {
             self.chat_draw()?;
@@ -745,7 +741,7 @@ impl Agent {
         if name == VOICE {
             self.claim_due = true;
             self.claim_indicator(false);
-            self.state_ask = Some((chora_kit::clock::now(), ASK_TRIES));
+            self.state_ask = Some((Instant::now(), ASK_TRIES));
         }
     }
 
@@ -887,7 +883,12 @@ impl Agent {
             commands.extend(self.ensure_top(&output.name));
             let theme = (&self.card_theme, self.language, figure);
             let area = assistant::work_area(&output);
-            card::settle(&mut shown, (&output.name, output.size, area), theme, now);
+            card::settle(
+                &mut shown,
+                (&output.name, output.size, area),
+                theme,
+                Instant::now(),
+            );
             commands.extend(card::show(
                 &mut self.card_theme,
                 &shown,
@@ -1032,7 +1033,7 @@ impl Agent {
         let Some(shown) = self.card.as_mut() else {
             return Ok((false, Vec::new()));
         };
-        let Some(outcome) = card::press(shown, node, injected, chora_kit::clock::now()) else {
+        let Some(outcome) = card::press(shown, node, injected, Instant::now()) else {
             return Ok((false, Vec::new()));
         };
         match outcome {

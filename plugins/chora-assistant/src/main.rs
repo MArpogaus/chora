@@ -445,7 +445,7 @@ impl Agent {
             chat_pulled: clock::now(),
             announced: None,
             chat_seen: None,
-            chat_retried: clock::now(),
+            chat_retried: Instant::now(),
             row: None,
             chat_row: None,
             said: None,
@@ -626,7 +626,7 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(event) = agent.rt.conn.next_event_timeout(wait)? {
             runtime::dispatch(&mut agent, event)?;
         }
-        agent.ask_step(clock::now())?;
+        agent.ask_step(Instant::now())?;
         agent.greet_step(clock::now())?;
         agent.flash_step(clock::now())?;
         agent.chat_step(clock::now())?;
@@ -636,20 +636,28 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// How long the serve loop waits for an event before its timers are due.
+/// The animations stand still while a recording holds the clock, so only
+/// the timers of the real clock count then.
 fn serve_wait(agent: &mut Agent) -> Duration {
     let now = clock::now();
-    [
-        agent.assistant_due(),
-        agent.switch_due(now),
-        agent.chat_due(now),
-        agent.ask_due(),
-        agent.greet_due(),
-        agent.flash_due(),
-    ]
-    .into_iter()
-    .flatten()
-    .min()
-    .map_or(IDLE, |due| due.saturating_duration_since(now))
+    let real = Instant::now();
+    let animations = if clock::held() {
+        Vec::new()
+    } else {
+        vec![
+            agent.assistant_due(),
+            agent.switch_due(now),
+            agent.greet_due(),
+            agent.flash_due(),
+        ]
+    };
+    let timers = [agent.chat_due(now), agent.ask_due()];
+    [animations, timers.to_vec()]
+        .concat()
+        .into_iter()
+        .flatten()
+        .min()
+        .map_or(IDLE, |due| due.saturating_duration_since(real))
 }
 
 /// The methods of the core every plugin exports: its state and the clock of
@@ -1170,7 +1178,7 @@ mod tests {
         let (mut agent, _dirs) = xp_agent("guard-real");
         clock::step(serde_json::json!({"ms": 0.0})).unwrap();
         let data = serde_json::json!({"id": "1", "prompt": "Write notes.txt?", "buttons": true});
-        agent.confirm(&data, clock::now()).unwrap();
+        agent.confirm(&data).unwrap();
         assert!(agent.card.is_some(), "the card shows");
         std::thread::sleep(Duration::from_millis(500));
         agent.press_card(card::YES, false).unwrap();

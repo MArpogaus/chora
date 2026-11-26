@@ -538,8 +538,8 @@ impl Agent {
             self.chat_pulled = now;
             changed |= self.chat.pull(&mut bridge);
         }
-        if self.chat.offline() && self.chat_retried + RETRY <= now {
-            self.chat_retried = now;
+        if self.chat.offline() && self.chat_retried + RETRY <= Instant::now() {
+            self.chat_retried = Instant::now();
             changed |= self.chat.retry(&mut bridge);
         }
         self.announce_keyboard()?;

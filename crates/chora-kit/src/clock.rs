@@ -67,6 +67,13 @@ fn at(real: Instant) -> Instant {
     }
 }
 
+/// A recording holds the clock: its time stands still between two steps.
+#[must_use]
+pub fn held() -> bool {
+    let real = Instant::now();
+    at(real) != real
+}
+
 /// The time that passed since `earlier` on the clock of the animations.
 #[must_use]
 pub fn since(earlier: Instant) -> Duration {
