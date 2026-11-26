@@ -291,6 +291,21 @@ mod tests {
         assert!(none.contains(&icons), "the icons get no keys: {none:?}");
     }
 
+    /// While the chat field of another client has the keys, the window
+    /// that lost them draws its inactive title, as on XP (rpx2-5).
+    #[test]
+    fn a_window_that_lost_the_keys_to_a_node_looks_inactive() {
+        let (mut wm, _methods) = wm_on_fake_core("state-title-node");
+        wm.focused = Some("s1".into());
+        assert!(wm.is_active("s1"));
+        let taken = json!({"event": "focus.node", "node": "chat", "owner": "chora-chat"});
+        wm.event(serde_json::from_value(taken).unwrap()).unwrap();
+        assert!(!wm.is_active("s1"), "the chat field has the keys");
+        let back = json!({"event": "focus.node", "node": null, "owner": null});
+        wm.event(serde_json::from_value(back).unwrap()).unwrap();
+        assert!(wm.is_active("s1"), "the keys came back");
+    }
+
     /// A node of another client that has the keys keeps them: the focus
     /// that leaves a foreign window does not give the icons the keyboard.
     #[test]
