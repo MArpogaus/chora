@@ -519,8 +519,37 @@ impl Agent {
         })
     }
 
+    /// Tells with `assistant.door {door}` when the word of the helper door
+    /// is not the one that was told last, so that a panel that shows it
+    /// changes with the header of the chat and not at its next poll. A
+    /// refusal of the core, such as its limit of events per second, is no
+    /// error: the next step tells it again.
+    ///
+    /// # Errors
+    ///
+    /// The socket fails.
+    pub fn announce_door(&mut self) -> Result<(), ClientError> {
+        let door = self.presented()["door"]
+            .as_str()
+            .unwrap_or_default()
+            .to_owned();
+        if self.door_told.as_deref() == Some(door.as_str()) {
+            return Ok(());
+        }
+        let emit = json!({"event": "assistant.door", "data": {"door": door}});
+        match self.rt.conn.call::<_, Value>("events.emit", emit) {
+            Ok(_) => {
+                self.door_told = Some(door);
+                Ok(())
+            }
+            Err(ClientError::Rpc(_)) => Ok(()),
+            Err(err) => Err(err),
+        }
+    }
+
     /// Takes what the field told and keeps the chat alive.
     pub fn chat_step(&mut self, now: Instant) -> Result<(), ClientError> {
+        self.announce_door()?;
         self.announce_keyboard()?;
         if !self.chat.is_open() && !self.chat.keyboard() {
             return Ok(());
@@ -543,6 +572,7 @@ impl Agent {
             changed |= self.chat.retry(&mut bridge);
         }
         self.announce_keyboard()?;
+        self.announce_door()?;
         if changed {
             self.chat_draw()?;
         }

@@ -587,7 +587,7 @@ fn serve(tiling: &mut Tiling) -> Result<(), ClientError> {
 }
 
 /// The events that tiling handles.
-const EVENTS: [&str; 22] = [
+const EVENTS: [&str; 23] = [
     "voice.state",
     "voice.say",
     "voice.remove",
@@ -595,6 +595,7 @@ const EVENTS: [&str; 22] = [
     "client.disconnected",
     "assistant.ready",
     "assistant.chat",
+    "assistant.door",
     "surface.created",
     "surface.destroyed",
     "surface.detached",
@@ -859,6 +860,11 @@ impl Tiling {
         }
         if matches!(&event, Event::ClientDisconnected { name } if name == "assistant") {
             return self.clear_panel();
+        }
+        if matches!(&event, Event::Emitted { event, client, .. } if event == "assistant.door" && client == "assistant")
+        {
+            Self::push_helper();
+            return Ok(());
         }
         if let Event::Emitted {
             event: name,

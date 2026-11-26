@@ -148,6 +148,15 @@ impl Session {
         }
     }
 
+    /// The name and the state that the header of an open chat shows, the
+    /// one state of that helper for everything else that says it (rpt3-2):
+    /// none outside a chat, while it is offline and before a state came.
+    #[must_use]
+    pub fn shown_state(&self) -> Option<(String, &str)> {
+        let chat = matches!(self.mode, Mode::Chat(_)) && !self.offline;
+        (chat && !self.status.state.is_empty()).then(|| (self.label(), self.status.state.as_str()))
+    }
+
     /// The header line of the view.
     #[must_use]
     pub fn header(&self, language: Language) -> String {

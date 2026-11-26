@@ -10,13 +10,14 @@
 # output, with a line on stderr. jq is needed.
 # The pids of this script and of waybar are written to panel.pid and
 # waybar.pid in chora-tiling of the runtime directory, so that chora-tiling
-# can push a change (SIGRTMIN+1) and a new theme (SIGUSR2) without a unit.
+# can push a change (SIGRTMIN+1), a new word of the helper door (SIGRTMIN+2)
+# and a new theme (SIGUSR2) without a unit.
 # The style is copied into the runtime directory with the colours and the
 # icons of the theme that chora-tiling wrote there, or else of the flavor;
 # the colors.css of the folder chora/tiling of the config directory wins
 # when it is newer than the one that chora-tiling wrote. A SIGUSR2 copies
 # them again, so a new theme shows after the reload of the unit.
-# Waybar starts with SIGUSR1, SIGUSR2 and SIGRTMIN+1 ignored: a push from
+# Waybar starts with SIGUSR1, SIGUSR2, SIGRTMIN+1 and SIGRTMIN+2 ignored: a push from
 # chora-tiling that arrives before waybar has its handlers is lost, where
 # the default action would end waybar without a word. Waybar sets its own
 # handlers later.
@@ -94,10 +95,10 @@ while :; do
     jq -n --arg include "$dir/config.jsonc" --argjson outputs "${outputs:-[\"*\"]}" \
         '{include: [$include], output: $outputs}' >"$config"
     prepare
-    trap '' USR1 USR2 RTMIN+1
+    trap '' USR1 USR2 RTMIN+1 RTMIN+2
     waybar --config "$config" --style "$style/style.css" 9>&- &
     pid=$!
-    trap - USR1 USR2 RTMIN+1
+    trap - USR1 USR2 RTMIN+1 RTMIN+2
     echo "$pid" >"$pids/waybar.pid"
     while kill -0 "$pid" 2>/dev/null; do
         sleep 2

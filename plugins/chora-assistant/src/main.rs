@@ -248,6 +248,8 @@ struct Agent {
     /// Whether `assistant.chat.keyboard` last said that the field has the
     /// keyboard.
     keyboard_told: bool,
+    /// The door word that `assistant.door` last told.
+    door_told: Option<String>,
     /// The button of the card that shows its pressed state, and when it
     /// goes back.
     flash: Option<(String, Instant)>,
@@ -312,7 +314,9 @@ impl Plugin for Agent {
             }
             _ => Vec::new(),
         };
-        self.apply(commands)
+        let applied = self.apply(commands);
+        self.announce_door()?;
+        applied
     }
 
     fn method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
@@ -456,6 +460,7 @@ impl Agent {
             hovered: None,
             flash: None,
             keyboard_told: false,
+            door_told: None,
         };
         agent.ready().map_err(|e| e.to_string())?;
         agent.look_context = agent.switcher.applied().clone();
@@ -1098,6 +1103,7 @@ mod tests {
             hovered: None,
             flash: None,
             keyboard_told: false,
+            door_told: None,
         };
         (agent, [dir, cache], core)
     }
