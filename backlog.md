@@ -433,3 +433,9 @@ rr9-1 | MINOR | review-record-v9 r4 (reports/record-v9.md "## Review r4") | open
 - F7 judges r2 (reports/tour-v9-judge.md r2a, r2b): rv9ka-2 MINOR kit launcher without app icons (or PM decision: text only); rv9kb-3 MINOR construct key sheet at 1280x720 runs 50 px past the bottom; rv9kb-4 COSMETIC tiling layout chip word left in its well.
 - rcd1-1 (ci-dry r1 PM review, MINOR): docs strict build runs only on push to main/dev; run `mkdocs build --strict` in pre-commit or the gate so a broken site shows before the release merge.
 - rfs2-1 (MINOR, mc host): restart within the 10 s grace keeps old nodes and ignores a new hud config (reports/flake-sofa.md PM review r2).
+- xp: rxb1-1 MINOR (non-animation timers on clock::now(): card TooSoon, ask retries; keep Instant::now()), rxb1-2 MINOR (serve loop polls 1 ms while clock held; wait IDLE); reports/xp-blink.md Review r1.
+- mc: rml1-3 MINOR (power.sh silent on unsupported fuzzel), rml1-4 COSMETIC (plain fallback light box on dark mc); reports/mc-launcher.md Review r1.
+- (CO-DROP r2) construct: rcdr1-1 MINOR (pull.rs:333 side drop forgets noted focus only via noted_focus(); 3+ faces step in reaches a hidden window; forget raw focus + 3-output test), rcdr1-2 NIT (list.rs:253 give comment stale); reports/co-drop.md Review r1.
+- rfc1-1 MINOR (xp late on focus after a program ends in the cube cell, 2/26 natural; measure adopt-to-focus), rfc1-2 NIT (until_ok false 6 is a hidden timer); reports/flake-cube.md Review r1.
+- rml1-2 follow-up (harness): tests/persona/session.sh starts chora-notify for mc, tiling, construct personas (only xp has it); after HARNESS-MINOR r1; reports/launcher-notice.md PM decision r1.
+- harness: rhm1-1 NIT (gate docs step passes as NOT RUN without mkdocs); rsl1-1 (product: chora-construct --output for persona join); reports/harness-minor.md Review r1.
