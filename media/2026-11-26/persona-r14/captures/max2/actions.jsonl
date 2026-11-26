@@ -1,0 +1,32 @@
+{"time": 1795697159.512, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.088, "result": {"path": "/tmp/persona.Q1xKAw/shots/001.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795697163.25, "action": "click", "args": {"x": 300.0, "y": 227.0, "button": "left", "double": false}, "ok": true, "seconds": 0.231, "result": "ok"}
+{"time": 1795697165.44, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.052, "result": {"path": "/tmp/persona.Q1xKAw/shots/002.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795697169.206, "action": "key", "args": {"combo": "Super+c"}, "ok": true, "seconds": 0.011, "result": "ok"}
+{"time": 1795697171.525, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.167, "result": {"path": "/tmp/persona.Q1xKAw/shots/003.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795697189.74, "action": "drag", "args": {"x1": 130.0, "y1": 250.0, "x2": 30.0, "y2": 250.0}, "ok": true, "seconds": 0.289, "result": "ok"}
+{"time": 1795697192.347, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.155, "result": {"path": "/tmp/persona.Q1xKAw/shots/004.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795697210.643, "action": "key", "args": {"combo": "Ctrl+Alt+Left"}, "ok": true, "seconds": 0.014, "result": "ok"}
+{"time": 1795697213.057, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.102, "result": {"path": "/tmp/persona.Q1xKAw/shots/005.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795697231.199, "action": "key", "args": {"combo": "Ctrl+Alt+Left"}, "ok": true, "seconds": 0.012, "result": "ok"}
+{"time": 1795697233.649, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.127, "result": {"path": "/tmp/persona.Q1xKAw/shots/006.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795697328.853, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.178, "result": {"path": "/tmp/persona.Q1xKAw/shots/007.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795697339.722, "action": "key", "args": {"combo": "Super+Return"}, "ok": true, "seconds": 0.015, "result": "ok"}
+{"time": 1795697341.618, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.248, "result": {"path": "/tmp/persona.Q1xKAw/shots/008.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795697361.403, "action": "click", "args": {"x": 96.0, "y": 32.0, "button": "left", "double": false}, "ok": true, "seconds": 0.243, "result": "ok"}
+{"time": 1795697363.662, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.16, "result": {"path": "/tmp/persona.Q1xKAw/shots/009.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795697383.001, "action": "click", "args": {"x": 344.0, "y": 172.0, "button": "left", "double": false}, "ok": true, "seconds": 0.244, "result": "ok"}
+{"time": 1795697385.074, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.061, "result": {"path": "/tmp/persona.Q1xKAw/shots/010.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795697458.725, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.08, "result": {"path": "/tmp/persona.Q1xKAw/shots/011.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795697469.477, "action": "key", "args": {"combo": "Super+F1"}, "ok": true, "seconds": 0.019, "result": "ok"}
+{"time": 1795697469.589, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.148, "result": {"path": "/tmp/persona.Q1xKAw/shots/012.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795697491.648, "action": "click", "args": {"x": 181.0, "y": 31.0, "button": "left", "double": false}, "ok": true, "seconds": 0.315, "result": "ok"}
+{"time": 1795697493.953, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.377, "result": {"path": "/tmp/persona.Q1xKAw/shots/013.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795697513.317, "action": "key", "args": {"combo": "Ctrl+Alt+Right"}, "ok": true, "seconds": 0.014, "result": "ok"}
+{"time": 1795697515.841, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.175, "result": {"path": "/tmp/persona.Q1xKAw/shots/014.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795697590.834, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.161, "result": {"path": "/tmp/persona.Q1xKAw/shots/015.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795697602.512, "action": "click", "args": {"x": 144.0, "y": 32.0, "button": "left", "double": false}, "ok": true, "seconds": 0.272, "result": "ok"}
+{"time": 1795697604.527, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.209, "result": {"path": "/tmp/persona.Q1xKAw/shots/016.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795697624.603, "action": "type", "args": {"text": "Hello atlas, please say hello back to me."}, "ok": true, "seconds": 0.011, "result": "ok"}
+{"time": 1795697635.718, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.018, "result": "ok"}
+{"time": 1795697637.739, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.174, "result": {"path": "/tmp/persona.Q1xKAw/shots/017.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
+{"time": 1795697641.139, "action": "look", "args": {"max_side": 800}, "ok": true, "seconds": 0.22, "result": {"path": "/tmp/persona.Q1xKAw/shots/018.png", "info": {"height": 500, "origin": [0.0, 0.0], "scale": 0.625, "width": 800}}}
