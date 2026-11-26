@@ -33,13 +33,6 @@ export PATH=$bin:$PATH
 
 CHORDS=(Super+Alt+9 Super+Alt+x Super+Ctrl+Shift+x Super+Alt+Shift+x Super+Ctrl+Alt+x)
 
-until_ok() {
-    for _ in $(seq "${2:-40}"); do
-        eval "$1" && return 0
-        sleep 0.25
-    done
-    return 1
-}
 key() { echo "[{\"shortcut\": {\"keys\": \"$1\"}}]" | ctl inject >/dev/null || fail "inject $1"; }
 typed_text() { echo "[{\"text\": {\"text\": \"$1\"}}]" | ctl inject >/dev/null || fail "inject the text $1"; }
 stray_focused() { ctl query 'app_id:stray kind:surface' | jq -e '.[0].focused == true' >/dev/null; }
