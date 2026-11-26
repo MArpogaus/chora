@@ -119,9 +119,12 @@ The hooks run:
   those ids) at the fix's first parent with `cargo test -p <crate>`, and at
   least one must fail there, else the step prints `RED-FIRST NOT RED`. A
   test only in a `tests/gate-*.sh` script is named (`gate cell, not run`),
-  as is a test in the fix commit itself; `No test: <reason>` opts out; the
-  run covers the last 10 fix commits; `tests/red-first-selftest.sh` proves
-  it
+  as is a test in the fix commit itself, an edited test (`test commit edits
+  tests, not run`) and a build error that does not name the test's file;
+  `No test: <reason>` opts out; the run covers the last 10 fix commits and
+  ends with `N proven red, M not run`: a not-run fix passes the step
+  unproven, only a test that passes on the parent fails it;
+  `tests/red-first-selftest.sh` proves it
 - red first per finding id: a `fix` commit whose subject or body names
   a finding id (`sh-33`, `mc-55`, `rtd-2`: lowercase letters, a hyphen,
   digits, an optional letter) needs, for each id it names, a commit

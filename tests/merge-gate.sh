@@ -52,7 +52,9 @@
 # there: else the step prints RED-FIRST NOT RED with the sha and the tests
 # that pass. A test only in a tests/gate-*.sh, selftest or Python script, in
 # the fix commit itself, or that did not run on the parent is named and not
-# run; `No test: <reason>` opts out; the run covers the last 10 fix commits. `pre-commit` runs the hooks over all files (as CI does; ~2 min),
+# run (so are an edited test and a build error outside the test's file, and a
+# gate cell beside a passing test); `No test: <reason>` opts out; the run
+# covers the last 10 fix commits and ends with `N proven red, M not run`. `pre-commit` runs the hooks over all files (as CI does; ~2 min),
 # with SKIP=cargo-clippy,lychee,vale as CI does, and fails when
 # pre-commit is not installed.
 # `ci-check` also runs tools/lint-ratchet (the allow, no-reason and eprintln counts may not grow),

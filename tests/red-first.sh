@@ -195,12 +195,29 @@ qualified() {
     done
 }
 
+first_error_file() {
+    awk '/^error/ && !/^error: could not compile/ { e = 1 } e && /^ *--> / { sub(/^ *--> /, ""); sub(/:[0-9]+:[0-9]+.*$/, ""); print; exit }' <<<"$1"
+}
+
+names_file() {
+    local f
+    for f in $2; do
+        [ "$f" = "$1" ] || [ "${f%/"$1"}" != "$f" ] && return 0
+    done
+    return 1
+}
+
 run_named() {
-    local crate=$1 out name path failed=() passed=()
-    shift
+    local crate=$1 files=$2 out name path bfile failed=() passed=()
+    shift 2
     out=$(cargo test -p "$crate" --tests --no-fail-fast -- "$@" 2>&1) || true
     grep -q '^error: could not compile' <<<"$out" && ! grep -q '^test result:' <<<"$out" && {
-        echo "red $crate::(build)"
+        bfile=$(first_error_file "$out")
+        if [ -n "$bfile" ] && names_file "$bfile" "$files"; then
+            echo "red $crate::(build)"
+        else
+            echo "unproven $crate: build error outside the added test, not run"
+        fi
         return 0
     }
     for name in "$@"; do
@@ -211,12 +228,37 @@ run_named() {
     done
     [ "${#failed[@]}" = 0 ] || echo "red$(qualified "$crate" "${failed[@]}")"
     [ "${#failed[@]}" != 0 ] || [ "${#passed[@]}" = 0 ] || echo "pass$(qualified "$crate" "${passed[@]}")"
-    [ "$((${#failed[@]} + ${#passed[@]}))" != 0 ] || echo "unproven $crate: none of the tests ran on the parent"
+    [ "$((${#failed[@]} + ${#passed[@]}))" != 0 ] || echo "unproven $crate: none of the tests ran on the parent, not run"
+}
+
+rf_wt=
+
+rf_cleanup() {
+    [ -z "$rf_wt" ] || {
+        git worktree remove --force "$rf_wt/wt" 2>/dev/null
+        rm -rf "$rf_wt"
+        rf_wt=
+    }
 }
 
 red_first_run() {
+    local prev rc
+    prev=$(trap -p INT TERM PIPE)
+    trap 'rf_cleanup; exit 130' INT
+    trap 'rf_cleanup; exit 143' TERM
+    trap 'rf_cleanup; exit 141' PIPE
+    red_first_range "$@"
+    rc=$?
+    rf_cleanup
+    trap - INT TERM PIPE
+    [ -z "$prev" ] || eval "$prev"
+    return "$rc"
+}
+
+red_first_range() {
     local base=$1 cap=10 shas=() fixes=() i j sha subject prev=-1 ids paired c file name crate wt bad=0 body
-    local -A names=()
+    local proven=0 notrun=0 edits
+    local -A names=() files=()
     local line verdict gate runs passes
     git rev-parse --verify -q "$base" >/dev/null || return 1
     mapfile -t shas < <(git rev-list --reverse --no-merges --topo-order "$base..HEAD")
@@ -228,7 +270,8 @@ red_first_run() {
         fixes=("${fixes[@]: -$cap}")
     fi
     [ "${#fixes[@]}" -gt 0 ] || return 0
-    wt=$(mktemp -d "${TMPDIR:-/tmp}/red-first-run.XXXXXX") || return 1
+    rf_wt=$(mktemp -d "${TMPDIR:-/tmp}/red-first-run.XXXXXX") || return 1
+    wt=$rf_wt
     git worktree add -q --detach "$wt/wt" HEAD || return 1
     export CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-$(pwd)/target}
     for i in "${fixes[@]}"; do
@@ -252,22 +295,33 @@ red_first_run() {
             paired+=("$c")
         done
         names=()
+        files=()
         gate=0
+        edits=0
         for c in "${paired[@]}"; do
-            ! has_shell_test "$c" || gate=1
+            if has_shell_test "$c"; then
+                gate=1
+            elif [ -z "$(rust_tests_added "$c")" ]; then
+                edits=1
+            fi
             while IFS=$'\t' read -r file name; do
                 [ -n "$file" ] || continue
                 crate=$(crate_of "$c" "$file") || continue
                 names[$crate]+="$name "
+                files[$crate]+="$file "
             done < <(rust_tests_added "$c")
         done
         if [ "${#names[@]}" -gt 0 ]; then
-            git -C "$wt/wt" checkout -q --detach "$sha^" || continue
+            git -C "$wt/wt" checkout -q --detach "$sha^" 2>/dev/null || {
+                echo "red-first: $(git log -1 --format=%h "$sha") checkout of the parent failed, not run"
+                notrun=$((notrun + 1))
+                continue
+            }
             runs=0
             passes=0
             for crate in "${!names[@]}"; do
                 # shellcheck disable=SC2086
-                line=$(cd "$wt/wt" && run_named "$crate" ${names[$crate]})
+                line=$(cd "$wt/wt" && run_named "$crate" "${files[$crate]}" ${names[$crate]})
                 verdict=${line%% *}
                 case $verdict in
                 red)
@@ -283,20 +337,32 @@ red_first_run() {
                     ;;
                 esac
             done
-            [ "$runs" = 1 ] || [ "$passes" = 0 ] || {
+            if [ "$runs" = 1 ]; then
+                proven=$((proven + 1))
+            elif [ "$passes" = 1 ] && [ "$gate" = 1 ]; then
+                echo "red-first: $(git log -1 --format=%h "$sha") gate cell too, not run"
+                notrun=$((notrun + 1))
+            elif [ "$passes" = 1 ]; then
                 echo "RED-FIRST NOT RED: $(git log -1 --format='%h %s' "$sha")"
                 bad=1
-            }
+            else
+                notrun=$((notrun + 1))
+            fi
         elif [ "$gate" = 1 ] || has_shell_test "$sha"; then
             echo "red-first: $(git log -1 --format=%h "$sha") gate cell, not run"
+            notrun=$((notrun + 1))
+        elif [ "$edits" = 1 ]; then
+            echo "red-first: $(git log -1 --format=%h "$sha") test commit edits tests, not run"
+            notrun=$((notrun + 1))
         elif [ -n "$(rust_tests_added "$sha")" ]; then
             echo "red-first: $(git log -1 --format=%h "$sha") test in the fix commit, not run"
+            notrun=$((notrun + 1))
         else
             echo "red-first: $(git log -1 --format=%h "$sha") no test function found, not run"
+            notrun=$((notrun + 1))
         fi
     done
-    git worktree remove --force "$wt/wt" 2>/dev/null
-    rm -rf "$wt"
+    echo "red-first: $proven proven red, $notrun not run"
     return "$bad"
 }
 
