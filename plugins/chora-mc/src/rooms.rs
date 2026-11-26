@@ -58,10 +58,13 @@ impl Mc {
     }
 
     /// Where the header ends at the right: a baseline before the pill, or
-    /// at the output width `width` when the host draws none.
-    pub(crate) fn header_end(&self, width: f64) -> f64 {
+    /// at the output width `width` when the host draws none. With the
+    /// column shown the pill stands in it, whatever the host shows or
+    /// moves there for a moment (Super+a), and the header ignores it.
+    pub(crate) fn header_end(&self, width: f64, column: bool) -> f64 {
         let baseline = self.settings.value.scale.baseline;
-        self.rooms.pill_left.map_or(width, |left| left - baseline)
+        let pill = self.rooms.pill_left.filter(|_| !column);
+        pill.map_or(width, |left| left - baseline)
     }
 
     /// The top of the pages in output coordinates: where the text block of

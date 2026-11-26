@@ -552,10 +552,12 @@ impl Mc {
         let [x, top, width, _] = geo.text;
         let (note, gap) = (geo.note, geo.gap);
         let mut regions = BTreeMap::new();
+        let column = on(Region::Right);
+        let end = self.header_end(w, column) - x;
         let [header, footer] = if headless {
-            self.app_lines(w, on(Region::Right))
+            self.app_lines(w, column)
         } else {
-            [(x, width.min(self.header_end(w) - x).max(b)), (x, width)]
+            [(x, width.min(end).max(b)), (x, width)]
         };
         regions.insert(Region::Header, [header.0, 0.0, header.1, head]);
         regions.insert(Region::Footer, [footer.0, h - foot, footer.1, foot]);
