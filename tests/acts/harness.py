@@ -426,6 +426,7 @@ LOOKS = {
 WALLPAPER = {"xp", "mc", "construct"}
 BLOCKS = ["notify", "assistant"]
 ONE_CALL = {"choractl", "chat-door", "chat-opener"}
+ONE_CALL_PREFIX = ("chora-tiling.launch",)
 
 
 class Session:
@@ -638,10 +639,12 @@ class Session:
     def clients(self):
         """The connected client names, without the tools that connect for
         one call: the panel of the tiling flavor runs choractl every 2 s
-        and the reader of the helper door again and again, and a call that
-        a snapshot saw and the next did not is no disconnect (sh-32)."""
+        and the reader of the helper door again and again, and a launch of
+        tiling (chora-tiling.launch-PID) ends within milliseconds; a call
+        that a snapshot saw and the next did not is no disconnect (sh-32,
+        sh-46)."""
         names = {c.get("name") for c in self.core.call("clients.list") or []}
-        return names - ONE_CALL
+        return {n for n in names - ONE_CALL if not str(n).startswith(ONE_CALL_PREFIX)}
 
     def exits(self):
         """The programs of the session that have ended, by name, each with
