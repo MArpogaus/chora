@@ -1560,6 +1560,14 @@ mod tests {
     }
 
     #[test]
+    fn a_window_that_no_scene_started_keeps_off_the_edge() {
+        let (mc, _) = crate::testing::mc("window-inset", [1280, 720]);
+        let b = mc.settings.value.scale.baseline;
+        let window = mc.window_box("window-without-scene").unwrap();
+        assert!(window[0] >= 2.0 * b, "the window starts at x {}", window[0]);
+    }
+
+    #[test]
     fn colors_go_into_the_command() {
         let colors = [("background".to_owned(), [1.0, 0.5, 0.0, 1.0])].into();
         assert_eq!(
