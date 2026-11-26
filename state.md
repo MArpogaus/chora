@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-26 17:58 UTC)
+## Now (2026-11-26 17:59 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 17:58 PM 5.7 % (11-26 BKK); week est. 51 % (unmeasured, owner reads) vs 76 % time; need (100-51-5)/40 h = 1.1 %/h; lanes 6 build
+budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 17:59 PM 5.7 % (11-26 BKK); week est. 51 % (unmeasured, owner reads) vs 76 % time; need (100-51-5)/40 h = 1.1 %/h; lanes 6 build
 session branch: 7c6955c8 (t156 17:27); 100 greens. t153 red sh-37; t154, t155 flake sh-44; t156 flake launcher-mc (mc dark new fuzzel), rerun green
 
 lanes: 6 of 6 (review-tour-fix-r1, h-rf2-r3, kit-swallow-r1, co-reach-r6, mc-minor-r2, flake-series-r10)
@@ -24,7 +24,7 @@ burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88 open
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| review-tour-fix-r1.md (Q 4, 0.4 %) | sonnet high, 84e31324 | starting |
+| review-tour-fix-r1.md (Q 4, 0.4 %) | sonnet high, 84e31324 | running s..M5QfYgpL6HqzmCQ1W |
 | h-rf2-r3.md (Q 4b, 0.4 %) | sonnet high, 59ba5c21 | running s..QLhjzgv69C4GHjfvD |
 | kit-swallow-r1.md (Q 3, 0.6 %) | sonnet high, 4d8bbe36 | running s..Pqu9765urJR3qGoNQ |
 | co-reach-r6.md (Q 2, 1.0 %) | opus high, 4d8bbe36 | running s..Lj635mZvdmt7myT7J |
