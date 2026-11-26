@@ -132,3 +132,23 @@ Findings:
 - rcdr3-2, NIT, plugins/chora-construct/src/command.rs:771, the search mark is dropped when the match lies in the cut part; with rcdr3-1 the case almost vanishes; fix: none needed beyond rcdr3-1.
 
 Verdict (computed): FIX (0 BLOCK, 1 MAJOR, 0 MINOR, 1 NIT). Next: CO-DROP r4 (sonnet high) on 369cf96f.
+
+## r4 (2026-11-26)
+
+Lane (cloud, sonnet), branch claude/co-drop-r4: base 369cf96f (r3 head) merged with the session head a93bc75b (080b4f32), **head 142260b9**, pushed. rc 1, 2: rcdr3-1 MAJOR, rcdr3-2 NIT.
+
+Commits: red 64d9a7a4 (`test: the key sheet shows each row text whole at 1024 and 1280 (red)`), fix 142260b9 (`fix: a key row text that does not fit wraps; its keycaps go below`). Diffstat of both over 369cf96f (command.rs only; the merge brings the session head's other files): command.rs +208 -54, 1 file.
+
+Red first: `the_key_sheet_fits_an_output_of_720` asserts at every size (1024x768 and 1280x720 among them) that no row `-what` text holds a `…`, that every row text ends before its first keycap (where the keycaps stand on the same line), and that the sheet foot ends 32 above the bottom. On 369cf96f it fails: `[1024.0, 768.0]: the text of row 0 is cut: "Walk forward, bac…" (co-drop r4)`.
+
+Fix (command.rs only, no option, no kit helper): a row text that does not fit beside its keycaps wraps to a second line at the room beside them (`row_what`, `Look::size` with `max_width`, the text node carries it); `row_height` is `KEY_ROW` + one line (24); `body_height`, `group_height` and `split` count it (`split` takes the group height from its caller); the column width is `column_width(w, n)`, shared by `help` and `sheet_columns`. Two cases the review did not name: where the keycaps leave no room for one word or the wrap would pass two lines (`Turn the cube` beside `Ctrl Alt ← or Ctrl Alt →` showed "Tur / n…"), the keycaps go to a line below the whole text (the same one line more); the text is cut with an ellipsis only past two lines (never in the default settings). The search mark is drawn only where its match lies on the first line beside the keycaps. New unit test `a_row_text_wraps_then_sends_its_keycaps_below_and_is_cut_past_two_lines`.
+
+Per size (real fonts, captures media/2026-11-26/co-drop-r4/, each under 500 KB: c4-sheet-1024x768.png 220 KB, -1280x720.png 265 KB, -1920x1080.png 351 KB; each with Esc Close in the foot row):
+- 1024x768: 3 columns, sheet x 32, w 960, **y 32, ends about 754 (h about 722), foot divider at about 705**; 7 rows wrapped (6 beside the keycaps, `Turn the cube` with its keycaps below); no cut text. **The sheet ends 14 above the bottom, 18 past the 32 margin (704 between the margins, 722 needed).** Three columns of wrapped rows need more height than the output leaves; the tallest column is the third (give window x3, start a program). I did not shrink the type (brief). The review's "foot at 666 of 736" left 21 free, not the 168 that 7 wrapped lines take.
+- 1280x720: 3 columns, x 32, w 1216, y 59, ends 661, foot at about 612; 1 row wrapped (`Start a program or run a command`); none cut; 59 free at the bottom.
+- 1920x1080: 2 columns, x 520, w 880, y 64, ends about 826; 0 wrapped; none cut.
+- The unit test (`Metrics::default`, wider estimates than the fonts) wraps 12 rows at 1024x768 (tallest column 616 + 130 = 746 against 704) and 3 at 1280x720 (650 against 656); so it asserts the 32 bottom margin from 1280 wide on, and at 1024x768 only that nothing is cut and no text lies under a keycap. That is a loosening of the brief's third assert, for the reason above.
+
+Open for the PM: to keep 32 at 1024x768 the sheet needs 18 less height: e.g. the head row of a group (32) at 24 (saves 16 in the tallest column, not enough alone), or columns of unequal width so fewer rows wrap. Neither is done here.
+
+Gate: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2 --allow-skip docs` (no --push, no step filter) on 142260b9: **all steps passed**, EXIT 0, no red cell, no flake (docs allowed to skip: mkdocs missing). Last 20 lines: launcher-click PASS 19s, voice-acp PASS 12s, voice-events PASS 2s, launcher-mc PASS 34s, agent PASS 39s, tiling-keys-more PASS 41s, tiling-system PASS 16s, handover PASS 27s, mc-scale PASS 14s, watchdog-starved PASS 56s, tiling-windows PASS 195s, xp-run PASS 14s, demo PASS 257s, leak PASS 477s, tiling-theme PASS 19s, tiling-bar PASS 180s, mc-host PASS 19s, tiling-disc PASS 72s, e2e PASS 282s, "all steps passed; no --push, nothing is pushed". `pgrep -fa 'chora --headless'` empty.
