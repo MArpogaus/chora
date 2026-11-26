@@ -1442,4 +1442,25 @@ mod tests {
             "its child too"
         );
     }
+    /// rpt3-2: the word of the helper door that a panel reads and the
+    /// header of the open chat are one state, at every moment: the chat
+    /// that heard "working" is working for the door too, and idle again
+    /// when the helper is. No field program runs in a test, so the call
+    /// that opens the chat fails after the chat is open in its mode.
+    #[test]
+    fn the_door_says_the_state_that_the_chat_header_says_rpt3_2() {
+        let (mut agent, _dirs) = xp_agent("door-one-state");
+        let _ = agent.chat_show(Some("atlas"), None);
+        assert_eq!(agent.chat.helper(), Some("atlas"));
+        for (state, word) in [("working", "working"), ("idle", "idle")] {
+            let data = serde_json::json!({"name": "atlas", "state": state, "seq": 0});
+            agent.chat_voice("voice.state", &data);
+            let header = agent.chat.header(Language::En);
+            let presented = agent.presented();
+            let door = presented["door"].as_str().unwrap_or_default();
+            assert!(header.contains(word), "header: {header}");
+            assert_eq!(door, "atlas \u{b7} ".to_owned() + word, "door of {state}");
+            assert_eq!(presented["helper"], word, "state word of {state}");
+        }
+    }
 }
