@@ -534,8 +534,8 @@ pub fn help(
         columns = split(shown, 3);
     }
     let body_h = body_of(&columns);
-    #[allow(clippy::cast_precision_loss, reason = "two or three columns")]
-    let col_w = (w - 4.0 * UNIT - 24.0 * (columns.len() - 1) as f64) / columns.len() as f64;
+    let n = f64::from(u8::try_from(columns.len()).unwrap_or(3));
+    let col_w = (w - 4.0 * UNIT - 24.0 * (n - 1.0)) / n;
     let h = fixed + body_h;
     let x = ((out[0] - w) / 2.0).round();
     let y = HELP_TOP.min((out[1] - h) / 2.0).max(HELP_MARGIN).round();
