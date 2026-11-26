@@ -1171,7 +1171,7 @@ class LauncherEnv(unittest.TestCase):
             launch.os.environ["PATH"] = path
             launch.os.environ["XDG_DATA_DIRS"] = data_dirs
             launch.os.environ["XDG_CONFIG_DIRS"] = data_dirs
-            with mock.patch.object(launch.Launcher, "path_without_writer", lambda self, p: "FARM"):
+            with mock.patch.object(launch.Launcher, "path_without_writer", lambda self, p: "FARM"), mock.patch.object(launch, "supported_fuzzel", lambda: "/usr/bin/fuzzel"):
                 with tempfile.TemporaryDirectory() as scratch, mock.patch.object(launch, "SCRATCH", scratch):
                     return launch.Launcher("t").base_env()
         finally:
@@ -1228,7 +1228,7 @@ class LauncherSupported(unittest.TestCase):
                     open(out, "w").write("CHORA_SOCKET=/s\nXDG_RUNTIME_DIR=/r\nWAYLAND_DISPLAY=w\n")
                 return mock.Mock(pid=1)
 
-            with mock.patch.object(launch.subprocess, "run", fake_run), mock.patch.object(L, "spawn", fake_spawn), \
+            with mock.patch.object(launch.subprocess, "run", fake_run), mock.patch.object(L, "spawn", fake_spawn), mock.patch.object(launch, "supported_fuzzel", lambda: "/usr/bin/fuzzel"), \
                  mock.patch.object(launch.time, "sleep", lambda s: None):
                 L.start(None, voice=False)
         started = [c for c in calls if any(str(x).endswith("chora-notify") for x in c) and "call" not in c]
