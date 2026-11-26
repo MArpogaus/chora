@@ -129,8 +129,8 @@ change it there, not here.
     raises or lowers the level by one step per notch; a touchpad swipe
     adds up to one step per 40 pixels.
     The menus that the doors open, the program list and the power menu,
-    wear the colors of the theme: `text` on the box, `accent` for the
-    selected row.
+    wear the colors of the theme: `text` on the box, `faint` behind the
+    selected row and `accent` for what the input matches.
     On a page the row of the page names the plain arrows, `← →`, and
     the full list has a row `Home`, the first page: there Right, Left
     and Home turn the page without `Super`, and `Esc` goes back one
