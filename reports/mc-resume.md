@@ -38,3 +38,11 @@ tiling-disc PASS    75s /tmp/merge-gate.5m7j5j/tiling-disc.log
 e2e        PASS   288s /tmp/merge-gate.5m7j5j/e2e.log
 all steps passed; no --push, nothing is pushed
 ```
+
+## Review r1 (PM, 108 lines, under 200: PM review allowed)
+Base fcb20c37 (merge of 1ab2e6a7), head 329a13e5; red 25a58d97 (gate-mc-host restart case) before fix 329a13e5.
+- Done-when: red before fix (yes); captures 2 x 96 KB (yes); full gate EXIT 0, docs ran, mc-host PASS 24 s (yes); report r1 (yes).
+- drop_kept_nodes removes only roots of `owner:assistant` (children go with them, unit test); on a fresh start the query is empty and the apply is a no-op. No option, timer or kit copy: KISS holds.
+- rmm5-2: Instant passed in, the 600 ms sleep is gone; test-only change of a pure function, no red needed.
+- rmr1-1 NIT: the empty `hud-top` group is not made again after a restart; a fresh start does not make it either, so restart equals a fresh start. Accept.
+Verdict (computed): no open MAJOR: MERGE-OK 329a13e5, joins train 152 with xp-busy 88951ae4.

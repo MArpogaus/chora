@@ -61,3 +61,19 @@ Full gate `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` (no --push) on
 `db34b699`: EXIT 0, "all steps passed; no --push, nothing is pushed";
 tiling-audit PASS 248 s, test PASS, clippy PASS, e2e PASS 272 s, no FAIL
 or SKIP line. `pgrep -fa 'chora --headless'` empty afterwards.
+
+## Review r1 (PM, 07:40 UTC)
+Base 6daaaab8, head db34b699; 70+ 15- lines, so a PM review is allowed.
+- Red first: 11e88ba8 extracts `bar_step` unchanged (early return kept) with
+  3 tests; 2 red on it by the lane's count. Fix db34b699 drops the early return,
+  so the pid is compared at each event. Checked by reading: the tests pin
+  toggle-once, restart under fullscreen, and panel ended. OK.
+- Leaving fullscreen with a restarted panel: the record pid differs, hidden=false,
+  want=false, no toggle; the new panel already shows. OK.
+- rfbf1-1 NIT: while a window is fullscreen, each push_bar reads waybar.pid and
+  /proc/<pid>/cmdline (two small reads per event). Accepted.
+- rfbf1-2 open (not this lane): the train-148 trigger is not proven; a lost or
+  coalesced USR1 is not ruled out. The new dump on red names it; FLAKE-SERIES r10
+  watches it.
+- Gate: the lane's full gate EXIT 0, no FAIL or SKIP.
+Verdict (computed, no open MAJOR): MERGE-OK db34b699, joins train 152.
