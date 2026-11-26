@@ -56,3 +56,4 @@ rtb6-3 | MINOR (F7) | review tour-base r6 | open | handover alive check scans al
 rtb6-4 | MINOR (F7) | review tour-base r6 | open; TOUR-BASE r7 | m1 row omits rv9j-2
 rtb6-5 | MINOR (F7) | review tour-base r6 | open; TOUR-BASE r7 | xp-desktop rows cite no capture; no r6 tour-diff output committed
 rssm-1 | MINOR | PM review stray-super minor r1 (reports/stray-super.md) | open | inside a set of grabs every refusal is logged as "grabbed already" without its error text; a set left open by an early return keeps its refusals unlogged
+rpm2-6 | MINOR (handover) | rc1-pass r2 mc (reports/rc1-pass.md "## r2 mc") | open; backlog HANDOVER-DRAG-FOCUS (shared focus, not one look) | after a give key into mc, Super+drag onto xp leaves the keyboard on tiling's empty desktop | h-captures in media/2026-11-26/rc1-pass-mc-r2/

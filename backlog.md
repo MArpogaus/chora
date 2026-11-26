@@ -452,3 +452,6 @@ rr9-1 | MINOR | review-record-v9 r4 (reports/record-v9.md "## Review r4") | open
 - harness (P2 r12): persona L2 needs a plain editor or act.py writing the config (haiku ricer cannot drive the modal editor, red 2/2 without a product line); check.py T3 scores with a question in flight (wait until the answer settles); ti-56 persona side and T7 "reached, not verified" still unobserved. reports/p2-r12-tiling.md "## r12".
 - tour (rc1-pass r2 xp): handover acts 7, 8 red twice on 3be27e32 ("expected the focus with mc, holders ['tiling']"): rows predate D119 (the giver keeps the keys after a give key). PM decision 11:2x: D119 holds (ti-57 fix, POLS: keys stay where the person was); the rows follow it (click the page before the next give key). Next TOUR-ROWS round (r5). reports/rc1-pass.md "## r2 xp" Notes.
 - XP-LAYER-FOCUS (rpx2-5, xp-49, XP-MINOR r5): the core sends no focus event when a layer surface (xp chat field) takes the keys, so xp keeps the active title; needs a core event (crates/chora); after the rc.
+
+## HANDOVER-DRAG-FOCUS (rpm2-6, after the rc)
+After Super+Alt+3 into mc, a Super+drag onto xp leaves the keyboard on tiling's empty desktop (D119: a drag gives without stay). Shared focus handover, needs core; findings/shared.md rpm2-6.
