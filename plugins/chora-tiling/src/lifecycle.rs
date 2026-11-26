@@ -2,7 +2,7 @@
 //! the book decides which windows are tiling's, tiling settles its
 //! proposals and keeps where and how the windows show.
 
-use chora_kit::wm::{Book, Change, Phase, Why};
+use chora_kit::wm::{Book, Change, Origin, Phase, Why};
 use chora_scene::{Event, ipc::ClientError};
 use serde_json::Value;
 
@@ -34,13 +34,23 @@ impl Tiling {
     }
 
     /// Does what the book says, in order. A detached window of tiling
-    /// leaves only the model: tiling adopts it anew in the same frame.
+    /// leaves only the model: tiling adopts it anew in the same frame. A
+    /// window given in while a window or the desktop of another look holds
+    /// the keyboard comes without it ([`Focus::takes_given`], D119).
+    ///
+    /// [`Focus::takes_given`]: chora_kit::wm::focus::Focus::takes_given
     pub(crate) fn settle(&mut self, changes: Vec<Change>) -> Result<(), ClientError> {
         for change in changes {
             match change {
-                Change::Adopt { id, .. } => {
-                    let next = if self.adopt(&id)? {
-                        self.book.confirm(&id)
+                Change::Adopt { id, origin } => {
+                    let keys =
+                        origin != Origin::Given || self.focus.takes_given(NAME, |s| self.wm.has(s));
+                    let adopted = self.adopt(&id)?;
+                    if adopted && !keys {
+                        self.focus.lose();
+                    }
+                    let next = if adopted {
+                        self.book.confirm_keys(&id, keys)
                     } else {
                         self.book.refused(&id)
                     };

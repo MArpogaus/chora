@@ -429,6 +429,32 @@ not for a click on its wallpaper in a smaller claim of that look, which
 the click chose; rule 5 keeps the next new window with the look that was
 there first.
 
+A give that the person makes, a menu row or a give key, keeps the
+keyboard with the giver (D119): a window that goes to a window manager
+on another output leaves the keyboard with the look that the person
+acted in, on its next window or, without one, on its desktop (its root
+node), until the person clicks on that output. The person's give runs
+through `chora_kit::give::Windows::hand_kept`: the give keys and the
+rows "window to" of the Control Panel of chora-xp (`give::focused`; a
+give key on a window of another look calls its `window.give` with
+`stay: true`), and the rows of a menu (`window.give` with `stay: true`
+from `give.sh` of the Looks door and the Apps rows of tiling, and
+`choractl give TO --stay`). The giver keeps the keyboard in a
+transaction before the give when no claim of the receiver overlaps the
+output of the window (`chora_kit::wm::give::claims_over`), and gives it
+back to the window when the give fails. A receiver gives a window that
+comes while a window or the desktop (the root node) of another look
+holds the keyboard no focus; a passing node, such as the walk of the
+construct, does not count (`Focus::takes_given`, `Book::confirm_keys`).
+chora-tiling, chora-xp and chora-mc keep and yield (mc on the window
+of the scene that shows next, else on its root node `mc`); the
+construct hands as before and takes a window given in with the
+keyboard (open). A
+give without `stay` (a drag, automation, the voice, the MCP tool) goes
+with the window, as below, when it gives the focused window, since the
+core then focuses none; a give of a window that does not hold the
+keyboard leaves the keyboard with its holder.
+
 A press of a real pointer button on a point of a claim with no window
 under it chooses the owner of the smallest such claim, unless that one
 has the keyboard focus anyway: who clicks the empty screen of another
@@ -481,9 +507,10 @@ Every window manager of the repository exports `window.give` with
 `surface` and `to`, and answers with the surface id. The method is
 privileged, because the receiver can focus, close or configure the
 window. It hands the window over with a `remove` with `to`, and the
-receiver focuses it. A `to` that is not connected or holds no claim
+receiver focuses it, unless `stay` is true and the receiver is on another
+output (D119, above). A `to` that is not connected or holds no claim
 fails, and the window stays. `choractl give
-TO [--surface ID]` calls `window.give` of the owner of the window, by
+TO [--surface ID] [--stay]` calls `window.give` of the owner of the window, by
 default of the focused one. A window dropped outside the claim of its
 window manager goes to the owner of the smallest other claim that holds
 the drop point, as for a new toplevel; `chora_kit::give` finds it in

@@ -47,6 +47,10 @@ impl give::Windows for Acting<'_> {
     fn hand(&mut self, surface: &str, to: &str) -> Result<Value, chora_scene::ipc::RpcError> {
         give::Windows::hand(self.wm, surface, to)
     }
+
+    fn hand_kept(&mut self, surface: &str, to: &str) -> Result<Value, chora_scene::ipc::RpcError> {
+        give::Windows::hand_kept(self.wm, surface, to)
+    }
 }
 
 /// What xp does for the actions of every look: the key list, the Turn Off

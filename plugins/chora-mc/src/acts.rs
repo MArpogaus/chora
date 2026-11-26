@@ -34,6 +34,7 @@ impl Mc {
                 surface: surface.clone(),
                 to,
                 grab: None,
+                stay: false,
             }),
             Ok(None) => return,
             Err(err) => Err(err),

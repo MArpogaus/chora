@@ -336,6 +336,13 @@ impl Book {
 
     /// The core took the commands of a proposal.
     pub fn confirm(&mut self, id: &str) -> Vec<Change> {
+        self.confirm_keys(id, true)
+    }
+
+    /// As [`Book::confirm`]; a window given in takes the keyboard only
+    /// with `keys`, which is false while another look holds it (D119,
+    /// [`super::focus::Focus::takes_given`]).
+    pub fn confirm_keys(&mut self, id: &str, keys: bool) -> Vec<Change> {
         match self.pending.remove(id) {
             Some(Pending::Adopt(origin)) => {
                 let given = origin == Origin::Given;
@@ -345,7 +352,7 @@ impl Book {
                     phase: Phase::Opened,
                 }];
                 if given {
-                    changes.push(Change::Apply(self.raise_given(id)));
+                    changes.push(Change::Apply(self.raise_given(id, keys)));
                 }
                 changes
             }
@@ -366,20 +373,21 @@ impl Book {
         }
     }
 
-    /// What puts a window given in on top of the look and gives it the
-    /// keyboard: the group of the look goes to the top of its band, and
-    /// the window takes the focus.
-    fn raise_given(&self, id: &str) -> Vec<Command> {
-        vec![
-            Command::Move {
-                id: self.name.clone(),
-                parent: None,
-                index: None,
-            },
-            Command::Focus {
+    /// What puts a window given in on top of the look and, with `keys`,
+    /// gives it the keyboard: the group of the look goes to the top of
+    /// its band, and the window takes the focus.
+    fn raise_given(&self, id: &str, keys: bool) -> Vec<Command> {
+        let mut commands = vec![Command::Move {
+            id: self.name.clone(),
+            parent: None,
+            index: None,
+        }];
+        if keys {
+            commands.push(Command::Focus {
                 surface: Some(id.into()),
-            },
-        ]
+            });
+        }
+        commands
     }
 
     /// The core refused the commands of a proposal: another window

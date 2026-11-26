@@ -41,7 +41,12 @@ impl Mc {
     }
 
     /// Does what the book says, in order. A detached window of mc leaves
-    /// no data: the proposal that follows puts it back.
+    /// no data: the proposal that follows puts it back. A window given in
+    /// while a window or the desktop of another look holds the keyboard
+    /// comes without it ([`Focus::takes_given`], D119): its scene shows,
+    /// and mc sends no focus.
+    ///
+    /// [`Focus::takes_given`]: chora_kit::wm::focus::Focus::takes_given
     /// A new window that the core reserved for mc (mc holds the claim of
     /// its output, `to` names it) is `new` in the book and keeps the token
     /// of its `surface.created`, which finds the scene that started it
@@ -62,8 +67,10 @@ impl Mc {
                         (Origin::New { token: None } | Origin::Given, Named::Ask)
                         | (Origin::Kept, _) => None,
                     };
-                    let next = match self.take(&id, named, token) {
-                        Ok(true) => self.book.confirm(&id),
+                    let keys =
+                        origin != Origin::Given || self.focus.takes_given(NAME, |s| self.holds(s));
+                    let next = match self.take(&id, named, token, keys) {
+                        Ok(true) => self.book.confirm_keys(&id, keys),
                         Ok(false) => self.book.refused(&id),
                         Err(err) => {
                             self.book.refused(&id);
@@ -103,13 +110,15 @@ impl Mc {
     }
 
     /// Takes a surface that the book proposes: one that mc holds goes
-    /// back where it was (the detach policy of mc), another is adopted.
+    /// back where it was (the detach policy of mc), another is adopted,
+    /// with the keyboard only with `keys`.
     /// False when the core refused or mc is not built yet.
     fn take(
         &mut self,
         surface: &str,
         named: &Named,
         token: Option<&str>,
+        keys: bool,
     ) -> Result<bool, ClientError> {
         if self.holds(surface) {
             self.put_back(surface)?;
@@ -124,13 +133,14 @@ impl Mc {
                 found.map(str::to_owned)
             }
         };
-        self.adopt(surface, app_id.as_deref(), token)
+        self.adopt(surface, app_id.as_deref(), token, keys)
     }
 
     /// Takes a new window into the scene that started it, or into a new
     /// scene of its own, and shows it. True when it is mc's now.
     /// The start adopts the free surfaces that events then announce too.
-    /// A new window takes the keyboard, except one of app.open.
+    /// A new window takes the keyboard, except one of app.open, or one
+    /// without `keys`.
     /// Another window manager took it first; the new scene goes.
     /// The overview lists the new scene.
     pub(crate) fn adopt(
@@ -138,12 +148,13 @@ impl Mc {
         surface: &str,
         app_id: Option<&str>,
         token: Option<&str>,
+        keys: bool,
     ) -> Result<bool, ClientError> {
         if !self.built {
             return Ok(false);
         }
         let started = token.and_then(|t| self.starting.remove(t));
-        let user = !token.is_some_and(|t| self.quiet.remove(t));
+        let user = !token.is_some_and(|t| self.quiet.remove(t)) && keys;
         if let Some(Target::Dock(content)) = &started
             && !self.docks.contains_key(content)
         {
@@ -330,11 +341,11 @@ impl Mc {
 #[cfg(test)]
 mod tests {
     use chora_kit::{
-        give::Give,
+        give::{self, Give, Windows},
         runtime::Plugin,
         testing::{FakeCore, Script, Subject, created, created_by, owner, surface},
     };
-    use chora_scene::Event;
+    use chora_scene::{Command, Event, NodeKind, PropsUpdate, ROOT};
     use serde_json::{Value, json};
 
     use crate::{Mc, NAME, testing};
@@ -356,6 +367,7 @@ mod tests {
                 surface: surface.into(),
                 to: to.into(),
                 grab: None,
+                stay: false,
             };
             self.0.give(give).is_ok()
         }
@@ -432,6 +444,179 @@ mod tests {
                 ("probe".into(), "s1".to_owned()),
                 ("probe-s2".into(), "s2".to_owned())
             ]
+        );
+    }
+
+    /// mc on 0,0 800x600 beside the look `other` on the output right of
+    /// it, with the windows `apps` of the apps of these ids, in order (the
+    /// last shows and holds the keyboard); and the log of the commands.
+    fn beside(
+        tag: &str,
+        other: &str,
+        apps: &[(&str, &str)],
+    ) -> (FakeCore, Mc, chora_kit::testing::Log) {
+        let core = FakeCore::start().selecting();
+        let mut mc = testing::mc_on(&core, tag, [800, 600]);
+        let mut receiver = core.connect(other);
+        receiver
+            .apply(vec![Command::Create {
+                id: other.into(),
+                kind: NodeKind::Group,
+                parent: ROOT.into(),
+                props: PropsUpdate {
+                    claim: Some(Some([800.0, 0.0, 800.0, 600.0])),
+                    ..PropsUpdate::default()
+                },
+            }])
+            .unwrap();
+        for (id, app_id) in apps {
+            surface(&core.model(), id);
+            mc.event(created_by(id, app_id, None, None)).unwrap();
+        }
+        let methods = core.record(|method, params| {
+            (method == "scene.apply").then(|| params["commands"].to_string())
+        });
+        (core, mc, methods)
+    }
+
+    /// The commands that mc sent from the call `from` on.
+    fn sent_from(methods: &chora_kit::testing::Log, from: usize) -> Vec<Value> {
+        let calls = methods.lock().unwrap().clone();
+        (calls[from..].iter())
+            .flat_map(|c| serde_json::from_str::<Vec<Value>>(c).unwrap())
+            .collect()
+    }
+
+    /// The holder that `state.get` of mc tells.
+    fn holder(mc: &Mc) -> (Option<String>, Option<String>) {
+        let held = mc.focus.state(NAME, |s| Windows::has(mc, s));
+        (held.holder, held.surface)
+    }
+
+    /// rtf2-1, D119: the give key Super+Alt+1 in mc sends the window to
+    /// tiling on another output; the keyboard stays with mc where the
+    /// person looks, before the window goes: on the window of the scene
+    /// that shows next, or without one on the root node of mc.
+    #[test]
+    fn the_give_key_keeps_the_keyboard_with_mc() {
+        type Apps<'a> = &'a [(&'a str, &'a str)];
+        let cases: [(Apps, &str, Value); 2] = [
+            (
+                &[("s1", "foot"), ("s2", "firefox")],
+                "s2",
+                json!({"focus": {"surface": "s1"}}),
+            ),
+            (
+                &[("s2", "firefox")],
+                "s2",
+                json!({"focus_node": {"node": NAME}}),
+            ),
+        ];
+        for (n, (apps, given, keep)) in cases.into_iter().enumerate() {
+            let (_core, mut mc, methods) = beside(&format!("key-keep-{n}"), "tiling", apps);
+            assert_eq!(mc.focus.surface.as_deref(), Some(given), "case {n}");
+            let from = methods.lock().unwrap().len();
+            give::focused(&mut mc, "tiling").unwrap();
+            let sent: Vec<Value> = (sent_from(&methods, from).into_iter())
+                .filter(|c| {
+                    ["focus", "focus_node", "remove"]
+                        .iter()
+                        .any(|k| c.get(k).is_some())
+                })
+                .collect();
+            let at = |wanted: &dyn Fn(&Value) -> bool| sent.iter().position(wanted);
+            let gone = at(&|c| c["remove"]["id"] == given && c["remove"]["to"] == "tiling");
+            let gone = gone.expect("the give");
+            let kept = at(&|c| *c == keep);
+            assert!(
+                kept.is_some_and(|k| k < gone),
+                "case {n}: {keep} before {given} goes: {sent:?}"
+            );
+            assert!(!Windows::has(&mc, given), "case {n}: the window went");
+            let held = holder(&mc);
+            assert_eq!(held.0.as_deref(), Some(NAME), "case {n}: holder {held:?}");
+        }
+    }
+
+    /// rtf2-1: a give of the person that the core refuses leaves the
+    /// window with mc, and it takes the keyboard back.
+    #[test]
+    fn a_refused_give_key_gives_the_keyboard_back() {
+        let (_core, mut mc, methods) = beside("key-back", "tiling", &[("s1", "foot")]);
+        let from = methods.lock().unwrap().len();
+        assert!(
+            give::focused(&mut mc, "gone").is_err(),
+            "gone holds no claim"
+        );
+        assert!(Windows::has(&mc, "s1"), "the window stays");
+        let sent: Vec<Value> = (sent_from(&methods, from).into_iter())
+            .filter(|c| c.get("focus").is_some())
+            .collect();
+        assert_eq!(
+            sent.last(),
+            Some(&json!({"focus": {"surface": "s1"}})),
+            "s1 takes the keyboard back: {sent:?}"
+        );
+        assert_eq!(holder(&mc), (Some(NAME.into()), Some("s1".into())));
+    }
+
+    /// rtf2-1: a window that tiling gives to mc while a window of tiling
+    /// or the desktop of tiling holds the keyboard (the person gave it
+    /// with Super+Alt+3 on another output) comes without it: mc shows it
+    /// and sends no focus for it.
+    #[test]
+    fn a_window_given_in_while_tiling_holds_the_keyboard_comes_without_it() {
+        let focus = chora_kit::testing::focus_changed;
+        let desk = Event::FocusNode {
+            node: Some("tiling".into()),
+            owner: Some("tiling".into()),
+        };
+        let held = [
+            vec![focus(Some("t1"))],
+            vec![focus(Some("t1")), focus(None), desk],
+        ];
+        for (n, held) in held.into_iter().enumerate() {
+            let (core, mut mc, methods) = beside(&format!("given-in-{n}"), "tiling", &[]);
+            for event in held {
+                mc.event(event).unwrap();
+            }
+            surface(&core.model(), "s5");
+            core.model().lock().unwrap().scene.reserve("s5", Some(NAME));
+            let from = methods.lock().unwrap().len();
+            mc.event(Event::SurfaceDetached {
+                surface: "s5".into(),
+            })
+            .unwrap();
+            assert!(Windows::has(&mc, "s5"), "case {n}: mc took the window");
+            let keys: Vec<Value> = (sent_from(&methods, from).into_iter())
+                .filter(|c| c.get("focus").is_some() || c.get("focus_node").is_some())
+                .collect();
+            assert!(
+                keys.is_empty(),
+                "case {n}: mc took the keyboard for a window given in: {keys:?}"
+            );
+            assert_eq!(holder(&mc).0, None, "case {n}: mc holds the keyboard");
+        }
+    }
+
+    /// A window given to mc while nobody holds the keyboard takes it, as
+    /// before (D119).
+    #[test]
+    fn a_window_given_in_while_nobody_holds_the_keyboard_takes_it() {
+        let (core, mut mc, methods) = beside("given-free", "tiling", &[]);
+        mc.event(chora_kit::testing::focus_changed(None)).unwrap();
+        surface(&core.model(), "s5");
+        core.model().lock().unwrap().scene.reserve("s5", Some(NAME));
+        let from = methods.lock().unwrap().len();
+        mc.event(Event::SurfaceDetached {
+            surface: "s5".into(),
+        })
+        .unwrap();
+        let sent = sent_from(&methods, from);
+        assert!(
+            sent.iter()
+                .any(|c| *c == json!({"focus": {"surface": "s5"}})),
+            "s5 takes the keyboard"
         );
     }
 

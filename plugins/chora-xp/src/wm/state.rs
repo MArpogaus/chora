@@ -389,7 +389,7 @@ mod tests {
         wm.method("start_menu", json!({"open": true})).unwrap();
         assert_eq!(open_ids(&wm), ["xp-menu"]);
         assert!(
-            wm.adopt("s1", Some("foot".into()), None).unwrap(),
+            wm.adopt("s1", Some("foot".into()), None, true).unwrap(),
             "xp takes it"
         );
         assert_eq!(

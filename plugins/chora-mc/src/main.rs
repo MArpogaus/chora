@@ -672,7 +672,12 @@ impl chora_kit::give::Windows for Mc {
             surface: surface.into(),
             to: to.into(),
             grab: None,
+            stay: false,
         })
+    }
+
+    fn hand_kept(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
+        Mc::hand_kept(self, surface, to)
     }
 }
 
@@ -1420,7 +1425,7 @@ mod tests {
             .unwrap()
             .scene
             .add_surface("s1", chora_scene::SurfaceInfo::default());
-        mc.adopt("s1", Some("foot"), Some("t1")).unwrap();
+        mc.adopt("s1", Some("foot"), Some("t1"), true).unwrap();
         let focused = model
             .lock()
             .unwrap()
@@ -1499,7 +1504,7 @@ mod tests {
             .unwrap()
             .scene
             .add_surface("s1", chora_scene::SurfaceInfo::default());
-        mc.adopt("s1", Some("foot"), None).unwrap();
+        mc.adopt("s1", Some("foot"), None, true).unwrap();
         let focus = |mc: &super::Mc| mc.state_value()["focus"].clone();
         assert_eq!(
             focus(&mc),
@@ -2742,6 +2747,7 @@ mod tests {
             surface: "s1".into(),
             to: "xp".into(),
             grab: None,
+            stay: false,
         })
         .unwrap();
         let focuses = model.lock().unwrap().focuses.split_off(before);

@@ -672,6 +672,10 @@ impl give::Windows for Tiling {
     fn hand(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
         Tiling::hand(self, surface, to)
     }
+
+    fn hand_kept(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
+        Tiling::hand_kept(self, surface, to)
+    }
 }
 
 /// What tiling does for the actions of every look that it has: a command,
@@ -885,6 +889,9 @@ impl Tiling {
     }
 
     fn handle_scene(&mut self, event: Event) -> Result<(), ClientError> {
+        if matches!(event, Event::FocusNode { node: None, .. }) && self.focus.node() == Some(NAME) {
+            self.focus.drop_node();
+        }
         if self.focus.hear(&event).is_some() || matches!(event, Event::FocusNode { .. }) {
             return Ok(());
         }
@@ -1932,6 +1939,264 @@ mod tests {
         assert!(
             after.iter().all(|call| !call.contains("\"focus\"")),
             "tiling sent a focus after the hand: {after:?}"
+        );
+    }
+
+    /// A tiling on output A (0..100) beside xp, whose claim is `xp_claim`;
+    /// the windows `ids` open on A, the last has the keyboard. The core
+    /// refuses a give to `gone`.
+    fn beside_xp(tag: &str, xp_claim: [f64; 4], ids: &[&str]) -> (Tiling, Log) {
+        let dir = chora_kit::testing::TempDir::new(&format!("chora-tiling-{tag}")).keep();
+        std::fs::create_dir_all(&dir).unwrap();
+        let core = FakeCore::start();
+        core.respond(|method, params| {
+            let refused = params.to_string().contains(r#""to":"gone""#);
+            (method == "scene.apply" && !refused).then_some(Value::Null)
+        });
+        let xp = chora_scene::Node {
+            id: "xp".into(),
+            kind: chora_scene::NodeKind::Group,
+            owner: Some("xp".into()),
+            parent: Some(chora_scene::ROOT.into()),
+            children: Vec::new(),
+            props: chora_scene::Props {
+                claim: Some(xp_claim),
+                ..chora_scene::Props::default()
+            },
+            surface: None,
+            to: None,
+        };
+        let claim = json!([xp]);
+        let mut held = chora_scene::Node {
+            kind: chora_scene::NodeKind::Surface,
+            owner: Some(NAME.into()),
+            props: chora_scene::Props::default(),
+            ..xp
+        };
+        held.id = ids.last().copied().unwrap_or_default().into();
+        let focused = json!([held]);
+        core.respond(
+            move |method, params| match (method, params["selector"].as_str()) {
+                ("scene.query", Some("*")) => Some(claim.clone()),
+                ("scene.query", Some("kind:surface")) => Some(focused.clone()),
+                _ => None,
+            },
+        );
+        let methods = core.record(|method, params| Some(format!("{method} {params}")));
+        let mut tiling = tiling_on(core.runtime(NAME), &dir, &[]);
+        tiling.wm.set_output("A", [0, 0, 100, 60], [0, 0, 100, 80]);
+        for id in ids {
+            tiling.wm.add_window(id);
+            tiling.book.keep(id);
+        }
+        tiling.relayout().unwrap();
+        (tiling, methods)
+    }
+
+    /// The commands that tiling sent from the call `from` on.
+    fn commands_from(methods: &Log, from: usize) -> Vec<Value> {
+        let calls = methods.lock().unwrap().clone();
+        (calls[from..].iter())
+            .filter_map(|m| m.strip_prefix("scene.apply "))
+            .flat_map(|params| {
+                let params: Value = serde_json::from_str(params).unwrap();
+                params["commands"].as_array().cloned().unwrap_or_default()
+            })
+            .collect()
+    }
+
+    /// `window.give` of `surface` to xp with `stay`, as `give.sh` of the
+    /// Looks door calls it.
+    fn stay(tiling: &mut Tiling, surface: &str) {
+        let params = json!({"surface": surface, "to": "xp", "stay": true});
+        tiling.give(params).unwrap();
+    }
+
+    /// The holder that `state.get` of tiling tells.
+    fn holder(tiling: &Tiling) -> chora_kit::wm::state::Focus {
+        tiling.focus.state(NAME, |s| tiling.wm.has(s))
+    }
+
+    /// D119, ti-57: a window that goes to xp on another output leaves the
+    /// keyboard with tiling, where the person looks: the window focused
+    /// before it gets it, before the window goes, so that xp sees another
+    /// holder when the window comes.
+    #[test]
+    fn a_window_handed_to_a_look_on_another_output_leaves_the_keyboard_with_tiling() {
+        let (mut tiling, methods) =
+            beside_xp("keep-next", [100.0, 0.0, 100.0, 80.0], &["s1", "s2"]);
+        assert_eq!(tiling.focus.surface.as_deref(), Some("s2"));
+        let from = methods.lock().unwrap().len();
+        stay(&mut tiling, "s2");
+        let sent = commands_from(&methods, from);
+        let at = |wanted: &dyn Fn(&Value) -> bool| sent.iter().position(wanted);
+        let give =
+            at(&|c| c["remove"]["id"] == "s2" && c["remove"]["to"] == "xp").expect("the give");
+        let kept = at(&|c| c["focus"]["surface"] == "s1");
+        assert!(
+            kept.is_some_and(|k| k < give),
+            "s1 takes the keyboard before s2 goes: {sent:?}"
+        );
+        let held = holder(&tiling);
+        assert_eq!(
+            (held.holder.as_deref(), held.surface.as_deref()),
+            (Some(NAME), Some("s1")),
+            "holder after the move"
+        );
+    }
+
+    /// The last window of tiling goes to xp on another output: tiling
+    /// holds the keyboard with its own desktop, the root of its nodes.
+    #[test]
+    fn the_last_window_handed_to_another_output_leaves_the_keyboard_with_the_desktop() {
+        let (mut tiling, methods) = beside_xp("keep-desk", [100.0, 0.0, 100.0, 80.0], &["s1"]);
+        let from = methods.lock().unwrap().len();
+        stay(&mut tiling, "s1");
+        let sent = commands_from(&methods, from);
+        let at = |wanted: &dyn Fn(&Value) -> bool| sent.iter().position(wanted);
+        let give = at(&|c| c["remove"]["id"] == "s1").expect("the give");
+        let kept = at(&|c| c["focus_node"]["node"] == NAME);
+        assert!(
+            kept.is_some_and(|k| k < give),
+            "the desktop takes the keyboard before s1 goes: {sent:?}"
+        );
+        let held = holder(&tiling);
+        assert_eq!((held.holder.as_deref(), held.surface), (Some(NAME), None));
+        tiling.toggle_keys().unwrap();
+        let from = methods.lock().unwrap().len();
+        tiling.hide_keys().unwrap();
+        let back = commands_from(&methods, from);
+        assert!(
+            back.iter().any(|c| c["focus_node"]["node"] == NAME),
+            "the key list gives the keyboard back to the desktop: {back:?}"
+        );
+        tiling
+            .event(Event::FocusNode {
+                node: None,
+                owner: None,
+            })
+            .unwrap();
+        assert_eq!(
+            holder(&tiling).holder,
+            None,
+            "a click elsewhere took the keyboard from the desktop"
+        );
+    }
+
+    /// rtf1-1: the give key Super+Alt+2 is a give of the person, as the
+    /// row of the Looks door: the window goes to xp on another output and
+    /// the keyboard stays with tiling, on the window focused before it.
+    #[test]
+    fn the_give_key_leaves_the_keyboard_with_tiling() {
+        let (mut tiling, methods) = beside_xp("key-keep", [100.0, 0.0, 100.0, 80.0], &["s1", "s2"]);
+        let from = methods.lock().unwrap().len();
+        give::focused(&mut tiling, "xp").unwrap();
+        let sent = commands_from(&methods, from);
+        let at = |wanted: &dyn Fn(&Value) -> bool| sent.iter().position(wanted);
+        let give = at(&|c| c["remove"]["id"] == "s2").expect("the give");
+        let kept = at(&|c| c["focus"]["surface"] == "s1");
+        assert!(
+            kept.is_some_and(|k| k < give),
+            "s1 takes the keyboard before s2 goes: {sent:?}"
+        );
+        let held = holder(&tiling);
+        assert_eq!(
+            (held.holder.as_deref(), held.surface.as_deref()),
+            (Some(NAME), Some("s1")),
+            "holder after the give key"
+        );
+    }
+
+    /// rtf1-2: a window that xp gives to tiling while a window of xp or
+    /// the desktop of xp holds the keyboard (the person moved it from a
+    /// row of xp on another output) comes without the keyboard: tiling
+    /// sends no focus for it, and the keyboard stays with xp.
+    #[test]
+    fn a_window_given_in_while_xp_holds_the_keyboard_comes_without_it() {
+        let focus = chora_kit::testing::focus_changed;
+        let desk = Event::FocusNode {
+            node: Some("xp".into()),
+            owner: Some("xp".into()),
+        };
+        let xp_holds = [
+            vec![focus(Some("x1"))],
+            vec![focus(Some("x1")), focus(None), desk],
+        ];
+        for (n, held) in xp_holds.into_iter().enumerate() {
+            let tag = format!("given-in-{n}");
+            let (mut tiling, methods) = beside_xp(&tag, [100.0, 0.0, 100.0, 80.0], &["s1"]);
+            for event in held {
+                tiling.event(event).unwrap();
+            }
+            let from = methods.lock().unwrap().len();
+            tiling
+                .event(Event::SurfaceDetached {
+                    surface: "s5".into(),
+                })
+                .unwrap();
+            assert!(tiling.wm.has("s5"), "tiling took the window");
+            let sent = commands_from(&methods, from);
+            assert!(
+                sent.iter().all(|c| c.get("focus").is_none()),
+                "tiling focused a window given in while xp holds the keyboard: {sent:?}"
+            );
+            assert_eq!(holder(&tiling).holder, None, "tiling holds the keyboard");
+        }
+    }
+
+    /// rtf1-4: a give of the person that the core refuses leaves the
+    /// window with tiling, and it takes the keyboard back from the window
+    /// that kept it.
+    #[test]
+    fn a_refused_give_of_the_person_gives_the_keyboard_back() {
+        let (mut tiling, methods) =
+            beside_xp("keep-back", [100.0, 0.0, 100.0, 80.0], &["s1", "s2"]);
+        let from = methods.lock().unwrap().len();
+        let params = json!({"surface": "s2", "to": "gone", "stay": true});
+        assert!(tiling.give(params).is_err(), "the core refuses the give");
+        let sent = commands_from(&methods, from);
+        let focus: Vec<&Value> = sent.iter().filter_map(|c| c.get("focus")).collect();
+        assert_eq!(
+            focus.first().map(|f| &f["surface"]),
+            Some(&json!("s1")),
+            "{sent:?}"
+        );
+        assert_eq!(
+            focus.last().map(|f| &f["surface"]),
+            Some(&json!("s2")),
+            "{sent:?}"
+        );
+        assert!(tiling.wm.has("s2"), "s2 stays with tiling");
+        assert_eq!(holder(&tiling).surface.as_deref(), Some("s2"));
+    }
+
+    /// A give without `stay` (automation, the voice, MCP) leaves the
+    /// keyboard to the receiver, also on another output (D55).
+    #[test]
+    fn a_give_without_stay_leaves_the_keyboard_to_the_receiver() {
+        let (mut tiling, methods) = beside_xp("no-stay", [100.0, 0.0, 100.0, 80.0], &["s1", "s2"]);
+        let from = methods.lock().unwrap().len();
+        tiling.hand("s2", "xp").unwrap();
+        let sent = commands_from(&methods, from);
+        assert!(
+            sent.iter()
+                .all(|c| c.get("focus").is_none() && c.get("focus_node").is_none()),
+            "tiling sent a focus: {sent:?}"
+        );
+    }
+
+    /// A receiver whose claim lies on the output of the window gets the
+    /// keyboard with it, as before: tiling sends no focus.
+    #[test]
+    fn a_window_handed_to_a_look_on_the_same_output_takes_the_keyboard_along() {
+        let (mut tiling, methods) = beside_xp("follow", [20.0, 0.0, 60.0, 80.0], &["s1", "s2"]);
+        let from = methods.lock().unwrap().len();
+        stay(&mut tiling, "s2");
+        let sent = commands_from(&methods, from);
+        assert!(
+            sent.iter()
+                .all(|c| c.get("focus").is_none() && c.get("focus_node").is_none()),
+            "tiling sent a focus: {sent:?}"
         );
     }
 
