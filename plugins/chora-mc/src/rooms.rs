@@ -286,4 +286,35 @@ mod tests {
         assert_eq!(mc.scroll.get("boil").copied().unwrap_or_default(), 0.0);
         assert!(lines_shown(&mc, "boil", "side") >= 3, "the page is whole");
     }
+
+    /// A foot card on an output that stands right of another one takes
+    /// its room: the rect of the card is output-local (rmm3-1).
+    #[test]
+    fn a_foot_card_on_an_output_off_the_origin_takes_room() {
+        let core = chora_kit::testing::FakeCore::start().selecting();
+        core.answer_with("state.get", json!({"shown": []}));
+        let mut mc = crate::testing::mc_on(&core, "page-end-offset", [1280, 720]);
+        mc.output.as_mut().unwrap().position = [1280, 0];
+        core.answer_with(
+            "state.get",
+            json!({"shown": [{"rect": [160, 585, 291, 79]}]}),
+        );
+        mc.learn_rooms().unwrap();
+        assert_eq!(mc.card_room(), 135.0, "the card's band");
+    }
+
+    /// A long foot card (8 body lines) on 1280x720 is a foot card all the
+    /// same; its room is clamped to a third of the height (rmm3-2).
+    #[test]
+    fn a_long_foot_card_takes_the_clamped_third() {
+        let core = chora_kit::testing::FakeCore::start().selecting();
+        core.answer_with("state.get", json!({"shown": []}));
+        let mut mc = crate::testing::mc_on(&core, "page-end-long", [1280, 720]);
+        core.answer_with(
+            "state.get",
+            json!({"shown": [{"rect": [160, 400, 291, 264]}]}),
+        );
+        mc.learn_rooms().unwrap();
+        assert_eq!(mc.card_room(), 240.0, "a third of 720");
+    }
 }

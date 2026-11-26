@@ -315,3 +315,20 @@ fn the_wheel_steps_one_notch_per_discrete_step() {
         "a tiny move is no step"
     );
 }
+
+/// A rest under one notch is dropped at a new gesture, and a reversal
+/// resets it (rmm3-4).
+#[test]
+fn a_rest_under_one_notch_does_not_outlive_its_gesture() {
+    use chora_scene::ScrollSource::Finger;
+    let (mut mc, _) = testing::mc("acts-wheel-rest", [1280, 800]);
+    assert_eq!(
+        mc.wheel_steps(30.0, [0.0, 0.0], Finger),
+        0,
+        "three quarters"
+    );
+    std::thread::sleep(std::time::Duration::from_millis(600));
+    assert_eq!(mc.wheel_steps(30.0, [0.0, 0.0], Finger), 0, "a new gesture");
+    assert_eq!(mc.wheel_steps(-30.0, [0.0, 0.0], Finger), 0, "a reversal");
+    assert_eq!(mc.wheel_steps(-30.0, [0.0, 0.0], Finger), -1, "from zero");
+}
