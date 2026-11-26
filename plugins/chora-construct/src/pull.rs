@@ -330,9 +330,7 @@ impl Construct {
             host.note_focus(Some(surface.to_owned()));
             return self.mode_act(chora_kit::modes::Act::StepIn, crate::modes::By::Person);
         }
-        if host.noted_focus().as_deref() == Some(surface) {
-            host.note_focus(None);
-        }
+        host.forget_focus(surface);
         self.walk_keys = true;
         self.rt.conn.apply(crate::modes::the_keyboard_to_the_look())
     }

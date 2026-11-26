@@ -31,6 +31,10 @@ const LIST_TOP: f64 = 104.0;
 const HELP_WIDE: f64 = 880.0;
 const HELP_NARROW: f64 = 560.0;
 const HELP_TOP: f64 = 64.0;
+/// The width of the key sheet in three columns, and the margin that it
+/// keeps from the top and the bottom of the output.
+const HELP_WIDE3: f64 = 1240.0;
+const HELP_MARGIN: f64 = 32.0;
 /// The search line, the footer and a row of the help.
 const SEARCH: f64 = 56.0;
 const FOOTER: f64 = 48.0;
@@ -503,30 +507,38 @@ pub fn help(
 ) -> Vec<Command> {
     let m = &command_glass(look);
     let narrow = !model.query.is_empty();
-    let w = if narrow { HELP_NARROW } else { HELP_WIDE }.min(out[0] - 2.0 * UNIT);
     let shown = found(model.groups, model.query);
-    let columns: Vec<Vec<(&KeyGroup, Vec<&KeyRow>)>> =
-        if narrow { vec![shown] } else { split(shown) };
-    let col_w = if narrow {
-        w - 4.0 * UNIT
-    } else {
-        (w - 4.0 * UNIT - 24.0) / 2.0
-    };
     let col_h = |col: &[(&KeyGroup, Vec<&KeyRow>)]| -> f64 {
         #[allow(clippy::cast_precision_loss, reason = "a few rows")]
         col.iter()
             .map(|(_, rows)| UNIT + KEY_ROW + rows.len() as f64 * KEY_ROW)
             .sum()
     };
-    let body_h = columns
-        .iter()
-        .map(|c| col_h(c))
-        .fold(0.0, f64::max)
-        .max(KEY_ROW);
     let top = UNIT + SEARCH + 1.0 + UNIT;
-    let h = top + body_h + UNIT + 1.0 + FOOTER;
+    let fixed = top + UNIT + 1.0 + FOOTER;
+    let body_of = |columns: &[Shown<'_>]| -> f64 {
+        columns
+            .iter()
+            .map(|c| col_h(c))
+            .fold(0.0, f64::max)
+            .max(KEY_ROW)
+    };
+    let mut w = if narrow { HELP_NARROW } else { HELP_WIDE }.min(out[0] - 2.0 * UNIT);
+    let mut columns: Vec<Shown<'_>> = if narrow {
+        vec![shown.clone()]
+    } else {
+        split(shown.clone(), 2)
+    };
+    if !narrow && fixed + body_of(&columns) > out[1] - 2.0 * HELP_MARGIN {
+        w = HELP_WIDE3.min(out[0] - 2.0 * UNIT);
+        columns = split(shown, 3);
+    }
+    let body_h = body_of(&columns);
+    #[allow(clippy::cast_precision_loss, reason = "two or three columns")]
+    let col_w = (w - 4.0 * UNIT - 24.0 * (columns.len() - 1) as f64) / columns.len() as f64;
+    let h = fixed + body_h;
     let x = ((out[0] - w) / 2.0).round();
-    let y = HELP_TOP.min((out[1] - h) / 2.0).max(UNIT).round();
+    let y = HELP_TOP.min((out[1] - h) / 2.0).max(HELP_MARGIN).round();
     let mut scrim = scrim(look, (&format!("{id}-scrim"), id), out);
     if let Command::Create { props, .. } = &mut scrim {
         props.input = Some(InputMode::Accept);
@@ -614,29 +626,33 @@ pub fn help(
     commands
 }
 
-/// The two columns of the help: the first groups at the left and the
-/// rest at the right, cut where the taller column is the least tall.
+/// The columns of the help: the first groups at the left and the rest
+/// to the right, cut where the tallest column is the least tall.
 type Shown<'a> = Vec<(&'a KeyGroup, Vec<&'a KeyRow>)>;
 
 #[allow(clippy::cast_precision_loss, reason = "a few rows")]
-fn split(mut shown: Shown<'_>) -> Vec<Shown<'_>> {
+fn split(mut shown: Shown<'_>, columns: usize) -> Vec<Shown<'_>> {
     let heights: Vec<f64> = (shown.iter())
         .map(|(_, rows)| UNIT + KEY_ROW + rows.len() as f64 * KEY_ROW)
         .collect();
-    let total: f64 = heights.iter().sum();
-    let mut left = 0.0;
-    let mut cut = 1;
+    let len = heights.len();
+    let sum = |from: usize, to: usize| heights[from..to].iter().sum::<f64>();
     let mut best = f64::INFINITY;
-    for (k, height) in heights.iter().enumerate() {
-        left += height;
-        let taller = left.max(total - left);
-        if taller < best {
-            best = taller;
-            cut = k + 1;
+    let mut cuts = (1, len);
+    for first in 1..=len {
+        for second in if columns == 3 { first..=len } else { len..=len } {
+            let tallest = sum(0, first).max(sum(first, second)).max(sum(second, len));
+            if tallest < best {
+                best = tallest;
+                cuts = (first, second);
+            }
         }
     }
-    let right = shown.split_off(cut.min(shown.len()));
-    vec![shown, right]
+    let last = shown.split_off(cuts.1.min(len));
+    let right = shown.split_off(cuts.0.min(shown.len()));
+    let mut all = vec![shown, right, last];
+    all.truncate(columns);
+    all
 }
 
 fn head(
@@ -843,9 +859,9 @@ mod tests {
                 .collect(),
         };
         let groups: Vec<KeyGroup> = [7, 4, 3, 4, 9].into_iter().map(group).collect();
-        let columns = split(found(&groups, ""));
+        let columns = split(found(&groups, ""), 2);
         assert_eq!(columns.iter().map(Vec::len).collect::<Vec<_>>(), [3, 2]);
-        let one = split(found(&groups[..1], ""));
+        let one = split(found(&groups[..1], ""), 2);
         assert_eq!(one.iter().map(Vec::len).collect::<Vec<_>>(), [1, 0]);
     }
 

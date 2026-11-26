@@ -1065,6 +1065,19 @@ impl Host {
         self.focus = window.map(|window| (window, self.front));
     }
 
+    /// Forgets `window` as the noted one, on whatever face it was noted:
+    /// a window given away to a face that is not at the front has no keys
+    /// at the step in, also after a turn back (rcdr1-1).
+    pub(crate) fn forget_focus(&mut self, window: &str) {
+        if self
+            .focus
+            .as_ref()
+            .is_some_and(|(noted, _)| noted == window)
+        {
+            self.focus = None;
+        }
+    }
+
     /// The window that gets the keyboard again at the step in: the noted
     /// one, when its face is at the front again.
     pub(crate) fn take_focus(&mut self) -> Option<String> {
