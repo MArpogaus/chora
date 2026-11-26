@@ -395,3 +395,43 @@ Findings:
 - rtf1r-3 NIT tests/test_tour_diff.py:977-983: `test_c5d_looks_at_the_stepped_in_face...` finds lines by the strings `"04-13-back-on-face"` and `t.key("Ctrl+Alt+Right")` and checks for `step_out(t, ` in between; a reorder of the chapter breaks it, and it proves no behaviour; fix: leave it, the act's own `cube=` expectation is the real test.
 - rtf1r-4 NIT demo/tour/chapters/construct.py:55-57: the missing-method fallback of `stepped_in` is not limited to TOUR_BASELINE; fix: `if not (NO_METHOD.search(str(err)) and os.environ.get("TOUR_BASELINE")): raise`.
 Verdict (computed): no open BLOCK or MAJOR: MERGE-OK (counts reproduce: 1 / 71 / 0 / 29 / 9).
+
+## fix r2
+
+Base 84e31324c (claude/tour-fix-r1 head, review MERGE-OK); head b16c888fa (claude/tour-fix-r2). Step 0 green (`git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`).
+Commits: 4a1d83572 **red** (test(tour): handover act 7 expects no mc focus, a click comes first; fails on 84e31324: `focus="mc"` in the act-7 row, no pointer move or click between the two keys), 46e5ac617 (the chapter fix), 4bc210b1d **red** (test: m2 m2b m3 name the boil page panels; fails until the rows), b16c888fa (the rows).
+Diffstat 84e31324..b16c888fa: demo/tour/chapters/handover.py +2 -1, demo/tour/intended.toml +36, tests/test_tour.py +23, tests/test_tour_diff.py +16 -1 (4 files, +77 -2). No product code.
+
+**rtf1-2 fixed.** Act 7 (Super+Alt+3) no longer expects `focus="mc"` (41ddd4ba2, rtf2-1: a window given to mc while another look holds the keyboard arrives without it). `goto(640, 360, MC); t.click(); t.wait(0.5)` comes before act 8's Super+Alt+4, so the key reaches mc. Handover on the head build: 11 acts, 11 green, 0 red in three runs alone (acts 7, 8 green each time). One further run was red at acts 6 and 10 (`letter.txt` lost its first line): I had started a second tour (the v9 xp take) at the same time, which shares that file; it was killed, and the two runs after it are green. Not a product or chapter defect.
+**rtr4-1 fixed (rows).** `rect` of `mc-s-boil-panels-lead`, `-lead-lines`, `-side`, `-side-lines` and `cut` of `mc-s-boil-panels-side-lines` for m2, m2b, m3, cause c3925fc5 (the 8-digit form of c3925fc55, so the cause check reads it): 3 acts x 2 rows, each by node, none open, no `*`, no whole-frame box. `tests/test_tour_diff.py` lets a row of kind `cut` carry `nodes` (it listed the scene kinds without it) and holds the three acts' rows.
+
+### Takes (head b16c888fa; each chapter its own TOUR_OUT, the five chapters one after the other)
+
+v9 (head build): xp 31 acts 0 red (1 known), tiling 28/0, mc 22/0, construct 18 acts 6 green 12 red (I2 co-44 only, as in fix r1), handover 11 acts 11 green 0 red.
+v8 (733967aa in a worktree, TOUR_BASELINE=1, the head's harness): as in fix r1: mc both halves, handover h1..h1d, construct c1..c2b and the c3 stop (4 captures `baseline: none`, `baseline-none.json` copied beside the folder of the diff).
+
+### Counts (tests/tour-diff.py, all chapters, 110 captures)
+
+| rows | same | change | open | regression | none |
+|---|---|---|---|---|---|
+| 84e31324 (fix r1 head) | 1 | 71 | 0 | 29 | 9 |
+| b16c888fa (head) | 1 | 74 | 0 | 24 | 11 |
+
+h3b, h4 leave the regression column (their acts are green now; they stay `baseline: none`, 9 -> 11 none), m2 m2b m3 are change (71 -> 74). Regressions left, each with its filed id: c2b c3b c3c c3d c4 c4b (rtf1-7), c5d c5e (rtf1-1), m1 m1b m1c m4 m4b (rtf1-4), m8 (rtr4-2), t3f t5 t6 t6b t6c t6d t7 t10c (rtf1-3), x1 (rtf1-6), x5b (rtf1-5): 6 + 2 + 5 + 1 + 8 + 1 + 1 = 24.
+Stills: media/2026-11-26/tour-fix-r2/m2.Q-v8-v9.jpg, m2b.Q+1-v8-v9.jpg, m3.Q-v8-v9.jpg (v8 above v9, the four panel nodes boxed in red on v9), h3b.Q-v9.jpg, h4.Q-v9.jpg, take-diff.json, take-diff.txt, gate-last.txt.
+`python3 -m pytest tests/test_tour_diff.py tests/test_tour.py -q`: 223 passed, 19 subtests passed.
+
+### Findings left (backlog, unchanged)
+
+rtr4-2 MINOR (m8); rtf1-1 MINOR (c5d, c5e); rtf1-3 MINOR (tiling); rtf1-4 MINOR (m1 m1b m1c m4 m4b); rtf1-5 MINOR (x5b); rtf1-6 MINOR (x1); rtf1-7 MINOR (construct hint bar and key sheet); rtf1r-1..4 MINOR/NIT. No MAJOR left.
+
+### Gate
+
+`CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2 --allow-skip docs` (no --push, no step filter) on b16c888fa, run detached: 67 steps PASS (acts 1518 s, pull 512 s, leak 458 s, e2e 268 s), docs SKIP (allowed: mkdocs is not installed). It ends "all steps passed; no --push, nothing is pushed", printed just before `exit 0`, so **EXIT 0**; no foreign red. Last 20 lines: media/2026-11-26/tour-fix-r2/gate-last.txt.
+`pgrep -fa 'chora --headless'` empty.
+
+## Review fix r2 (PM, 2026-11-26, 84e31324c..b16c888fa, 4 files +77 -2)
+- Red first: 4a1d8357 and 4bc210b1 precede fixes 46e5ac61 and b16c888f; the lane's full gate is green.
+- handover act 7 clicks mc before act 8 (rtf1-2 h3b h4 closed); m2 m2b m3 get rect and cut rows with c3925fc5 (rtr4-1 rows owed: closed).
+- rtf2r-1 MINOR (mc m2 m2b m3; findings/mc.md mc-63): the rows whitelist a cut side panel (one 28 px line of 2) as intended. Under the 11-17 perfectionist order cut text is a look defect, not an intended change; the panel must show whole content or drop it.
+- The text-grep tests are weak but red-first. No MAJOR. Verdict (computed): MERGE-OK b16c888fa, train 159.

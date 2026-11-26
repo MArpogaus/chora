@@ -1,0 +1,15 @@
+ok: foot s1 starts in xp
+ok: 1. a drag from xp to the tiling output: tiling owns s1
+ok: 2. window.give of tiling to xp: xp owns s1
+ok: 3. choractl give mc: mc owns s1
+ok: 4. mc to tiling by window.give, tiling to xp by a Super drag: xp owns s1
+ok: 5. a give to a client that does not exist is refused; xp keeps s1
+ok: 6. Super and the left button on the xp output turn the cube of xp
+ok: 7. a Super drag moves s1 in tiling ({"HEADLESS-2":[231.71510731549688,145.5035056234588,699.9996277312013,499.9997340937152]} to {"HEADLESS-2":[248.34562734160772,156.0957924025035,699.9998648078397,499.99990343417113]}), a drop on xp gives it to xp
+ok: 8. the title bar of a csd foot moves s2 in tiling ({"HEADLESS-2":[290.0,170.0,700.0,500.0]} to {"HEADLESS-2":[309.2680703719734,207.8938717315478,700.0,499.99999999999994]}) and gives it to xp
+ok: 8b. title bar menu, Send To > Media center: mc owns s1, xp has no task button
+ok: 8b. Alt+Space, Send To > Tiling desktop: tiling owns s1
+ok: 9. tiling ended after the give: xp adopted s1
+ok: gate-handover; captures in /tmp/gate-config.jSXuDy
+ok: the give key: s3 went to xp on HEADLESS-2, the keyboard stays with s2 on tiling (tiling {"holder":"tiling","surface":"s2"}, xp {"holder":null})
+FAIL: the picker of the Looks door did not start
