@@ -181,9 +181,19 @@ impl<A> Runtime<A> {
 
 impl<A: Clone> Runtime<A> {
     /// The chords of [`chords`] that the plugin holds no binding for and
-    /// waits for none: a bound chord that the core refused stays bound.
+    /// waits for none: a bound chord that the core refused stays bound. A
+    /// plugin with give keys leaves those to them, which it may grab
+    /// after the swallow ([`Runtime::regrab_give_keys`]).
     fn free_chords(&self, modifier: &str) -> Result<Vec<Binding>, ClientError> {
         let mut free = Vec::new();
+        let gives: Vec<String> = if self.give_keys.is_some() {
+            (crate::give::KEYS.iter())
+                .filter_map(|(key, _)| key.parse::<Binding>().ok())
+                .map(|binding| binding.to_string())
+                .collect()
+        } else {
+            Vec::new()
+        };
         for chord in chords(modifier) {
             let binding: Binding = chord.parse().map_err(|e| {
                 ClientError::Rpc(RpcError::new(
@@ -192,6 +202,9 @@ impl<A: Clone> Runtime<A> {
                 ))
             })?;
             let text = binding.to_string();
+            if gives.contains(&text) {
+                continue;
+            }
             let bound = |(waits, _, swallows): &(String, A, bool)| *waits == text && !swallows;
             if self.action(&text).is_none() && !self.waiting.iter().any(bound) {
                 free.push(binding);
