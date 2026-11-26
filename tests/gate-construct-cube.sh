@@ -327,12 +327,13 @@ for n in json.load(sys.stdin):
         print(n["id"], n.get("owner"), next(iter(n["rects"]), "-"), round(r[0]), round(r[1]), round(r[2]), round(r[3]))' "$surface"
 }
 core_focus() { ctl query '*' | python3 -I -c 'import json, sys; print(",".join(n["id"] for n in json.load(sys.stdin) if n.get("focused")) or "none")'; }
+stall_for() { until_ok false "$1" || :; kill -CONT "$2"; }
 end_others() {
     local xp_pid
     if [ "${1:-}" = stalled ]; then
         xp_pid=$(pid_of chora-xp)
         kill -STOP "$xp_pid"
-        (until_ok false 6; kill -CONT "$xp_pid") &
+        stall_for 6 "$xp_pid" &
         pids+=($!)
     fi
     python3 -I - "$CHORA_SOCKET" "$first_probe" <<'PY'
