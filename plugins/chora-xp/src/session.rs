@@ -195,10 +195,7 @@ impl Dialog {
     /// Creates the shield, the dialog and its buttons on the overlay root
     /// of the output.
     pub fn create(&self, theme: &mut Theme) -> Vec<Command> {
-        let title = match self.mode {
-            Mode::LogOff => "Log Off Windows",
-            Mode::TurnOff => "Turn off computer",
-        };
+        let title = title(self.mode);
         let frame = Picture::new(SIZE[0], SIZE[1])
             .file(&theme.path("winxp/dialog.svg"), [0, 0, SIZE[0], SIZE[1]])
             .text(Text::new(
@@ -426,9 +423,23 @@ fn error_start(command: &str, err: &dyn std::fmt::Display) {
     tracing::error!("{command}: {err}");
 }
 
+/// The title of the dialog of a mode.
+fn title(mode: Mode) -> &'static str {
+    match mode {
+        Mode::LogOff => "Log Off Windows",
+        Mode::TurnOff => "Turn off computer",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_titles_do_not_name_windows() {
+        assert_eq!(title(Mode::LogOff), "Log Off");
+        assert_eq!(title(Mode::TurnOff), "Turn off computer");
+    }
 
     #[test]
     fn cancel_is_a_push_button_of_80_by_28_inside_the_dialog() {
