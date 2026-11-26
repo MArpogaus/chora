@@ -1610,6 +1610,49 @@ mod tests {
         }
     }
 
+    /// How many items of the header an update of the regions moves.
+    fn header_moves(mc: &mut crate::Mc) -> usize {
+        let header = mc.region_id(Region::Header);
+        let commands = mc.regions().unwrap();
+        let places = |c: &&Command| {
+            matches!(c, Command::Update { id, props }
+                if id.starts_with(&header) && props.transform.is_some())
+        };
+        commands.iter().filter(places).count()
+    }
+
+    /// A header item whose probe the core did not lay out yet counts no
+    /// 0 wide: the header keeps its places for that update, and the clock
+    /// does not jump by its width and gap (rmmr1-2).
+    #[test]
+    fn a_probe_without_a_rect_keeps_the_places_of_the_header() {
+        let core = chora_kit::testing::FakeCore::start();
+        let seen = core.model();
+        let lost: std::sync::Arc<std::sync::Mutex<Option<String>>> = std::sync::Arc::default();
+        let missing = std::sync::Arc::clone(&lost);
+        core.respond(move |method, params| {
+            let id = params["selector"].as_str()?.strip_prefix("id:")?;
+            if missing.lock().unwrap().as_deref() == Some(id) {
+                return None;
+            }
+            let model = seen.lock().unwrap();
+            let (width, lines, line) = wrapped(&model.scene.node(id)?.props);
+            let rect = [0.0, 0.0, width, lines * line];
+            (method == "scene.query").then(|| serde_json::json!([{"rects": {"test": rect}}]))
+        });
+        let mut mc = crate::testing::mc_on(&core, "probe-no-rect", [1280, 720]);
+        mc.show("agenda", true).unwrap();
+        assert!(header_moves(&mut mc) > 0, "the control: the header moves");
+        let items = mc.items("agenda");
+        let end = items[&Region::Header]
+            .0
+            .iter()
+            .find(|i| i.slot > 0)
+            .unwrap();
+        *lost.lock().unwrap() = Some(probe(&end.id));
+        assert_eq!(header_moves(&mut mc), 0, "{} has no rect", end.id);
+    }
+
     #[test]
     fn a_window_that_no_scene_started_keeps_off_the_edge() {
         let (mc, _) = crate::testing::mc("window-inset", [1280, 720]);
