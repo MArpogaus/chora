@@ -658,6 +658,25 @@ mod tests {
         }
     }
 
+    /// The give keys are Super+Alt chords: a look that swallows before it
+    /// grabs them (xp grabs them at its next event) must not swallow them,
+    /// or the window manager that started first loses its give keys.
+    #[test]
+    fn the_give_keys_are_no_chords_of_the_swallow() {
+        let core = FakeCore::start();
+        let mut rt = core.runtime::<&str>("xp");
+        rt.give_keys(Some(|to| to));
+        rt.start_grabs();
+        rt.grab_swallowed("Super", &"swallow").unwrap();
+        rt.end_grabs().unwrap();
+        rt.grab_give_keys().unwrap();
+        for (key, to) in crate::give::KEYS {
+            let normal = key.parse::<Binding>().unwrap().to_string();
+            assert_eq!(rt.action(&normal), Some(&to), "{key}");
+        }
+        assert_eq!(rt.action("Alt+Super+9"), Some(&"swallow"));
+    }
+
     #[test]
     fn another_modifier_keeps_the_keys_of_the_programs() {
         assert_eq!(chords("Alt"), Vec::<String>::new());
