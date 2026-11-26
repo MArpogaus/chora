@@ -44,7 +44,7 @@ in a construct without a cube and in xp (principle 1).
 
 | Act | Mouse | Keyboard | Voice and API |
 |-----|-------|----------|---------------|
-| step back, from use mode | a click on `STEP BACK` | `fly_out`: `Alt+Escape`; `Escape` alone when the grant `input.grab-any` lets the construct take it | "step back"; `view.step_back` |
+| step back, from use mode or from a pane while a cube is open | a click on `STEP BACK` | `fly_out`: `Alt+Escape`; `Escape` alone when the grant `input.grab-any` lets the construct take it | "step back"; `view.step_back` |
 | step in, from navigate mode | a click on a face, or on `STEP IN` for the front face | `fly_in`: `Return` | "step in"; `view.step_in` |
 | fly into a pane beside the cube, in navigate mode | a click on the pane, or on the hint `Click Fly in` | `Tab`, then `Return` on its row | `window.show` |
 | pull a window out of a face into a pane | a title drag off the face; a click on the hint `Super Alt 4 Pull out`, which shows only while a window of a face is there to pull | `Super+Alt+4`, the give key of the construct | `window.give` |
@@ -99,11 +99,9 @@ way out as well: stepped into a face it shows `Alt Esc Step back` beside
 in always sees how to step out. Between them it shows
 `Super Alt 4 Pull out` while the keyboard is in a window of the face,
 by the same rule as stood back: the hint is told wherever the key acts
-(`pull_acts`, co-79). The rule names the key where the person is; a
-step out of a pane that lands stood back instead would not help, since
-a pane's window is the construct's own and then nothing in a face is
-there to pull; with the keyboard in the pane in front of the face the
-key is not told there either (co-68). The same holds in a pane that the
+(`pull_acts`, co-79). A pane's window is the construct's own, so with
+the keyboard in a pane in front of the face the key is not told (co-68);
+the step out of the pane leads on, below. The same holds in a pane that the
 camera flew into from the cube stood back, as a program started from
 `Programs` opens: the hint bar shows `Alt Esc Step back` and `All keys`,
 never the hints of the cube, whose keys do not hold there. The
@@ -123,8 +121,8 @@ leaves the pane, so the cube opens ahead of where the person stood.
 
 While no cube is open, `Super+C`, the key `cube`, opens a cube of four
 faces, as `cube.open` without params does, and stands back from it; the
-walk hints name it,
-`Super C  Cube`, and a click on that hint does the same. Stood back, the
+walk hints name it, `Super C  Cube`, while the window of a pane has the
+keyboard, and a click on that hint does the same. Stood back, the
 hints at the bottom centre are the chips of the cube: `Ctrl Alt ← Turn
 left`, `Return Step in` and `Turn right Ctrl Alt →`; while a pane shows
 beside the cube, also `Click Fly in`, the click on the pane, and, only
@@ -134,11 +132,14 @@ a face that has the keyboard (or had it at the step back) out into a
 pane. The key gives a window to the construct, and the window of a pane
 is its own already, so with the keyboard in a pane, or in no window,
 the hint is not told (co-68); the same rule decides the hint and the key
-(co-70). Stood back out of a pane, the bar names the way into a face
-instead, `Super Alt 2 Into face`, the give key of the face manager: while
-the window of a pane has the keyboard, it puts that window on the face at
-the front, steps in and gives it the keyboard there, so every key that the
-bar names then works (co-79); and the face label
+(co-70). `Alt+Escape` out of any pane stands back: from the cube when
+one is open, also from a pane flown into from a face, and there the bar
+names `Super Alt 2 Into face`, the give key of the face manager, which
+puts the window of the pane on the face at the front, steps in and gives
+it the keyboard; with no cube open into the space, where the bar names
+`Super C Cube`, which opens the cube stood back with that window told
+`Into face` the same way, so the keys that the bar names lead from every
+pane into a face (co-79); and the face label
 under the cube names the window manager and the face, with a dot per
 face. A refusal, for example while another client `xp` runs, shows in
 the HUD.
