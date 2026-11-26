@@ -346,7 +346,7 @@ impl Agent {
             client: voice_client(self.voice.as_ref()),
         };
         self.chat.show(&mut bridge, name, token, &frame)?;
-        self.chat_pulled = chora_kit::clock::now();
+        self.chat_pulled = Instant::now();
         self.chat_draw().map_err(|err| err.to_string())
     }
 
@@ -538,8 +538,8 @@ impl Agent {
             self.chat_pulled = now;
             changed |= self.chat.pull(&mut bridge);
         }
-        if self.chat.offline() && self.chat_retried + RETRY <= now {
-            self.chat_retried = now;
+        if self.chat.offline() && self.chat_retried + RETRY <= Instant::now() {
+            self.chat_retried = Instant::now();
             changed |= self.chat.retry(&mut bridge);
         }
         self.announce_keyboard()?;
@@ -678,7 +678,7 @@ impl Agent {
         {
             eprintln!("chora-assistant: chat: {err}");
         }
-        self.chat_pulled = chora_kit::clock::now();
+        self.chat_pulled = Instant::now();
         self.chat_draw()
     }
 
