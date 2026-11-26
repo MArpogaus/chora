@@ -76,6 +76,10 @@ const HOST_FAMILY: &str = chora_kit::glass::SANS;
 /// How long the loop waits for an event while nothing moves.
 const IDLE: Duration = Duration::from_secs(60);
 
+/// How long the loop waits while a recording holds the clock: the clock runs
+/// again when no step comes, and the loop must see it.
+const HELD_RECHECK: Duration = Duration::from_millis(500);
+
 /// The events that the plugin handles.
 const EVENTS: &[&str] = &[
     "voice.*",
@@ -442,10 +446,10 @@ impl Agent {
             claim_due: true,
             state_ask: None,
             chat: Session::new(),
-            chat_pulled: clock::now(),
+            chat_pulled: Instant::now(),
             announced: None,
             chat_seen: None,
-            chat_retried: clock::now(),
+            chat_retried: Instant::now(),
             row: None,
             chat_row: None,
             said: None,
@@ -622,33 +626,44 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     };
     let mut agent = Agent::start((source, theme, values, cache), (settings, name))?;
     loop {
-        let now = clock::now();
-        let wait = [
-            agent.assistant_due(),
-            agent.switch_due(now),
-            agent.chat_due(now),
-            agent.ask_due(),
-            agent.greet_due(),
-            agent.flash_due(),
-        ]
-        .into_iter()
-        .flatten()
-        .min()
-        .map_or(IDLE, |due| due.saturating_duration_since(now));
-        if let Some(event) = agent
-            .rt
-            .conn
-            .next_event_timeout(wait.max(Duration::from_millis(1)))?
-        {
+        let wait = serve_wait(&mut agent).max(Duration::from_millis(1));
+        if let Some(event) = agent.rt.conn.next_event_timeout(wait)? {
             runtime::dispatch(&mut agent, event)?;
         }
-        agent.ask_step(clock::now())?;
+        agent.ask_step(Instant::now())?;
         agent.greet_step(clock::now())?;
         agent.flash_step(clock::now())?;
-        agent.chat_step(clock::now())?;
+        agent.chat_step(Instant::now())?;
         agent.assistant_step(clock::now())?;
         agent.switch_step(clock::now())?;
     }
+}
+
+/// How long the serve loop waits for an event before its timers are due.
+/// The animations stand still while a recording holds the clock, so only
+/// the timers of the real clock count then.
+fn serve_wait(agent: &mut Agent) -> Duration {
+    let now = clock::now();
+    let real = Instant::now();
+    let held = clock::held();
+    let animations = if held {
+        Vec::new()
+    } else {
+        vec![
+            agent.assistant_due(),
+            agent.switch_due(now),
+            agent.greet_due(),
+            agent.flash_due(),
+        ]
+    };
+    let timers = [agent.chat_due(real), agent.ask_due()];
+    let wait = [animations, timers.to_vec()]
+        .concat()
+        .into_iter()
+        .flatten()
+        .min()
+        .map_or(IDLE, |due| due.saturating_duration_since(real));
+    if held { wait.min(HELD_RECHECK) } else { wait }
 }
 
 /// The methods of the core every plugin exports: its state and the clock of
@@ -1160,6 +1175,64 @@ mod tests {
         let held = clock::now();
         assert_eq!(due, held, "the figure keeps the time of the held clock");
         clock::set(None);
+    }
+
+    /// xp-blink r2: the timers that are not animations run on the real
+    /// clock, so a held tour clock does not freeze them.
+    #[test]
+    fn a_held_clock_leaves_the_card_guard_xp_blink_r2() {
+        let (mut agent, _dirs) = xp_agent("guard-real");
+        clock::step(serde_json::json!({"ms": 0.0})).unwrap();
+        let data = serde_json::json!({"id": "1", "prompt": "Write notes.txt?", "buttons": true});
+        agent.confirm(&data).unwrap();
+        assert!(agent.card.is_some(), "the card shows");
+        std::thread::sleep(Duration::from_millis(500));
+        agent.press_card(card::YES, false).unwrap();
+        clock::set(None);
+        assert!(agent.flash.is_none(), "the guard of the card ran out");
+    }
+
+    #[test]
+    fn a_held_clock_leaves_the_ask_retries_xp_blink_r2() {
+        let (mut agent, _dirs) = xp_agent("ask-real");
+        clock::step(serde_json::json!({"ms": 0.0})).unwrap();
+        std::thread::sleep(Duration::from_millis(50));
+        let before = Instant::now();
+        agent.voice_connected("voice");
+        let due = agent.ask_due().expect("the ask is due");
+        clock::set(None);
+        assert!(due >= before, "the retry is due on the real clock");
+    }
+
+    #[test]
+    fn a_held_clock_does_not_spin_the_serve_loop_xp_blink_r2() {
+        let (mut agent, _dirs) = xp_agent("wait-held");
+        clock::step(serde_json::json!({"ms": 0.0})).unwrap();
+        std::thread::sleep(Duration::from_millis(20));
+        agent.replace_assistant().unwrap();
+        let wait = serve_wait(&mut agent);
+        clock::set(None);
+        assert!(
+            wait >= Duration::from_millis(100),
+            "a held clock does not spin: {wait:?}"
+        );
+        assert!(wait <= HELD_RECHECK, "but it looks again: {wait:?}");
+    }
+
+    #[test]
+    fn a_held_clock_does_not_spin_the_serve_loop_with_the_chat_open_xp_blink_r3() {
+        let (mut agent, _dirs) = xp_agent("wait-chat");
+        agent.event(pressed("hud-figure", false)).unwrap();
+        assert!(agent.chat.is_open(), "the chat is open");
+        clock::step(serde_json::json!({"ms": 0.0})).unwrap();
+        std::thread::sleep(Duration::from_millis(20));
+        let wait = serve_wait(&mut agent);
+        clock::set(None);
+        assert!(
+            wait >= Duration::from_millis(100),
+            "a held clock does not spin with the chat open: {wait:?}"
+        );
+        assert!(wait <= HELD_RECHECK, "but it looks again: {wait:?}");
     }
 
     /// What greets at `GREET_AFTER` of a start without a voice agent: what
