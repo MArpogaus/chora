@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-26 14:47 UTC)
+## Now (2026-11-26 14:59 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 14:03 PM 5.1 % (11-26 BKK); week est. 51 % (unmeasured, owner reads) vs 76 % time; need (100-51-5)/40 h = 1.1 %/h; lanes 6 build
-session branch: 4d8bbe36 (t153+154 13:20); 98 greens. t153 red mc-scale (sh-37); t154 xp-run red 13s, green on rerun (flake); t155 (0efebc69 kit-icons) gate runs
+budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 14:59 PM 5.4 % (11-26 BKK); week est. 51 % (unmeasured, owner reads) vs 76 % time; need (100-51-5)/40 h = 1.1 %/h; lanes 6 build
+session branch: 4d8bbe36 (t153+154 13:20); 98 greens. t153 red sh-37; t154 xp-run flake; t155 (0efebc69 kit-icons) xp-run red 13s (sh-44), rerun with build runs
 
 lanes: 6 build of 6 (tour-fix-r1, h-rf2-r1, kit-swallow-r1, co-reach-r6, mc-minor-r1, flake-series-r10)
 burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88 open, 10 regr)
