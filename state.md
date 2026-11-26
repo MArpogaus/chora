@@ -5,7 +5,7 @@ pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 18:14 PM 5.7 % (11-26 BKK); week est. 51 % (unmeasured, owner reads) vs 76 % time; need (100-51-5)/40 h = 1.1 %/h; lanes 6 build
 session branch: 7c6955c8 (t156 17:27); 100 greens. t153 red sh-37; t154, t155 flake sh-44; t156 flake launcher-mc (mc dark), rerun green; t157 runs
 
-lanes: 6 of 6 (tour-fix-r2, h-rf2-r3, review-kit-swallow-r1, co-reach-r6, mc-minor-r2, flake-series-r10)
+lanes: 6 of 6 (tour-fix-r2, h-rf2-r3, review-kit-swallow-r1, co-reach-r6, review-mc-minor-r2, flake-series-r10)
 burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88 open, 10 regr)
 
 ## RC
@@ -28,7 +28,7 @@ burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88 open
 | h-rf2-r3.md (Q 4b, 0.4 %) | sonnet high, 59ba5c21 | running s..QLhjzgv69C4GHjfvD |
 | review-kit-swallow-r1.md (Q 3, 0.5 %) | opus high, 02e745c3 | run s..NbYuyBKy63NcmywQu |
 | co-reach-r6.md (Q 2, 1.0 %) | opus high, 4d8bbe36 | running s..Lj635mZvdmt7myT7J |
-| mc-minor-r2.md (Q 4c, 0.5 %) | sonnet high, 1dd7edc9 | running s..LFbYxMTsDrpuXghxM |
+| review-mc-minor-r2.md (Q 4c, 0.4 %) | opus high, 59dd6894 | starting |
 | flake-series-r10.md (Q 5, 0.6 %) | haiku high, 4d8bbe36 | running s..MrWJ1FZ4X7WVbaJa6 |
 ## Queue (% week; 5 % reserve)
 1. (rc 3) FLAKE-BAR-FULL r1 t152, TOUR-HARNESS r2 t153 merged.
@@ -37,7 +37,7 @@ burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88 open
 4. (F7, rc 1, 11) take r2: 88 open, 10 regr; TOUR-ROWS r4 review FIX (rtr4r-1 MAJOR c5d rows; rtr4r-2..4 MINOR): TOUR-FIX r1 MERGE-OK, in t157; TOUR-FIX r2 (rtf1-2, rtr4-1 MAJOR) runs; take r3 after; MC-BOIL r1 merged t154.
 4a. (F7, rc 11) KIT-ICONS r1 merged t155.
 4b. (rc 3) H-RF2 r2 review FIX (rhrf2r2-1 MAJOR): r3 runs; rc1 pass co next.
-4c. (rc 1b) XP-MINOR r5 merged t156 (rpx2-5 backlog); mc pass r2 met (MC-MINOR r1 1dd7edc9: -1, -5 fixed, -2, -3 part, -4 kit; review r1 FIX rmmr1-1 MAJOR: r2 runs; rpm2-6 backlog); take r3 next.
+4c. (rc 1b) XP-MINOR r5 merged t156 (rpx2-5 backlog); mc pass r2 met (MC-MINOR r1 1dd7edc9: -1, -5 fixed, -2, -3 part, -4 kit; r2 59dd6894 gate green: review runs; rpm2-6 backlog); take r3 next.
 5. (F5, rc 3) FLAKE-SERIES r10 runs on 4d8bbe36 (haiku).
 
 ## Needs owner
