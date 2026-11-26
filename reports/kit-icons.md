@@ -30,3 +30,11 @@ media/2026-11-26/kit-icons-r1/programs-before.png (129951 bytes: text rows only)
     all steps passed; no --push, nothing is pushed   (68 PASS, no FAIL, EXIT 0)
 
 Two earlier full runs were not green and are not counted: the first ran while the persona commit landed (pre-commit "files were modified by this hook"); the second went red in doors `tiling launcher-order` (the stand-in, fixed above). No foreign flake. `pgrep -fa 'chora --headless'` is empty.
+
+## Review r1 (PM, 89 lines)
+Base 613844fc (ancestor of 3be27e32), head abdd0158; diffstat 7 files, +74 -15. Merges clean onto t153+154 (4d8bbe36).
+- Red first: 18e1b9f7 (test the_rows_carry_the_icon_of_their_entry) before fix df1a2d0f. Pass.
+- Fix KISS: App::row() adds `\0icon\x1fNAME` only when the entry has Icon=; fuzzel prints the label alone, so matching is unchanged (the test asserts the answer "pad"). Pass.
+- Harness: 95c1f188 keeps the NUL of row 1 in the persona stand-in; abdd0158 strips the icon part in five stand-ins (doors, mc-sofa, tiling-apps, tiling-apps-click, xp-run) so their row asserts read labels. Reasonable; no assert weakened (label text unchanged).
+- Gate: lane full gate 68 PASS (worker report); captures media/2026-11-26/kit-icons-r1/.
+Findings: none. Verdict (computed): MERGE-OK abdd0158, train 155.

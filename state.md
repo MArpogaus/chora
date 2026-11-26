@@ -1,11 +1,11 @@
 # State
 
-## Now (2026-11-26 12:01 UTC)
+## Now (2026-11-26 12:24 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 12:01 PM 4.4 % (11-26 BKK); week about 51 % vs 76 % time; need (100-51-5)/40 h = 1.1 %/h; lanes 4 build
 session branch: 3be27e32 (t152 10:00); 97 greens. T153+154 = tour-harness, co-drop, mc-boil, xp-focus, tiling-chip; gate 11:41
 
-lanes-short: 4 build of 6 (tour-rows, kit-icons, xp-minor-r5, tiling-focus-r4); 5th, 6th: p2-r14-co, mc pass after t154
+lanes-short: 4 build of 6 (tour-rows, xp-minor-r5, tiling-focus-r4, p2-r14-co); 5th: mc pass after t154; kit-icons MERGE-OK
 burn-down: F1-4, F6, F8 met; F5 met r9, rerun on final head; F7 open (88 open, 10 regr)
 
 ## RC
@@ -24,23 +24,24 @@ burn-down: F1-4, F6, F8 met; F5 met r9, rerun on final head; F7 open (88 open, 1
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| train154 | PM, 3be27e32 + 5 | t153 red mc-scale (sh-37, alone 2/2 green); t153+154 gate 11:45 (11:41 docs red: mkdocs, now pip --user) |
+| train154 | PM, 3be27e32 + 5 | t153 mc-scale flake (sh-37); t153+154 gate 11:45 (mkdocs via pip) |
 | review-co-drop-r4.md (0.5 %) | opus high | MERGE-OK 142260b9: t154 |
 | tour-harness-r2.md (0.3 %) | sonnet med | MERGE-OK f396ebe6: t153 |
 | tour-rows-r4.md (1.2 %) | opus high | running s..NWJPZjCXoCT77WnZn |
 | mc-boil-r1.md (0.6 %) | sonnet high | MERGE-OK f10be960: t154 |
-| kit-icons-r1.md (0.6 %) | sonnet high | running s..QWjVxZbMcVX2vDwX6 |
+| kit-icons-r1.md (0.6 %) | sonnet high | MERGE-OK abdd0158: t155 |
 | xp-focus-r1.md (0.6 %) | sonnet high | MERGE-OK e19b470b: t154 |
 | tiling-chip-r1.md (0.3 %) | sonnet med | MERGE-OK 8add6eca: t154 |
-| rc1-pass-xp-r2.md (1.2 %) | opus high | done: xp confirms rc 1; xp-49 MINOR |
+| rc1-pass-xp-r2.md (1.2 %) | opus high | done: xp rc 1 ok; xp-49 |
 | xp-minor-r5.md (0.6 %) | sonnet med, 3be27e32 | running s..MoBcvY4KQx7Rg4Tfm |
 | tiling-focus-r4.md (1.0 %) | opus high, 3be27e32 | running s..LXp8QBhegY1oEWiDc |
+| p2-r14-co.md (0.8 %) | sonnet med + haiku, 4d8bbe36 | starts |
 ## Queue (% week; 5 % reserve)
 1. (rc 3) FLAKE-BAR-FULL r1 merged t152 (rfbf1-2: r10 watches). TOUR-HARNESS r2 MERGE-OK f396ebe6: t153 alone, next.
 2. (rc 2) construct r13 not met: co-75, co-76 hold; CO-DROP r4 MERGE-OK 142260b9: t154 after t153.
 3. (rc 2) P2 r11: T7 2/2; P2 r12 NO: ti-57 half fixed (I3 holders []); TILING-FOCUS r4 runs, then P2 r13.
 4. (F7, rc 1, 11) take r2: 88 open, 10 regr; TOUR-ROWS r4 (rtr3-2, 44 regr) runs; MC-BOIL r1 MERGE-OK f10be960 (t154).
-4a. (F7, rc 11) KIT-ICONS r1 (rv9ka-2 MINOR) runs.
+4a. (F7, rc 11) KIT-ICONS r1 MERGE-OK abdd0158 (t155).
 4b. (rc 9) XP-FOCUS r1 MERGE-OK e19b470b (t154); rfc1-1: backlog.
 4c. (rc 1b) xp pass r2 met; XP-MINOR r5 (xp-49); tour acts 7, 8 follow D119 (TOUR-ROWS r5); mc pass and P2-R14-CO after t154.
 5. (F5, rc 3, 4, 5) FLAKE-SERIES r10 on the final head (haiku).
