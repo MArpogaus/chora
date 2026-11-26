@@ -604,6 +604,45 @@ mod tests {
         }
     }
 
+    /// The keys that the core keeps for its safety layer with Ctrl+Alt.
+    fn is_safety(key: &str) -> bool {
+        matches!(key, "BackSpace" | "Escape" | "i")
+            || key
+                .strip_prefix('F')
+                .is_some_and(|n| n.parse::<u8>().is_ok())
+    }
+
+    /// rpt2-1: a chord with Super and any other modifiers reaches no
+    /// client: Super+Alt+9 typed `^[9` and Super+Ctrl+Shift+x typed `^X`
+    /// into foot.
+    #[test]
+    fn super_chords_with_every_modifier_combination_are_swallowed() {
+        let swallowed: Vec<String> = (chords("Super").iter())
+            .map(|chord| chord.parse::<Binding>().unwrap().to_string())
+            .collect();
+        for with in [
+            "",
+            "Shift+",
+            "Ctrl+",
+            "Alt+",
+            "Ctrl+Shift+",
+            "Alt+Shift+",
+            "Ctrl+Alt+",
+            "Ctrl+Alt+Shift+",
+        ] {
+            for key in KEYS {
+                let chord = format!("Super+{with}{key}");
+                let normal = chord.parse::<Binding>().unwrap().to_string();
+                let safety = with.contains("Ctrl+Alt+") && is_safety(key);
+                assert_eq!(
+                    swallowed.contains(&normal),
+                    !safety,
+                    "{chord} ({normal}): the safety layer keeps only Ctrl+Alt with its keys"
+                );
+            }
+        }
+    }
+
     #[test]
     fn another_modifier_keeps_the_keys_of_the_programs() {
         assert_eq!(chords("Alt"), Vec::<String>::new());
