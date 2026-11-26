@@ -19,3 +19,11 @@ Rect before and after (boil side lines, the m2 state): [160,530,185,29] then [16
 **Captures** `media/2026-11-26/mc-boil-r1/m2-boil-before.png`, `m2-boil-after.png` (1280x720, 146 KB each, boil page with the timer card). They are pixel-identical (same md5): the cut strip is the empty top of the next line, so the fix changes the box, not the ink; the gate cell and the unit test measure the box.
 
 **Gate**, no step filter, `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` on f10be960 (no --push): every step PASS (red-first, identity, ratchets .. mc-sofa 121 s, mc-column, mc-scale, mc-host .. e2e 264 s), last line `all steps passed; no --push, nothing is pushed`. A first run on c3925fc5 stopped at ratchets (sleep 779 > list 778 from the cell's own sleep); fixed by f10be960 and rerun in full. No foreign flake. `pgrep -fa 'chora --headless'` is empty.
+
+## Review r1 (PM, 09:50 UTC)
+Base 329a13e5, head f10be960; 3 files +142 -3 (layout.rs +43, rooms.rs +63 test, gate-mc-sofa.sh +36). PM review (under 200 lines).
+- Red first: c3afca51 (unit test and mc-sofa cell boil-lines) before fix c3925fc5: holds.
+- Fix: `clip_height` counts whole lines from the lines' top inside the room the page edge leaves; `clip_panels` resets clips on scroll. No new option, no copy; fallback to `whole_lines` for panels without lines. KISS: ok.
+- `git merge-tree --write-tree 613844fc f10be960`: clean. Lane gate: full, all steps passed, sleep ratchet fixed in f10be960.
+- rmb1-n1 NIT: `clip_panels` updates every panel of the page on each scroll step; cheap now, worth a changed-only filter if pages grow.
+Verdict (computed): 0 BLOCK, 0 MAJOR: MERGE-OK f10be960; joins t154 with co-drop 142260b9.
