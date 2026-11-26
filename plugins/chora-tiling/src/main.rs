@@ -2466,6 +2466,30 @@ mod tests {
         assert!(tiling.chip_until.is_some(), "the chip has a time to go");
     }
 
+    /// rpt3-1: the chip spells the chord as the key list does: Super first,
+    /// the keys of the keyboard and not their names in the core.
+    #[test]
+    fn the_hint_spells_the_chord_as_the_key_list_does_rpt3_1() {
+        for (pressed, spelled) in [
+            ("Alt+Super+x", "Super+Alt+X does nothing here."),
+            ("Super+bracketleft", "Super+[ does nothing here."),
+            (
+                "Ctrl+Shift+Super+Next",
+                "Super+Ctrl+Shift+Page Down does nothing here.",
+            ),
+            (
+                "Ctrl+Alt+Shift+Super+Prior",
+                "Super+Ctrl+Alt+Shift+Page Up does nothing here.",
+            ),
+        ] {
+            let (mut tiling, methods) = tiling_with_grabs("stray-spelled");
+            tiling.act(pressed).unwrap();
+            let hints = hints_shown(&methods);
+            assert_eq!(hints.len(), 1, "{pressed}: {hints:?}");
+            assert!(hints[0].contains(spelled), "{pressed}: {hints:?}");
+        }
+    }
+
     /// rtd1-3: the hint names the help key that the person bound.
     #[test]
     fn the_hint_names_a_rebound_help_key_rtd1_3() {
