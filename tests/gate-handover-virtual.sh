@@ -10,6 +10,11 @@
 #   pass     the window is owned by the second window manager, it is
 #            attached, shows on the output of that one with a size, and
 #            has the keyboard focus
+#   kept     as pass, but the keyboard stays with the first window
+#            manager (a window or a node of it has the focus, not the
+#            window): a give key is a give of the person, and xp and
+#            tiling keep the keyboard when the window goes to another
+#            output, a virtual one too (D119, tiling-focus r2)
 #   gap      anything else; the window must still have an owner
 #   missing  the gate does not build the cell yet
 #
@@ -56,7 +61,7 @@ xp mc key pass
 xp mc drag pass
 xp tiling give pass
 xp tiling cgive pass
-xp tiling key pass
+xp tiling key kept
 xp tiling drag pass
 tiling mc give pass
 tiling mc cgive pass
@@ -64,7 +69,7 @@ tiling mc key pass
 tiling mc drag pass
 tiling xp give pass
 tiling xp cgive pass
-tiling xp key pass
+tiling xp key kept
 tiling xp drag pass
 '
 
@@ -127,6 +132,14 @@ with_owner() {
         sleep 0.2
     done
     return 1
+}
+
+kept_now() {
+    local shown
+    shown=".[0] | .owner == \$o and .parent != null and .focused != true
+        and ((.rects[\$out] // [0, 0, 0, 0]) | .[2] > 0 and .[3] > 0)"
+    ctl query "id:$w" 2>/dev/null | jq -e --arg o "$1" --arg out "${out_of[$1]}" "$shown" >/dev/null &&
+        ctl query '*' 2>/dev/null | jq -e --arg g "$2" 'any(.[]; .focused == true and .owner == $g)' >/dev/null
 }
 
 with_owner xp 20 ||
@@ -201,10 +214,12 @@ cell() {
         echo "$src $dst $path missing" >>"$log"
         return 0
     fi
-    [ "$want" != pass ] || wait_s=10
+    [ "$want" = gap ] || wait_s=10
     place "$src"
     path_run "$path" "$src" "$dst"
-    if with_owner "$dst" "$wait_s"; then result=pass; else result=gap; fi
+    if [ "$want" = kept ] && until_ok "kept_now $dst $src" $((wait_s * 2)) && holds "kept_now $dst $src" 1; then
+        result=kept
+    elif with_owner "$dst" "$wait_s"; then result=pass; else result=gap; fi
     o=$(owner_of)
     case $o in none | null | "")
         sleep 6
