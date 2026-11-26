@@ -6,7 +6,7 @@ budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 19:41 PM 5.7 
 session branch: 7c6955c8 (t156 17:27); 100 greens. t153 red sh-37; t154, t155 flake sh-44; t156 flake launcher-mc (mc dark), rerun green; t157 runs
 
 lanes: 6 of 6 (tour-fix-r2, window-loss-r1, kit-swallow-r2, co-minor-r1, mc-minor-r3, flake-series-r10)
-burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88 open, 10 regr)
+burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88, 10 regr)
 
 ## RC
 | # | Criterion | State |
@@ -27,7 +27,7 @@ burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88 open
 | tour-fix-r2.md (Q 4, 0.6 %) | sonnet high, 84e31324 | s..LaZa9mxvCe9PHc5BE |
 | window-loss-r1.md (rc 9, 0.4 %) | haiku high, 7c6955c8 | s..LJCa3VLviJj9SXMTE |
 | kit-swallow-r2.md (Q 3, 0.4 %) | sonnet high, 02e745c3 | s..N37HHuzX8ujDusKFR |
-| co-minor-r1.md (Q 2, 0.5 %) | sonnet high, 57ce1480 | starting |
+| co-minor-r1.md (Q 2, 0.5 %) | sonnet high, 57ce1480 | s..QfdXoTJwAHB4ThLKn |
 | mc-minor-r3.md (Q 4c, 0.5 %) | sonnet high, 59dd6894 | s..NjzArxCW9sJ9LRKQ1 |
 | flake-series-r10.md (Q 5, 0.6 %) | haiku high, 4d8bbe36 | s..MrWJ1FZ4X7WVbaJa6 |
 ## Queue (% week; 5 % reserve)
