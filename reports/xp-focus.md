@@ -35,3 +35,10 @@ mc-host    PASS    25s /tmp/merge-gate.kczhKY/mc-host.log
 e2e        PASS   293s /tmp/merge-gate.kczhKY/e2e.log
 all steps passed; no --push, nothing is pushed
 ```
+
+## PM review r1 (10:18 UTC)
+
+- Base a93bc75b, head e19b470b, +2 -1, tests/gate-construct-cube.sh only (rfc1-2: named `stall_for`, no new sleep line; ratchet 778/929 unchanged). merge-tree onto 3be27e32 clean (checked at train).
+- No product change, so no red commit is owed (rules.md 8 applies to fixes). Gate EXIT 0 (68 PASS, no --push).
+- rfc1-1 (MINOR, product): the measure holds (adopt queues focus in 0.1-3.9 ms; the core round trip is 155-176 ms debug). The fix is core focus on click (crates/chora) or a split focus transaction in xp; new core behaviour, not RC scope: backlog, known issue. Not a BLOCK or MAJOR (one lost key when clicking and typing within ~100 ms of a program end, debug build).
+- Verdict: MERGE-OK e19b470b, train 154.
