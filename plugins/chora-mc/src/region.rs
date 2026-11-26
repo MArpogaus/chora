@@ -578,10 +578,8 @@ impl Mc {
             // Each side has a box, also one that fades out.
             regions.insert(Region::Left, [b, side_top, lw, side_h]);
             regions.insert(Region::Right, column);
-            if on(Region::Left) {
-                window[0] = lw + 2.0 * b;
-            }
-            let right = if on(Region::Right) { rw + 4.0 * b } else { 0.0 };
+            window[0] = 2.0 * b + if on(Region::Left) { lw } else { 0.0 };
+            let right = 2.0 * b + if on(Region::Right) { rw + 2.0 * b } else { 0.0 };
             window[2] = (w - window[0] - right).max(b);
         } else {
             // The window of an app scene fills its text block, above the
