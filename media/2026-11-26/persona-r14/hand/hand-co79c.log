@@ -1,0 +1,40 @@
+run 1 in the face with a window:
+mode use front 0, panes [], construct , xp , core focus: ['s1']
+    surface s1 owner xp visible True rect None
+  bar [Super F1 All keys Super Alt 4 Pull out Alt Esc Step back]
+  told: yes
+ after Super+Alt+4:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['s1']
+    surface s1 owner construct visible True rect [290.0, 150.0, 700.0, 500.0]
+run 2 in the face with a window:
+mode use front 0, panes [], construct , xp , core focus: ['s1']
+    surface s1 owner xp visible True rect None
+  bar [Super F1 All keys Super Alt 4 Pull out Alt Esc Step back]
+  told: yes
+ after Super+Alt+4:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['s1']
+    surface s1 owner construct visible True rect [290.0, 150.0, 700.0, 500.0]
+run 3 in the face with a window:
+mode use front 0, panes [], construct , xp , core focus: ['s1']
+    surface s1 owner xp visible True rect None
+  bar [Super F1 All keys Super Alt 4 Pull out Alt Esc Step back]
+  told: yes
+ after Super+Alt+4:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['s1']
+    surface s1 owner construct visible True rect [290.0, 150.0, 700.0, 500.0]
+run 4 in the face with a window:
+mode use front 0, panes [], construct , xp , core focus: ['s1']
+    surface s1 owner xp visible True rect None
+  bar [Super F1 All keys Super Alt 4 Pull out Alt Esc Step back]
+  told: yes
+ after Super+Alt+4:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['s1']
+    surface s1 owner construct visible True rect [290.0, 150.0, 700.0, 500.0]
+run 5 in the face with a window:
+mode use front 0, panes [], construct , xp , core focus: ['s1']
+    surface s1 owner xp visible True rect None
+  bar [Super F1 All keys Super Alt 4 Pull out Alt Esc Step back]
+  told: yes
+ after Super+Alt+4:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['s1']
+    surface s1 owner construct visible True rect [290.0, 150.0, 700.0, 500.0]

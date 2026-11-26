@@ -1,0 +1,25 @@
+run 1 in the pane after 9 s:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['s1']
+    surface s1 owner construct visible True rect [0.0, 0.0, 1280.0, 800.0]
+  bar [Super F1 All keys Alt Esc Step back] step-back hint: yes, keys hint: yes
+  pass
+run 2 in the pane after 9 s:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['s1']
+    surface s1 owner construct visible True rect [0.0, 0.0, 1280.0, 800.0]
+  bar [Super F1 All keys Alt Esc Step back] step-back hint: yes, keys hint: yes
+  pass
+run 3 in the pane after 9 s:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['s1']
+    surface s1 owner construct visible True rect [0.0, 0.0, 1280.0, 800.0]
+  bar [Super F1 All keys Alt Esc Step back] step-back hint: yes, keys hint: yes
+  pass
+run 4 in the pane after 9 s:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['s1']
+    surface s1 owner construct visible True rect [0.0, 0.0, 1280.0, 800.0]
+  bar [Super F1 All keys Alt Esc Step back] step-back hint: yes, keys hint: yes
+  pass
+run 5 in the pane after 9 s:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['s1']
+    surface s1 owner construct visible True rect [0.0, 0.0, 1280.0, 800.0]
+  bar [Super F1 All keys Alt Esc Step back] step-back hint: yes, keys hint: yes
+  pass
