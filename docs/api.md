@@ -429,21 +429,29 @@ not for a click on its wallpaper in a smaller claim of that look, which
 the click chose; rule 5 keeps the next new window with the look that was
 there first.
 
-A window that the person sends from a menu of a look to a window manager
-on another output does not take the keyboard with it (D119): the
-keyboard stays with the look that the person acted in, on its next
-window or, without one, on its desktop (its root node), until the person
-clicks on that output. The menu calls `window.give` with `stay: true`
-(`give.sh` of the Looks door and the Apps rows of tiling runs `choractl
-give TO --stay`). The giver then keeps the keyboard in a transaction
-before the give when no claim of the receiver overlaps the output of the
-window (`chora_kit::wm::give::claims_over`, `Focus::keep`), and a
-receiver gives a window that comes while a window or the desktop (the
-root node) of another look holds the keyboard no focus; a passing node,
-such as the walk of the construct, does not count (`Focus::takes_given`,
-`Book::confirm_keys`). chora-tiling keeps it and chora-xp yields. A give
-without `stay` (the give keys, a drag, automation, the voice) goes with
-the window, as below.
+A give that the person makes, a menu row or a give key, keeps the
+keyboard with the giver (D119): a window that goes to a window manager
+on another output leaves the keyboard with the look that the person
+acted in, on its next window or, without one, on its desktop (its root
+node), until the person clicks on that output. The person's give runs
+through `chora_kit::give::Windows::hand_kept`: the give keys
+(`give::focused`; a give key on a window of another look calls its
+`window.give` with `stay: true`), the rows of a menu (`window.give` with
+`stay: true` from `give.sh` of the Looks door and the Apps rows of
+tiling, `choractl give TO --stay`, and the rows "window to" of the
+Control Panel of chora-xp). The giver keeps the keyboard in a
+transaction before the give when no claim of the receiver overlaps the
+output of the window (`chora_kit::wm::give::claims_over`), and gives it
+back to the window when the give fails. A receiver gives a window that
+comes while a window or the desktop (the root node) of another look
+holds the keyboard no focus; a passing node, such as the walk of the
+construct, does not count (`Focus::takes_given`, `Book::confirm_keys`).
+chora-tiling and chora-xp keep and yield; chora-mc and the construct
+hand as before and take a window given in with the keyboard (open). A
+give without `stay` (a drag, automation, the voice, the MCP tool) goes
+with the window, as below, when it gives the focused window, since the
+core then focuses none; a give of a window that does not hold the
+keyboard leaves the keyboard with its holder.
 
 A press of a real pointer button on a point of a claim with no window
 under it chooses the owner of the smallest such claim, unless that one
