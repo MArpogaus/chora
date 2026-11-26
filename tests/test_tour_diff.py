@@ -620,6 +620,19 @@ class NoRowKindAbsorbsWhatItDoesNotName(unittest.TestCase):
         loose = [(r["act"], r["kind"]) for r in rows if r["kind"] != "check" and not r.get("open") and not (r.get("boxes") if r["kind"] == "pixel" else r.get("nodes"))]
         self.assertEqual(loose, [])
 
+    FRAME = (1280, 720)
+    """The size of the outputs the tour captures (HEADLESS-1)."""
+
+    def test_no_pixel_row_box_covers_the_whole_frame(self):
+        """rtr4r-1: a pixel row of c5d had the box [0, 0, 1280, 720]: it names every blob of its act, so no pixel
+        regression of that act is ever seen again. A box names what one commit changes, never the whole frame."""
+        import tomllib
+
+        rows = tomllib.loads((HERE.parent / "demo/tour/intended.toml").read_text())["change"]
+        w, h = self.FRAME
+        whole = [(r["act"], b) for r in rows if r["kind"] == "pixel" for b in r.get("boxes", []) if b[0] <= 0 and b[1] <= 0 and b[0] + b[2] >= w and b[1] + b[3] >= h]
+        self.assertEqual(whole, [])
+
 
 class IntendedRows(unittest.TestCase):
     def test_h2_lists_kinds_and_no_wildcard(self):
@@ -828,13 +841,27 @@ class IntendedCommits(unittest.TestCase):
                 wrong.append((sha, f"already in {V8} (v8)"))
         self.assertEqual(wrong, [])
 
+    @classmethod
+    def files_of(cls, sha):
+        """The files a commit changes."""
+        return git("show", "--format=", "--name-only", sha).stdout.split()
+
+    @classmethod
+    def no_product_code(cls, sha):
+        """The files of a commit when none of them is product code (a commit that cannot change a capture), else []."""
+        files = cls.files_of(sha)
+        return [] if files and any(f.startswith(cls.PRODUCT) for f in files) else files or ["(no files)"]
+
     def test_every_named_sha_changes_product_code(self):
-        wrong = []
-        for sha in self.shas:
-            files = git("show", "--format=", "--name-only", sha).stdout.split()
-            if files and not any(f.startswith(self.PRODUCT) for f in files):
-                wrong.append((sha, " ".join(files[:3])))
+        wrong = [(sha, " ".join(self.no_product_code(sha)[:3])) for sha in self.shas if self.no_product_code(sha)]
         self.assertEqual(wrong, [])
+
+    @unittest.skipUnless(git("cat-file", "-e", "19348b95^{commit}").returncode == 0, "no commit 19348b95")
+    def test_a_clean_merge_is_judged_by_what_it_brings_to_its_first_parent(self):
+        """rtr4r-3: `git show --name-only` lists nothing for a clean merge, so a row citing 19348b95 (chore: merge
+        session head a93bc75b; it brings tests/persona-selftest.sh only) passed. A merge counts what it brings to its
+        first parent: `git diff --name-only <sha>^1 <sha>`."""
+        self.assertEqual(self.no_product_code("19348b95"), ["tests/persona-selftest.sh"])
 
 
 @unittest.skipUnless(shutil.which("ffmpeg"), "no ffmpeg")
