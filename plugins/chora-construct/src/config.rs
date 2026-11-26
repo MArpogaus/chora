@@ -431,14 +431,16 @@ impl Config {
     /// now from its settings, then the keys that every look shares. The
     /// rows are those of `kit::keysheet` for the bindings; the construct
     /// names its own actions, groups them and adds the keys that no
-    /// binding holds.
+    /// binding holds. With `window`, a window of a pane has the keyboard,
+    /// and only the keys that work there are listed (`works_in_window`).
     #[must_use]
     #[allow(clippy::too_many_lines, reason = "one row per key")]
-    pub fn help_groups(&self, cube: bool) -> Vec<crate::command::KeyGroup> {
+    pub fn help_groups(&self, cube: bool, window: bool) -> Vec<crate::command::KeyGroup> {
         use crate::command::{KeyGroup, KeyRow, chord};
         use chora_kit::keysheet;
         let settings = self;
         let mut held: Vec<(String, &Action)> = (settings.common.bindings.iter())
+            .filter(|(key, _)| !window || works_in_window(key))
             .map(|(key, action)| (key.clone(), action))
             .collect();
         held.sort_by_key(|(key, _)| (key.chars().count() != 1, key.clone()));
@@ -558,7 +560,7 @@ impl Config {
             ],
         };
         let mut groups = vec![walk, panes];
-        if cube {
+        if cube && !window {
             groups.push(KeyGroup {
                 head: "Cube".into(),
                 shared: false,
@@ -593,7 +595,11 @@ impl Config {
                 head: "Everywhere".into(),
                 shared: true,
                 rows: vec![
-                    row("Back out one step", chord("Escape"), Vec::new()),
+                    row(
+                        "Back out one step",
+                        if window { Vec::new() } else { chord("Escape") },
+                        Vec::new(),
+                    ),
                     system(System::Launcher),
                     row(&say(&System::Keys), shared_help, Vec::new()),
                     system(System::Lock),
@@ -616,6 +622,7 @@ impl Config {
         for group in &mut groups {
             group.rows.retain(|r| !r.keys.is_empty());
         }
+        groups.retain(|group| !group.rows.is_empty());
         groups
     }
 
@@ -651,6 +658,15 @@ impl Config {
         }
         style.contrast()
     }
+}
+
+/// Whether a key works while a window has the keyboard, which is the one
+/// rule of the key sheet and of the grabs: a chord with a modifier, a
+/// media key and `F1`, which the construct grabs for the window; a bare key
+/// types into it.
+#[must_use]
+pub fn works_in_window(key: &str) -> bool {
+    key.contains('+') || key.starts_with("XF86") || key == "F1"
 }
 
 /// Logs the [`Config::warnings`] of a configuration, one line each.
@@ -951,7 +967,7 @@ mod tests {
             config.common.bindings.get("Super+c"),
             Some(&Action::Look(Own::Cube))
         );
-        let opens = (config.help_groups(false).into_iter())
+        let opens = (config.help_groups(false, false).into_iter())
             .flat_map(|g| g.rows)
             .find(|r| r.what == "Open the cube")
             .map(|r| r.keys);
@@ -965,7 +981,7 @@ mod tests {
         let mut config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
         let heads = |cube| -> Vec<String> {
             config
-                .help_groups(cube)
+                .help_groups(cube, false)
                 .into_iter()
                 .map(|g| g.head)
                 .collect()
@@ -973,7 +989,7 @@ mod tests {
         assert!(!heads(false).contains(&"Cube".to_owned()));
         assert!(heads(true).contains(&"Cube".to_owned()));
         let keys = |config: &Config, what: &str| {
-            (config.help_groups(false).into_iter())
+            (config.help_groups(false, false).into_iter())
                 .flat_map(|g| g.rows)
                 .find(|r| r.what == what)
                 .map(|r| r.keys)
@@ -1008,7 +1024,7 @@ mod tests {
             config.common.bindings.get("F1"),
             Some(&Action::System(System::Keys))
         );
-        let groups = config.help_groups(false);
+        let groups = config.help_groups(false, false);
         let keys_of = |head: &str| -> Vec<Vec<String>> {
             (groups.iter().filter(|g| g.head == head))
                 .flat_map(|g| g.rows.iter().map(|r| r.keys.clone()))
@@ -1055,7 +1071,7 @@ mod tests {
             config.action("XF86AudioMute", &[]),
             Some(&Action::System(System::Volume(Change::Mute)))
         );
-        let groups = config.help_groups(false);
+        let groups = config.help_groups(false, false);
         let shared: Vec<String> = (groups.iter().filter(|g| g.shared))
             .flat_map(|g| g.rows.iter().map(|r| r.keys.join("+")))
             .collect();
@@ -1085,7 +1101,7 @@ mod tests {
             "Super+v".into(),
             Action::System(System::Volume(Change::Set(30))),
         );
-        let rows: Vec<_> = (config.help_groups(false).into_iter())
+        let rows: Vec<_> = (config.help_groups(false, false).into_iter())
             .flat_map(|g| g.rows)
             .collect();
         for (binding, action) in &config.common.bindings {
@@ -1110,7 +1126,7 @@ mod tests {
     #[test]
     fn the_help_gives_a_window_to_managers_by_their_display_names() {
         let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
-        let gives: Vec<String> = (config.help_groups(false).into_iter())
+        let gives: Vec<String> = (config.help_groups(false, false).into_iter())
             .filter(|g| g.head == "Give a window")
             .flat_map(|g| g.rows.into_iter().map(|r| r.what))
             .collect();

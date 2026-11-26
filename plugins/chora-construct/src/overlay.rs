@@ -299,10 +299,19 @@ impl Construct {
 
     /// Shows or hides the help; a new help starts without a search.
     pub(crate) fn toggle_help(&mut self) -> Result<(), ClientError> {
+        let window = self.pane_window_has_keys();
+        self.toggle_help_with(window)
+    }
+
+    /// Shows or hides the help, `window` saying whether the window of a
+    /// pane has the keyboard as it opens: the key of the list flies out of
+    /// the pane first, and the window had the keyboard before that.
+    pub(crate) fn toggle_help_with(&mut self, window: bool) -> Result<(), ClientError> {
         self.help = !self.help;
         self.help_query.clear();
         self.help_sel = 0;
         if self.help {
+            self.help_window = window;
             self.help_takes_keyboard()?;
             self.draw_help(true)?;
         } else {
@@ -317,18 +326,27 @@ impl Construct {
         self.draw_modes()
     }
 
+    /// Whether the window of a pane has the keyboard: the camera is in the
+    /// pane (the key list flies out of it first, and the window gets the
+    /// keyboard back when the list closes) or the core focuses it. The key
+    /// list then names the keys that work there.
+    pub(crate) fn pane_window_has_keys(&self) -> bool {
+        self.keys_with_pane()
+            || (self.core_focus.as_deref()).is_some_and(|window| self.own_window(window))
+    }
+
     /// The help takes the keyboard from a window that has it in a face of
-    /// the cube, in a pane (flown into, or pressed in the walk) or while the
-    /// cube stands back, where a window that came back to its face may
-    /// hold it, so that Escape and the typed search reach the help and not
-    /// the program (an XP Start menu took Escape); the window is noted for
-    /// the close.
+    /// the cube, in a pane (flown into, or pressed in the walk, also with
+    /// the cube stood back) or while the cube stands back, where a window
+    /// that came back to its face may hold it, so that Escape and the typed
+    /// search reach the help and not the program (an XP Start menu took
+    /// Escape); the window is noted for the close, which gives a window of
+    /// a pane the keyboard back, so that the bar names the way into a face
+    /// for it as before the help (rpc2-2).
     fn help_takes_keyboard(&mut self) -> Result<(), ClientError> {
         if self.cube.is_none() && !self.keys_with_pane() {
             return Ok(());
         }
-        let stood_back = (self.cube.as_ref())
-            .is_some_and(|c| c.view().mode() == chora_kit::modes::Mode::Navigate);
         let window = self.focused_surface()?;
         match window.as_deref() {
             Some(surface) if !self.own_window(surface) => {
@@ -336,7 +354,6 @@ impl Construct {
                     host.note_focus(window);
                 }
             }
-            _ if stood_back => {}
             _ => self.help_back = window,
         }
         self.walk_keys = true;
@@ -387,7 +404,10 @@ impl Construct {
             return Ok(());
         }
         let language = Language::of_session();
-        let groups = self.settings.value.help_groups(self.cube.is_some());
+        let groups = self
+            .settings
+            .value
+            .help_groups(self.cube.is_some(), self.help_window);
         let query = self.help_query.clone();
         let found: usize = crate::command::found(&groups, &query)
             .iter()

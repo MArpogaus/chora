@@ -30,8 +30,10 @@ impl Construct {
     /// key list steps out of the pane first, since the list takes the
     /// keyboard.
     pub(crate) fn grabbed_key(&mut self, system: &System) -> Result<(), ClientError> {
-        if *system == System::Keys && self.in_pane() {
+        if *system == System::Keys {
+            let window = self.pane_window_has_keys();
             self.fly_out()?;
+            return self.toggle_help_with(window);
         }
         perform(self, system)
     }

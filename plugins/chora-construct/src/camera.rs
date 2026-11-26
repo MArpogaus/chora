@@ -653,7 +653,7 @@ impl Construct {
     /// the core grabs it only with the grant `input.grab-any`.
     pub(crate) fn grab_keys(&self) -> Vec<(String, Grab)> {
         (self.settings.value.common.bindings.iter())
-            .filter(|(key, _)| key.contains('+') || key.starts_with("XF86") || *key == "F1")
+            .filter(|(key, _)| crate::config::works_in_window(key))
             .filter_map(|(key, action)| match action {
                 Action::System(system)
                     if matches!(system, System::Terminal | System::Close | System::Run(_))

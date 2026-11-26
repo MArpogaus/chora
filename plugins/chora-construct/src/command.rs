@@ -1079,7 +1079,7 @@ mod tests {
             glass: chora_kit::glass::Material::of(false),
             metrics: &metrics,
         };
-        let groups = settings.help_groups(true);
+        let groups = settings.help_groups(true, false);
         let model = HelpModel {
             groups: &groups,
             query: "",
