@@ -24,7 +24,7 @@ burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head; F7 open (
 | Lane | Model, branch | State |
 |---|---|---|
 | train146 | PM, 157be195 on df3d1ccf | gate 22:43 |
-| xp-blink-r2.md (0.4 %) | sonnet med, c2625c0f | starting |
+| xp-blink-r2.md (0.4 %) | sonnet med, c2625c0f | running s..P6afS88iCp3cmooSK |
 | flake-persona-notepad-r1.md (0.5 %) | sonnet med, df3d1ccf | running s..PVzKu2DC4f86sGRkY |
 | launcher-notice-r1.md (0.6 %) | sonnet high, 53789bea | running s..QEkKwxddNf1XBDgDt |
 | tour-rows-r2.md (0.8 %) | sonnet med, 1ac365f1 | running s..MZSPbKahubVfGgjop |
