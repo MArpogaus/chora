@@ -116,3 +116,27 @@ Base 1ac365f1, head f992fe6a, +329 -9 (intended.toml +290 data; tour-diff.py and
 - rtr2-1 (MAJOR, harness): the tiling t3b..t3g still is taken before the typed text lands; the counts depend on timing. Fix in the tour (wait for the text), not a mask.
 - rtr2-2 is not new: the takes ran on 1ac365f1, which lacks MC-PAGE-END r1 (8a0249a2, t144). rv9ka-1 is fixed on the session head; the r3 takes run on a head with it.
 Verdict: INCOMPLETE; round r3 on f992fe6a merged with the session head.
+
+## r3
+
+Base f992fe6ac (tour-rows r2) merged with the session head 157be1954 (39e407547); head f36a229d8 (claude/tour-rows-r3). Commits: 87ee25b63 red (test(tour): tiling waits for the typed tile text, fails on f992fe6a: no `wait_for_text`), 1d8d2534a fix, 2fabc1fd7 and f36a229d8 fixes of the same wait (the first version counted the foot that holds the command line and the v8 look has no state.get; found by the takes). Diffstat of my commits: demo/tour/chapters/tiling.py +34, tests/test_tour.py +40. No intended.toml row added.
+
+Fix (rtr2-1): in the window loop of the tiling chapter the act is cut with `t.flush("tile text")` and `wait_for_text(i)` (wall clock, 30 s, one failure line `tiling: the text of tile N did not land in 30 s (...)`), then `t.wait(0.3); t.done()`: the Q capture is taken after every text tile (`sh`/`python3 content.py KIND`) printed. The condition reads processes (`ps`), not the look, so it holds on the v8 build too. No mask.
+
+### Takes (v9 on this head, v8 = the head's harness on the 733967aa binaries with TOUR_BASELINE=1, each chapter its own TOUR_OUT; clean serial run after two aborted ones)
+
+| take | change | same | none | regression |
+|---|---|---|---|---|
+| 1 | 54 | 1 | 11 | 44 |
+| 2 | 54 | 1 | 11 | 44 |
+| 3 | 54 | 1 | 11 | 44 |
+
+Counts are equal and the lists are the same in all three: c2 m1 m10 m1b m1c m2 m2b m3 m4 m4b m6 m6b m8 x1 x10 x10b x10c x11 x11b x12 x12b x12c x2 x2b x2c x3 x4 x5 x5b x5c x5d x5e x5f x5g x6 x6b x6c x6d x6e x7 x7b x8 x9 x9b. All t* acts (t3..t3h) are now change or same: rtr2-1 is fixed.
+
+The counts are higher than r2 (44 vs 9..15) because the head now carries the session head's product changes, which the rows of intended.toml do not name yet (not in this lane's brief): x*: the new nodes hud-line, hud-line-tail, xp-desktop, notify-card rect, and xp-item-3/4 'UXTerm'/'XTerm' -> 'Foot'/'Foot Client' (the launcher environment, TOUR-LAUNCH); c2: construct hints rects (key overlay, I2 gap 9 px red on the candidate); m*: the right column (chat door 194 -> 110, notify rows gone), footer/header rects.
+
+rv9ka-1 (rtr2-2): the recipe list cut is gone (no `ingredients-panels-list-lines` cut; m1 m1b m1c m4 m4b have no cut). NOT fully: m2, m2b, m3 still have `mc-s-boil-panels-side-lines` 29 px high for 56 px of 2 lines in all three takes: a remaining cut in the boil page's side panel, for the PM (product).
+
+Diff jsons: media/2026-11-26/tour-rows-r3/take1-diff.json, take2-diff.json, take3-diff.json. Rows of intended.toml for the session-head changes are open work.
+
+Gate: CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2 (no --push): all cells PASS, last line "all steps passed; no --push, nothing is pushed" (last 20 lines in media/2026-11-26/tour-rows-r3/gate-last20.txt). pytest tests/test_tour_diff.py tests/test_tour.py: 203 passed. pgrep -fa 'chora --headless' empty.
