@@ -831,3 +831,123 @@ rpt1-2 (ti-53), rpt1-6.
 - A lock stand-in window (`timeout 8 chora-probe`) closes by itself; a close key pressed after it closes the window
   under it (my p1 action, not a product fault).
 - Context used about 170 k; `pgrep -fa 'chora --headless'` empty at the end.
+
+## r2 construct
+
+Lane rc1-pass-construct-r2, opus high, cloud, head 57ce1480 (claude/rc1-pass-construct-r2: session head 7c6955c8 with
+claude/co-reach-r6 bcecb671, co-79 fixed there). Run and read only, no product, test or design change. Step 0 green:
+`git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`, `run.py --help` (no help: it runs the
+chapters, as in every pass; not a failure).
+
+Runs, each from a fresh compositor:
+- tour1: `run.py construct`: 18 acts, 10 green, 8 red. Six red rows are the I2 gap only (co-44, acts 4, 14 to 18); acts 9
+  and 10 fail their `expect` because the tour clicks a hidden node (rpc2-5, harness).
+- tour2: `run.py handover`: acts 7, 8 red = the known D119 rows (backlog.md:453, r2 xp and r2 tiling notes); the window
+  stays in mc with its lines, nothing lost. The chapter no longer shows mc > construct, so I ran the handovers by hand.
+- persona (`CHORA_TEST_FLAGS=--test-injected-press-is-real tests/persona/session.sh`, then `tests/persona/act.py`):
+  a1, a2, a3 (construct 1280x800: rpc1-1, rpc1-2, co-79), b1 (1280x720: chip, stray keys, doors, notice with chora-notify
+  started by hand), c1 (failure states, beginner), d1 (ricer, glass), m1 (construct+mc), x1 (construct+xp), t1
+  (construct+tiling); h1, h2 discarded (rpc2-6). Host calls go to the stand-ins (`calls.log`); no host power call.
+
+Captures: `media/rc1-pass/construct-r2-NN-*.png` on claude/session-log (40 PNG, 7.2 MB, each under 500 KB).
+claude/rc1-pass-construct-r2 refuses `media/` (hook `no-session-files`, no --no-verify), so they sit beside this report
+as in r1. A number below is `construct-r2-NN`.
+
+### Verdict
+
+- **construct: confirms rc 1** (no BLOCK or MAJOR found). rpc1-1, rpc1-2 and co-79 are closed, each 2 of 2 or more from a
+  fresh compositor; new: four MINOR or COSMETIC and two harness NIT.
+
+### Re-checks
+
+| id | result | runs | captures |
+|---|---|---|---|
+| rpc1-1 BLOCK | closed: Super+x in an empty face closes nothing, the Terminal pane beside the cube stays (list "1 WINDOW"); with a face window focused ("echo faceA"/"faceB") Super+x closes that window and spares the pane; foot of the pane still runs | a1 (both variants), a2, a3 | 01, 02, 03 |
+| rpc1-2 MAJOR | closed: in a pane the bar "Alt Esc Step back · Super F1 All keys" is still there after 7 s and 9 s; a click on "All keys" opens the sheet, a click on "Step back" steps out | a2, a3 | 05, 06, 08, 12, 13 |
+| co-79 MAJOR | closed: out of the Terminal row pane with no cube the walk bar names "Super C Cube"; Super+C stands the cube back with "Super Alt 2 Into face" told and the key puts the window on the face with its text ("zz" kept), keys reach it; a pane pulled out of a face (Super+Alt+4) and Alt+Escape stands back (no use mode) with "Into face" told | a2, a3 | 08, 09, 10, 11, 17, 18 |
+
+### construct: shared RC bar, vision card and main paths
+
+| Item | Result | Capture |
+|---|---|---|
+| Start a program (mouse) | pass with rpc1-6: start card row Terminal flies into a terminal; door Programs opens fuzzel | 05, 27 |
+| Start a program (keys) | pass: Super+t in the walk and in a face, Super+Space; a binding of the file (Super+n terminal) works | 20, 21, 35 |
+| Key list (mouse) | pass with rpc2-1: hint All keys in a pane, door Keys stood back at 1280x720 (footer and Close on screen: rpc1-4 not seen) | 06, 13, 28 |
+| Key list (keys) | pass: Super+F1 in a pane says "IN A PANE", Escape gives the keys back ("zz" reached the terminal: rpc1-3 not seen) | 06, 07 |
+| Helper (mouse) | pass with rpc2-3, sh-13: door Helper opens the chat with the field ready ("by mouse" typed) | 25 |
+| Helper (keys) | pass: Super+a, "hello", Atlas answers "Hello" | 26 |
+| No stray keys into clients | pass: 29 unbound chords (Super+b f g h i j k l m n o p q r s u v w y z 1 5 9 0 Return Tab minus comma period) between markers: the pane shows `SE`, the face window `SE` | 20, 21 |
+| Lock | pass with co-57: door and Super+Shift+Escape run `swaylock -f` (stand-in window "Screen locked") | 23 |
+| Power | pass with rpc1-6: door and Super+Shift+e open the menu; Shut down runs `systemctl poweroff` (stand-in) | 24 |
+| Volume | pass with rpc1-7: a click mutes ("Volume Muted"), the media key gives 55 %, the wheel calls nothing | 22 |
+| Screenshot | pass: door and Super+Print run grim and `notify-send ... Screenshot saved <path>` (calls.log; the persona has no notice server) | calls.log b1 |
+| Clock | pass: strip 19:16 to 19:37 real time (19:26 in 22), the xp face tray the same minute (7:26 PM in 21) | 21, 22 |
+| Honest failure states | pass with rpc1-9, rpc1-10, co-7: "Media center did not take the window: it is not running." (and Tiling); failed face card with the reason; a broken file refused on reload with file, line and reason ("unclosed bracket '[' at line 3, column 14"), the old settings stay | 29, 31 |
+| No lost window in a handover | pass: construct > mc (Super+Alt+3, page "7 FOOT" with the line) and back (Super+Alt+4, pane, typing reaches it); construct > xp and back; construct > tiling and back; every line kept, keys follow; face pulls of the Re-checks | 36, 37, 38, 39, 40 |
+| Step out and in | pass: Alt+Escape, the hint Step back, Return, a click on a face | 08, 32, 34 |
+| Pull windows across faces | pass with rpc2-2, rpc2-4: Super+Alt+4 pulls, Super+Alt+2 puts back; tour1 stills 04-10 to 04-13 (title drag over the edge, pane, back on the face) | 10, 11, 16, 17 |
+| Glass, calm, minimal HUD | pass with rpc1-8, co-44, co-45, co-14: rest pose with depth, lit edge and hover fill, live turn with Step in dimmed, one accent | 09, 34 |
+| Explorer (mouse first) | pass with rpc2-1, rpc2-3: start card, hints by click, doors, a click on a face | 05, 06, 08, 25 |
+| Demo watcher | pass with rpc2-5: tour1 acts tell each step; act 9's still shows face 3 stepped into under the caption "The cube turns back one face" (harness) | 04, 19 |
+| Ricer (keys, config) | pass: Super+n bound in the file works after `settings.reload`; a one-line `bindings` map drops the defaults, as documented ("a map such as `bindings` in the file replaces the default map", configuration.md:241), and the hints follow (only "All keys", no key); broken file refused | 35 |
+| Beginner in the stood-back cube | pass with rpc1-5: hints name Turn, Step in, Fly in, Into face, All keys; a click on a face steps in; Escape closes the cube | 09, 32 |
+
+### Findings
+
+| id | severity | text |
+|---|---|---|
+| rpc2-1 | MINOR | the key sheet in a pane ("CONSTRUCT · IN A PANE") lists the walk and cube keys, which type into the window there, under "Only the keys that work now are listed." |
+| rpc2-2 | MINOR | after the key sheet in a pane, the step back does not name "Super Alt 2 Into face", though the key works |
+| rpc2-3 | COSMETIC | the chat panel covers the right end of the stood-back hint bar: "Into face" and "All keys" hidden, a key cap cut |
+| rpc2-4 | MINOR | a pane pulled out of a face and stood back by Alt+Escape once stood half behind the cube (1 of 2) |
+| rpc2-5 | NIT (tour harness) | tour act 9 clicks the hidden node `construct-mode-turn-left`; the click lands on the cube and steps into face 3; acts 9, 10 red |
+| rpc2-6 | NIT (persona harness) | two-look sessions: `first_look_takes_the_keyboard` clicks the start card's All programs row; a joining construct gets no `--output` |
+
+**rpc2-1 (MINOR; honest states, POLS).** Start card row Terminal, wait, click the hint "All keys" (772,724): the sheet says
+"CONSTRUCT · IN A PANE" and lists WALK (W A S D, Q E, R F, H, Return "Fly into the pane ahead", Tab, Super C) (06); with a
+cube open also CUBE ("Step into the face Return", "Close the cube, stood back Esc", "Show these keys, stood back F1") (13).
+In the pane these keys reach the window (after Escape "zz" is in the terminal, 07), yet the footer says "Only the keys that
+work now are listed." Repro: a2 (06, 07), a3 (13).
+
+**rpc2-2 (MINOR; co-79 family, rcrr6-6 neighbour).** Cube open, fly into the Terminal pane by a click, click "All keys",
+Escape, click "Step back": the stood-back bar ends "Click Fly in · Super F1 All keys", no "Into face" (14, 15); Super+Alt+2
+still puts the window on the face (16). Without the sheet the same click or Alt+Escape names it (18; a3-hintback). A told
+way stays (Fly in, then Alt+Escape). Repro: a3 twice (14, 15).
+
+**rpc2-3 (COSMETIC; overlap; sh-15 family).** Stood back with a pane beside the cube (7 hints), Super+a or the door Helper:
+the chat panel (x 848 to 1248) lies over the hint bar, "Super Alt 2 Into face" and "Super F1 All keys" hidden, the cap
+"Super" cut at the panel edge (25 at 1280x720, 33 at 1280x800).
+
+**rpc2-4 (MINOR; overlap; seen 1 of 2).** Terminal pane put into face 1 (Super+Alt+2), Super+Alt+4 pulls it out, Alt+Escape:
+the "Foot" pane stands at x 266 and its right half is behind the cube's front face (11); the same steps in a3 leave a gap
+(17). Not reproduced; noted for the next construct round.
+
+**rpc2-5 (NIT, tour harness).** demo/tour/chapters/construct.py:103 centres on `id:construct-mode-turn-left`; the snapshot
+of the act has that node `visible: false` at (1159,650), the drawn chip is `construct-hints-construct-mode-turn-left-*`
+under `construct-hints`. The click lands on the cube and steps into face 3 (04: xp face 3, caption "The cube turns back one
+face"); act 10's Ctrl+Alt+Left then turns in use mode. By hand the drawn chip turns face 3 > 2 > 1 at 1280x720 (19). A demo
+recording made from this head shows the wrong thing for one act.
+
+**rpc2-6 (NIT, persona harness).** tests/persona/session.sh:407 `first_look_takes_the_keyboard` clicks the middle of the
+first look's claim; for the construct that is the start card's "All programs" row, so every construct+X session starts
+with fuzzel open over the card (m1, x1, t1; calls.log "fuzzel" before any action) and the persona's first click closes it.
+session.sh:246 starts a joining construct without `--output` (it has none): tiling+construct draws the construct over
+tiling's HEADLESS-1 and the window of the Terminal row goes to tiling, hidden under the space (h1). Use construct first.
+
+### Known ids seen again (not new)
+
+rpc1-5 (wordless bar and face label under the start card after the cube closes, also after a failed cube: 30, 32),
+rpc1-6 (fuzzel unthemed: 24, 27), rpc1-7 (the wheel calls nothing), rpc1-8 (grey pill in a pane: 05, 12), rpc1-9
+(notice at the bottom right over "All keys": 29), rpc1-10 ("The other faces still work." with every face failed: 31), co-7
+(card spills left of the face: 31), co-14 (yellow square of the harness pointer, d1 mid-turn), co-17 ("foot" in the list,
+"Foot" label: 11), co-44 (tour1 I2), co-45 (11 px heads), co-57 (lock stand-in drawn as a pane: 23), sh-13 ("IDLE" in the
+chat head, "LISTENING" on the pill: 25), D119 tour rows (tour2 acts 7, 8). rpc1-3 and rpc1-4 did not show (06, 07, 28).
+
+### Notes for the PM
+
+- Seen once, not filed: in a1 an empty capsule stood at the hint bar's place under the window list (x 427 to 555, y 732
+  to 764) on three looks; a2 and a3 with the same steps do not show it.
+- After a give from construct to mc the construct output shows mc's helper pill (dark "Listening" and a red dot) instead of
+  the glass pill until the window comes back (m1); the assistant follows the focused look. Not filed: a design question
+  for shared.
+- Context used about 215 k; no `chora --headless` left.
