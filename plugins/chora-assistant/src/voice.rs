@@ -495,7 +495,11 @@ impl Agent {
     /// The question of `voice.confirm` as a card, once and in one place
     /// until it ends; its end takes the card away. A question whose whole
     /// text does not fit has no buttons and is refused at once.
-    fn confirm(&mut self, data: &Value, now: Instant) -> Result<Vec<Command>, ClientError> {
+    pub(crate) fn confirm(
+        &mut self,
+        data: &Value,
+        now: Instant,
+    ) -> Result<Vec<Command>, ClientError> {
         let Some(mut question) = Question::from_event(data, None) else {
             return Ok(self.end_card(data));
         };

@@ -622,24 +622,8 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     };
     let mut agent = Agent::start((source, theme, values, cache), (settings, name))?;
     loop {
-        let now = clock::now();
-        let wait = [
-            agent.assistant_due(),
-            agent.switch_due(now),
-            agent.chat_due(now),
-            agent.ask_due(),
-            agent.greet_due(),
-            agent.flash_due(),
-        ]
-        .into_iter()
-        .flatten()
-        .min()
-        .map_or(IDLE, |due| due.saturating_duration_since(now));
-        if let Some(event) = agent
-            .rt
-            .conn
-            .next_event_timeout(wait.max(Duration::from_millis(1)))?
-        {
+        let wait = serve_wait(&mut agent).max(Duration::from_millis(1));
+        if let Some(event) = agent.rt.conn.next_event_timeout(wait)? {
             runtime::dispatch(&mut agent, event)?;
         }
         agent.ask_step(clock::now())?;
@@ -649,6 +633,23 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         agent.assistant_step(clock::now())?;
         agent.switch_step(clock::now())?;
     }
+}
+
+/// How long the serve loop waits for an event before its timers are due.
+fn serve_wait(agent: &mut Agent) -> Duration {
+    let now = clock::now();
+    [
+        agent.assistant_due(),
+        agent.switch_due(now),
+        agent.chat_due(now),
+        agent.ask_due(),
+        agent.greet_due(),
+        agent.flash_due(),
+    ]
+    .into_iter()
+    .flatten()
+    .min()
+    .map_or(IDLE, |due| due.saturating_duration_since(now))
 }
 
 /// The methods of the core every plugin exports: its state and the clock of
@@ -1160,6 +1161,44 @@ mod tests {
         let held = clock::now();
         assert_eq!(due, held, "the figure keeps the time of the held clock");
         clock::set(None);
+    }
+
+    /// xp-blink r2: the timers that are not animations run on the real
+    /// clock, so a held tour clock does not freeze them.
+    #[test]
+    fn a_held_clock_leaves_the_card_guard_xp_blink_r2() {
+        let (mut agent, _dirs) = xp_agent("guard-real");
+        clock::step(serde_json::json!({"ms": 0.0})).unwrap();
+        let data = serde_json::json!({"id": "1", "prompt": "Write notes.txt?", "buttons": true});
+        agent.confirm(&data, clock::now()).unwrap();
+        assert!(agent.card.is_some(), "the card shows");
+        std::thread::sleep(Duration::from_millis(500));
+        agent.press_card(card::YES, false).unwrap();
+        clock::set(None);
+        assert!(agent.flash.is_none(), "the guard of the card ran out");
+    }
+
+    #[test]
+    fn a_held_clock_leaves_the_ask_retries_xp_blink_r2() {
+        let (mut agent, _dirs) = xp_agent("ask-real");
+        clock::step(serde_json::json!({"ms": 0.0})).unwrap();
+        std::thread::sleep(Duration::from_millis(50));
+        let before = Instant::now();
+        agent.voice_connected("voice");
+        let due = agent.ask_due().expect("the ask is due");
+        clock::set(None);
+        assert!(due >= before, "the retry is due on the real clock");
+    }
+
+    #[test]
+    fn a_held_clock_does_not_spin_the_serve_loop_xp_blink_r2() {
+        let (mut agent, _dirs) = xp_agent("wait-held");
+        clock::step(serde_json::json!({"ms": 0.0})).unwrap();
+        std::thread::sleep(Duration::from_millis(20));
+        agent.replace_assistant().unwrap();
+        let wait = serve_wait(&mut agent);
+        clock::set(None);
+        assert_eq!(wait, IDLE, "a held clock waits for an event");
     }
 
     /// What greets at `GREET_AFTER` of a start without a voice agent: what
