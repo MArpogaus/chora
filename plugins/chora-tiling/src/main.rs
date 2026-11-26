@@ -436,9 +436,11 @@ fn launch_looks(dirs: &[std::path::PathBuf]) -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+    let rows = looks::rows(&running, window, language);
     let spawned = std::process::Command::new(&fuzzel[0])
         .args(&fuzzel[1..])
         .args(["--dmenu", "--prompt", looks::prompt(language)])
+        .args(["--lines", &rows.len().to_string()])
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .spawn();
@@ -447,11 +449,7 @@ fn launch_looks(dirs: &[std::path::PathBuf]) -> ExitCode {
         Err(err) => return cannot_start("fuzzel", &err),
     };
     if let Some(mut stdin) = child.stdin.take() {
-        let _ = stdin.write_all(
-            looks::rows(&running, window, language)
-                .join("\n")
-                .as_bytes(),
-        );
+        let _ = stdin.write_all(rows.join("\n").as_bytes());
     }
     let Ok(out) = child.wait_with_output() else {
         return ExitCode::FAILURE;
