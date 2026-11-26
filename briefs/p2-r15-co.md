@@ -1,6 +1,7 @@
 # p2-r15-co (RC 2 persona round 15 on construct): recheck co-79 pane path after co-reach r6, co-75, co-76
 
 Model: sonnet, effort medium (driver of a scripted round, routine; personas are haiku subagents, model haiku)
+Red on head: none (a persona recheck run; co-79 pane path was 0/5 on 4d8bbe36, r14)
 Lane: cloud, branch claude/p2-r15-co at 57ce14805c74d738db8b23b0a89d6060e00eb803 (session head 7c6955c8 merged with claude/co-reach-r6 bcecb671, MERGE-OK, joins train 158; rc1 pass r2 confirms rc 1 on it). Holds co-reach r6 and co-drop r1-r4. Run only: no product or test code changes. One round, stop at 250 k. Cost at most 0.8 %.
 Why: design/rc.md row 2 is not met for construct: r14 (reports/p2-r14-co.md) left co-79 pane path 0/5 (Alt+Escape from a pane, no pull key told); CO-REACH r6 bcecb671 makes every pane path tell it (review r6 MERGE-OK, 5/5 by gate). Needs the persona recheck.
 Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, then `cargo build --workspace`; then `bash tests/persona/round.sh --help` and one smoke `round.sh begin smoke` + `check.py end smoke` on construct. A failure: send_message the PM "p2-r15-co BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
