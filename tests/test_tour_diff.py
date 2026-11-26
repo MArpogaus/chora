@@ -843,8 +843,8 @@ class IntendedCommits(unittest.TestCase):
 
     @classmethod
     def files_of(cls, sha):
-        """The files a commit changes."""
-        return git("show", "--format=", "--name-only", sha).stdout.split()
+        """The files a commit brings to its first parent (a merge too: `git show` lists nothing for a clean merge)."""
+        return git("diff", "--name-only", f"{sha}^1", sha).stdout.split()
 
     @classmethod
     def no_product_code(cls, sha):

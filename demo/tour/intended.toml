@@ -4374,36 +4374,6 @@ kind = "added"
 nodes = ["construct-hint-step-back", "construct-hints-step-back-keys-0", "construct-hints-step-back-keys-0-low", "construct-hints-step-back-keys-0-text", "construct-hints-step-back-keys-1", "construct-hints-step-back-keys-1-low", "construct-hints-step-back-keys-1-text", "construct-hints-step-back-word"]
 
 [[change]]
-act = "c5d"
-cause = "75d4623e a pane dropped on the face at the front is placed there and the person steps in (rcr5-1, rcr5-2): stood-back chrome goes, the step-back hint comes (tour-rows r4 take, captures/c5d.Q.png)"
-kind = "visible"
-nodes = ["construct-cube-edge", "construct-cube-edge-glow", "construct-cube-face-1", "construct-cube-mirror-0", "construct-cube-mirror-1", "construct-mode-step-in", "construct-mode-step-in-text", "construct-mode-turn-left", "construct-mode-turn-left-text", "construct-mode-turn-right", "construct-mode-turn-right-text"]
-
-[[change]]
-act = "c5d"
-cause = "75d4623e a pane dropped on the face at the front is placed there and the person steps in (rcr5-1, rcr5-2): stood-back chrome goes, the step-back hint comes (tour-rows r4 take, captures/c5d.Q.png)"
-kind = "rect"
-nodes = ["construct-cube-edge", "construct-cube-edge-glow", "construct-cube-face-0", "construct-cube-face-1", "construct-cube-mirror-0", "construct-cube-mirror-1"]
-
-[[change]]
-act = "c5d"
-cause = "75d4623e a pane dropped on the face at the front is placed there and the person steps in (rcr5-1, rcr5-2): stood-back chrome goes, the step-back hint comes (tour-rows r4 take, captures/c5d.Q.png)"
-kind = "missing"
-nodes = ["construct-cube-float-0-s1", "construct-cube-float-0-s2", "construct-cube-float-1-s3", "construct-cube-float-1-s4", "construct-door-clock", "construct-door-clock-text", "construct-door-helper", "construct-door-helper-text", "construct-door-keys", "construct-door-keys-text", "construct-door-lock", "construct-door-lock-text", "construct-door-power", "construct-door-power-text", "construct-door-programs", "construct-door-programs-text", "construct-door-screenshot", "construct-door-screenshot-text", "construct-door-volume", "construct-door-volume-text", "construct-doors", "construct-doors-edge", "construct-doors-glass", "construct-doors-hi", "construct-doors-hit", "construct-doors-separator", "construct-doors-shadow", "construct-face-label", "construct-face-label-dot-0", "construct-face-label-dot-1", "construct-face-label-dot-2", "construct-face-label-dot-3", "construct-face-label-edge", "construct-face-label-glass", "construct-face-label-hi", "construct-face-label-name", "construct-face-label-shadow", "construct-face-label-words", "construct-hints-construct-mode-step-in-keys-0", "construct-hints-construct-mode-step-in-keys-0-low", "construct-hints-construct-mode-step-in-keys-0-text", "construct-hints-construct-mode-turn-left-keys-0", "construct-hints-construct-mode-turn-left-keys-0-low", "construct-hints-construct-mode-turn-left-keys-0-text", "construct-hints-construct-mode-turn-left-keys-1", "construct-hints-construct-mode-turn-left-keys-1-low", "construct-hints-construct-mode-turn-left-keys-1-text", "construct-hints-construct-mode-turn-left-keys-2", "construct-hints-construct-mode-turn-left-keys-2-low", "construct-hints-construct-mode-turn-left-keys-2-text", "construct-hints-construct-mode-turn-right-keys-0", "construct-hints-construct-mode-turn-right-keys-0-low", "construct-hints-construct-mode-turn-right-keys-0-text", "construct-hints-construct-mode-turn-right-keys-1", "construct-hints-construct-mode-turn-right-keys-1-low", "construct-hints-construct-mode-turn-right-keys-1-text", "construct-hints-construct-mode-turn-right-keys-2", "construct-hints-construct-mode-turn-right-keys-2-low", "construct-hints-construct-mode-turn-right-keys-2-text", "construct-hints-hi"]
-
-[[change]]
-act = "c5d"
-cause = "75d4623e a pane dropped on the face at the front is placed there and the person steps in (rcr5-1, rcr5-2): stood-back chrome goes, the step-back hint comes (tour-rows r4 take, captures/c5d.Q.png)"
-kind = "added"
-nodes = ["construct-hint-step-back", "construct-hints-step-back-keys-0", "construct-hints-step-back-keys-0-low", "construct-hints-step-back-keys-0-text", "construct-hints-step-back-keys-1", "construct-hints-step-back-keys-1-low", "construct-hints-step-back-keys-1-text", "construct-hints-step-back-word"]
-
-[[change]]
-act = "c5d"
-boxes = [[0, 0, 1280, 720]]
-cause = "75d4623e a pane dropped on the face at the front is placed there and the person steps in (rcr5-1, rcr5-2): stood-back chrome goes, the step-back hint comes (tour-rows r4 take, captures/c5d.Q.png)"
-kind = "pixel"
-
-[[change]]
 act = "m1"
 cause = "859cf3fe page ends at the footer with no card, the more mark where the lines end (rv9ka-1): whole lines, the panel ends 21 px higher (tour-rows r4 take, captures/m1.Q.png)"
 kind = "rect"
