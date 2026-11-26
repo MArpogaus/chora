@@ -2946,6 +2946,37 @@ mod tests {
         assert!(log.lock().unwrap().is_empty(), "the pages stay");
     }
 
+    /// A rebuild of the pages shows no frame of the head in another
+    /// place: the new title stands aligned in the transaction that
+    /// creates it, from what the old page measured (rpm2-5 b).
+    #[test]
+    fn a_rebuild_creates_the_head_where_it_stays() {
+        let core = chora_kit::testing::FakeCore::start().selecting();
+        let nodes = serde_json::json!([
+            {"id": "mc-s-agenda-chapter-number", "rects": {"HEADLESS-1": [160.0, 56.0, 34.0, 56.0]}},
+            {"id": "mc-s-agenda-chapter-title", "rects": {"HEADLESS-1": [214.0, 56.0, 300.0, 56.0]}},
+        ]);
+        core.respond(move |method, params| {
+            let text = params["selector"]
+                .as_str()
+                .is_some_and(|s| s.contains("kind:text"));
+            (method == "scene.query" && text).then(|| nodes.clone())
+        });
+        let mut mc = crate::testing::mc_on(&core, "rebuild-head", [1280, 720]);
+        let log = core.record(|method, params| {
+            let text = params.to_string();
+            (method == "scene.apply"
+                && text.contains(r#""create":{"id":"mc-s-agenda-chapter-title""#))
+            .then_some(text)
+        });
+        mc.rebuild_pages().unwrap();
+        let first = log.lock().unwrap().first().cloned().unwrap_or_default();
+        assert!(
+            first.contains(r#""update":{"id":"mc-s-agenda-chapter-title""#),
+            "the title is created at a guess and moves in the next transaction: {first}"
+        );
+    }
+
     /// A page with a text of a panel that reaches under the edge of the
     /// page shows the mark that more follows; a page that shows whole shows
     /// none (rmm1-4).

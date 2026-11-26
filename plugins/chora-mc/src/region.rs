@@ -552,10 +552,12 @@ impl Mc {
         let [x, top, width, _] = geo.text;
         let (note, gap) = (geo.note, geo.gap);
         let mut regions = BTreeMap::new();
+        let column = on(Region::Right);
+        let end = self.header_end(w) - x;
         let [header, footer] = if headless {
-            self.app_lines(w, on(Region::Right))
+            self.app_lines(w, column)
         } else {
-            [(x, width.min(self.header_end(w) - x).max(b)), (x, width)]
+            [(x, width.min(end).max(b)), (x, width)]
         };
         regions.insert(Region::Header, [header.0, 0.0, header.1, head]);
         regions.insert(Region::Footer, [footer.0, h - foot, footer.1, foot]);
@@ -578,10 +580,8 @@ impl Mc {
             // Each side has a box, also one that fades out.
             regions.insert(Region::Left, [b, side_top, lw, side_h]);
             regions.insert(Region::Right, column);
-            if on(Region::Left) {
-                window[0] = lw + 2.0 * b;
-            }
-            let right = if on(Region::Right) { rw + 4.0 * b } else { 0.0 };
+            window[0] = 2.0 * b + if on(Region::Left) { lw } else { 0.0 };
+            let right = 2.0 * b + if on(Region::Right) { rw + 2.0 * b } else { 0.0 };
             window[2] = (w - window[0] - right).max(b);
         } else {
             // The window of an app scene fills its text block, above the
@@ -1018,7 +1018,7 @@ impl Mc {
         let gap = self.settings.value.page.gap * self.settings.value.scale.base;
         let (mut heights, mut widths, mut lefts) = (Vec::new(), Vec::new(), Vec::new());
         for item in items {
-            let [_, _, w, h] = self.measure(&item.id, probed)?;
+            let [_, _, w, h] = self.measure(&item.id, probed)?.unwrap_or_default();
             heights.push(h.max(baseline));
             widths.push(w);
             let after = lefts.last().zip(widths.last()).map(|(l, w)| l + w + gap);
@@ -1096,7 +1096,8 @@ impl Mc {
 
     /// Places the items of a line: the end keeps its place, the start ends
     /// before it, and the middle sits between them; what does not fit is
-    /// cut.
+    /// cut. A probe of a shown item that the core did not lay out yet
+    /// leaves the line where it is, not measured as 0 wide (rmmr1-2).
     #[allow(
         clippy::too_many_lines,
         reason = "one pass over the three groups of a line"
@@ -1111,7 +1112,13 @@ impl Mc {
         let (baseline, gap) = (config.scale.baseline, config.page.gap * config.scale.base);
         let mut sizes = Vec::new();
         for item in items {
-            let [_, _, w, h] = self.measure(&item.id, probed)?;
+            let Some([_, _, w, h]) = self.measure(&item.id, probed)? else {
+                if probed && item.props.visible != Some(false) {
+                    return Ok(Vec::new());
+                }
+                sizes.push((item, lead(item), 0.0));
+                continue;
+            };
             sizes.push((item, w + lead(item), h));
         }
         let group = |pick: fn(i32) -> bool| -> Vec<(&Item, f64, f64)> {
@@ -1557,6 +1564,108 @@ mod tests {
             wraps > 0,
             "no row of the key column wraps: the test sees nothing"
         );
+    }
+
+    type Pill = std::sync::Arc<std::sync::Mutex<crate::HashMap<String, f64>>>;
+
+    /// mc on a core whose HUD nodes stand at the left edges of `pill`.
+    fn mc_with_pill(size: [i32; 2], pill: &Pill) -> crate::Mc {
+        let core = chora_kit::testing::FakeCore::start().selecting();
+        let seen = std::sync::Arc::clone(pill);
+        core.respond(move |method, params| {
+            let id = params["selector"].as_str()?.strip_prefix("id:")?;
+            let x = *seen.lock().unwrap().get(id)?;
+            let rects = serde_json::json!({"T": [x, 27.0, 40.0, 32.0]});
+            (method == "scene.query").then(|| serde_json::json!([{"id": id, "rects": rects}]))
+        });
+        crate::testing::mc_on(&core, "header-chat", size)
+    }
+
+    /// Super+a with the chat opening: the host moves the word of the pill
+    /// into the chat for a moment, and the header end and the date stay
+    /// where they are, with the column shown and hidden (Super+n), the
+    /// pill alone and with the badge of a muted mic, at 1280x720 and
+    /// 1024x768 (rmmr1-1, rpm2-5 a); a badge that appears while the chat
+    /// is open may still move the end to the left.
+    #[test]
+    fn the_header_end_stays_while_the_chat_opens_over_the_pill() {
+        let cases = [[1280, 720], [1024, 768]]
+            .into_iter()
+            .flat_map(|size| [false, true].map(|badge| (size, badge)))
+            .flat_map(|(size, badge)| [false, true].map(|shown| (size, badge, shown)));
+        for (size, badge, shown) in cases {
+            let right = f64::from(size[0]) - 160.0;
+            let pill = Pill::default();
+            pill.lock().unwrap().insert("hud-word".into(), right);
+            if badge {
+                (pill.lock().unwrap()).insert("hud-badge".into(), right - 173.0);
+            }
+            let mut mc = mc_with_pill(size, &pill);
+            mc.learn_rooms().unwrap();
+            mc.toggled.insert(Region::Right, shown);
+            let case = format!("{size:?} badge {badge} column shown {shown}");
+            let before = mc.boxes_of("agenda")[&Region::Header];
+            mc.chat = crate::Chat::Open;
+            pill.lock().unwrap().insert("hud-word".into(), 764.0);
+            mc.learn_rooms().unwrap();
+            let open = mc.boxes_of("agenda")[&Region::Header];
+            assert_eq!(open, before, "Super+a moves the date: {case}");
+            pill.lock().unwrap().insert("hud-badge".into(), 300.0);
+            mc.learn_rooms().unwrap();
+            let moved = mc.boxes_of("agenda")[&Region::Header][2];
+            assert!(moved < before[2], "the badge may move it left: {case}");
+        }
+    }
+
+    /// How many items of the header an update of the regions moves.
+    fn header_moves(mc: &mut crate::Mc) -> usize {
+        let header = mc.region_id(Region::Header);
+        let commands = mc.regions().unwrap();
+        let places = |c: &&Command| {
+            matches!(c, Command::Update { id, props }
+                if id.starts_with(&header) && props.transform.is_some())
+        };
+        commands.iter().filter(places).count()
+    }
+
+    /// A header item whose probe the core did not lay out yet counts no
+    /// 0 wide: the header keeps its places for that update, and the clock
+    /// does not jump by its width and gap (rmmr1-2).
+    #[test]
+    fn a_probe_without_a_rect_keeps_the_places_of_the_header() {
+        let core = chora_kit::testing::FakeCore::start();
+        let seen = core.model();
+        let lost: std::sync::Arc<std::sync::Mutex<Option<String>>> = std::sync::Arc::default();
+        let missing = std::sync::Arc::clone(&lost);
+        core.respond(move |method, params| {
+            let id = params["selector"].as_str()?.strip_prefix("id:")?;
+            if missing.lock().unwrap().as_deref() == Some(id) {
+                return None;
+            }
+            let model = seen.lock().unwrap();
+            let (width, lines, line) = wrapped(&model.scene.node(id)?.props);
+            let rect = [0.0, 0.0, width, lines * line];
+            (method == "scene.query").then(|| serde_json::json!([{"rects": {"test": rect}}]))
+        });
+        let mut mc = crate::testing::mc_on(&core, "probe-no-rect", [1280, 720]);
+        mc.show("agenda", true).unwrap();
+        assert!(header_moves(&mut mc) > 0, "the control: the header moves");
+        let items = mc.items("agenda");
+        let end = items[&Region::Header]
+            .0
+            .iter()
+            .find(|i| i.slot > 0)
+            .unwrap();
+        *lost.lock().unwrap() = Some(probe(&end.id));
+        assert_eq!(header_moves(&mut mc), 0, "{} has no rect", end.id);
+    }
+
+    #[test]
+    fn a_window_that_no_scene_started_keeps_off_the_edge() {
+        let (mc, _) = crate::testing::mc("window-inset", [1280, 720]);
+        let b = mc.settings.value.scale.baseline;
+        let window = mc.window_box("window-without-scene").unwrap();
+        assert!(window[0] >= 2.0 * b, "the window starts at x {}", window[0]);
     }
 
     #[test]

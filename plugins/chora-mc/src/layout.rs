@@ -18,6 +18,7 @@ impl Mc {
     /// its room, so that the text takes the room that is free.
     pub(crate) fn rebuild_pages(&mut self) -> Result<(), ClientError> {
         let names: Vec<String> = self.scenes.keys().cloned().collect();
+        let before = self.text_rects()?;
         let mut commands = Vec::new();
         for name in &names {
             let most = self.scroll_most(name);
@@ -29,6 +30,7 @@ impl Mc {
                 to: None,
             });
             commands.extend(self.panels(name));
+            commands.extend(self.align_commands(name, &before));
         }
         self.apply(commands)?;
         if let Some(name) = self.current.clone() {
@@ -558,17 +560,31 @@ impl Mc {
     /// A title that wraps pushes the lines down by its extra lines.
     /// below the panel
     pub(crate) fn align(&mut self, name: &str) -> Result<(), ClientError> {
-        let Some(scene) = self.scenes.get(name).cloned() else {
+        let rects = self.text_rects()?;
+        let commands = self.align_commands(name, &rects);
+        if commands.is_empty() {
             return Ok(());
+        }
+        self.apply(commands)
+    }
+
+    /// The moves of [`Self::align`] for the rects `rects` that the core
+    /// gave the texts; none for a scene without a page or geometry.
+    pub(crate) fn align_commands(
+        &self,
+        name: &str,
+        rects: &HashMap<String, [f64; 4]>,
+    ) -> Vec<Command> {
+        let Some(scene) = self.scenes.get(name).cloned() else {
+            return Vec::new();
         };
         let Some(geo) = self.geometry(name) else {
-            return Ok(());
+            return Vec::new();
         };
-        let rects = self.text_rects()?;
         let rect = |id: &str| rects.get(id).copied();
         let indent = geo.note + geo.gap;
         let mut commands = Vec::new();
-        commands.extend(self.more_update(name, &rects));
+        commands.extend(self.more_update(name, rects));
         commands.extend(self.align_head(name, &scene, &geo, &|id| rect(id)));
         for panel in &scene.panels {
             let id = panel_id(name, &panel.id);
@@ -615,7 +631,7 @@ impl Mc {
                 y += height.max(body.line);
             }
         }
-        self.apply(commands)
+        commands
     }
 
     /// Scrolls the page of the current scene by `dy`, from its top to its
@@ -756,14 +772,18 @@ impl Mc {
         Ok(rects.collect())
     }
 
-    /// The rect of an item, or of its hidden copy when `probed`.
-    pub(crate) fn measure(&mut self, id: &str, probed: bool) -> Result<[f64; 4], ClientError> {
-        let rect = if probed {
+    /// The rect of an item, or of its hidden copy when `probed`; none
+    /// when the core laid the node out nowhere yet.
+    pub(crate) fn measure(
+        &mut self,
+        id: &str,
+        probed: bool,
+    ) -> Result<Option<[f64; 4]>, ClientError> {
+        if probed {
             self.rect(&region::probe(id))
         } else {
             self.rect(id)
-        };
-        Ok(rect?.unwrap_or_default())
+        }
     }
 
     /// The effect of the blur of a panel, if it has one and the watchdog
