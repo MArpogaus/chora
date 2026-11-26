@@ -28,6 +28,20 @@ pub(crate) struct Rooms {
     pub card: Option<f64>,
 }
 
+/// The left edge of the leftmost node of the HUD host in `PILL` that
+/// `rect` finds.
+fn leftmost(
+    mut rect: impl FnMut(&str) -> Result<Option<[f64; 4]>, ClientError>,
+) -> Result<Option<f64>, ClientError> {
+    let mut left: Option<f64> = None;
+    for id in PILL {
+        if let Some([x, ..]) = rect(id)? {
+            left = Some(left.map_or(x, |left| left.min(x)));
+        }
+    }
+    Ok(left)
+}
+
 impl Mc {
     /// The height at the foot that the page leaves free: the card's while
     /// one shows at the foot, else the footer's.
@@ -70,12 +84,7 @@ impl Mc {
         };
         let [width, height] = output.size.map(f64::from);
         let page_top = self.page_top();
-        let mut pill_left: Option<f64> = None;
-        for id in PILL {
-            if let Some([x, ..]) = self.rect(id)? {
-                pill_left = Some(pill_left.map_or(x, |left| left.min(x)));
-            }
-        }
+        let pill_left = leftmost(|id| self.rect(id))?;
         let mut rooms = Rooms {
             pill_left: pill_left.map(f64::round),
             card: None,
@@ -130,6 +139,24 @@ impl Mc {
 #[cfg(test)]
 mod tests {
     use serde_json::json;
+
+    /// The badge of a muted mic is wider than the word of the state; it
+    /// takes room like the pill, so that the header ends before it
+    /// (rpm2-3).
+    #[test]
+    fn the_header_ends_before_the_badge_of_a_muted_mic() {
+        let nodes = [
+            ("hud-badge", [947.0, 27.0, 252.0, 32.0]),
+            ("hud-figure", [1204.0, 34.0, 16.0, 16.0]),
+        ];
+        let left = super::leftmost(|id| {
+            Ok(nodes
+                .iter()
+                .find(|(name, _)| *name == id)
+                .map(|(_, rect)| *rect))
+        });
+        assert_eq!(left.unwrap(), Some(947.0));
+    }
 
     use chora_kit::runtime::Plugin as _;
 
