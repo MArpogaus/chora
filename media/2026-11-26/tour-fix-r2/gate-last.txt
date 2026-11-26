@@ -1,0 +1,20 @@
+voice-acp  PASS    11s /tmp/merge-gate.VYaB12/voice-acp.log
+voice-events PASS     1s /tmp/merge-gate.VYaB12/voice-events.log
+launcher-mc PASS    29s /tmp/merge-gate.VYaB12/launcher-mc.log
+agent      PASS    36s /tmp/merge-gate.VYaB12/agent.log
+tiling-keys-more PASS    40s /tmp/merge-gate.VYaB12/tiling-keys-more.log
+tiling-system PASS    13s /tmp/merge-gate.VYaB12/tiling-system.log
+handover   PASS    72s /tmp/merge-gate.VYaB12/handover.log
+mc-scale   PASS     9s /tmp/merge-gate.VYaB12/mc-scale.log
+watchdog-starved PASS    49s /tmp/merge-gate.VYaB12/watchdog-starved.log
+tiling-windows PASS   162s /tmp/merge-gate.VYaB12/tiling-windows.log
+xp-run     PASS    12s /tmp/merge-gate.VYaB12/xp-run.log
+demo       PASS   178s /tmp/merge-gate.VYaB12/demo.log
+tiling-bar PASS   153s /tmp/merge-gate.VYaB12/tiling-bar.log
+tiling-theme PASS    19s /tmp/merge-gate.VYaB12/tiling-theme.log
+tiling-disc PASS    71s /tmp/merge-gate.VYaB12/tiling-disc.log
+leak       PASS   458s /tmp/merge-gate.VYaB12/leak.log
+mc-host    PASS    21s /tmp/merge-gate.VYaB12/mc-host.log
+e2e        PASS   268s /tmp/merge-gate.VYaB12/e2e.log
+skipped: docs (mkdocs is not installed (docs unchanged))
+all steps passed; no --push, nothing is pushed
