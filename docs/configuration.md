@@ -1192,16 +1192,22 @@ key that is not bound has no row. The row of `Super+F1` stands in Everywhere; `S
 names: the panel is then 560 wide in one column, the found words are
 marked, `Up` and `Down` move the chosen row, and the footer counts the
 keys that match. `Escape` clears the search, then hides the help; its own
-key hides it at once. While it shows, the keys search and do not walk. The
+key hides it at once. Opened while the window of a pane has the keyboard, it lists
+only the keys that work there, the chords with a modifier and the media
+keys, and not the keys of the walk or of the cube, which type into the
+window; closing it gives that window the keyboard back. While it shows,
+the keys search and do not walk. The
 voice agent shows it with the method `help.toggle`.
 
 ### Context hints
 
 At the bottom centre a glass capsule shows the hints that apply, at
-most five, each the keycaps of a key and a word: walking, for 6 seconds
+most six, each the keycaps of a key and a word: walking, for 6 seconds
 after the start and after a fly-out, `W A S D Walk`, `Return Fly in`
-while a pane is ahead, `Tab Windows` from two windows, `Super T
-Terminal` and `Super F1 All keys`; in a
+while a pane is ahead, `Tab Windows` from two windows, `Super C Cube`
+while the window of a pane has the keyboard and no cube is open (the way
+to a face, as after `Alt+Escape` out of a pane; docs/cube-modes.md),
+`Super T Terminal` and `Super F1 All keys`; in a
 pane or a face of the cube, `Alt Esc Step back` and `Super F1 All keys`,
 for 3 seconds from the start of the fly-in, then as the resting chip
 in the lifted glass, so a click always finds the way out and the key

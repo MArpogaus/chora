@@ -143,3 +143,144 @@ fn stepped_out_of_a_pane_without_a_cube_the_walk_names_the_cube() {
         "with no pane window holding the keys the cube is not named"
     );
 }
+
+/// The window `s1` of the pane of `with_hint_bar`, which exists and sits in
+/// the panes, so that the core can focus it and answers the query for the
+/// window with the keyboard.
+fn the_pane_window(construct: &mut crate::Construct, core: &chora_kit::testing::FakeCore) {
+    core.model()
+        .lock()
+        .unwrap()
+        .scene
+        .add_surface("s1", chora_scene::SurfaceInfo::default());
+    construct
+        .rt
+        .conn
+        .apply(vec![chora_scene::Command::Attach {
+            surface: "s1".into(),
+            parent: crate::PANES.into(),
+        }])
+        .unwrap();
+    let model = core.model();
+    core.respond(move |method, params| {
+        (method == "scene.query" && params["filter"]["focused"].as_bool() == Some(true)).then(
+            || {
+                let model = model.lock().unwrap();
+                let focused = model.scene.focused_surface();
+                serde_json::json!(
+                    focused
+                        .map(|id| serde_json::json!({ "id": id }))
+                        .into_iter()
+                        .collect::<Vec<_>>()
+                )
+            },
+        )
+    });
+}
+
+/// Every text of the key sheet on the screen, one string.
+fn sheet_texts(core: &chora_kit::testing::FakeCore) -> String {
+    let model = core.model();
+    let model = model.lock().unwrap();
+    (model.scene.nodes())
+        .filter(|n| n.id.starts_with(crate::hud::HELP))
+        .filter_map(|n| n.props.text.clone())
+        .collect::<Vec<_>>()
+        .join("|")
+}
+
+/// The sheet opened with the camera flown into the pane of `with_hint_bar`
+/// and its window `s1` on the keyboard, by `open`; its texts.
+fn sheet_in_a_pane(tag: &str, open: impl FnOnce(&mut crate::Construct)) -> String {
+    let (mut construct, core, _lines) = super::with_hint_bar(tag);
+    the_pane_window(&mut construct, &core);
+    construct.fly_in(0).unwrap();
+    construct.flown = crate::camera::take_flight(&mut construct.glide);
+    assert!(construct.in_pane(), "the camera is in the pane");
+    core.model().lock().unwrap().scene.set_focused(Some("s1"));
+    chora_kit::runtime::Plugin::event(&mut construct, focus_changed(Some("s1"))).unwrap();
+    open(&mut construct);
+    assert!(construct.help, "the sheet is open");
+    sheet_texts(&core)
+}
+
+/// What the sheet of a pane does not list: it types into the window.
+fn assert_only_the_keys_that_work_in_a_window(sheet: &str) {
+    for typed in [
+        "Fly into the pane ahead",
+        "Walk forward, back, sideways",
+        "Step into the face",
+        "Close the cube, stood back",
+        "Show these keys, stood back",
+        "Back out one step",
+    ] {
+        assert!(
+            !sheet.contains(typed),
+            "{typed:?} reaches the window, not the sheet: {sheet}"
+        );
+    }
+    assert!(
+        sheet.contains("Step back out of a pane"),
+        "the way out of the pane is listed: {sheet}"
+    );
+}
+
+/// rpc2-1 (rc 1b pass r2, MINOR): the key sheet opened while a pane's
+/// window has the keyboard lists only the keys that work there: the
+/// chords the construct holds for the window. A walk key (`Return Fly in`,
+/// `W A S D`) or a key of the cube (`Return Step into the face`, `Esc`
+/// close the cube) types into the window, so the sheet under "Only the keys
+/// that work now are listed." does not list it; the way out of the pane does.
+/// The hint `All keys` opens it with the camera still in the pane.
+#[test]
+fn the_key_sheet_in_a_pane_lists_only_the_keys_that_work_there() {
+    let sheet = sheet_in_a_pane("sheet-pane", |c| c.toggle_help().unwrap());
+    assert_only_the_keys_that_work_in_a_window(&sheet);
+}
+
+/// rpc2-1, by the key: `Super+F1` flies out of the pane first and then
+/// shows the sheet, and the window gets the keyboard back when it closes,
+/// so it lists the same keys.
+#[test]
+fn the_key_sheet_opened_by_its_key_in_a_pane_lists_the_same_keys() {
+    let sheet = sheet_in_a_pane("sheet-pane-key", |c| {
+        c.grabbed_key(&chora_kit::actions::System::Keys).unwrap();
+    });
+    assert_only_the_keys_that_work_in_a_window(&sheet);
+}
+
+/// rpc2-2 (rc 1b pass r2, MINOR): a cube stood back, the camera flown into
+/// a pane, the key sheet opened and closed: the window of the pane has the
+/// keyboard again, so the step back names `Super Alt 2 Into face` as it
+/// does without the sheet (co-79).
+#[test]
+fn after_the_key_sheet_in_a_pane_the_step_back_names_the_way_into_the_face() {
+    let (mut construct, core, _lines) = super::with_hint_bar("sheet-then-back");
+    the_pane_window(&mut construct, &core);
+    construct.cube.as_mut().unwrap().program = "xp".into();
+    construct.fly_in(0).unwrap();
+    construct.flown = crate::camera::take_flight(&mut construct.glide);
+    assert!(construct.in_pane(), "the camera is in the pane");
+    let focus = |construct: &mut crate::Construct, to: Option<&str>| {
+        core.model().lock().unwrap().scene.set_focused(to);
+        chora_kit::runtime::Plugin::event(construct, focus_changed(to)).unwrap();
+    };
+    focus(&mut construct, Some("s1"));
+    construct.toggle_help().unwrap();
+    focus(&mut construct, None);
+    construct.toggle_help().unwrap();
+    let given = core.model().lock().unwrap().focuses.last().cloned();
+    assert_eq!(
+        given,
+        Some(Some("s1".into())),
+        "closing the sheet gives the pane's window the keyboard back"
+    );
+    focus(&mut construct, Some("s1"));
+    construct.step_out().unwrap();
+    construct.glide = None;
+    construct.draw_hints().unwrap();
+    assert!(
+        has(&core.model(), "construct-hint-put-in"),
+        "the way into the face is named after the sheet, as without it"
+    );
+}
