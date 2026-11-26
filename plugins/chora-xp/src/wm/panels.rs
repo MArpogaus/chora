@@ -75,6 +75,15 @@ impl Wm {
     pub(super) fn run(&mut self, action: &Action, output: Option<&str>) -> Vec<Command> {
         match action {
             Action::Run(command) => {
+                if super::press::opens_missing_manager(command, &self.settings.value.file_manager) {
+                    self.notice(
+                        None,
+                        "No file manager",
+                        &super::press::no_file_manager(),
+                        10_000,
+                    );
+                    return Vec::new();
+                }
                 self.start_program(command);
                 Vec::new()
             }

@@ -426,14 +426,33 @@ impl Wm {
     }
 }
 
+/// Whether a command opens a folder with a file manager that is not
+/// installed.
+pub(super) fn opens_missing_manager(command: &str, manager: &str) -> bool {
+    let _ = (command, manager);
+    false
+}
+
 /// The words of the notice that no file manager is installed.
-fn no_file_manager() -> String {
+pub(super) fn no_file_manager() -> String {
     "No file manager is installed. Ask whoever looks after this computer to install one.\nTo name one yourself: file_manager in chora-xp.yaml".into()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_folder_command_of_a_missing_file_manager_is_told_not_started() {
+        let missing = "chora-no-such-manager";
+        assert!(opens_missing_manager(
+            &format!("{missing} '/home'"),
+            missing
+        ));
+        assert!(!opens_missing_manager("true '/home'", "true"));
+        assert!(!opens_missing_manager("chora-other 'x'", missing));
+        assert!(!opens_missing_manager("anything", ""));
+    }
 
     /// The notice says what to do in plain words; the config file comes
     /// only as a second line.
