@@ -2098,6 +2098,29 @@ mod tests {
         assert_eq!(mc.state().unwrap()["focus"], json!({"holder": "mc"}));
     }
 
+    /// tiling-focus r4: a picker over mc takes the keyboard as an
+    /// exclusive layer: the core tells `focus.node` without a node, but
+    /// its scene still focuses the node of mc, and tells it again when the
+    /// picker closes. mc holds the keyboard all the while (I3), through
+    /// the same kit path as tiling (`Focus::refresh_node` in `refresh`).
+    #[test]
+    fn the_node_of_mc_holds_the_keyboard_under_and_after_a_picker() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, _model) = crate::testing::mc("node-picker", [1280, 800]);
+        let node = crate::page_id("agenda");
+        let command = mc.focus.to_node(Some(node.clone()));
+        mc.apply(vec![command]).unwrap();
+        for told in [None, Some(node)] {
+            mc.event(chora_scene::Event::FocusNode {
+                node: told.clone(),
+                owner: told.map(|_| super::NAME.to_owned()),
+            })
+            .unwrap();
+            mc.refresh();
+            assert_eq!(mc.state().unwrap()["focus"], json!({"holder": "mc"}));
+        }
+    }
+
     /// The query of `refresh` names the node of mc, not every node of the
     /// scene, which the core would lay out on its main thread (rv-2).
     #[test]

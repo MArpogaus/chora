@@ -13,8 +13,12 @@
 #    HEADLESS-1; xp holds none, though it got a window.
 # 2. The second move takes the last window of tiling: tiling holds the
 #    keyboard with its desktop, xp still none.
-# 3. L3 after it (Super+2, Super+1) holds with tiling: the contract of
-#    tests/persona/check.py.
+# 2b. The Looks door opens again on the empty desktop and Escape closes
+#    its picker (tiling-focus r4, ricer run 2 of p2-r12): the picker
+#    takes the keyboard as an exclusive layer and gives it back to the
+#    desktop of tiling, which holds it under the picker and after (I3).
+# 3. L3 after it (Super+2, Super+1) holds with tiling after each key:
+#    the contract of tests/persona/check.py.
 # 4. Super+F1 opens the key list of tiling, Escape closes it, and the
 #    keyboard does not go to xp then.
 #
@@ -114,11 +118,23 @@ shot after-move-2
     fail "the second move: tiling does not hold the keyboard with its desktop: $(holders)"
 ok "the second move: the last window went to xp, tiling holds the keyboard with its desktop ($(holders))"
 
+act look >/dev/null || fail "look"
+act click 82 15 >/dev/null || fail "click on the Looks door on the empty desktop"
+until_ok launcher_up 80 || fail "the picker of the Looks door did not start on the empty desktop"
+echo "holders with the picker open: $(holders)"
+act key Escape >/dev/null || fail "Escape on the picker"
+until_ok '! launcher_up' 40 || fail "Escape did not close the picker"
+until_ok "[ \"\$(holder tiling)\" = '{\"holder\":\"tiling\"}' ]" 20 ||
+    fail "the picker closed on the empty desktop: tiling does not hold the keyboard: $(holders)"
+[ "$(holder xp)" = '{"holder":null}' ] || fail "the picker closed on the empty desktop: xp took the keyboard: $(holders)"
+ok "the picker on the empty desktop closed with Escape, tiling holds the keyboard with its desktop ($(holders))"
+
 check begin >/dev/null || fail "check.py begin"
 shown_tag() { admin state tiling | jq -e --argjson t "$1" '.desks[0].shown == [$t]' >/dev/null; }
 for t in 2 1; do
     act key "Super+$t" >/dev/null || fail "Super+$t"
     until_ok "shown_tag $t" 20 || fail "Super+$t did not show tag $t: $(admin state tiling | jq -c .desks)"
+    [ "$(holder tiling)" = '{"holder":"tiling"}' ] || fail "Super+$t: tiling does not hold the keyboard: $(holders)"
 done
 l3=$(check end L3 2>&1 | grep '^task L3')
 case $l3 in "task L3 pass"*) ;; *) fail "L3 after the moves: $l3 ($(holders))" ;; esac
