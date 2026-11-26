@@ -911,6 +911,50 @@ class LaunchOnTheBaseline(unittest.TestCase):
             self.assertEqual(calls, [])
 
 
+class ConstructAfterTheDrop(unittest.TestCase):
+    """rtr4-3: since 75d4623e the drop of c5c steps into the front face; the chapter steps out where an act needs the
+    cube, and the replay on 733967aa (which stays stood back) spends the same frame."""
+
+    @classmethod
+    def setUpClass(cls):
+        import ast
+
+        cls.source = (HERE.parent / "demo/tour/chapters/construct.py").read_text()
+        tree = ast.parse(cls.source)
+        cls.functions = {f.name: f for f in tree.body if isinstance(f, ast.FunctionDef)}
+
+    def step_out(self):
+        import ast
+
+        if "step_out" not in self.functions:
+            self.fail("construct.py has no step_out")
+        scope = {}
+        exec(compile(ast.Module([self.functions["step_out"]], []), "construct.py", "exec"), scope)
+        return scope["step_out"]
+
+    class Take:
+        def __init__(self):
+            self.frame, self.keys = 0, []
+
+        def key(self, combo):
+            self.keys.append(combo)
+            self.frame += 1
+
+    def test_the_step_out_presses_alt_escape_only_inside_a_face_and_spends_one_frame_either_way(self):
+        for inside, keys in ((True, ["Alt+Escape"]), (False, [])):
+            t = self.Take()
+            self.step_out()(t, inside)
+            self.assertEqual((t.keys, t.frame), (keys, 1), inside)
+
+    def test_c5d_looks_at_the_stepped_in_face_and_c3_steps_out_before_it_turns(self):
+        lines = self.source.splitlines()
+        c5d = next(i for i, line in enumerate(lines) if '"04-13-back-on-face"' in line)
+        self.assertIn('"mode": "use"', lines[c5d])
+        self.assertNotIn("The cube with the window on the face", lines[c5d])
+        turn = next(i for i in range(c5d, len(lines)) if 't.key("Ctrl+Alt+Right")' in lines[i])
+        self.assertTrue(any("step_out(t, " in lines[i] for i in range(c5d, turn)), "no step out between c5d and the first turn")
+
+
 @unittest.skipUnless(shutil.which("ffmpeg"), "no ffmpeg")
 class VideoCheck(unittest.TestCase):
     def clip(self, *parts):
