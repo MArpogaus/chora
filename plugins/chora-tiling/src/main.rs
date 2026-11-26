@@ -2934,6 +2934,17 @@ mod panel {
         printed(&run(&bin(name, false, &fakes), "volume.sh", &[], lang))
     }
 
+    /// rpt3-3: the tooltip of the volume said the word again, and under a
+    /// resting pointer it stood over the key list and the tiles. Only a
+    /// reason, which the word cannot say, is a tooltip.
+    #[test]
+    fn the_volume_has_a_tooltip_only_for_a_reason_rpt3_3() {
+        let loud = said(&volume("tip-loud", Some("echo 'Volume: 0.40'"), "C"));
+        assert_eq!(loud[1], "", "the level is in the word");
+        let gone = said(&volume("tip-gone", None, "C"));
+        assert_eq!(gone[1], "wpctl not found", "the reason is not");
+    }
+
     #[test]
     fn the_volume_always_has_honest_words() {
         let (en, de) = ("C.UTF-8", "de_DE.UTF-8");
@@ -2942,9 +2953,9 @@ mod panel {
         let unavailable = "No sound";
         let (lautlos, keiner) = ("Kein Ton", "Kein Ausgabegerät");
         for (name, wpctl, lang, words) in [
-            ("loud", Some("echo 'Volume: 0.40'"), en, ["Volume 40%"; 2]),
-            ("muted", muted, en, ["Muted"; 2]),
-            ("muted-de", muted, de, ["Stumm"; 2]),
+            ("loud", Some("echo 'Volume: 0.40'"), en, ["Volume 40%", ""]),
+            ("muted", muted, en, ["Muted", ""]),
+            ("muted-de", muted, de, ["Stumm", ""]),
             ("missing", None, en, [unavailable, "wpctl not found"]),
             ("missing-de", None, de, [lautlos, "wpctl nicht gefunden"]),
             ("none", none, en, [unavailable, "No output device"]),
