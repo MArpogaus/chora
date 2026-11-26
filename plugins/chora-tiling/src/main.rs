@@ -2113,9 +2113,7 @@ mod tests {
     /// sends no focus for it, and the keyboard stays with xp.
     #[test]
     fn a_window_given_in_while_xp_holds_the_keyboard_comes_without_it() {
-        let focus = |surface: Option<&str>| Event::FocusChanged {
-            surface: surface.map(String::from),
-        };
+        let focus = chora_kit::testing::focus_changed;
         let desk = Event::FocusNode {
             node: Some("xp".into()),
             owner: Some("xp".into()),
