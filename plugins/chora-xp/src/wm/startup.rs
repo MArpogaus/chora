@@ -64,7 +64,7 @@ impl Wm {
             front: 0,
             core_focus: None,
             key_node: None,
-            key_node_id: None,
+            heard: chora_kit::wm::focus::Focus::default(),
             arrival: super::Arrival::Settled,
             bars: Vec::new(),
             menu,

@@ -672,6 +672,10 @@ impl give::Windows for Tiling {
     fn hand(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
         Tiling::hand(self, surface, to)
     }
+
+    fn hand_kept(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
+        Tiling::hand_kept(self, surface, to)
+    }
 }
 
 /// What tiling does for the actions of every look that it has: a command,
@@ -1939,12 +1943,16 @@ mod tests {
     }
 
     /// A tiling on output A (0..100) beside xp, whose claim is `xp_claim`;
-    /// the windows `ids` open on A, the last has the keyboard.
+    /// the windows `ids` open on A, the last has the keyboard. The core
+    /// refuses a give to `gone`.
     fn beside_xp(tag: &str, xp_claim: [f64; 4], ids: &[&str]) -> (Tiling, Log) {
         let dir = chora_kit::testing::TempDir::new(&format!("chora-tiling-{tag}")).keep();
         std::fs::create_dir_all(&dir).unwrap();
         let core = FakeCore::start();
-        core.respond(|method, _| (method == "scene.apply").then_some(Value::Null));
+        core.respond(|method, params| {
+            let refused = params.to_string().contains(r#""to":"gone""#);
+            (method == "scene.apply" && !refused).then_some(Value::Null)
+        });
         let xp = chora_scene::Node {
             id: "xp".into(),
             kind: chora_scene::NodeKind::Group,
@@ -2136,6 +2144,32 @@ mod tests {
             );
             assert_eq!(holder(&tiling).holder, None, "tiling holds the keyboard");
         }
+    }
+
+    /// rtf1-4: a give of the person that the core refuses leaves the
+    /// window with tiling, and it takes the keyboard back from the window
+    /// that kept it.
+    #[test]
+    fn a_refused_give_of_the_person_gives_the_keyboard_back() {
+        let (mut tiling, methods) =
+            beside_xp("keep-back", [100.0, 0.0, 100.0, 80.0], &["s1", "s2"]);
+        let from = methods.lock().unwrap().len();
+        let params = json!({"surface": "s2", "to": "gone", "stay": true});
+        assert!(tiling.give(params).is_err(), "the core refuses the give");
+        let sent = commands_from(&methods, from);
+        let focus: Vec<&Value> = sent.iter().filter_map(|c| c.get("focus")).collect();
+        assert_eq!(
+            focus.first().map(|f| &f["surface"]),
+            Some(&json!("s1")),
+            "{sent:?}"
+        );
+        assert_eq!(
+            focus.last().map(|f| &f["surface"]),
+            Some(&json!("s2")),
+            "{sent:?}"
+        );
+        assert!(tiling.wm.has("s2"), "s2 stays with tiling");
+        assert_eq!(holder(&tiling).surface.as_deref(), Some("s2"));
     }
 
     /// A give without `stay` (automation, the voice, MCP) leaves the

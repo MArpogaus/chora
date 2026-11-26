@@ -302,10 +302,10 @@ pub struct Wm {
     core_focus: Option<String>,
     /// The owner of the node with the keyboard, as `focus.node` told.
     key_node: Option<String>,
-    /// The id of that node: when it is named as its owner, it is the
-    /// desktop of that look, which holds the keyboard in place of a
-    /// window (D119).
-    key_node_id: Option<String>,
+    /// Who holds the keyboard as the core tells it, through the kit: a
+    /// window given in yields to a window or the desktop of another look
+    /// ([`chora_kit::wm::focus::Focus::takes_given`], D119).
+    heard: chora_kit::wm::focus::Focus,
     /// The focused window that the core stopped focusing without another
     /// window taking the keys, as before the window closes: when it closes,
     /// the next window gets the keys as if xp had still held them (co-51).
@@ -466,6 +466,13 @@ impl give::Windows for Wm {
 
     fn hand(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
         let (answer, commands) = self.give(surface, to)?;
+        self.apply(commands)
+            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+        Ok(answer)
+    }
+
+    fn hand_kept(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
+        let (answer, commands) = self.give_kept(surface, to)?;
         self.apply(commands)
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         Ok(answer)

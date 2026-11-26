@@ -5,11 +5,18 @@
 //! `refused`. What a window does once it is xp's (the frame, the focus,
 //! the taskbar) stays in `windows.rs`.
 
-use chora_kit::wm::{Change, Created, Origin, Phase, Why};
-use chora_scene::{Event, ipc::ClientError};
+use chora_kit::{
+    give::Give,
+    wm::{Change, Created, Origin, Phase, Why},
+};
+use chora_scene::{
+    Command, Event,
+    ipc::{ClientError, RpcError},
+};
 use serde_json::Value;
 
-use super::Wm;
+use super::{NAME, Wm};
+use crate::taskbar::Bar;
 
 impl Wm {
     /// A surface was created: the launch that waited for it is done, and
@@ -75,11 +82,78 @@ impl Wm {
 
     /// Whether a window that comes from `origin` takes the keyboard: a
     /// window given in does not while a window or the desktop of another
-    /// look holds it, as tiling keeps it on the output where the person
-    /// is when it sends a window to xp on another output (D119). Another
-    /// node, as the walk of the construct, holds it only for a moment.
+    /// look holds it, as the giver keeps it on the output where the person
+    /// is when it sends a window to xp on another output (D119,
+    /// [`chora_kit::wm::focus::Focus::takes_given`]). Another node, as the
+    /// walk of the construct, holds it only for a moment.
     fn takes_keys(&self, origin: &Origin) -> bool {
-        *origin != Origin::Given || !(self.focus_away() || self.desk_away())
+        *origin != Origin::Given || self.heard.takes_given(NAME, |s| self.index(s).is_some())
+    }
+
+    /// `window.give`: with `stay` and without a drag, a give of the person
+    /// ([`Self::give_kept`]); else as [`Self::give_dragged`].
+    pub(super) fn give_call(
+        &mut self,
+        Give {
+            surface,
+            to,
+            grab,
+            stay,
+        }: Give,
+    ) -> Result<(Value, Vec<Command>), RpcError> {
+        if stay && grab.is_none() {
+            return self.give_kept(&surface, &to);
+        }
+        self.give_dragged(&surface, &to, grab)
+    }
+
+    /// A give of the person (a give key, the rows "window to" of the
+    /// Control Panel, D119): as [`Self::give`], and the keyboard stays
+    /// with xp when `to` is on another output ([`Self::keep_keys`]); when
+    /// the give fails, the window takes the keyboard back.
+    pub(super) fn give_kept(
+        &mut self,
+        surface: &str,
+        to: &str,
+    ) -> Result<(Value, Vec<Command>), RpcError> {
+        let kept = self.keep_keys(surface, to)?;
+        let given = self.give(surface, to);
+        if given.is_err() && kept {
+            let back = self.focus(Some(surface));
+            self.apply(back).map_err(|e| rejected(&e))?;
+        }
+        given
+    }
+
+    /// Before the focused window goes to a look whose claim lies on no part
+    /// of its output, the window below it takes the keyboard, or without
+    /// one the desktop of xp, its root node, in a transaction of its own,
+    /// so that the receiver hears of the holder before the window comes
+    /// (D119). A query that fails keeps nothing. True when xp kept it.
+    fn keep_keys(&mut self, surface: &str, to: &str) -> Result<bool, RpcError> {
+        let held = self.is_active(surface) && !self.focus_away() && !self.node_away();
+        let output = self.output_of(surface).filter(|_| held);
+        let bar = output.and_then(|o| self.bars.iter().find(|b| b.output == o));
+        let Some(area) = bar.map(Bar::area) else {
+            return Ok(false);
+        };
+        if self
+            .rt
+            .conn
+            .claims_over(to, area.map(f64::from))
+            .unwrap_or(true)
+        {
+            return Ok(false);
+        }
+        let next = self.topmost_except(surface);
+        let mut commands = self.focus(next.as_deref());
+        if next.is_none() {
+            commands.push(Command::FocusNode {
+                node: Some(NAME.into()),
+            });
+        }
+        self.apply(commands).map_err(|e| rejected(&e))?;
+        Ok(true)
     }
 
     /// Emits `xp.window` for a phase, with the frame of the window while
@@ -93,6 +167,10 @@ impl Wm {
             tracing::warn!("xp.window: {err}");
         }
     }
+}
+
+fn rejected(err: &ClientError) -> RpcError {
+    RpcError::new(RpcError::REJECTED, err.to_string())
 }
 
 #[cfg(test)]

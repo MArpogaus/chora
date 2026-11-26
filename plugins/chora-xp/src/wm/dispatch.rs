@@ -23,6 +23,7 @@ impl Wm {
     )]
     pub(super) fn handle(&mut self, event: Event) -> Result<(), ClientError> {
         let heard = self.voiced.hear_asking(&event, &mut self.rt.conn);
+        self.heard.hear(&event);
         if let Some(created) = Created::of(&event) {
             return self.window_created(&created);
         }
@@ -164,11 +165,9 @@ impl Wm {
                 at,
             } => self.move_to_output(&surface, &output, at)?,
             Call::Float(float) => return self.float(float),
-            Call::Give(give::Give {
-                surface, to, grab, ..
-            }) => {
-                known(self.index(&surface).is_some(), &surface)?;
-                let (answer, commands) = self.give_dragged(&surface, &to, grab)?;
+            Call::Give(give) => {
+                known(self.index(&give.surface).is_some(), &give.surface)?;
+                let (answer, commands) = self.give_call(give)?;
                 self.apply(commands)
                     .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
                 return Ok(answer);

@@ -20,10 +20,24 @@ impl Tiling {
             stay,
         } = runtime::params(params)?;
         if stay && grab.is_none() {
-            self.keep_keys(&surface, &to)
-                .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+            return self.hand_kept(&surface, &to);
         }
         self.hand_dragged(&surface, &to, grab)
+    }
+
+    /// A give of the person (a give key, the Looks door, the Apps rows,
+    /// D119): as [`Self::hand`], and the keyboard stays with tiling when
+    /// `to` is on another output ([`Self::keep_keys`]); when the receiver
+    /// refuses, the window takes the keyboard back.
+    pub(super) fn hand_kept(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
+        let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
+        let kept = self.keep_keys(surface, to).map_err(rejected)?;
+        let given = self.hand_dragged(surface, to, None);
+        if given.is_err() && kept {
+            let back = self.focus.to(Some(surface.into()));
+            self.apply(vec![back]).map_err(rejected)?;
+        }
+        given
     }
 
     /// A press of `move` that came with a window and its drag from
@@ -41,8 +55,8 @@ impl Tiling {
     }
 
     /// Hands a window to the window manager `to` with a remove with `to`
-    /// (D55); the receiver gives it the focus. The answer of
-    /// `window.give`.
+    /// (D55), as automation, the voice and MCP do; the receiver gives it
+    /// the focus. The answer of `window.give`.
     pub(super) fn hand(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
         self.hand_dragged(surface, to, None)
     }
@@ -89,25 +103,25 @@ impl Tiling {
         Ok(answer)
     }
 
-    /// The keyboard stays where the person looks (D119), for a give with
-    /// `stay` (the Looks door and the Apps rows of tiling, `give.sh`):
+    /// The keyboard stays where the person looks (D119), for a give of the
+    /// person ([`Self::hand_kept`]):
     /// before the focused window goes to a look whose claim lies on no
     /// part of the output of the window, the window focused before it
     /// takes the keyboard, or without one the desktop of tiling, its root
     /// node. Its own transaction comes first, so that the receiver hears of
     /// the holder before the window comes and leaves the keyboard there.
-    /// A query that fails keeps nothing.
-    pub(super) fn keep_keys(&mut self, surface: &str, to: &str) -> Result<(), ClientError> {
+    /// A query that fails keeps nothing. True when tiling kept it.
+    pub(super) fn keep_keys(&mut self, surface: &str, to: &str) -> Result<bool, ClientError> {
         let held = !self.focus.lost && self.focus.surface.as_deref() == Some(surface);
         let Some(area) = self.wm.output_box_of(surface).filter(|_| held) else {
-            return Ok(());
+            return Ok(false);
         };
         if self.rt.conn.claims_over(to, area).unwrap_or(true) {
-            return Ok(());
+            return Ok(false);
         }
         let next = self.wm.focused_without(surface).map(String::from);
         let keep = self.focus.keep(next, crate::NAME);
-        self.apply(vec![keep])
+        self.apply(vec![keep]).map(|()| true)
     }
 
     /// Whether a binding drags: the one of `drag`, or `move`, the
