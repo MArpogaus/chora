@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-26 02:02 UTC)
+## Now (2026-11-26 02:12 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 01:31 PM 1.7 % (11-26 BKK); week about 46 % vs 68 % time; need (100-46-5)/50 h = 0.98 %/h; lanes 6 build
 session branch: 6daaaab8 (t147 02:02: flake-cube, mc-launcher, xp-blink r1, co-drop r1); 93 greens. TRAIN148 3e3b1b2d = t147 + harness-minor b1a6465c, tour-launch 07eb539f
@@ -29,11 +29,11 @@ burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head; F7 open (
 | tour-rows-r3.md (0.6 %) | sonnet med, f992fe6a + 157be195 | running s..QgZbQTLiR8q7MVDgf |
 | co-drop-r2.md (0.6 %) | sonnet high, 75d4623e | running s..MVitc1ELinZfjMSPQ |
 | mc-minor-r5.md (0.6 %) | sonnet med, 157be195 | running s..PUjQt7D2R4B1JfAFV (red 01:58) |
-| tiling-focus-r2.md (1.2 %) | opus high, 6261d3e0 | running s..PNcZM4JvQiQQUQXh1 |
+| review-tiling-focus-r2.md (0.5 %) | opus high, 712a01f5 | starting |
 ## Queue (% week; 5 % reserve)
 1. (rc 3) FLAKE-SOFA r1 (t144); r2 MERGE-OK 7db16e74 (t145 green). rfs2-2: FLAKE-CUBE r1 (t147); FLAKE-PERSONA-NOTEPAD r1 runs. HARNESS-MINOR r1, TOUR-LAUNCH r1 in t148; then lanes merge the head.
 2. (rc 2) construct: r13 not met: co-75, co-76 hold; co-79 CO-REACH r5 MERGE-OK 7d9269ae (t145 green); CO-DROP r1 (t147); rcdr1-1, -2, rv9kb-3: CO-DROP r2 runs.
-3. (rc 2) ti-55: TILING-DOORS r4 (t142). SESSION-LAYOUT r1 MERGE-OK 691f0c8e (t144). P2 r11: T7 2/2; ti-57: TILING-FOCUS r1 6261d3e0 FIX (rtf1-1, -2 MAJOR): r2.
+3. (rc 2) ti-55: TILING-DOORS r4 (t142). SESSION-LAYOUT r1 MERGE-OK 691f0c8e (t144). P2 r11: T7 2/2; ti-57: TILING-FOCUS r2 712a01f5 done (gate 66 PASS): review r2.
 4. (F7, rc 1, 11) take r2: 88 open, 10 regr; judges r2: XP-BLINK r1 (t147), r2 runs; TOUR-ROWS r2 INCOMPLETE (rtr2-1 counts 15/9/10): r3; rtr1-3: MC-LAUNCHER r1 (t147); rml1-1: TOUR-LAUNCH r1 in t148. rmm3-1..-4: MC-MINOR r5 runs.
 5. (F5, rc 3, 4, 5) after t141: FLAKE-SERIES r10 on the final head (haiku); CI-DRY r1 merged (NOT RUN vkms, rpm, arch, mike).
 
