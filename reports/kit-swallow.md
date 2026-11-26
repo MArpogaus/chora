@@ -41,3 +41,24 @@ The two reds are not from this change (a bar flag and a mouse click, neither nea
 Environment note: the box has no mkdocs and no PIL; `docs` and `ci-check` (clock selftest) need them. They went into a venv under /tmp (`pip install -r docs/requirements.txt pillow numpy`) and ran first on PATH; no system package.
 
 `pgrep -fa 'chora --headless'`: empty after the last run.
+
+## Review r1
+
+Review of claude/kit-swallow-r1, 4d8bbe36..02e745c3 (9 files, +252 -28), opus, cloud. Verdict: **MERGE-OK** (no BLOCK, no MAJOR).
+
+Checks and commands:
+
+1. Red first: `cargo test -p chora-kit --lib swallow` fails on b279bd09 (`super_chords_with_every_modifier_combination_are_swallowed`: "Super+Alt+a ... the safety layer keeps only Ctrl+Alt") and passes on 37af9880; fails on 752af69f (`the_give_keys_are_no_chords_of_the_swallow`: "Super+Alt+1") and passes on 1c57c3d5. 02e745c3 has no own red commit; its red is real: `HOLDER=xp ONLY='^(xp mc|tiling mc) key$' tests/gate-handover-matrix.sh` (the xp cell of gate-give-holders) on 1c57c3d5 fails with `FAIL: the give keys were served by [tiling ], expected only xp`, and passes on 02e745c3.
+2. rpt2-1: `tests/gate-swallow-chords.sh` on 02e745c3 EXIT 0 (tiling, xp, mc: the five chords type nothing into a real foot that keeps its bytes, `start::end` asserted; a plain text arrives; one bound chord acts per look); the construct cell is co-25 of gate-construct-cube.sh (keycodes 10, 45 checked at the probe). The give keys are left out of `free_chords` for a plugin with give keys, and all four looks set `give_keys` before their first `grab_swallowed` (tiling main.rs:794, xp startup.rs:336, mc lifecycle.rs:232, construct camera.rs:539). The looks' bindings are grabbed before the swallow in the same set, so a bound chord wins (tiling MOD+Ctrl+Shift+1..9 and +space, xp Super+Ctrl+Shift+Left/Right stand-ins).
+3. Core: MAX_GRABS 1024 is a per-connection bound; the grab path scans a Vec (no allocation per key press in `grab_of`); the error at the limit is code 6 "a connection holds at most 1024 grabs". A list of 586 chords fits the existing `input.grab` API; a pattern grab would need a new core trigger: the list is KISS, no finding.
+4. Escape hatch: `press_action` (input.rs:466) runs the safety layer (Ctrl+Alt with BackSpace, Escape, i; VT keys) before any grab and with Super held too; the core refuses those grabs (`is_safety_key`, ipc.rs:1112) and the kit's `safety()` names the same 15 keys of KEYS, so no swallow can hide them. Injected keys skip the safety layer (D23), as before.
+5. Docs: api.md and architecture.md say 1024 as the code; D118 is stale (rksr1-1).
+
+`cargo test -p chora-kit -p chora -p chora-xp`: all ok (0 failed). `cargo clippy -p chora-kit -p chora -p chora-xp --all-targets -- -D warnings`: clean. `pgrep -fa 'chora --headless'`: empty after the runs.
+
+Findings:
+
+- rksr1-1, MINOR, docs/decisions.md:167: D118 still says the swallow holds Super "also with Shift and Ctrl" at "about 200 grabs" and a join lets go "about 200 `input.ungrab`"; fix: amend D118 with rpt2-1 (every combination of Shift, Ctrl and Alt without the safety layer, 586 chords, the give keys left out, MAX_GRABS 1024).
+- rksr1-2, MINOR, tests/gate-swallow-chords.sh:80: the bound chord shown per look (Super+2, Super+d, Super+F1) is of the class that was swallowed before; no cell shows that a bound chord of the newly swallowed class still acts (only the unit test does); fix: in cell_tiling send Super+Ctrl+Shift+2 and assert the tile gets tag 2.
+- rksr1-3, MINOR, crates/chora-kit/src/runtime.rs:256: `give_keys()` after the first `grab_swallowed` silently loses the give keys (the xp bug of 02e745c3), an ordering trap for the next look; fix: let `grab_give_keys` take a give key that the plugin holds as swallowed (swap its action) or document the order on `give_keys`.
+- rksr1-4, NIT, tests/gate-swallow-chords.sh:99: the fix 37af9880 changed the red cell of xp (Super+space opens the Start menu; xp binds Super+space to the launcher), so the xp cell was never red; fix: none needed, the report already says xp and mc were not run on red.
