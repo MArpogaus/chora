@@ -1111,6 +1111,29 @@ class HandoverCompanionsRun(unittest.TestCase):
         self.assertIn("companions_running(", act)
 
 
+class HandoverMcFocus(unittest.TestCase):
+    """rtf1-2 (F7): 41ddd4ba2 (rtf2-1) says a window given to mc while another look holds the keyboard arrives without
+    the focus. Act 7 (Super+Alt+3) must not expect the focus with mc; its next key, Super+Alt+4, then reaches the look
+    that holds the keyboard and not mc, so a click into mc comes before act 8's key."""
+
+    def lines(self):
+        text = (ROOT / "demo" / "tour" / "chapters" / "handover.py").read_text()
+        return text.splitlines()
+
+    def test_act_7_does_not_expect_mc_to_hold_the_focus(self):
+        [act] = [line for line in self.lines() if 't.act("key", "Super+Alt+3 gives the window to mc"' in line]
+        self.assertNotIn('focus="mc"', act)
+        self.assertNotIn("focus_with(", act)
+
+    def test_a_click_into_mc_comes_before_the_key_of_act_8(self):
+        lines = self.lines()
+        give = next(i for i, line in enumerate(lines) if 't.key("Super+Alt+3")' in line)
+        key = next(i for i, line in enumerate(lines) if 't.key("Super+Alt+4")' in line)
+        between = "\n".join(lines[give + 1 : key])
+        self.assertIn("MC", between, "no pointer move onto mc between the two keys")
+        self.assertIn("t.click()", between, "no click into mc between the two keys")
+
+
 class CodeWindow(unittest.TestCase):
     """RV9-3: the code window of the tiling chapter showed crates/chora-kit/src/wobbly.rs of the
     checkout, and that file differs between the baseline and the candidate: a pixel diff of the
