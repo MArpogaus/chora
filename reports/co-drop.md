@@ -72,3 +72,27 @@ Commits: red 1d820350 (a 3-face drop_tests case and the key sheet test at 1280x7
 - Captures media/2026-11-26/co-drop-r2/: c4-sheet-1280x720.png (the cube key sheet, three columns, Esc Close in the foot row, 280 KB) and after-side-drop-3-face-turn.png (stood back on face 2 of 4 after the drop from face 1, bar `Return Step in`, no `Pull out`; 209 KB).
 
 Open: none.
+
+## Review r2 (2026-11-26)
+
+Reviewer lane (cloud, read-only on code), claude/co-drop-r2 **head 636287c0**, base 75d4623e, 7 files +241 -52. Step 0: unshallow, `cargo check --workspace` green. No merge gate run (the lane's: all steps passed on 822d5be4; 636287c0 changes only tests/gate-construct-pull.sh).
+
+**Verdict: FIX** (0 BLOCK, 1 MAJOR, 2 MINOR, 1 NIT).
+
+Checks:
+1. Red first holds. `cargo test -p chora-construct`: at 1d820350 295 passed, 2 failed (`the_key_sheet_fits_an_output_of_720` at command.rs:940, the top; `a_drop_on_a_third_face_leaves_no_key_for_the_step_in_after_a_turn_back` at drop_tests.rs:300, `activated`); at bffb0f2d 1 failed (the side assert, command.rs:961) before d590aae6; at 636287c0 297 passed. 07654d7c (lint) and 822d5be4 (keycaps, acts I5 red on d590aae6) have no unit test of their own; I5 is the red check named in the commit, so not a finding.
+2. rcdr1-1 holds: `Host::forget_focus` (cube.rs:1071) clears the raw `focus` when it names the window, whatever its face; `given_from_a_pane` (pull.rs:333) calls it on every path that is not the front drop, then `walk_keys` and `the_keyboard_to_the_look`. Front drop: `note_focus` at the current front and the step in, so a drop onto the front after a turn steps into the face the person sees. A noted window that was not given stays noted with its face, as before. No path found where no look holds the keyboard or keys reach an unseen face in the construct (the give menu path: known, ti-57). rcdr1-2: the `give` comment is true.
+3. The key sheet. Probe (a temporary test, not committed, `Metrics::default`; base vs head; sheet x/y/w/h and the worst text end past the first keycap of its row):
+   - 1280x720: base 200/8/880/762 (ends 770), head 16/59/1248/602 (ends 661), 3 columns of 402, worst +9 (the real fonts: about -8, the capture c4-sheet-1280x720.png shows "Start a program or run a command" clear of `Super`).
+   - 1920x1080: unchanged (520/64/880/762, 2 columns).
+   - 1024x768: base 72/8/880/762 (2 columns, foot 2 px under the edge, text clear); head 16/64/992/602, 3 columns of 317, worst +95: text under the keycaps (rcdr2-1).
+   - 2560x720: head 16/59/2528/602, 3 columns of 836 (rcdr2-2).
+   3 columns only when 2 do not fit (`fixed + body(two) <= out - 64`): holds. No new option, no copy of a kit helper; `#[allow]` count unchanged (one moved). Ratchets on 636287c0: size ok (0 over 1500), sleep ok (778/929), lint ok (allow 360, no-reason 0, eprintln 46).
+4. Gate scripts: case `turned` turns with `cube.turn` and waits with `settle` (render-stats), no sleep; it asserts the mode and no new `key 28`, which cannot see the fault (rcdr2-3). gate-construct-cube.sh: the outside click moved from x 20 to x 8 because the sheet now starts at 16 (rcdr2-2).
+5. `git merge-tree --write-tree 6daaaab8 636287c0` clean (tree edf3f0fe); `cargo check --workspace` on that tree green.
+
+Findings:
+- rcdr2-1, MAJOR, plugins/chora-construct/src/command.rs:638, three columns take the output width less 32 with no check that a row fits, so at 1024x768 (two columns do not fit: 762 > 704) a column is 317 wide (402 at 1280, where the widest row has about 8 px to spare and acts I5 saw 15 px under the caps at about 373): the text of the wide rows runs some 70 px under its keycaps, worse than base, which drew it legibly; `the_key_sheet_fits_an_output_of_720` tests neither 1024x768 nor the overlap; fix: choose the columns from the widest row (its text plus `keycaps_width`, as `key_row` measures) and elide a row text that does not fit, and add 1024x768 with a text-ends-before-its-keycaps assert to the test.
+- rcdr2-2, MINOR, plugins/chora-construct/src/command.rs:638 (and :515), the three-column sheet keeps 16 from the sides with a pad of 8 and a gap of 12, against docs/construct-style.md rule 8 (a screen-fixed element keeps 32 from the edge; spacing in whole units of 8), and its width has no cap (2528 wide at 2560x720); 822d5be4 lowered the lane's own red side assert from 32 (bffb0f2d) to 16 (command.rs:974) and moved the co-71 outside click to x 8 (tests/gate-construct-cube.sh:303) to fit; fix: cap the three-column width at what three widest rows need, keep 32 at the sides with a gap of 16 or 24, and restore `x >= 32` and the click at x 20.
+- rcdr2-3, MINOR, tests/gate-construct-pull.sh:493, case `turned` (as `side`) asserts no new `key 28` after Return, but chora-probe logs only presses (tests/probe/src/main.rs:1044) and the construct, holding the keyboard stood back, takes the Return press for the step in, so the case cannot fail when the step in gives the hidden window the keyboard (it would pass on 75d4623e); it asserts no holder; fix: after the step in, type `x` and assert no new `key 45` in `$log` (or that `keyboard_holder` does not name `$surface`).
+- rcdr2-4, NIT, plugins/chora-construct/src/command.rs:624, the comment of `sheet_columns` says "less `UNIT` each side" while the code takes 4 `UNIT` (16 each side); fix: say 2 `UNIT` each side, or what rcdr2-2 makes it.
