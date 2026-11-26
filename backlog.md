@@ -45,6 +45,7 @@ A13 | 11-09 | rc | after an mc drag onto the construct output, construct loses i
 
 - rksr1-4 NIT (gate-swallow-chords.sh:99): xp cell never red on 1c57c3d5; no fix.
 
+- rpc2-5 NIT (demo/tour/chapters/construct.py:103): act 9 clicks the hidden chip node; acts 9, 10 red; for tour take r3.
 ## Review, docs, logging (rc 6, 8, 9a)
 A2 | 11-09 | rc | security audit as part of the per-area review (rc.md 6 lists charter 11 (a)-(c)); details in archive/charter.md section 15 item 2; the attacker check of the voice paths ran on 11-09 (reports/week-1.md).
 G1 | 11-10 | rc | open from grants2, for the security review: a HUD name whose HUD is not running is free to any process; hello accepts the same executable (several choractl).
