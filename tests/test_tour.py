@@ -1194,11 +1194,8 @@ class LauncherSupported(unittest.TestCase):
 
     @staticmethod
     def version(binary):
-        import re
-
-        out = subprocess.run([binary, "--version"], capture_output=True, text=True).stdout
-        found = re.match(r"^[^0-9]*([0-9][0-9.]*)", out)
-        return tuple(int(x) for x in found.group(1).split(".")) if found else ()
+        out = subprocess.run([f"{launch.REPO}/tests/tool-version.sh", binary], capture_output=True, text=True).stdout
+        return tuple(int(x) for x in out.strip().split(".")) if out.strip() else ()
 
     def test_the_fuzzel_of_a_session_is_supported_or_the_tour_stops(self):
         with tempfile.TemporaryDirectory() as scratch, mock.patch.object(launch, "SCRATCH", scratch):
@@ -1233,6 +1230,43 @@ class LauncherSupported(unittest.TestCase):
                 L.start(None, voice=False)
         started = [c for c in calls if any(str(x).endswith("chora-notify") for x in c) and "call" not in c]
         self.assertTrue(started, f"no chora-notify started: {calls}")
+
+    def test_one_version_parse_for_the_tour_and_the_gate(self):
+        """rtl1-2: tests/tool-version.sh is the one parse of `--version`; launch.py and merge-gate.sh call it."""
+        helper = pathlib.Path(launch.REPO) / "tests/tool-version.sh"
+        self.assertTrue(helper.exists())
+        self.assertNotIn("re.match", pathlib.Path(launch.__file__).read_text().split("def fuzzel_version")[1].split("def supported_fuzzel")[0])
+        self.assertIn("tool-version.sh", (pathlib.Path(launch.REPO) / "tests/merge-gate.sh").read_text())
+
+    def _notify_run(self, answers_after):
+        n = {"state": 0}
+        calls = []
+
+        def fake_run(argv, *a, **kw):
+            calls.append(list(argv))
+            if "state.get" in argv:
+                n["state"] += 1
+                return subprocess.CompletedProcess(argv, 0 if n["state"] > answers_after else 1, b"", b"")
+            return subprocess.CompletedProcess(argv, 0, b"", b"")
+
+        return calls, fake_run
+
+    def test_ensure_notify_returns_once_notify_answers(self):
+        calls, fake_run = self._notify_run(3)
+        with tempfile.TemporaryDirectory() as scratch, mock.patch.object(launch, "SCRATCH", scratch), mock.patch.object(launch.subprocess, "run", fake_run), \
+             mock.patch.object(launch.time, "sleep", lambda s: None):
+            launch.Launcher("t").ensure_notify({})
+        self.assertGreaterEqual(len([c for c in calls if "state.get" in c]), 4, "returned before notify answered")
+
+    def test_ensure_notify_stops_with_one_line_when_notify_never_answers(self):
+        calls, fake_run = self._notify_run(10**9)
+        clock = iter(range(0, 10**6, 5))
+        with tempfile.TemporaryDirectory() as scratch, mock.patch.object(launch, "SCRATCH", scratch), mock.patch.object(launch.subprocess, "run", fake_run), \
+             mock.patch.object(launch.time, "sleep", lambda s: None), mock.patch.object(launch.time, "monotonic", lambda: next(clock)):
+            with self.assertRaises(RuntimeError) as ctx:
+                launch.Launcher("t").ensure_notify({})
+        self.assertEqual(len(str(ctx.exception).splitlines()), 1)
+        self.assertIn("chora-notify", str(ctx.exception))
 
 
 if __name__ == "__main__":
