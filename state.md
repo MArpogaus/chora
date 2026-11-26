@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-26 15:11 UTC)
+## Now (2026-11-26 15:15 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 14:59 PM 5.4 % (11-26 BKK); week est. 51 % (unmeasured, owner reads) vs 76 % time; need (100-51-5)/40 h = 1.1 %/h; lanes 6 build
-session branch: 4d8bbe36 (t153+154 13:20); 98 greens. t153 red sh-37; t154 xp-run flake; t155 (0efebc69 kit-icons) xp-run red 13s (sh-44), rerun with build runs
+session branch: 0efebc69 (t155 15:15); 99 greens. t153 red sh-37; t154, t155 xp-run flake sh-44 (green on rerun); t156 (xp-minor-r5, tiling-focus-r4) gate runs
 
 lanes: 6 build of 6 (tour-fix-r1, review-h-rf2-r1, kit-swallow-r1, co-reach-r6, mc-minor-r1, flake-series-r10)
 burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88 open, 10 regr)
@@ -33,11 +33,11 @@ burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88 open
 ## Queue (% week; 5 % reserve)
 1. (rc 3) FLAKE-BAR-FULL r1 t152, TOUR-HARNESS r2 t153 merged.
 2. (rc 2) construct r14 not met: co-75, co-76 hold 5/5; co-79 pane path (Terminal row) 0/5: CO-REACH r6 runs; then rc1 pass co r2.
-3. (rc 2) P2 r12 NO: ti-57; TILING-FOCUS r4 MERGE-OK 7ef97ab8 (t156); pass r2: ti-57 fixed 4/4, but rpt2-1 MAJOR (Super+Alt chords reach clients): KIT-SWALLOW r1 runs; rpt2-2 MINOR backlog.
+3. (rc 2) P2 r12 NO: ti-57; TILING-FOCUS r4 7ef97ab8 in t156; pass r2: ti-57 fixed 4/4, but rpt2-1 MAJOR (Super+Alt chords reach clients): KIT-SWALLOW r1 runs; rpt2-2 MINOR backlog.
 4. (F7, rc 1, 11) take r2: 88 open, 10 regr; TOUR-ROWS r4 review FIX (rtr4r-1 MAJOR c5d rows; rtr4r-2..4 MINOR): TOUR-FIX r1 runs (rtr4r-1, rtr4-3/4); take r3 after; MC-BOIL r1 merged t154.
-4a. (F7, rc 11) KIT-ICONS r1 MERGE-OK abdd0158: t155 runs.
+4a. (F7, rc 11) KIT-ICONS r1 merged t155.
 4b. (rc 3) H-RF2 r1 done a2b080ab (gate EXIT 0): review r1 runs; rc1 pass co after co-reach r6.
-4c. (rc 1b) XP-MINOR r5 MERGE-OK 7614fd24 (t156; rpx2-5 backlog); mc pass r2 met (mc-62 MINOR: MC-MINOR r1 runs; rpm2-6 backlog); tour take r3 next, no tour tooling before it.
+4c. (rc 1b) XP-MINOR r5 7614fd24 in t156 ( rpx2-5 backlog); mc pass r2 met (mc-62 MINOR: MC-MINOR r1 runs; rpm2-6 backlog); tour take r3 next, no tour tooling before it.
 5. (F5, rc 3) FLAKE-SERIES r10 runs on 4d8bbe36 (haiku).
 
 ## Needs owner
