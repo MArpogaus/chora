@@ -1,0 +1,12 @@
+tiling xp key kept owner=xp focus=null pane= 3s
+tiling mc key kept owner=mc focus=null pane= 3s
+tiling construct key pass owner=construct focus=true pane=shown 2s
+xp tiling key kept owner=tiling focus=null pane= 3s
+xp mc key kept owner=mc focus=null pane= 3s
+xp construct key pass owner=construct focus=true pane=shown 2s
+construct tiling key pass owner=tiling focus=true pane= 4s
+construct xp key pass owner=xp focus=true pane= 5s
+construct mc key pass owner=mc focus=true pane= 6s
+mc tiling key kept owner=tiling focus=null pane= 3s
+mc xp key kept owner=xp focus=null pane= 3s
+mc construct key pass owner=construct focus=true pane=shown 2s

@@ -1,0 +1,32 @@
+
+pair            give     cgive    key      drag
+mc xp           -        -        pass     -
+mc tiling       -        -        pass     -
+xp mc           -        -        pass     -
+xp tiling       -        -        -        -
+tiling mc       -        -        pass     -
+tiling xp       -        -        -        -
+ONLY is set: the table is not fully checked
+run time: 48s (see $SHOTS/virtual.log)
+MISMATCH mc xp key: measured pass, expected kept
+MISMATCH mc tiling key: measured pass, expected kept
+MISMATCH xp mc key: measured pass, expected kept
+MISMATCH tiling mc key: measured pass, expected kept
+FAIL: 4 cells differ from EXPECTED; see $SHOTS/virtual.log
+exit 1
+mc xp key pass owner=xp 12s
+  focused: [{"id":"s1","owner":"xp","kind":"surface"}]
+  mc state.get focus: {"holder":null}
+  xp state.get focus: {"holder":"xp","surface":"s1"}
+mc tiling key pass owner=tiling 11s
+  focused: [{"id":"s1","owner":"tiling","kind":"surface"}]
+  mc state.get focus: {"holder":null}
+  tiling state.get focus: {"holder":"tiling","surface":"s1"}
+xp mc key pass owner=mc 11s
+  focused: [{"id":"s1","owner":"mc","kind":"surface"}]
+  xp state.get focus: {"holder":null}
+  mc state.get focus: {"holder":"mc","surface":"s1"}
+tiling mc key pass owner=mc 11s
+  focused: [{"id":"s1","owner":"mc","kind":"surface"}]
+  tiling state.get focus: {"holder":null}
+  mc state.get focus: {"holder":"mc","surface":"s1"}

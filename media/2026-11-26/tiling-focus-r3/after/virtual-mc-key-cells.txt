@@ -1,0 +1,31 @@
+zz-capture-holder.sh: waits for /tmp/chora-gate.lock
+
+pair            give     cgive    key      drag
+mc xp           -        -        kept     -
+mc tiling       -        -        kept     -
+xp mc           -        -        kept     -
+xp tiling       -        -        -        -
+tiling mc       -        -        kept     -
+tiling xp       -        -        -        -
+ONLY is set: the table is not fully checked
+run time: 18s (see $SHOTS/virtual.log)
+ok: gate-handover-virtual: every cell as in EXPECTED that ran in 18s
+exit 0
+mc xp key kept owner=xp 3s
+  focused: [{"id":"mc","owner":"mc","kind":"group"}]
+  mc state.get focus: {"holder":"mc"}
+  xp state.get focus: {"holder":null}
+mc tiling key kept owner=tiling 3s
+  focused: [{"id":"mc","owner":"mc","kind":"group"}]
+  mc state.get focus: {"holder":"mc"}
+  tiling state.get focus: {"holder":null}
+repair: mc holds the keyboard, the window goes there first
+xp mc key kept owner=mc 4s
+  focused: [{"id":"xp","owner":"xp","kind":"group"}]
+  xp state.get focus: {"holder":"xp"}
+  mc state.get focus: {"holder":null}
+repair: xp holds the keyboard, the window goes there first
+tiling mc key kept owner=mc 4s
+  focused: [{"id":"tiling","owner":"tiling","kind":"group"}]
+  tiling state.get focus: {"holder":"tiling"}
+  mc state.get focus: {"holder":null}
