@@ -266,7 +266,9 @@ impl<A> Runtime<A> {
     }
 
     /// Grabs the give keys that the plugin does not hold; a key that
-    /// another client holds stays free for the next try.
+    /// another client holds stays free for the next try. A give key that
+    /// the plugin holds as a swallow, because it came before the give
+    /// keys were set, becomes a give key.
     ///
     /// # Errors
     ///
@@ -280,6 +282,10 @@ impl<A> Runtime<A> {
                 continue;
             };
             let text = binding.to_string();
+            if self.swallowed.contains(&text) {
+                self.grab(binding, make(to))?;
+                continue;
+            }
             if self.grabs.iter().any(|(b, _)| *b == text) {
                 continue;
             }
