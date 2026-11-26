@@ -217,9 +217,10 @@ rr_commit "test(x): adds is 3 (sh-9, red)"
 add_src 'a + b'
 rr_commit "fix(x): add adds (sh-9)"
 mkdir -p "$work/tmp" "$work/fakecargo"
-printf '#!/bin/bash\ntouch %s\nsleep 60\n' "$work/started" >"$work/fakecargo/cargo"
-chmod +x "$work/fakecargo/cargo"
 rm -f "$work/started" "$work/pid"
+mkfifo "$work/started"
+printf '#!/bin/bash\necho up >%s\nexec tail -f /dev/null\n' "$work/started" >"$work/fakecargo/cargo"
+chmod +x "$work/fakecargo/cargo"
 cat >"$work/runner.sh" <<EOF
 #!/bin/bash
 echo \$\$ >"$work/pid"
@@ -227,14 +228,12 @@ exec tests/merge-gate.sh --red-first-check --red-first-run --base base
 EOF
 chmod +x "$work/runner.sh"
 (cd "$rr" && PATH="$work/fakecargo:$PATH" TMPDIR="$work/tmp" setsid "$work/runner.sh" >/dev/null 2>&1 &)
-for _ in $(seq 60); do
-    [ -e "$work/started" ] && break
-    sleep 0.5
-done
-kill -TERM -- "-$(cat "$work/pid")" 2>/dev/null
-for _ in $(seq 20); do
-    [ -z "$(find "$work/tmp" -mindepth 1)" ] && break
-    sleep 0.5
+timeout 60 cat "$work/started" >/dev/null
+group=$(cat "$work/pid")
+members=$(pgrep -g "$group")
+kill -TERM -- "-$group" 2>/dev/null
+for pid in $members; do
+    timeout 20 tail --pid="$pid" -f /dev/null
 done
 check "an interrupted run leaves no temp dir" "$(find "$work/tmp" -mindepth 1 | wc -l)" 0
 check "an interrupted run leaves no worktree" "$(git -C "$rr" worktree list | wc -l)" 1
