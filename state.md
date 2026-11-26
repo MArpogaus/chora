@@ -26,7 +26,7 @@ burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88,10 r
 |---|---|---|
 | tour-fix-r2.md (Q 4, 0.6 %) | sonnet high, 84e31324 | s..LaZa9mxvCe9PHc5BE |
 | co-minor-r1.md (Q 2, 0.5 %) | sonnet high, 57ce1480 | s..QfdXoTJwAHB4ThLKn |
-| review-mcm3-r1.md (Q 4c, 0.4 %) | opus high, d8eb907c | starting |
+| review-mcm3-r1.md (Q 4c, 0.4 %) | opus high, d8eb907c | s..LmnkYvSCtRfbtW7Jw |
 | flake-series-r10.md (Q 5, 0.6 %) | haiku high, 4d8bbe36 | s..MrWJ1FZ4X7WVbaJa6 |
 ## Queue (% week; 5 % reserve)
 1. (rc 3) FLAKE-BAR-FULL r1 t152, TOUR-HARNESS r2 t153 merged.
