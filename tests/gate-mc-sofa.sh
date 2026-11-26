@@ -65,6 +65,10 @@
 #   volume-wheel  a wheel over the volume door in the column raises and
 #               lowers the level, as the keys do (rpx1-15)
 #
+#   boil-lines  the recipe page of the tour with the timer card at the foot:
+#               every lines node of the page is a whole number of lines
+#               high at the edge of the page (rtr3-1)
+#
 #   page-edges  no line of any built-in scene, every panel full, is cut at the
 #               edge of its page at 1280x720 (rmm1-1)
 #
@@ -641,6 +645,38 @@ cell_page_end() {
     [ -z "$cut" ] || fail "a line of the page is cut at the edge of the page $page: ink $cut in its last two rows (rpx1-12)"
 }
 
+cell_boil_lines() {
+    local card page bad
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    ctl call mc scene.save '{"name": "boil", "chapter": {"title": "Step 1: the water"}, "panels": [
+        {"id": "lead", "cell": [0, 0, 3, 2], "style": {"base": "lead"}, "empty": "Nothing yet."},
+        {"id": "side", "cell": [3, 0, 1, 2], "rule": "faint", "empty": "Nothing yet."}]}' >/dev/null || fail "scene.save boil"
+    panel boil lead '["Boil the water", "Fill the large pot with two litres of water, add a spoon of salt and bring it to a rolling boil. Then add the spaghetti and cook it for nine minutes."]'
+    panel boil side '["Timer", "9 minutes once the spaghetti is in."]'
+    ctl call mc scene.show '{"name": "boil"}' >/dev/null || fail "scene.show boil"
+    until_ok '[ "$(current)" = boil ]' 20 || fail "no boil page: $(current)"
+    ctl call mc notify.clear '{}' >/dev/null
+    ctl call mc notify.push '{"title": "Timer: spaghetti, 9 minutes", "body": "Started by voice"}' >/dev/null || fail "notify.push"
+    until_ok '[ "$(ctl call notify state.get "{}" | jq "[.shown[].summary] | length")" -ge 1 ]' 20 || fail "no card"
+    card=$(ctl call notify state.get '{}' | jq -c '.shown[0].rect')
+    # shellcheck disable=SC2329 # until_ok evaluates its first argument
+    clear_of_card() { jq -ne --argjson c "$card" --argjson p "$(node_rect mc-s-boil-page)" '$p[1] + $p[3] <= $c[1]' >/dev/null; }
+    until_ok clear_of_card 40 || fail "the boil page $(node_rect mc-s-boil-page) stays over the card $card"
+    sleep 1
+    page=$(node_rect mc-s-boil-page)
+    bad=$(ctl query "owner:mc kind:text" | jq -r --argjson p "$page" "
+        .[] | $shown | select(.id | test(\"^mc-s-boil-panels-.*-lines\$\")) |
+        (.rects | to_entries[0].value) as \$r | (if (.id | test(\"lead\")) then 56 else 28 end) as \$l |
+        select((\$r[3] % \$l) > 0.5 and (\$l - (\$r[3] % \$l)) > 0.5 or \$r[1] + \$r[3] > \$p[1] + \$p[3] + 0.5) |
+        \"\(.id) \(\$r | tostring)\"")
+    [ -z "$bad" ] || fail "a lines node of the boil page shows part of a line at the edge of the page $page (rtr3-1): $bad"
+    shot boil-lines
+    ctl call mc notify.clear '{}' >/dev/null
+    until_ok '[ -z "$(ctl call notify state.get "{}" | jq -r ".shown[].summary")" ]' 20 || fail "notify.clear leaves the card"
+    key Super+Home
+}
+
 cell_pill_clock() {
     local clock word
     key Super+Home
@@ -774,7 +810,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist keylist-click more launcher-theme volume-wheel page-end page-edges pill-clock helpers-empty remote-back launcher-click-row rooms-card rooms-pill rooms-pill-status)
+cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist keylist-click more launcher-theme volume-wheel page-end boil-lines page-edges pill-clock helpers-empty remote-back launcher-click-row rooms-card rooms-pill rooms-pill-status)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done

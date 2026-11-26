@@ -288,6 +288,69 @@ mod tests {
         assert!(lines_shown(&mc, "boil", "side") >= 3, "the page is whole");
     }
 
+    /// The panels of the pages whose lines the edge of the page cuts
+    /// through a line: the page edge is nearer than the end of the panel's
+    /// clip, and what shows of the lines node (from its top to the clip or
+    /// the edge) is neither the whole text nor a whole number of lines
+    /// (rv9ka-1, rtr3-1).
+    fn lines_cut_through(mc: &crate::Mc) -> Vec<String> {
+        use chora_scene::Command;
+        let mut cut = Vec::new();
+        for (scene, page) in &mc.scenes {
+            let geo = mc.geometry(scene).unwrap();
+            let scroll = mc.scroll.get(scene).copied().unwrap_or_default();
+            let edge = geo.text[1] + geo.text[3];
+            for panel in page.panels.iter().filter(|p| !p.lines.is_empty()) {
+                let id = crate::panel_id(scene, &panel.id);
+                let commands = mc.panel(scene, panel);
+                let made = |want: &str| {
+                    commands.iter().find_map(|c| match c {
+                        Command::Create { id, props, .. } if id == want => Some(props.clone()),
+                        _ => None,
+                    })
+                };
+                let clip = made(&id).and_then(|p| p.size).map_or(0.0, |s| s[1]);
+                let lines = made(&format!("{id}-lines")).unwrap();
+                let top = lines.transform.map_or(0.0, |t| t.translation_2d().1);
+                let [_, y, w, h] = mc.place(scene, panel).unwrap();
+                let line = mc.ty("body", panel.style.as_ref()).line;
+                let total = mc.text_height(panel, w) - mc.lines_top(panel);
+                let room = edge - (y - scroll);
+                let seen = (clip.min(h).min(room) - top).max(0.0);
+                let whole = ((seen / line) - (seen / line).round()).abs() < 0.02;
+                if room < clip.min(h) && seen + 0.5 < total && !whole {
+                    cut.push(format!("{scene}/{} {seen} of {total} px", panel.id));
+                }
+            }
+        }
+        cut
+    }
+
+    /// With no card, and with a timer card at the foot, no panel of a page
+    /// shows a part of a line at the edge of the page: the panel takes
+    /// whole lines and the page says that it goes on (rtr3-1).
+    #[test]
+    fn a_panel_at_the_page_edge_shows_whole_lines_with_and_without_a_card() {
+        let core = chora_kit::testing::FakeCore::start().selecting();
+        core.answer_with("state.get", json!({"shown": []}));
+        let mut mc = crate::testing::mc_on(&core, "page-end-whole", [1280, 720]);
+        recipe(&mut mc);
+        mc.learn_rooms().unwrap();
+        let none = lines_cut_through(&mc);
+        core.answer_with(
+            "state.get",
+            json!({"shown": [{"rect": [160, 585, 291, 79]}]}),
+        );
+        mc.learn_rooms().unwrap();
+        let card = lines_cut_through(&mc);
+        assert!(
+            none.is_empty() && card.is_empty(),
+            "lines cut through, no card: {}; a card: {}",
+            none.join(", "),
+            card.join(", ")
+        );
+    }
+
     /// A foot card on an output that stands right of another one takes
     /// its room: the rect of the card is output-local (rmm3-1).
     #[test]
