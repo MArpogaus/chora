@@ -45,7 +45,14 @@
 # a commit of the range before it, or itself, that names the same id and
 # changes a test; the step prints one line with the sha and the id that
 # misses. A fix committed before the cut time in tests/red-first.sh is
-# checked by the any-test rule, not per id. `pre-commit` runs the hooks over all files (as CI does; ~2 min),
+# checked by the any-test rule, not per id. With `--red-first-run` (the
+# red-first step passes it) the Rust #[test] functions added by the test
+# commits of each `fix` (the ones named above, after the previous fix of the
+# same ids) are run at the fix's first parent, and at least one must fail
+# there: else the step prints RED-FIRST NOT RED with the sha and the tests
+# that pass. A test only in a tests/gate-*.sh, selftest or Python script, in
+# the fix commit itself, or that did not run on the parent is named and not
+# run; `No test: <reason>` opts out; the run covers the last 10 fix commits. `pre-commit` runs the hooks over all files (as CI does; ~2 min),
 # with SKIP=cargo-clippy,lychee,vale as CI does, and fails when
 # pre-commit is not installed.
 # `ci-check` also runs tools/lint-ratchet (the allow, no-reason and eprintln counts may not grow),
@@ -93,6 +100,7 @@
 #                    step not named here makes --push refuse
 #   --jobs N         run up to N steps after 2d-guard at once (default 1)
 #   --red-first-check  run only the red-first check, without the lock
+#   --red-first-run  with --red-first-check: also run each fix's tests on its parent
 #   --identity-check run only the identity check, without the lock
 #   --list           print the step names, one per line
 #   --commands       print `name|command` of each step, one per line
@@ -128,6 +136,7 @@ worker_mode=""
 push_branch=""
 base=origin/claude/autonomous-dev-session-3w-i33pg7
 red_check=""
+red_run=""
 id_check=""
 list_steps=""
 list_commands=""
@@ -157,6 +166,10 @@ while [ $# -gt 0 ]; do
         ;;
     --red-first-check)
         red_check=1
+        shift
+        ;;
+    --red-first-run)
+        red_run=1
         shift
         ;;
     --identity-check)
@@ -221,6 +234,7 @@ red_first() {
         missing=1
     done < <(git -C "$repo" rev-list --reverse --no-merges --topo-order "$base..HEAD")
     [ "$missing" = 0 ] && echo "red-first: every fix and feat commit has a test before it or in it (a fix that names a finding id: a test commit that names it)"
+    [ -z "$red_run" ] || (cd "$repo" && red_first_run "$base") || missing=1
     return "$missing"
 }
 
@@ -254,12 +268,12 @@ fi
 
 default_steps() {
     cat <<STEPS
-red-first|tests/merge-gate.sh --red-first-check --base "$base"
+red-first|tests/merge-gate.sh --red-first-check --red-first-run --base "$base"
 identity|tests/merge-gate.sh --identity-check --base "$base"
 ratchets|bad=0; for r in sleep-ratchet "size-ratchet --base $(git merge-base "$base" HEAD)" lint-ratchet; do n=\${r%% *}; tools/\$r >"\${TMPDIR:-/tmp}/ratchets.\$\$" 2>&1 || { bad=1; echo "FAIL: \$n: \$(tail -1 "\${TMPDIR:-/tmp}/ratchets.\$\$")"; }; cat "\${TMPDIR:-/tmp}/ratchets.\$\$"; rm -f "\${TMPDIR:-/tmp}/ratchets.\$\$"; done; exit \$bad
 pre-commit|command -v pre-commit >/dev/null || { echo "FAIL: pre-commit is not installed"; exit 1; }; SKIP=cargo-clippy,lychee,vale pre-commit run --all-files
 docs|command -v mkdocs >/dev/null || { if git diff --quiet "\$(git merge-base "$base" HEAD)" -- docs mkdocs.yml; then echo "SKIP: mkdocs is not installed (docs unchanged)"; exit 0; fi; echo "FAIL: mkdocs is not installed and docs changed"; exit 1; }; site=\$(mktemp -d /tmp/chora-docs.XXXXXX) && mkdocs build --strict --quiet --site-dir "\$site"; rc=\$?; rm -rf "\$site"; exit \$rc
-gate-lib|{ tests/gate-lib-selftest.sh && tests/under-load-selftest.sh && tests/cells-for-selftest.sh && tests/nested-diag-selftest.sh && tests/matrix-cap-selftest.sh; } & a=\$!; [ x\${MERGE_GATE_NESTED:-} != x ] || tests/merge-gate-selftest.sh; b=\$?; wait \$a && [ \$b = 0 ]
+gate-lib|{ tests/gate-lib-selftest.sh && tests/under-load-selftest.sh && tests/cells-for-selftest.sh && tests/nested-diag-selftest.sh && tests/matrix-cap-selftest.sh && tests/red-first-selftest.sh; } & a=\$!; [ x\${MERGE_GATE_NESTED:-} != x ] || tests/merge-gate-selftest.sh; b=\$?; wait \$a && [ \$b = 0 ]
 ci-check|tools/cut-check --base "$(git merge-base "$base" HEAD)" && tests/cut-check-selftest.sh && tests/grab-gap-check.py && tests/grab-gap-check-selftest.sh && tests/agent-sandbox.sh && tests/gate-0.7-9.sh && tests/gate-0.8-5.sh && tests/gate-0.8-8.sh && tests/gate-0.8-plugin-runtime.sh && tests/packaging-files.py && tests/flavor-notify.py && tests/screenshot-notice.sh && tests/tiling-scripts-selftest.sh && tests/runtime-dir-selftest.sh && tests/packaging-files-selftest.sh && tools/size-ratchet --base "$(git merge-base "$base" HEAD)" && tests/size-ratchet-selftest.sh && tools/lint-ratchet && tests/lint-ratchet-selftest.sh && tools/sleep-ratchet && tests/sleep-ratchet-selftest.sh && tests/ratchet-raise-selftest.sh
 build|cargo build --workspace --locked
 test|cargo test --workspace --locked

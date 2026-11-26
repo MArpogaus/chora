@@ -104,6 +104,20 @@ add_test
 rr_commit "test(x): adds is 3 (sh-9)"
 add_src 'a + b + 0'
 rr_commit "fix(x): add stays right (sh-9)"
+fresh
+add_src 'a - b'
+add_test
+rr_commit "test(x): adds is 3 (sh-9, red)"
+add_src 'a + b'
+rr_commit "fix(x): add adds (sh-9)"
+add_src 'a + b + 0'
+printf '#!/bin/bash\nexit 0\n' >"$rr/tests/gate-z.sh"
+rr_commit "fix(x): add stays right (sh-9)"
+fix=$(git -C "$rr" rev-parse --short HEAD)
+out=$(red)
+check "a second fix of one id does not reuse the test of the first" "$(grep -c 'NOT RED' <<<"$out")" 0
+check "that second fix names its own gate cell" "$(grep -c "^red-first: $fix gate cell, not run" <<<"$out")" 1
+
 check "without --red-first-run the passing test is not run" "$(cd "$rr" && tests/merge-gate.sh --red-first-check --base base >/dev/null 2>&1; echo $?)" 0
 
 check "the gate's red-first step passes --red-first-run" "$("$repo/tests/merge-gate.sh" --commands | grep -c '^red-first|.*--red-first-run')" 1

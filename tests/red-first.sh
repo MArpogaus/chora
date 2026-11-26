@@ -23,6 +23,8 @@
 # The words that look like an id but are none (utf-8, sha-256, gate-0.8)
 # are skipped, and the hook cuts its message file at the scissors line.
 #
+# The merge gate also runs red_first_run (below): see tests/merge-gate.sh.
+#
 # Usage: tests/red-first.sh MSG_FILE
 #   RED_FIRST_BASE  the base of the branch (default
 #                   origin/claude/autonomous-dev-session-3w-i33pg7)
@@ -144,6 +146,158 @@ red_first_hook() {
     fi
     echo "red-first: stage the test that fails without this change, commit it first, or add a body line 'No test: <reason>'"
     return 1
+}
+
+rust_tests_added() {
+    git show --format= -U0 "$1" -- '*.rs' | awk '
+        /^\+\+\+ b\// { file = substr($0, 7); pend = 0; next }
+        /^\+[[:space:]]*#\[(tokio::)?test/ { pend = 1; next }
+        pend && /^\+.*fn [A-Za-z_0-9]+/ {
+            match($0, /fn [A-Za-z_0-9]+/)
+            print file "\t" substr($0, RSTART + 3, RLENGTH - 3)
+            pend = 0
+        }'
+}
+
+crate_of() {
+    local dir manifest name
+    dir=$(dirname "$2")
+    while :; do
+        manifest=Cargo.toml
+        [ "$dir" = . ] || manifest=$dir/Cargo.toml
+        name=$(git show "$1:$manifest" 2>/dev/null | sed -n '/^\[package\]/,/^\[/s/^name *= *"\(.*\)".*/\1/p' | head -1)
+        [ -z "$name" ] || {
+            echo "$name"
+            return 0
+        }
+        [ "$dir" != . ] || return 1
+        dir=$(dirname "$dir")
+    done
+}
+
+has_shell_test() {
+    git show --format= --name-only "$1" | grep -Ev "$helper_files" | grep -Eq '^tests/gate-[^/]*\.sh$|^tests/[^/]*-selftest\.sh$|^tests/test_[^/]*\.py$'
+}
+
+shares_id() {
+    local id
+    for id in $1; do
+        grep -qxF "$id" <<<"$2" && return 0
+    done
+    return 1
+}
+
+qualified() {
+    local crate=$1 name
+    shift
+    for name in "$@"; do
+        printf ' %s::%s' "$crate" "$name"
+    done
+}
+
+run_named() {
+    local crate=$1 out name path failed=() passed=()
+    shift
+    out=$(cargo test -p "$crate" --tests --no-fail-fast -- "$@" 2>&1) || true
+    grep -q '^error: could not compile' <<<"$out" && ! grep -q '^test result:' <<<"$out" && {
+        echo "red $crate::(build)"
+        return 0
+    }
+    for name in "$@"; do
+        while read -r path; do
+            [ "$path" = "$name" ] || [ "${path%::"$name"}" != "$path" ] || continue
+            grep -qF "test $path ... FAILED" <<<"$out" && failed+=("$name") || passed+=("$name")
+        done < <(sed -n 's/^test \(.*\) \.\.\. \(ok\|FAILED\)$/\1/p' <<<"$out")
+    done
+    [ "${#failed[@]}" = 0 ] || echo "red$(qualified "$crate" "${failed[@]}")"
+    [ "${#failed[@]}" != 0 ] || [ "${#passed[@]}" = 0 ] || echo "pass$(qualified "$crate" "${passed[@]}")"
+    [ "$((${#failed[@]} + ${#passed[@]}))" != 0 ] || echo "unproven $crate: none of the tests ran on the parent"
+}
+
+red_first_run() {
+    local base=$1 cap=10 shas=() fixes=() i j sha subject prev=-1 ids paired c file name crate wt bad=0 body
+    local -A names=()
+    local line verdict gate runs passes
+    git rev-parse --verify -q "$base" >/dev/null || return 1
+    mapfile -t shas < <(git rev-list --reverse --no-merges --topo-order "$base..HEAD")
+    for i in "${!shas[@]}"; do
+        is_fix "$(git log -1 --format=%s "${shas[i]}")" && fixes+=("$i")
+    done
+    if [ "${#fixes[@]}" -gt "$cap" ]; then
+        echo "red-first: run capped to the last $cap of ${#fixes[@]} fix commits"
+        fixes=("${fixes[@]: -$cap}")
+    fi
+    [ "${#fixes[@]}" -gt 0 ] || return 0
+    wt=$(mktemp -d "${TMPDIR:-/tmp}/red-first-run.XXXXXX") || return 1
+    git worktree add -q --detach "$wt/wt" HEAD || return 1
+    export CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-$(pwd)/target}
+    for i in "${fixes[@]}"; do
+        sha=${shas[i]}
+        subject=$(git log -1 --format=%s "$sha")
+        body=$(git log -1 --format=%b "$sha")
+        grep -Eq '^No test: .+' <<<"$body" && continue
+        ids=$(fix_ids "$sha")
+        paired=()
+        prev=-1
+        for ((j = 0; j < i; j++)); do
+            is_fix "$(git log -1 --format=%s "${shas[j]}")" || continue
+            [ -z "$ids" ] || shares_id "$ids" "$(fix_ids "${shas[j]}")" || continue
+            prev=$j
+        done
+        for ((j = prev + 1; j < i; j++)); do
+            c=${shas[j]}
+            commit_changes_test "$c" || continue
+            git merge-base --is-ancestor "$c" "$sha^" || continue
+            [ -z "$ids" ] || shares_id "$ids" "$(commit_ids "$c")" || continue
+            paired+=("$c")
+        done
+        names=()
+        gate=0
+        for c in "${paired[@]}"; do
+            ! has_shell_test "$c" || gate=1
+            while IFS=$'\t' read -r file name; do
+                [ -n "$file" ] || continue
+                crate=$(crate_of "$c" "$file") || continue
+                names[$crate]+="$name "
+            done < <(rust_tests_added "$c")
+        done
+        if [ "${#names[@]}" -gt 0 ]; then
+            git -C "$wt/wt" checkout -q --detach "$sha^" || continue
+            runs=0
+            passes=0
+            for crate in "${!names[@]}"; do
+                # shellcheck disable=SC2086
+                line=$(cd "$wt/wt" && run_named "$crate" ${names[$crate]})
+                verdict=${line%% *}
+                case $verdict in
+                red)
+                    runs=1
+                    echo "red-first: $(git log -1 --format=%h "$sha")${line#red} red on the parent"
+                    ;;
+                pass)
+                    passes=1
+                    echo "red-first: $(git log -1 --format=%h "$sha")${line#pass} passes on the parent"
+                    ;;
+                unproven)
+                    echo "red-first: $(git log -1 --format=%h "$sha") ${line#unproven }"
+                    ;;
+                esac
+            done
+            [ "$runs" = 1 ] || [ "$passes" = 0 ] || {
+                echo "RED-FIRST NOT RED: $(git log -1 --format='%h %s' "$sha")"
+                bad=1
+            }
+        elif [ "$gate" = 1 ] || has_shell_test "$sha"; then
+            echo "red-first: $(git log -1 --format=%h "$sha") gate cell, not run"
+        elif [ -n "$(rust_tests_added "$sha")" ]; then
+            echo "red-first: $(git log -1 --format=%h "$sha") test in the fix commit, not run"
+        else
+            echo "red-first: $(git log -1 --format=%h "$sha") no test function found, not run"
+        fi
+    done
+    git worktree remove --force "$wt/wt" 2>/dev/null
+    rm -rf "$wt"
+    return "$bad"
 }
 
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then

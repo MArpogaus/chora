@@ -113,6 +113,15 @@ The hooks run:
   hook refuses only when the base ref resolves, else (a shallow or
   single-branch clone, a first commit, a commit on the base branch
   itself) it prints a note and the merge gate checks the range
+- red first, run: the red-first step of the merge gate runs the Rust
+  `#[test]` functions that the test commits of a `fix` added (for a fix
+  that names ids, the commits that name them, after the previous fix of
+  those ids) at the fix's first parent with `cargo test -p <crate>`, and at
+  least one must fail there, else the step prints `RED-FIRST NOT RED`. A
+  test only in a `tests/gate-*.sh` script is named (`gate cell, not run`),
+  as is a test in the fix commit itself; `No test: <reason>` opts out; the
+  run covers the last 10 fix commits; `tests/red-first-selftest.sh` proves
+  it
 - red first per finding id: a `fix` commit whose subject or body names
   a finding id (`sh-33`, `mc-55`, `rtd-2`: lowercase letters, a hyphen,
   digits, an optional letter) needs, for each id it names, a commit
