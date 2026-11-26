@@ -35,3 +35,14 @@ tiling-disc PASS    70s /tmp/merge-gate.tq0vf9/tiling-disc.log
 e2e        PASS   273s /tmp/merge-gate.tq0vf9/e2e.log
 all steps passed; no --push, nothing is pushed
 ```
+
+## Review r1 (PM, 2026-11-26)
+
+claude/flake-cube-r1 head b8cd9136, base 16977e22, tests/gate-construct-cube.sh only, +17 -4 (under 200 lines: PM review). Red 6d727741 (end_others stalled, xp stopped 1.5 s) before fix 26e4f1fd; follow-up b8cd9136 swaps the raw sleep for until_ok. Lane gate: full run all PASS (cube 133 s), no --push.
+
+**Verdict: MERGE-OK** (0 BLOCK, 0 MAJOR, 1 MINOR, 1 NIT). Harness branch: its own train first (routines.md).
+
+Checks: the click now waits for `focused` before typing (a key before the focus is lost, as for a person); the first probe is its own `$!`, not the lowest pid (pid wrap fixed); the stall cell runs once, on the second end_others; no product change.
+
+- rfc1-1, MINOR, harness/product question: the natural reds (2 of 26) show xp late on focus after a program ends, cause not found; a person who clicks and types at once loses the first key in that case. Fix: a later lane measures xp's adopt-to-focus time in the cube cell and files a product finding if it exceeds one frame budget.
+- rfc1-2, NIT, gate-construct-cube.sh end_others: `(until_ok false 6; kill -CONT)` is a fixed 1.5 s timer under another name; the sleep ratchet does not see it. Fix: a comment naming it the stall length, or a `stall_for` helper the ratchet counts.

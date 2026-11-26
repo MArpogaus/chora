@@ -436,3 +436,4 @@ rr9-1 | MINOR | review-record-v9 r4 (reports/record-v9.md "## Review r4") | open
 - xp: rxb1-1 MINOR (non-animation timers on clock::now(): card TooSoon, ask retries; keep Instant::now()), rxb1-2 MINOR (serve loop polls 1 ms while clock held; wait IDLE); reports/xp-blink.md Review r1.
 - mc: rml1-3 MINOR (power.sh silent on unsupported fuzzel), rml1-4 COSMETIC (plain fallback light box on dark mc); reports/mc-launcher.md Review r1.
 - construct: rcdr1-1 MINOR (pull.rs:333 side drop forgets noted focus only via noted_focus(); 3+ faces step in reaches a hidden window; forget raw focus + 3-output test), rcdr1-2 NIT (list.rs:253 give comment stale); reports/co-drop.md Review r1.
+- rfc1-1 MINOR (xp late on focus after a program ends in the cube cell, 2/26 natural; measure adopt-to-focus), rfc1-2 NIT (until_ok false 6 is a hidden timer); reports/flake-cube.md Review r1.
