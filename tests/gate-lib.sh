@@ -12,6 +12,9 @@
 # and raises the bound; an idle one keeps exactly FLOOR, so a 2x regression still fails.
 # The cap is below the 10 s that the core waits for a method call (TIMEOUT,
 # crates/chora/src/methods.rs:29), past which mc fails anyway.
+# core_diag prints one line on the core of the session: its pid, the files
+# of its socket directory and the last lines of its log, for the FAIL line of
+# a step that finds the socket gone or an input lost (sh-43, sh-45).
 # session_pids PGREP_ARGS... prints the pids that pgrep finds whose
 # environment has the XDG_RUNTIME_DIR of the gate, so that a gate beside
 # it never counts, and exits 1 when it finds none.
@@ -174,6 +177,11 @@ session_start() {
     case $owner in chora-*) owner=${owner#chora-} ;; *) owner='' ;; esac
     until_ok "ctl query 'owner:${owner:-core}' | jq -e 'length > 0' >/dev/null || { [ -z '$owner' ] && ctl query '*' >/dev/null; }" 60 ||
         fail "the nodes of ${owner:-the core} do not answer queries"
+}
+core_diag() {
+    local dir
+    dir=$(dirname "${CHORA_SOCKET:-/none/x}")
+    echo "core pids: $(XDG_RUNTIME_DIR=$session_runtime session_pids -x chora | tr '\n' ' '); socket dir: $(find "$dir" -maxdepth 1 2>&1 | tr '\n' ' '); log: $(tail -n 6 "$session_runtime/chora.log" 2>&1 | cut -c1-200 | tr '\n' '|')"
 }
 settled() {
     until_ok "a=\$($1); sleep 0.3; [ -n \"\$a\" ] && [ \"\$a\" = \"\$($1)\" ]" "${2:-30}" || true
