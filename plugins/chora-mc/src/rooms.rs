@@ -9,8 +9,9 @@ use serde_json::{Value, json};
 
 use crate::{ClientError, Mc, region::Region};
 
-/// The nodes of the pill of the HUD host: its word and its mark.
-const PILL: [&str; 2] = ["hud-word", "hud-figure"];
+/// The nodes of the pill of the HUD host: its word and its mark, and the
+/// badge of a muted mic, which is wider than the word.
+const PILL: [&str; 3] = ["hud-word", "hud-figure", "hud-badge"];
 /// The most of the height of the output that a card at the foot may take;
 /// a card higher up stands in the middle or at the top, not at the foot.
 const MOST_OF_HEIGHT: f64 = 3.0;
