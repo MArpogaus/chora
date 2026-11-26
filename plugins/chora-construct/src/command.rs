@@ -33,7 +33,7 @@ const HELP_NARROW: f64 = 560.0;
 const HELP_TOP: f64 = 64.0;
 /// The width of the key sheet in three columns, and the margin that it
 /// keeps from the top and the bottom of the output.
-const HELP_WIDE3: f64 = 1240.0;
+const HELP_WIDE3: f64 = 1200.0;
 const HELP_MARGIN: f64 = 32.0;
 /// The search line, the footer and a row of the help.
 const SEARCH: f64 = 56.0;
