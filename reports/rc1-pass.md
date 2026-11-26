@@ -587,3 +587,129 @@ takes). The yellow square at the pointer in persona captures is the injection ma
   end); the menu is in p1-01.
 - `run.py --help` still runs every chapter.
 - Context used about 175 k; `pgrep -fa 'chora --headless'` empty at the end.
+
+## r2 mc
+
+Lane rc1-pass-mc-r2, opus high, cloud, head 4d8bbe36 (claude/rc1-pass-mc-r2, t153+154: 3be27e32 plus tour-harness r2,
+co-drop r4, mc-boil r1, xp-focus r1, tiling-chip r1). Run and read only, no product, test or design change. Step 0 green:
+`git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`, `run.py --help` (still no help: it starts
+the chapters).
+
+Runs, each from a fresh compositor:
+- tour1: `TOUR_OUT=<scratch>/tour1 python3 demo/tour/run.py mc handover`: mc 22 acts, 22 green; handover 11 acts, 9 green,
+  2 red (acts 7, 8; see Notes). tour2, tour3: `run.py handover`: the same two red, 3 of 3. tour4: `run.py mc`: 22 green.
+- pm1: `CHORA_TEST_FLAGS=--test-injected-press-is-real tests/persona/session.sh mc 1280x720` (dark), then
+  `tests/persona/act.py`. pm2: `session.sh mc 1024x768` (second takes). hx1, hx2: `session.sh tiling+mc 1280x720`
+  (give keys, two takes); hx3: `session.sh tiling+xp` (control). Host calls went to the stand-ins (`calls.log`,
+  p00-calls-pm1.txt); no host power call.
+
+Captures: `media/2026-11-26/rc1-pass-mc-r2/` (45 PNG and one text file, 4 MB in all, each under 600 KB). The brief puts
+them on the code branch; its hook `no-session-files` refuses `media/` (no --no-verify), so they sit beside this report
+on claude/session-log, as in r1 and r2 xp. `m-` = tour stills (mc chapter, take 1), `h-` = handover (tour and hx
+sessions), `p-` = pm1, `q-` = pm2, `f-` = frames and timed captures of the layout jumps.
+
+### Verdict
+
+**mc: confirms rc 1.** No BLOCK or MAJOR found. The r1 MAJOR is gone: rpx1-8 / mc-60 (p04: 14 unbound chords, Super+x
+k m q z b g y, Super+Alt+9, Super+Shift+x, Super+Ctrl+x, Super+period, Super+F5, Super+Delete, between `|` in foot from
+Programs: `start:||||...|:end`, no letter). New: 6 MINOR (rpm2-1..rpm2-6). sh-42 (shared, open MAJOR: tiling joining
+beside an mc window) was not retested here and stays open in findings/shared.md.
+
+### mc: shared RC bar and main paths (every r1 row rerun)
+
+| Item | Result | Capture |
+|---|---|---|
+| Start a program (mouse) | pass with rpm2-2: Programs door opens the launcher (themed now: dark box, `faint` row, accent match, 16 px mono, 11.5:1), Foot starts as page 7 | p03, p04, m09 |
+| Start a program (keys, remote) | pass: Super+Space opens the launcher, typing filters; Return on an unknown name says Nothing found (cut: rpx1-10 seen again) | q02, p03 |
+| Key list (mouse) | pass: six rows always in the column; a click on the Super+F1 row opens the full list | p01, p15 |
+| Key list (keys) | pass with rpm2-1: Super+F1 shows all keys and fits at 1280x720 and 1024x768, no hairline through Mute (rpx1-9 gone), Esc shuts it | p02, q01 |
+| Helper (mouse) | pass: "Chat with a helper ..." opens the chat in the column, the typed question goes, helper row "working", Stop on the head line | p11 |
+| Helper (keys) | pass: Super+a reopens the chat with the draft kept ("draft text") and the caret in the field; with rpm2-5 (date jumps) | p14, f03 |
+| Helper: Working, Stop, answer | pass with rpm2-4: Stop sends `agent.cancel` (2 of 2 in the fake's log) and leaves the head; the answer "Hello" arrives after 3 s (the stand-in ignores a cancel); no "Stopped." line | p11, p12, p13 |
+| No stray keys into clients | pass (rpx1-8 / mc-60 fixed): no letter of 14 unbound chords in foot; on a window page shown by Left, typed `zz` stays out of foot | p04, p17 |
+| Lock | pass: Lock door runs `swaylock -f` (stand-in page 8) | p05, p00 |
+| Power | pass: Power door opens the themed menu (Lock, Log out, Restart, Shut down, Screenshot), Shut down runs `systemctl poweroff` (stand-in) | p06, p00 |
+| Volume | pass (rpx1-15 fixed): a click mutes ("Muted"), the wheel over the door gives `set-volume 5%+` per step and unmutes, remote Vol+ runs; readout "Volume 85%" | p07, p00, m11 |
+| Screenshot | pass: the door runs grim and `notify-send Screenshot saved <path>` (no notify server in the persona mc, as r1) | p00 |
+| Clock | pass with rpm2-3: header "THURSDAY 26 NOVEMBER 13:41"; with the column hidden the Listening pill no longer covers it (rpx1-13 gone for Listening) | p08 |
+| Honest failure states | pass: Nothing found, Muted, "Microphone off. Click to turn it on.", Helpers page "No helper is set up. Ask the person who set up this computer." (rpx1-14 gone), "1 running" with Atlas idle | p03, p07, p09, m08, p18 |
+| Handover from and to mc | pass with rpm2-6: tiling > mc by Super+Alt+3 shows page 7 with every line, the keyboard stays with the giver (D119, by design; a click on the page gives it, h06); mc > tiling by Super+Alt+1 the same (h08); mc > xp by Super+drag keeps every line (tour acts 9, 10, 3 of 3); no window lost | h01, h03, h04, h05..h08 |
+| Cook (light): voice next, timer, answer, mouse Next, remote Left/Right/Home, Super+F1, Super+n, alarm | pass with rpm2-5; the timer card no longer covers a line (rpx1-11 gone), the last line is whole with a ↓ (rpx1-12 gone); the alarm card has no red (rpx1-17 seen again) | m01..m06 |
+| Sofa (dark, remote): Right twice, Home, Programs, chat, Vol+ | pass: page turns, Helpers page words, launcher themed, chat in the column, Vol+ readout | m07..m11 |
+| Remote on a window page | pass: Left shows page 7 with the keys on the page; XF86Back and Right turn; Return gives foot the keys (`echo remote` arrives) | p16, p17 |
+| Nurse at a distance (dark, 1280x720) | pass with rpm2-2: page and column text 14 px or more (column Inter caps 11 px = 15 px face); foot from Programs is about 10 px | p01, p04 |
+| Style (mc-style.md, mc-v2) | rpm2-1, rpm2-3, rpm2-5; seen again rpx1-16, rpx1-17, rv9j-2, mc-16, mc-50, sh-13, sh-16 | as listed |
+
+### Findings
+
+| id | look | severity | text |
+|---|---|---|---|
+| rpm2-1 | mc | MINOR | the full key list (Super+F1) leaves out Super+drag, the move key that shared.md asks every look's help to list |
+| rpm2-2 | mc | MINOR | Programs > Foot draws an unthemed foot: about 10 px text that starts at x 0 on the page edge |
+| rpm2-3 | mc | MINOR | muted: the host pill "Microphone off. Click to turn it on." is a white box on the dark page; with the column hidden it covers the date and the clock |
+| rpm2-4 | mc | MINOR | the chat drops its oldest lines at the top without "↑ N earlier"; wheel and Page Up do not bring them back |
+| rpm2-5 | mc | MINOR | the page moves when the column changes: the date jumps 96 px left for about 1 s after Super+a; one frame of a rebuild collapses the scene head and moves the margin times |
+| rpm2-6 | mc (handover) | MINOR | after a give key into mc, a Super+drag of the window onto xp leaves the keyboard on tiling's empty desktop: the dragged window has no focus |
+
+**rpm2-1 (MINOR; shared.md "Give and move keys": "Every one of these keys is listed in each look's help").** The full
+list names `Super+Alt+1-4 Give window to a look` but no Super+drag row, at 1280x720 (p02) and 1024x768 (q01). Cause
+(read): `plugins/chora-mc/src/keys.rs:165` drops `System::Drag` with the aliases (unit
+`the_full_list_has_a_row_for_each_task_but_the_drag_...`); xp's help lists it (`plugins/chora-xp/src/help.rs:126`).
+mc binds `Super+BTN_LEFT: drag` (mc.yaml:194) and the tour uses it (handover act 9). Repro: `session.sh mc 1280x720`,
+`act.py key Super+F1`.
+
+**rpm2-2 (MINOR; P7 readable, checklist 2 "no text touches an edge").** Programs > type Foot > Return: page 7 FOOT shows
+foot's own default: two text lines in y 57..81 (about 10 px face, 12 px line), ink from x 0, the left edge of the
+output (p04). The sofa and the nurse read it from metres away; the tour's Notepad page (h01) has a 14 px inset. The
+tiling twin is rpt1-5. Repro: `session.sh mc 1280x720`; `click 918 658`, `type Foot`, `key Return`. Seen in pm1 and
+again in hx1 (Super+Return of tiling, themed foot, given to mc: readable, h05), so the cause is the unthemed program,
+not the page.
+
+**rpm2-3 (MINOR; checklist 8 theme, mc-style 11 no boxes; RC bar clock).** A click on Mute turns the state line into a
+white pill with dark text "Microphone off. Click to turn it on." on the dark page (p09). With the column hidden
+(Super+n) the pill stays in the header and covers "...VEMBER 13:41" (p10 at 1280x720; q03 at 1024x768: "26 NO" then the
+pill). rpx1-13 was fixed for the Listening pill (p08); the muted pill is wider. Workaround: Super+n back or unmute.
+Repro (2 of 2, pm1 and pm2): `session.sh mc WxH`; `click` on "Mute" (905 42 at 1280, 649 42 at 1024), `key Super+n`.
+
+**rpm2-4 (MINOR; mc-v2 "older lines leave at the top behind '↑ 3 earlier' (click or Page Up scrolls)").** After five
+turns the first question "When is my next appointment?" leaves the top of the chat; no line says that earlier lines
+exist (p12 right); a wheel of 200 px over the chat and Page Up in the field change nothing (p13). A person who asked
+by voice cannot read back the start. Repro: pm1, open the chat, send four messages to the fake helper, `scroll 0 -200`
+at 1000 350, `key Page_Up`.
+
+**rpm2-5 (MINOR; mc-v2 "The page never moves for the margin", checklist 7 jitter and frame flashes).** (a) Super+a with
+the chat closed: the header date moves from x 525..833 to x 429..737 and back after about 1 s (f03, f04; 2 of 3 tries
+in pm1, captures at 0.2 s steps). (b) A rebuild of the page shows one frame in another geometry: the scene head reads
+"1|AGENDA" (number, bar and title touching, the title doubled) and the margin times stand 35 px further left (f01: dark
+take 1, frame 72 of the last 6 s; f02: light take 2, frame 160, the frame after the timer card leaves). The tour's
+still 03-14 (m12) is that frame; the judged capture 0.5 s later (m11) is right. Repro: `run.py mc`, then
+`ffmpeg -i 03b-mc-dark.mp4 -vf fps=12` and compare each frame with its neighbours (2 of 2 takes).
+
+**rpm2-6 (MINOR; D119 "A drag gives without `stay` (the pointer is there)").** Handover chapter: after Super+Alt+3
+(tiling > mc, keyboard kept by tiling, as D119 wants) the Super+drag of the page window onto xp lands it in xp with all
+lines, but the core focus stays on the node `tiling` (captures h5, h6 of the tour JSON, 3 of 3 takes) and the Notepad
+cursor is hollow (h04): typed keys go to tiling's empty desktop on another output, not into the window the person just
+dragged. D119's "a give of a window that does not hold the keyboard leaves the keyboard with its holder" wins over its
+drag rule here. Workaround: a click on the window. Repro: `run.py handover`, act 10 capture JSON (`s1` focused null,
+`tiling` focused true).
+
+### Known ids seen again (not new)
+
+rpx1-10 (launcher themed now; "Nothing found for "nosuchpro…" still cut, p03), rpx1-16 (bordered state pill, "Super+a"
+on the page and "Super+A" in the list, lowercase "atlas", "idle", "speaking": sh-13), rpx1-17 (alarm card without red or
+word, m06), rv9j-2 (the notice card is dark on the light page and bold, m02, m06; a light card on the dark page, m11),
+mc-16 (running head "1 AGENDA" above "1 | AGENDA"), mc-50 (yellow square in the persona capture, p12), sh-16 (launcher
+">" with no label), rfc1-1 not met.
+
+### Notes for the PM
+
+- Handover chapter acts 7 and 8 are red 3 of 3 on 4d8bbe36 (as r2 xp found on 3be27e32): act 7 expects the focus with
+  mc, D119 keeps it with tiling (hx1, hx2 and the tiling+xp control hx3 agree: the receiver never takes it); act 8 then
+  runs Super+Alt+4 in tiling with nothing focused, so the window stays in mc (h02: the construct still says "Nothing is
+  open yet") and act 9 drags it from mc, not from the construct. The chapter no longer shows mc > construct. A tour row
+  fix or a D119 decision; not an mc product finding.
+- The mc chapter's `hud.say` leaves "speaking" and "Four cloves, sliced thin." on screen from act 6 to the end
+  (m04..m06): mc's own HUD line keeps a say until the next `hud.set`; the real voice path (`voice.say`, the host line)
+  is the gate's (gate-mc-sofa answer). The stills read as a stuck state.
+- `run.py --help` still runs every chapter.
+- Context used about 190 k; `pgrep -fa 'chora --headless'` empty at the end.
