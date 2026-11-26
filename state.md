@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-26 14:00 UTC)
+## Now (2026-11-26 14:03 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 12:52 PM 4.6 % (11-26 BKK); week est. 51 % (unmeasured, owner reads) vs 76 % time; need (100-51-5)/40 h = 1.1 %/h; lanes 6 build
+budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 14:03 PM 5.1 % (11-26 BKK); week est. 51 % (unmeasured, owner reads) vs 76 % time; need (100-51-5)/40 h = 1.1 %/h; lanes 6 build
 session branch: 4d8bbe36 (t153+154 13:20); 98 greens. t153 red mc-scale (sh-37); t154 xp-run red 13s, green on rerun (flake); t155 (0efebc69 kit-icons) gate runs
 
 lanes: 6 build of 6 (tour-rows, h-rf2-r1, rc1-pass-tiling-r2, co-reach-r6, mc-minor-r1, flake-series-r10)
@@ -26,7 +26,7 @@ burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88 open
 |---|---|---|
 | tour-rows-r4.md (Q 4, 1.2 %) | opus high | running s..NWJPZjCXoCT77WnZn |
 | h-rf2-r1.md (Q 4, 0.6 %) | sonnet high, 4d8bbe36 | running s..MAXjQyxSREAEeQzh6 |
-| rc1-pass-tiling-r2.md (Q 3, 1.2 %) | opus high, f484a92d | starting |
+| rc1-pass-tiling-r2.md (Q 3, 1.2 %) | opus high, f484a92d | running s..QgWrwfXM6wjosmtQQ |
 | co-reach-r6.md (Q 2, 1.0 %) | opus high, 4d8bbe36 | running s..Lj635mZvdmt7myT7J |
 | mc-minor-r1.md (Q 4, 0.8 %) | sonnet high, 4d8bbe36 | running s..Pg5YnDS8SDtMQ5L2i |
 | flake-series-r10.md (Q 5, 0.6 %) | haiku high, 4d8bbe36 | running s..MrWJ1FZ4X7WVbaJa6 |
