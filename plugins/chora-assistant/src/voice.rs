@@ -783,8 +783,9 @@ impl Agent {
     /// The answer of `state.get` (KIT7): the state of the helper machine,
     /// the words of a helper door and the helper surfaces that show, the
     /// one presenter of the helper. While a chat is open on a helper, the
-    /// state and the door are those of its header, so that the bar and the
-    /// chat never say two states (rpt3-2).
+    /// door says the state of its header, so that the bar and the chat
+    /// never say two states (rpt3-2); the `helper` word stays the one of
+    /// the machine, which tells an answer from rest.
     pub fn presented(&self) -> Value {
         let mut shown = Vec::new();
         if self.assistant.is_some() {
@@ -796,14 +797,11 @@ impl Agent {
         if self.chat.is_open() {
             shown.push(chat::CHAT);
         }
-        let (helper, door) = match self.chat.shown_state() {
-            Some((name, state)) => (
-                chora_kit::helper::State::of(state).word(),
-                chora_kit::words::row(self.language, &name, state, ""),
-            ),
-            None => (self.machine.word(), self.machine.door(self.language, false)),
+        let door = match self.chat.shown_state() {
+            Some((name, state)) => chora_kit::words::row(self.language, &name, state, ""),
+            None => self.machine.door(self.language, false),
         };
-        json!({"helper": helper, "door": door, "shown": shown})
+        json!({"helper": self.machine.word(), "door": door, "shown": shown})
     }
 
     /// Shows, moves into its state or removes the figure, as the agent,
