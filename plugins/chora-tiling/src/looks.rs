@@ -24,18 +24,23 @@ pub fn running(clients: &Value) -> Vec<&'static str> {
 }
 
 /// The rows of the menu: one that moves the window to each running look,
-/// or the one row that says that no other look runs.
-pub fn rows(running: &[&str], language: Language) -> Vec<String> {
+/// or the one row that says that no other look runs, or that no window has
+/// the focus (`window` false), where a row that moves one would fail.
+pub fn rows(running: &[&str], window: bool, language: Language) -> Vec<String> {
     if running.is_empty() {
         return vec![Word::NoOtherLook.text(language).to_owned()];
+    }
+    if !window {
+        return vec![Word::NoWindowToMove.text(language).to_owned()];
     }
     (running.iter())
         .map(|look| give::move_words(look, language))
         .collect()
 }
 
-/// The look that the row `line` moves the window to; none for the row that
-/// says that no look runs, and for text that is no row.
+/// The look that the row `line` moves the window to; none for the rows
+/// that say that no look runs or no window has the focus, and for text
+/// that is no row.
 pub fn chosen<'a>(running: &[&'a str], language: Language, line: &str) -> Option<&'a str> {
     let line = line.trim();
     (running.iter())
@@ -104,7 +109,7 @@ mod tests {
 
     #[test]
     fn a_row_moves_the_window_in_the_words_of_the_key_list() {
-        let rows_en = rows(&["xp", "mc", "construct"], Language::En);
+        let rows_en = rows(&["xp", "mc", "construct"], true, Language::En);
         assert_eq!(
             rows_en,
             [
@@ -130,15 +135,15 @@ mod tests {
             None
         );
         assert_eq!(
-            rows(&["xp"], Language::De),
+            rows(&["xp"], true, Language::De),
             ["Fenster auf den xp-Desktop verschieben"]
         );
     }
 
     #[test]
     fn no_other_look_is_one_row_that_chooses_nothing() {
-        assert_eq!(rows(&[], Language::En), ["No other look is running"]);
-        assert_eq!(rows(&[], Language::De), ["Kein anderer Look läuft"]);
+        assert_eq!(rows(&[], true, Language::En), ["No other look is running"]);
+        assert_eq!(rows(&[], true, Language::De), ["Kein anderer Look läuft"]);
         assert_eq!(chosen(&[], Language::En, "No other look is running"), None);
         assert_eq!(prompt(Language::En), "Move this window to ");
         assert_eq!(prompt(Language::De), "Dieses Fenster verschieben nach ");

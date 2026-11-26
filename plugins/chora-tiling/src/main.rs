@@ -392,6 +392,30 @@ fn launch_looks_word() -> ExitCode {
     }
 }
 
+/// The other looks that run and whether a window has the focus, as the
+/// Looks menu needs them; the notice and the failure when the core does not
+/// list its clients. A focus that cannot be read counts as a window, so
+/// that the rows stay.
+fn looks_seen(language: chora_kit::words::Language) -> Result<(Vec<&'static str>, bool), ExitCode> {
+    let mut conn = launch_conn();
+    let clients = conn
+        .as_mut()
+        .map_err(|err| err.to_string())
+        .and_then(|conn| {
+            conn.call::<_, Value>("clients.list", Value::Null)
+                .map_err(|e| e.to_string())
+        });
+    let clients = clients.map_err(|err| {
+        let (title, text) = looks::unreachable_notice(language);
+        tell_launch(title, text);
+        cannot_start("looks", &err)
+    })?;
+    let window = conn.as_mut().map_or(true, |conn| {
+        conn.focused_surface().map_or(true, |w| w.is_some())
+    });
+    Ok((looks::running(&clients), window))
+}
+
 /// `--launch looks`: the menu of the Looks word of the bar. It lists the
 /// other looks that run (the clients of the core) as the rows that move the
 /// focused window there, under the prompt "Move this window to ", or says
@@ -400,17 +424,10 @@ fn launch_looks(dirs: &[std::path::PathBuf]) -> ExitCode {
     use std::io::Write as _;
     use std::os::unix::process::CommandExt as _;
     let language = chora_kit::words::Language::of_session();
-    let clients =
-        launch_conn().and_then(|mut conn| conn.call::<_, Value>("clients.list", Value::Null));
-    let clients = match clients {
-        Ok(clients) => clients,
-        Err(err) => {
-            let (title, text) = looks::unreachable_notice(language);
-            tell_launch(title, text);
-            return cannot_start("looks", &err);
-        }
+    let (running, window) = match looks_seen(language) {
+        Ok(seen) => seen,
+        Err(code) => return code,
     };
-    let running = looks::running(&clients);
     let scheme = theme::written_scheme(dirs);
     let fuzzel = match theme::launch_line("fuzzel", &[], dirs, scheme) {
         Ok(line) => line,
@@ -430,7 +447,11 @@ fn launch_looks(dirs: &[std::path::PathBuf]) -> ExitCode {
         Err(err) => return cannot_start("fuzzel", &err),
     };
     if let Some(mut stdin) = child.stdin.take() {
-        let _ = stdin.write_all(looks::rows(&running, language).join("\n").as_bytes());
+        let _ = stdin.write_all(
+            looks::rows(&running, window, language)
+                .join("\n")
+                .as_bytes(),
+        );
     }
     let Ok(out) = child.wait_with_output() else {
         return ExitCode::FAILURE;
