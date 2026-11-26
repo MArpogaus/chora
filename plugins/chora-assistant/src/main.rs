@@ -1219,6 +1219,22 @@ mod tests {
         assert!(wait <= HELD_RECHECK, "but it looks again: {wait:?}");
     }
 
+    #[test]
+    fn a_held_clock_does_not_spin_the_serve_loop_with_the_chat_open_xp_blink_r3() {
+        let (mut agent, _dirs) = xp_agent("wait-chat");
+        agent.event(pressed("hud-figure", false)).unwrap();
+        assert!(agent.chat.is_open(), "the chat is open");
+        clock::step(serde_json::json!({"ms": 0.0})).unwrap();
+        std::thread::sleep(Duration::from_millis(20));
+        let wait = serve_wait(&mut agent);
+        clock::set(None);
+        assert!(
+            wait >= Duration::from_millis(100),
+            "a held clock does not spin with the chat open: {wait:?}"
+        );
+        assert!(wait <= HELD_RECHECK, "but it looks again: {wait:?}");
+    }
+
     /// What greets at `GREET_AFTER` of a start without a voice agent: what
     /// `greet_step` keeps in `said`, without its file of the session.
     fn greeted_without_helper(agent: &mut Agent, now: Instant) {
