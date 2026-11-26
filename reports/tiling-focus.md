@@ -65,3 +65,30 @@ Findings:
 - rtf1-5 nit plugins/chora-xp/src/wm/lifecycle.rs:81: `takes_keys` also yields for a give without stay of a window that is not focused (`choractl give xp --surface ID`, MCP, voice) while a window of another look holds the keyboard; D119 and api.md say a give without stay goes with the window "as before". Fix: say in D119 that a receiver yields to a holding window for any give, or limit the yield to stay.
 
 Counts: BLOCK 0, MAJOR 2 (rtf1-1, rtf1-2), nit 3. Verdict: **FIX** (open MAJOR). Known, not findings: words.rs:594 a_backtrace_into_a_full_pipe, FLAKE-CUBE r1, FLAKE-SOFA.
+
+## r2
+
+Lane: cloud, claude/tiling-focus-r2. Base 6261d3e0 (r1 head), head 712a01f5. Diffstat 6261d3e0..712a01f5: 15 files changed, 472 insertions(+), 87 deletions(-).
+
+Commits: 08f3b514 test (red on 6261d3e0), 7407db98 fix, a8994b9b docs (D119, api.md), 11a0bb2a test (kept cells without new sleeps, sleep-ratchet), 1e655fef test (focus_changed of the kit, cut-check), 712a01f5 test (gate-handover-virtual: `xp tiling key` and `tiling xp key` kept, between two virtual outputs).
+
+Rule (D119 amended, id kept; api.md "Window managers"): a give the person makes, a menu row or a give key, keeps the keyboard with the giver (next window, else its desktop, the root node of the look); the receiver yields through `Focus::takes_given`; automation, the voice and MCP give without stay and go with the window as before when they give the focused window. One kit path: `give::focused` hands through the new `Windows::hand_kept` (default: `hand`), and a give key on a window of another look calls its `window.give` with `stay: true`.
+
+Red first (08f3b514 fails on 6261d3e0): kit `a_window_of_another_manager_is_given_by_its_owner` (forward carries stay); tiling `the_give_key_leaves_the_keyboard_with_tiling` (rtf1-1) and `a_window_given_in_while_xp_holds_the_keyboard_comes_without_it` (rtf1-2, receiver); xp `the_row_window_to_tiling_leaves_the_keyboard_with_xp` (rtf1-2, giver: next window, then the xp root node, before the remove); matrix EXPECTED `tiling xp key kept`, `xp tiling key kept` (new result kept: owner is the receiver, the window has no focus, a node or window of the giver has it, and holds a second); gate-looks-move moves a third terminal with Super+Alt+2 first.
+
+Findings:
+- rtf1-1 fixed: tiling `Windows::hand_kept` -> `Tiling::hand_kept` (keep_keys, then hand_dragged); `window.give` with stay goes the same way.
+- rtf1-2 fixed: xp `give_kept`/`keep_keys` (lifecycle.rs) for the give keys and the Control Panel rows (`give::focused`) and for `window.give` with stay; tiling yields as a receiver (`lifecycle.rs` settle: `Focus::takes_given`, `Book::confirm_keys`, `Focus::lose`).
+- rtf1-3 fixed: `Focus::takes_given` now has callers in tiling and xp; xp hears the focus into a kit `Focus` (`heard`) in place of its own `desk_away`/`key_node_id`.
+- rtf1-4 fixed: a refused give after a keep focuses the window again (tiling `a_refused_give_of_the_person_gives_the_keyboard_back`; xp the same in `give_kept`).
+- rtf1-5 settled in D119 (option 1): a give of a window that does not hold the keyboard leaves it with its holder, for every give.
+- Open, filed: chora-mc and the construct do not keep as givers (default `hand_kept`) and take a window given in with the keyboard as receivers (`Book::confirm`); matrix cells `tiling|xp -> mc|construct key` stay pass (giver keeps, receiver takes). Construct was out of the lane (CO-DROP r1); its list.rs give menu stays filed.
+
+Holder before (6261d3e0 binaries, gate-looks-move with Super+Alt+2): `FAIL: the give key: xp took the keyboard: tiling {"holder":null}, xp {"holder":"xp","surface":"s3"}`.
+Holder after (fix): give key `tiling {"holder":"tiling","surface":"s2"}, xp {"holder":null}`; first menu move `tiling s1, xp null`; second move `tiling {"holder":"tiling"}` (desktop), xp null; `task L3 pass`; Super+F1/Escape keeps it off xp. Matrix key cells (ONLY): tiling xp kept, xp tiling kept, the other ten pass.
+
+Captures: media/2026-11-25/tiling-focus-r2/ (before/: holders.txt, before-key.png, after-key.png; after/: scripted-T7-L3.txt, matrix-key-cells.txt, seven png; each under 500 KB, largest 392 KB).
+
+Virtual outputs: xp and tiling on two virtual outputs shown in panes on one screen count as other outputs (claims_over per output), so the give keys between them keep the keyboard too; if the PM wants a pane on the same screen to count as the same place, that is a new rule.
+
+Gate: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` on 712a01f5: EXIT 0, 66 PASS, 0 FAIL, 0 SKIP, "all steps passed; no --push, nothing is pushed" (handover 86 s incl. gate-looks-move, matrix, virtual). No foreign flake. Two earlier runs failed on my own changes and were fixed: ratchets (sleep 781 of 778, kept_by) and ci-check (cut-check, Event::FocusChanged in a tiling test), then virtual (the key cells between virtual outputs measured gap). `pgrep -fa 'chora --headless'` empty after the run.

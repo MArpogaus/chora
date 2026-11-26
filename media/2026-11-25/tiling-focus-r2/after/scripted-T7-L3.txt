@@ -1,0 +1,6 @@
+ok: the give key: s3 went to xp on HEADLESS-2, the keyboard stays with s2 on tiling (tiling {"holder":"tiling","surface":"s2"}, xp {"holder":null})
+ok: the first move: s2 went to xp on HEADLESS-2, the keyboard stays with s1 on tiling (tiling {"holder":"tiling","surface":"s1"}, xp {"holder":null})
+ok: the second move: the last window went to xp, tiling holds the keyboard with its desktop (tiling {"holder":"tiling"}, xp {"holder":null})
+ok: L3 after the moves: task L3 pass
+ok: Super+F1 opens the key list, Escape closes it, and the keyboard stays off xp (tiling {"holder":"tiling"}, xp {"holder":null})
+rm: cannot remove '/tmp/looks-move.nOh5bv': Directory not empty

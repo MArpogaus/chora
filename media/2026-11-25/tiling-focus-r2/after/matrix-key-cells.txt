@@ -1,0 +1,25 @@
+tiling xp key kept owner=xp focus=null pane= 3s
+tiling mc key pass owner=mc focus=true pane= 1s
+tiling construct key pass owner=construct focus=true pane=shown 2s
+xp tiling key kept owner=tiling focus=null pane= 3s
+xp mc key pass owner=mc focus=true pane= 1s
+xp construct key pass owner=construct focus=true pane=shown 2s
+construct tiling key pass owner=tiling focus=true pane= 4s
+construct xp key pass owner=xp focus=true pane= 5s
+construct mc key pass owner=mc focus=true pane= 5s
+mc tiling key pass owner=tiling focus=true pane= 1s
+mc xp key pass owner=xp focus=true pane= 2s
+mc construct key pass owner=construct focus=true pane=shown 2s
+pair                  give     cgive    cgive-s  mcp      voice    drag     key
+tiling xp             -        -        -        -        -        -        kept
+tiling mc             -        -        -        -        -        -        pass
+tiling construct      -        -        -        -        -        -        pass
+xp tiling             -        -        -        -        -        -        kept
+xp mc                 -        -        -        -        -        -        pass
+xp construct          -        -        -        -        -        -        pass
+construct tiling      -        -        -        -        -        -        pass
+construct xp          -        -        -        -        -        -        pass
+construct mc          -        -        -        -        -        -        pass
+mc tiling             -        -        -        -        -        -        pass
+mc xp                 -        -        -        -        -        -        pass
+mc construct          -        -        -        -        -        -        pass
