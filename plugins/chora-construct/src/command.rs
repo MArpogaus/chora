@@ -949,7 +949,13 @@ mod tests {
             note: String::new(),
             footer: vec![(vec!["Esc".to_owned()], "Close".to_owned())],
         };
-        for out in [[1280.0, 720.0], [1280.0, 800.0], [1920.0, 1080.0]] {
+        for out in [
+            [1024.0, 768.0],
+            [1280.0, 720.0],
+            [1280.0, 800.0],
+            [1920.0, 1080.0],
+            [2560.0, 720.0],
+        ] {
             let commands = help(&look, &model, ("help", "root"), out);
             let find = |id: &str| {
                 commands
@@ -974,9 +980,15 @@ mod tests {
                 .unwrap()
                 .translation_2d()
                 .0;
+            let w = find("help-body-glass").size.unwrap()[0];
             assert!(
-                x >= 16.0,
-                "{out:?}: the sheet starts at {x} from the left, co-71 clicks at 8"
+                x >= 32.0 && x + w <= out[0] - 32.0,
+                "{out:?}: the sheet lies at {x}..{}, 32 from the sides (rule 8)",
+                x + w
+            );
+            assert!(
+                w <= 1360.0,
+                "{out:?}: the sheet is {w} wide, no more than three rows need"
             );
             let h = find("help-body-glass").size.unwrap()[1];
             assert!(
@@ -995,6 +1007,19 @@ mod tests {
                 foot_y + 48.0 <= out[1],
                 "{out:?}: the foot row is on the screen"
             );
+            let what = face(Type::Text, 400);
+            for i in 0..groups.iter().map(|g| g.rows.len()).sum() {
+                let row = format!("help-body-row-{i}");
+                let line = find(&format!("{row}-what"));
+                let start = line.transform.as_ref().unwrap().translation_2d().0;
+                let end = start + look.size(what, line.text.as_ref().unwrap(), None)[0];
+                let cap = find(&format!("{row}-keys-0"));
+                let cap = cap.transform.as_ref().unwrap().translation_2d().0;
+                assert!(
+                    end <= cap,
+                    "{out:?}: the text of row {i} ends at {end}, past its first keycap at {cap}"
+                );
+            }
         }
     }
 

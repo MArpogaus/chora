@@ -304,7 +304,7 @@ inject '[{"pointer_move": {"node": "construct-help-body-foot-0-hit", "point": [8
 until_ok '! help_shown' 20 || fail "co-71: a click on the Close of the key list opened from a face keeps it"
 key Super+F1
 until_ok help_shown 12 || fail "co-71: Super+F1 shows no key list to close from outside"
-inject '[{"pointer_move": {"position": [8, 400]}}, {"click": {}}]'
+inject '[{"pointer_move": {"position": [20, 400]}}, {"click": {}}]'
 until_ok '! help_shown' 20 || fail "co-71: a click outside the key list opened from a face keeps it"
 key Super+F1
 until_ok help_shown 12 || fail "co-71: Super+F1 shows no key list to close by Escape"

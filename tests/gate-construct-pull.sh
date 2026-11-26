@@ -495,7 +495,12 @@ print("%d %d" % (r[0] + r[2] * (0.4 if sys.argv[1] == "0" else 0.5), r[1] + r[3]
             fail "rcr5-2: after the drop onto face $drop_face the told Return did not step in: mode $(mode), keyboard $(keyboard_holder)"
         [ "$(keys_in "$log" 28)" = "$before" ] ||
             fail "rcr5-2: after the drop onto face $drop_face the told Return typed into the window on that face, which the person does not see: $(keyboard_holder)"
-        ok "rcr5-2: a drop ($how) onto face $drop_face keeps the cube stood back with the keyboard: Return steps in and types into no window"
+        before=$(keys_in "$log" 45)
+        inject '[{"key": {"key": "x", "state": "pressed"}}, {"key": {"key": "x", "state": "released"}}]'
+        settle
+        [ "$(keys_in "$log" 45)" = "$before" ] ||
+            fail "rcdr2-3: after the step in over face $drop_face a key typed into the window on that face, which the person does not see: $(keyboard_holder)"
+        ok "rcr5-2: a drop ($how) onto face $drop_face keeps the cube stood back with the keyboard: Return steps in and keys type into no window"
     fi
     end_session
 done
