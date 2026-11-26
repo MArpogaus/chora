@@ -20,3 +20,14 @@ Findings
 - rxb1-2 MINOR main.rs:625-640 serve loop: while the clock is held, a due time at or before the held time gives wait 0, so the loop polls every 1 ms between steps. Fix: while stepped, wait for the next event or step (IDLE), not the due time.
 
 Verdict (computed): 0 BLOCK, 0 MAJOR, MERGE-OK; rxb1-1, rxb1-2 to the backlog (rules.md 6).
+
+## r2
+
+rxb1-1, rxb1-2 (MINOR): only animations follow the scene clock; the serve loop does not spin while the clock is held.
+
+- Base c2625c0f7 (xp-blink r1 head); head 312a5ff10 on claude/xp-blink-r2. Diffstat: 4 files, 99 insertions, 30 deletions (chora-assistant main.rs, voice.rs, chat/host.rs; chora-kit clock.rs +7: `clock::held()`).
+- Red 965954350 before fix 0b3b6cb8f: three tests fail on c2625c0f7 (`a_held_clock_leaves_the_card_guard`, `a_held_clock_leaves_the_ask_retries`, `a_held_clock_does_not_spin_the_serve_loop`, all `_xp_blink_r2`).
+- Fix: the card guard (new_card, settle, press_card), the state-ask retry and chat_retried are on `Instant::now()`; blink and other animations keep `clock::now()`. `serve_wait` leaves the animation dues out while `clock::held()`.
+- Finding on the way, fixed in 312a5ff10: with the held wait at IDLE (60 s) a blink caught shut at the end of a step never reopened (the clock goes stale after 2 s and runs real again, nobody woke the loop); x10 (01-10d help) showed shut eyes in two takes. The held wait is now capped at 500 ms (`HELD_RECHECK`), still no spin. The brief said IDLE; this deviates for that reason.
+- Tour: `run.py xp` 0 red 0 broken; x7 (01-08, 01-10), x10 (01-10d, 01-10e), x11 (01-10f) eyes open in the last take (x10 shut in the two takes before 312a5ff10). Crop: media/2026-11-26/xp-blink-r2/eyes-r2-fixed.png (92 KB).
+- Gate: first full run (`--jobs 2`, no step filter) was green through last-words, then `cube` FAIL at "a probe window of a program of the face stays after its end: s3 xp VIRTUAL-1 172 84 200 200" (cube.log), and the run stopped there. FLAKE-CUBE-PROBE-END (not on the known list): `--only cube` alone PASS (125 s); the steps after it (acts, pull, placed, construct-hud, construct-extra, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-*, launcher-click, voice-*, agent, tiling-*, handover, mc-scale, watchdog-starved, leak, xp-run, demo, tiling-disc, mc-host, e2e) all PASS in a second run. No `chora --headless` left.
