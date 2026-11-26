@@ -5,6 +5,8 @@ repo_url: https://github.com/MArpogaus/chora
 docs_dir: docs
 # a link to a page that moved is only a log line otherwise
 strict: true
+hooks:
+- tools/mkdocs_hooks.py
 exclude_docs: |
   requirements.txt
 

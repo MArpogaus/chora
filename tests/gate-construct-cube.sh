@@ -46,7 +46,10 @@
 #    construct (rcr1-1); Escape closes the sheet and that window has the
 #    keyboard again (co-78). A program of the launcher in a face that
 #    holds a window is a window of xp, shown on that face, and takes
-#    keys, in 5 of 5 runs (co-77).
+#    keys, in 5 of 5 runs (co-77). After the windows of the programs end, a
+#    click on the first window gives it the keyboard, also when xp answers
+#    1.5 s late (rfs2-2): a key typed before the focus comes is lost, so the
+#    gate waits for the focus.
 # 3. A slow cube.turn forwards nothing while it runs; at a third of it
 #    the screen shows two faces; the gate prints the frame time of the
 #    turn; then the next face
@@ -61,6 +64,12 @@
 # 6. A construct that is killed (C2) leaves the xp of the cube flat on
 #    the screen with every window within 3 s. A construct that starts
 #    again reopens the cube around that xp, with the windows on its faces.
+# 7. The way into a face out of a pane (co-79): the cube stands back by
+#    Super+C, the launcher starts a program beside it and the camera flies
+#    in; Alt+Escape steps out of it, and the cube turns to face 1. Stood
+#    back, the hint bar names the give key of the face manager, Super Alt
+#    2, and that key puts the window on the face at the front, steps into
+#    it and gives it the keyboard; then the bar names the pull key.
 #
 # Usage: tests/gate-construct-cube.sh   BIN: directory with the binaries
 #   SHOT  a PNG path that keeps a capture of the cube during a turn
@@ -187,6 +196,7 @@ ok "a second cube.open is refused"
 
 inject '[{"pointer_move": {"position": [640, 400]}}]'
 "$bin/chora-probe" window 40 120 200 --report >"$work/probe.log" 2>&1 &
+first_probe=$!
 pids+=($!)
 until_ok 'probe | grep -q " xp VIRTUAL"' 80 || fail "the probe window came to no xp face: $(probe)"
 read -r surface _ out x y <<<"$(probe)"
@@ -316,8 +326,16 @@ for n in json.load(sys.stdin):
         r = next(iter(n["rects"].values()), [0, 0, 0, 0])
         print(n["id"], n.get("owner"), next(iter(n["rects"]), "-"), round(r[0]), round(r[1]), round(r[2]), round(r[3]))' "$surface"
 }
+core_focus() { ctl query '*' | python3 -I -c 'import json, sys; print(",".join(n["id"] for n in json.load(sys.stdin) if n.get("focused")) or "none")'; }
 end_others() {
-    python3 -I - "$CHORA_SOCKET" "$(pid_of chora-probe)" <<'PY'
+    local xp_pid
+    if [ "${1:-}" = stalled ]; then
+        xp_pid=$(pid_of chora-xp)
+        kill -STOP "$xp_pid"
+        (until_ok false 6; kill -CONT "$xp_pid") &
+        pids+=($!)
+    fi
+    python3 -I - "$CHORA_SOCKET" "$first_probe" <<'PY'
 import os, signal, sys
 for pid in sorted(filter(str.isdigit, os.listdir("/proc")), key=int):
     try:
@@ -330,9 +348,10 @@ for pid in sorted(filter(str.isdigit, os.listdir("/proc")), key=int):
 PY
     until_ok 'test -z "$(others)"' 40 || fail "a probe window of a program of the face stays after its end: $(others)"
     inject "[{\"pointer_move\": {\"position\": [$((x + 3)), $((y + 2))]}}, {\"click\": {}}]"
+    until_ok 'test "$(prop "$surface" focused)" = True' 40 || fail "after the end of a program of the face the click gave the first probe window no focus: focused $(core_focus)"
     before=$(keys_got 30)
     plain a
-    until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "after the end of a program of the face the first probe window has no keyboard"
+    until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "after the end of a program of the face the first probe window has no keyboard: focused $(core_focus), surfaces $(probe | tr '\n' ';')"
 }
 xp_shows() { ctl state xp | python3 -I -c 'import json, sys; w = [w for w in json.load(sys.stdin)["windows"] if w["surface"] == sys.argv[1]]; sys.exit(0 if w and w[0]["shown"] else 1)' "$1"; }
 keys_in() { grep -c '^key 30$' "$1"; }
@@ -357,7 +376,7 @@ before=$(keys_in "$work/term.log")
 plain a
 until_ok 'test "$(keys_in "$work/term.log")" -gt "$before"' 20 || fail "co-78: after Escape the window that Super+t started has no keyboard"
 ok "co-78: Escape closes the key sheet after Super+t opened a window of the face, and that window has the keyboard"
-end_others
+end_others stalled
 
 for run in 1 2 3 4 5; do
     key Super+space
@@ -926,6 +945,46 @@ call settings.set '{"cube_manager": "chora-xp"}' >/dev/null || fail "settings.se
 key Super+c
 until_ok 'test "$(virtuals | wc -w)" = 4' || fail "Super+C opened no cube: $(virtuals)"
 ok "Super+C opens the cube"
+until_ok 'test "$(call cube.list 2>/dev/null | jq -r .mode)" = navigate' 40 || fail "co-79: Super+C did not stand back: $(call cube.list 2>&1 | head -c 300)"
+until_ok 'test "$(bars)" = 4' 80 || fail "co-79: xp shows $(bars) taskbars"
+had=" $(probe | awk '{print $1}' | tr '\n' ' ') "
+fresh() { probe | awk -v had="$had" 'index(had, " " $1 " ") == 0'; }
+key Super+space
+until_ok 'fresh | grep -q " construct "' 100 || fail "co-79: the program of the launcher stood back is no pane: $(probe)"
+read -r put _ <<<"$(fresh | head -n 1)"
+until_ok 'test "$(prop construct-hint-step-back visible)" = True' 40 || fail "co-79: in the pane of the program no Step back shows"
+key Alt+Escape
+until_ok 'test "$(call cube.list | jq -r .mode)" = navigate && test "$(prop construct-mode-step-in visible)" = True' 40 || fail "co-79: Alt+Escape out of the pane did not stand back: $(call cube.list | jq -c '{mode, front}')"
+key Ctrl+Alt+Right
+until_ok 'test "$(call cube.list | jq -r "select(.turning == false) | .front")" = 1' 40 || fail "co-79: the cube did not turn to face 1: $(call cube.list | jq -c '{front, turning}')"
+put_keys() { local k out=""; for k in 0 1 2; do out="$out $(prop "construct-hints-put-in-keys-$k-text" text | grep -v -e False -e gone)"; done; echo "$out"; }
+until_ok 'test "$(put_keys)" = " Super Alt 2"' 20 ||
+    fail "co-79: stood back out of a pane the hint bar names no way into a face (put-in keys:$(put_keys))"
+ok "co-79: stood back out of a pane, the hint bar names Super Alt 2, the give key of the face manager"
+front1=$(call cube.list | jq -r '.faces[1].output')
+key Super+Alt+2
+until_ok 'probe | grep -q "^$put xp $front1 "' 40 || fail "co-79: the told Super+Alt+2 did not put the window on the face at the front ($front1): $(probe | grep "^$put ")"
+until_ok 'test "$(call cube.list | jq -r .mode)" = use' 40 || fail "co-79: after Super+Alt+2 the cube did not step into the face: $(call cube.list | jq -c '{mode, front}')"
+until_ok 'xp_shows "$put"' 20 || fail "co-79: the face manager does not show the window $put"
+log=$(find "$work" -name "prog.*.log" -printf "%T@ %p\n" | sort -n | tail -n 1 | cut -d" " -f2)
+before=$(keys_in "$log")
+plain a
+until_ok 'test "$(keys_in "$log")" -gt "$before"' 20 || fail "co-79: after Super+Alt+2 the window in the face has no keyboard"
+until_ok 'ctl query id:construct-hint-pull-out | grep -q construct-hint-pull-out' 20 || fail "co-79: in the face with the window put in, the bar names no pull key"
+ok "co-79: Super+Alt+2 puts the window of the pane on face 1 at the front, steps in, the window takes keys, and the bar names the pull key"
+python3 -I - "$CHORA_SOCKET" "$log" <<'PY'
+import os, signal, sys
+for pid in filter(str.isdigit, os.listdir("/proc")):
+    try:
+        cmd = open(f"/proc/{pid}/cmdline", "rb").read().split(b"\0")
+        env = open(f"/proc/{pid}/environ", "rb").read().split(b"\0")
+        out = os.readlink(f"/proc/{pid}/fd/1")
+    except OSError:
+        continue
+    if cmd[0].endswith(b"chora-probe") and b"CHORA_SOCKET=" + sys.argv[1].encode() in env and out == sys.argv[2]:
+        os.kill(int(pid), signal.SIGTERM)
+PY
+until_ok '! probe | grep -q "^$put "' 40 || fail "co-79: the program put into the face does not end: $(probe | grep "^$put ")"
 call cube.close >/dev/null || fail "cube.close after the key"
 until_ok 'test -z "$(virtuals)"' || fail "cube.close after the key left $(virtuals)"
 

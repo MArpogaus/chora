@@ -202,9 +202,25 @@ pub fn click_caps(language: chora_kit::words::Language) -> Vec<String> {
 /// window out of a face into a pane (D55, co-64).
 #[must_use]
 pub fn pull_key() -> &'static str {
+    give_key_of("construct").unwrap_or("")
+}
+
+/// The give key of the window manager `to`, as `Super+Alt+2` of xp.
+#[must_use]
+pub fn give_key_of(to: &str) -> Option<&'static str> {
     (chora_kit::give::KEYS.iter())
-        .find(|(_, to)| *to == "construct")
-        .map_or("", |(key, _)| key)
+        .find(|(_, manager)| *manager == to)
+        .map(|(key, _)| *key)
+}
+
+/// The word of the hint of the give key that puts the window of a pane
+/// into the face at the front.
+#[must_use]
+pub const fn put_word(language: chora_kit::words::Language) -> &'static str {
+    match language {
+        chora_kit::words::Language::De => "In die Seite",
+        chora_kit::words::Language::En => "Into face",
+    }
 }
 
 /// The word of the hint of the pull key.

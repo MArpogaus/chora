@@ -1278,7 +1278,15 @@ mod tests {
         let real = chora_scene::paths::state_home().map(|h| h.join("chora/assistant-greeted"));
         let before = real.as_ref().is_some_and(|f| f.exists());
         let (mut agent, _dirs) = xp_agent("greet-state-home");
+        let temp = agent
+            .state_home
+            .as_ref()
+            .map(|h| h.join("chora/assistant-greeted"));
         agent.greet_with(Instant::now(), false).unwrap();
+        assert!(
+            temp.as_ref().is_some_and(|f| f.exists()),
+            "the greeting is not remembered in {temp:?}"
+        );
         let after = real.as_ref().is_some_and(|f| f.exists());
         assert_eq!(before, after, "the test wrote {real:?}");
     }

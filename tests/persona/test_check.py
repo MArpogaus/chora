@@ -267,6 +267,31 @@ def task_line(out, task):
     return next((x for x in out.splitlines() if x.startswith(f"task {task}")), "")
 
 
+class TilingGoals(unittest.TestCase):
+    """ti-55 (tiling-doors r4): the ricer runs T7 before L3, so that the last
+    tag 2 the persona saw before T7 is not the xp desktop of the one-output
+    session; the words of T7 stay as they are."""
+
+    T7 = '"Send the terminal over to the xp look (the other desktop that is running)"'
+
+    def section(self):
+        text = (HERE / "README.md").read_text(encoding="utf-8")
+        start = text.index("## Tiling goals")
+        end = text.find("\n## ", start + 1)
+        return text[start:] if end < 0 else text[start:end]
+
+    def test_the_t7_words_stay(self):
+        self.assertIn(f"- T7: {self.T7}", self.section())
+
+    def test_the_ricer_runs_t7_after_t1_and_before_l3(self):
+        lines = [x for x in self.section().splitlines() if x.startswith("Ricer order: ")]
+        self.assertEqual(len(lines), 1, "one line 'Ricer order: ...' in the Tiling goals")
+        order = [g.strip() for g in lines[0].removeprefix("Ricer order: ").rstrip(".").split(",")]
+        self.assertEqual(sorted(order), ["L2", "L3", "T1", "T2", "T7"])
+        self.assertLess(order.index("T1"), order.index("T7"))
+        self.assertLess(order.index("T7"), order.index("L3"))
+
+
 class Closed(unittest.TestCase):
     """L1 holds the goal to its own begin and says "closed" for a window the
     persona closed, whether it was open at the begin or came during the goal."""
@@ -326,6 +351,14 @@ class NoConfig(unittest.TestCase):
                 path.mkdir(parents=True)
                 (path / "chora-tiling.yaml").write_text(f"look:\n  {line}\n")
                 self.assertEqual(check.config_value(folder), "20", line)
+
+    def test_mismatched_quotes_are_not_read(self):
+        for line in ("gap_inner: \"20'", "gap_inner: '20\""):
+            with tempfile.TemporaryDirectory() as folder:
+                path = pathlib.Path(folder) / "config" / "chora"
+                path.mkdir(parents=True)
+                (path / "chora-tiling.yaml").write_text(f"look:\n  {line}\n")
+                self.assertEqual(check.config_value(folder), "12", line)
 
     def test_a_missing_config_is_not_measured(self):
         with tempfile.TemporaryDirectory() as folder:

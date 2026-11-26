@@ -225,6 +225,21 @@ impl Type {
         self.style.weight
     }
 
+    /// How many lines a text of this type takes at `width` pixels; a line
+    /// for each line of the text when the machine lacks the face.
+    pub fn lines_at(&self, text: &str, width: f64) -> usize {
+        let style = &self.style;
+        let text = if style.uppercase == Some(true) {
+            text.to_uppercase()
+        } else {
+            text.into()
+        };
+        let at = [self.size, style.letter_spacing.unwrap_or(0.0)];
+        (style.family.as_deref())
+            .and_then(|family| crate::fonts::lines_at(family, style.weight, at, &text, width))
+            .unwrap_or_else(|| text.split('\n').count())
+    }
+
     /// The capitals of this type, from the top of its text box.
     pub fn ink(&self) -> crate::fonts::Ink {
         let style = &self.style;
