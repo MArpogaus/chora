@@ -1,0 +1,25 @@
+fuzzel --config /tmp/chora-hl.rKv9kD/chora-mc/fuzzel.ini --dmenu
+fuzzel-first-row Chat with a helper
+fuzzel --config /tmp/chora-hl.rKv9kD/chora-mc/fuzzel.ini --dmenu
+fuzzel-first-row Nothing found for "nosuchprogram"
+swaylock -f
+fuzzel --config /tmp/chora-hl.rKv9kD/chora-mc/fuzzel.ini --dmenu --prompt Power   --lines 5 --width 20
+fuzzel-first-row Lock
+systemctl poweroff
+grim /tmp/claude-0/rc2mc/pm1/dir/pictures/Screenshots/2026-11-26_13-41-24.png
+notify-send -a Screenshot Screenshot saved /tmp/claude-0/rc2mc/pm1/dir/pictures/Screenshots/2026-11-26_13-41-24.png
+wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+wpctl set-mute @DEFAULT_AUDIO_SINK@ 0
+wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+
+wpctl set-mute @DEFAULT_AUDIO_SINK@ 0
+wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+
+wpctl set-mute @DEFAULT_AUDIO_SINK@ 0
+wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+
+wpctl set-mute @DEFAULT_AUDIO_SINK@ 0
+wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+
+wpctl set-mute @DEFAULT_AUDIO_SINK@ 0
+wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+
+wpctl set-mute @DEFAULT_AUDIO_SINK@ 0
+wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+
+wpctl set-mute @DEFAULT_AUDIO_SINK@ 0
+wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+
