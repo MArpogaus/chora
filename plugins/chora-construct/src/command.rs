@@ -1038,15 +1038,21 @@ mod tests {
             let foot = find("help-body-divider-foot");
             let foot_y = y + foot.transform.as_ref().unwrap().translation_2d().1;
             assert!(
-                foot_y + 48.0 <= out[1],
-                "{out:?}: the foot row is on the screen"
+                foot_y + 1.0 + FOOTER <= out[1] - 32.0,
+                "{out:?}: the sheet foot ends at {}, 32 from the bottom",
+                foot_y + 1.0 + FOOTER
             );
             let what = face(Type::Text, 400);
             for i in 0..groups.iter().map(|g| g.rows.len()).sum() {
                 let row = format!("help-body-row-{i}");
                 let line = find(&format!("{row}-what"));
+                let shown = line.text.as_ref().unwrap();
+                assert!(
+                    !shown.contains('…'),
+                    "{out:?}: the text of row {i} is cut: {shown:?} (co-drop r4)"
+                );
                 let start = line.transform.as_ref().unwrap().translation_2d().0;
-                let end = start + look.size(what, line.text.as_ref().unwrap(), None)[0];
+                let end = start + look.size(what, shown, line.max_width)[0];
                 let cap = find(&format!("{row}-keys-0"));
                 let cap = cap.transform.as_ref().unwrap().translation_2d().0;
                 assert!(
