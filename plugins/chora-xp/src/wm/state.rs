@@ -106,21 +106,25 @@ impl Wm {
     /// desktop icons from a view of the focus older than the core's when
     /// the window that left xp already has the focus: the core then keeps
     /// the icons as the holder of the keyboard behind that window, and the
-    /// next new window goes to xp, not to the manager of the window.
+    /// next new window goes to xp, not to the manager of the window. The
+    /// window with the focus draws its title as the keys say.
     pub(super) fn node_focused(
         &mut self,
         node: Option<&str>,
         owner: Option<&str>,
     ) -> Vec<chora_scene::Command> {
+        let was_away = self.node_away();
         self.key_node = owner.map(String::from);
         if owner == Some(NAME) {
             self.arrival = super::Arrival::Settled;
         }
         let desktop = node == Some(crate::desktop_icons::GROUP) && owner == Some(NAME);
         if desktop && self.focus_away() {
-            vec![chora_scene::Command::FocusNode { node: None }]
-        } else {
-            Vec::new()
+            return vec![chora_scene::Command::FocusNode { node: None }];
+        }
+        match self.focused.clone() {
+            Some(surface) if was_away != self.node_away() => self.restyle(&surface),
+            _ => Vec::new(),
         }
     }
 

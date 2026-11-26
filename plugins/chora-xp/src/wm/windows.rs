@@ -14,7 +14,7 @@ impl Wm {
     }
 
     pub(super) fn is_active(&self, surface: &str) -> bool {
-        self.focused.as_deref() == Some(surface)
+        self.focused.as_deref() == Some(surface) && !self.node_away()
     }
 
     /// Takes a surface that the book proposes into a hidden group with
