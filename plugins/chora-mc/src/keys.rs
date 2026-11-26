@@ -137,15 +137,15 @@ pub fn short(config: &Config, plain: bool) -> Vec<Row> {
 /// Every binding as key and words, in the order of the tasks: the keys,
 /// the page, the scenes, programs, the chat, the column, the header and
 /// the footer, the rest, and Esc last. The two keys of the page are one
-/// row, as in the short list, and only the first key of the key list has
-/// a row: the others are aliases. The give keys, which no file binds,
-/// are one row: `Super+Alt+1-4`, and the drag follows it.
+/// row, as in the short list, and only the first key of a task has a row:
+/// the others are aliases. The key list has none, as it shows: the column
+/// holds 21 rows at 720 pixels. The give keys, which no file binds, are
+/// one row: `Super+Alt+1-4`, and the drag follows it.
 pub fn all(config: &Config, plain: bool) -> Vec<Row> {
     let scene_at = |name: &str| config.order.iter().position(|n| n == name);
     let mut found: Vec<(u8, usize, Row)> = Vec::new();
     for (place, row) in sheet(config).into_iter().enumerate() {
         let (rank, at) = match &row.action {
-            Action::System(System::Keys) => (0, 0),
             Action::Look(Look::NextScene) => (1, 0),
             Action::Look(Look::Scene(name)) => (2, scene_at(name).unwrap_or(usize::MAX)),
             Action::System(System::Run(_)) => (3, 0),
@@ -163,7 +163,8 @@ pub fn all(config: &Config, plain: bool) -> Vec<Row> {
             Action::System(System::Volume(_)) => (9, 3 + place),
             Action::Look(Look::PreviousScene | Look::Back | Look::Swallow)
             | Action::System(
-                System::Terminal
+                System::Keys
+                | System::Terminal
                 | System::Launcher
                 | System::Close
                 | System::Desk(_)
@@ -232,11 +233,11 @@ mod tests {
     }
 
     #[test]
-    fn the_full_list_has_a_row_for_each_task_but_the_aliases_and_one_for_the_page_and_the_give_keys()
+    fn the_full_list_has_a_row_for_each_task_but_the_keys_the_aliases_and_one_for_the_page_and_the_give_keys()
      {
         let config = config();
         let rows = all(&config, false);
-        assert_eq!(rows.len(), config.common.bindings.len() - 2, "{rows:?}");
+        assert_eq!(rows.len(), config.common.bindings.len() - 3, "{rows:?}");
     }
 
     #[test]
@@ -256,7 +257,6 @@ mod tests {
     fn the_full_list_goes_by_task_in_the_words_of_the_short_list() {
         let words: Vec<String> = all(&config(), true).into_iter().map(|r| r.words).collect();
         let want = [
-            "All keys",
             "Turn the page",
             "First page",
             "Scroll the page",
@@ -284,23 +284,25 @@ mod tests {
 
     #[test]
     fn a_page_names_the_plain_arrows_and_keeps_the_binding_of_the_click() {
+        let page = |rows: &[Row]| rows.iter().position(|r| r.words == "Turn the page");
         for rows in [short(&config(), true), all(&config(), true)] {
-            assert_eq!(rows[1].key, "←\u{2009}→", "{rows:?}");
-            assert_eq!(rows[1].words, "Turn the page");
-            assert_eq!(rows[1].binding.as_deref(), Some("Super+Right"));
+            let at = page(&rows).unwrap();
+            assert_eq!(rows[at].key, "←\u{2009}→", "{rows:?}");
+            assert_eq!(rows[at].binding.as_deref(), Some("Super+Right"));
         }
         let rows = all(&config(), true);
-        assert_eq!(rows[2].key, "Home");
-        assert_eq!(rows[2].words, "First page");
-        assert_eq!(rows[2].binding.as_deref(), Some("Super+Home"));
+        let at = page(&rows).unwrap();
+        assert_eq!(rows[at + 1].key, "Home");
+        assert_eq!(rows[at + 1].words, "First page");
+        assert_eq!(rows[at + 1].binding.as_deref(), Some("Super+Home"));
     }
 
     #[test]
     fn a_page_names_the_scroll_keys_beside_home() {
         let rows = all(&config(), true);
-        assert_eq!(rows[3].key, "↑\u{2009}↓", "{rows:?}");
-        assert_eq!(rows[3].words, "Scroll the page");
-        assert_eq!(rows[3].binding, None);
+        assert_eq!(rows[2].key, "↑\u{2009}↓", "{rows:?}");
+        assert_eq!(rows[2].words, "Scroll the page");
+        assert_eq!(rows[2].binding, None);
         let rows = all(&config(), false);
         assert!(rows.iter().all(|r| r.words != "Scroll the page"));
     }
