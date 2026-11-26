@@ -146,6 +146,21 @@ pub fn refused(language: Language, manager: &str, reason: &str) -> String {
     }
 }
 
+/// The notice that a window manager took a window but could not put it
+/// on the face it was meant for, with the reason: it is where that
+/// manager put it.
+#[must_use]
+pub fn not_placed(language: Language, manager: &str, reason: &str) -> String {
+    let name = manager_name(manager);
+    let reason = reason.trim_end_matches('.');
+    match language {
+        Language::En => format!("{name} took the window but not onto that face: {reason}."),
+        Language::De => {
+            format!("{name} hat das Fenster genommen, aber nicht auf diese Seite: {reason}.")
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
