@@ -1,18 +1,18 @@
 # State
 
-## Now (2026-11-26 14:18 UTC)
+## Now (2026-11-26 14:46 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 14:03 PM 5.1 % (11-26 BKK); week est. 51 % (unmeasured, owner reads) vs 76 % time; need (100-51-5)/40 h = 1.1 %/h; lanes 6 build
 session branch: 4d8bbe36 (t153+154 13:20); 98 greens. t153 red mc-scale (sh-37); t154 xp-run red 13s, green on rerun (flake); t155 (0efebc69 kit-icons) gate runs
 
-lanes: 6 build of 6 (tour-fix-r1, h-rf2-r1, rc1-pass-tiling-r2, co-reach-r6, mc-minor-r1, flake-series-r10)
+lanes: 6 build of 6 (tour-fix-r1, h-rf2-r1, kit-swallow-r1, co-reach-r6, mc-minor-r1, flake-series-r10)
 burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88 open, 10 regr)
 
 ## RC
 | # | Criterion | State |
 |---|---|---|
 | 1, 1b | No BLOCK/MAJOR, independent pass; owner sees v9 | xp, mc pass r2 met; tiling, co open |
-| 2 | Persona r4 | xp, mc meet; co r14 not met (co-79 Terminal-row pane path 0/5); tiling r12 not met: ti-57 half fixed (L3 run 2 holders [] I3) |
+| 2 | Persona r4 | xp, mc meet; co r14 not met (co-79 Terminal-row pane path 0/5); tiling: ti-57 fixed 4/4 (pass r2); rpt2-1 open |
 | 3 | 3 greens, no flake | open: reds t141, t142, t148, t153 (sh-37); FLAKE-SERIES r10 reruns |
 | 4, 5 | CI on a PR; packaging | CI PR at release |
 | 6 | Review per area | r1 MERGE-OK (shas: reports/review-*.md) |
@@ -26,14 +26,14 @@ burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88 open
 |---|---|---|
 | tour-fix-r1.md (Q 4, 1.2 %) | opus high, 972f9415 | running s..PCS93YNQQZy5cpfop |
 | h-rf2-r1.md (Q 4, 0.6 %) | sonnet high, 4d8bbe36 | running s..MAXjQyxSREAEeQzh6 |
-| rc1-pass-tiling-r2.md (Q 3, 1.2 %) | opus high, f484a92d | running s..QgWrwfXM6wjosmtQQ |
+| kit-swallow-r1.md (Q 3, 0.6 %) | sonnet high, 4d8bbe36 | starting |
 | co-reach-r6.md (Q 2, 1.0 %) | opus high, 4d8bbe36 | running s..Lj635mZvdmt7myT7J |
 | mc-minor-r1.md (Q 4, 0.8 %) | sonnet high, 4d8bbe36 | running s..Pg5YnDS8SDtMQ5L2i |
 | flake-series-r10.md (Q 5, 0.6 %) | haiku high, 4d8bbe36 | running s..MrWJ1FZ4X7WVbaJa6 |
 ## Queue (% week; 5 % reserve)
 1. (rc 3) FLAKE-BAR-FULL r1 merged t152 (rfbf1-2: r10 watches). TOUR-HARNESS r2 merged t153.
 2. (rc 2) construct r14 not met: co-75, co-76 hold 5/5; co-79 pane path (Terminal row) 0/5: CO-REACH r6 runs; then rc1 pass co r2.
-3. (rc 2) P2 r12 NO: ti-57; TILING-FOCUS r4 MERGE-OK 7ef97ab8 (review r4: rtf4-1 MINOR, 3 nits; t156); rc1 pass tiling r2 runs on f484a92d (ti-57 first).
+3. (rc 2) P2 r12 NO: ti-57; TILING-FOCUS r4 MERGE-OK 7ef97ab8 (t156); pass r2: ti-57 fixed 4/4, but rpt2-1 MAJOR (Super+Alt, Super+Ctrl+Shift reach clients, kit swallow): KIT-SWALLOW r1 runs; rpt2-2 MINOR backlog.
 4. (F7, rc 1, 11) take r2: 88 open, 10 regr; TOUR-ROWS r4 review FIX (rtr4r-1 MAJOR c5d rows; rtr4r-2..4 MINOR): TOUR-FIX r1 runs (rtr4r-1, rtr4-3/4); take r3 after; MC-BOIL r1 merged t154.
 4a. (F7, rc 11) KIT-ICONS r1 MERGE-OK abdd0158: t155 runs.
 4b. (rc 1) H-RF2 r1 runs (sonnet), joins t156; rc1 pass co after co-reach r6.

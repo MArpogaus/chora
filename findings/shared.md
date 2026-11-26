@@ -63,3 +63,5 @@ sh-45 | FLAKE (rc 3) | tour-rows-r4 gate (reports/tour-rows.md "## r4") | open; 
 rtr4-3 | MAJOR (F7, tour) | tour-rows r4 take | open; tour take r3 (chapter fix first) | the construct chapter keeps its stood-back acts after the drop that now steps in (c2b c3 c3b c3c c3d c4 c4b c5e); acts 9 and 10 red | media/2026-11-26/tour-rows-r4/
 rtr4-4 | MAJOR (F7, tour harness) | tour-rows r4 take | open; tour take r3 | launch.py:274 ensure_notify breaks the v8 replay (mc dark, handover) | media/2026-11-26/tour-rows-r4/
 rtr4-5 | MINOR (tour harness) | tour-rows r4 take | open; after rtr4-4 | launch.py:46 reads tool-version.sh from TOUR_REPO | reports/tour-rows.md "## r4"
+rpt2-1 | MAJOR (rc 1, all looks) | rc1 pass tiling r2 | open; KIT-SWALLOW r1 | chora-kit swallow.rs WITH lacks Alt and Ctrl+Shift: Super+Alt+key and Super+Ctrl+Shift+key reach the client (3/3) | media/2026-11-26/rc1-pass-tiling-r2/
+rpt2-2 | MINOR (tiling) | rc1 pass tiling r2 | backlog | Looks picker on an empty tag offers a move, then "choractl: no focused window" | reports/rc1-pass.md "## r2 tiling"
