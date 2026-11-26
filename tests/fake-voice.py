@@ -27,7 +27,9 @@ argument plus `.chat`.
 With FAKE_VOICE_ANSWER (a text), a call of `agent` with `agent_say` makes the
 helper `atlas` answer: the transcript gets a user entry and, after
 FAKE_VOICE_WORK seconds (default 3) of `working`, an agent entry with that
-text, and `atlas` is `idle` again. `atlas` reports `idle` 2 seconds after the start, when the looks
+text, and `atlas` is `idle` again. With FAKE_VOICE_LATE (seconds) the first
+state `working` comes that long after the say, as of a helper that is slow
+to start. `atlas` reports `idle` 2 seconds after the start, when the looks
 hear it, and is in `agents` of the answer of `state`.
 
 The agent exports `state` too: it answers the data of the last
@@ -90,12 +92,16 @@ def helper_state(name, state, seq):
 def answer_say(name, text):
     """The helper works on the text of the person and answers."""
     seq = add_entry("user", text)
-    helper_state(name, "working", seq)
+    late = float(os.environ.get("FAKE_VOICE_LATE", "0"))
+    if late:
+        threading.Timer(late, helper_state, [name, "working", seq]).start()
+    else:
+        helper_state(name, "working", seq)
 
     def finish():
         helper_state(name, "idle", add_entry("agent", os.environ["FAKE_VOICE_ANSWER"]))
 
-    threading.Timer(float(os.environ.get("FAKE_VOICE_WORK", "3")), finish).start()
+    threading.Timer(late + float(os.environ.get("FAKE_VOICE_WORK", "3")), finish).start()
 
 
 def chat_answer(method, params):
