@@ -279,3 +279,39 @@ fn the_method_hide_keys_closes_the_key_list_and_is_idempotent() {
     tiling.tune("hide_keys", json!({})).unwrap();
     assert!(!tiling.keys_open(), "and again nothing happens");
 }
+
+/// The first fullscreen window toggles the panel once, and the panel that
+/// was told to hide is not told again.
+#[test]
+fn the_panel_is_toggled_once_for_a_fullscreen_window() {
+    let (record, toggle) = super::bar_step(None, true, || Some(10));
+    assert_eq!(toggle, Some(10), "the first fullscreen hides the panel");
+    let (record, toggle) = super::bar_step(record, true, || Some(10));
+    assert_eq!(toggle, None, "a hidden panel is not toggled again");
+    let (record, toggle) = super::bar_step(record, false, || Some(10));
+    assert_eq!(toggle, Some(10), "leaving fullscreen shows the panel");
+    let (_, toggle) = super::bar_step(record, false, || Some(10));
+    assert_eq!(toggle, None, "a shown panel is not toggled");
+}
+
+/// A panel that starts again under a fullscreen window has a new pid and is
+/// visible: it gets the toggle too, or the bar floats over the window (the
+/// work area keeps its 40 px) until the window ends.
+#[test]
+fn a_panel_that_starts_again_under_a_fullscreen_window_is_hidden() {
+    let (record, _) = super::bar_step(None, true, || Some(10));
+    let (record, toggle) = super::bar_step(record, true, || Some(11));
+    assert_eq!(toggle, Some(11), "the new panel is visible: toggle it");
+    assert_eq!(record, Some((11, true)), "the new panel is the one told");
+}
+
+/// A panel that ends under a fullscreen window leaves nothing to toggle,
+/// and its successor is told when the window still stands.
+#[test]
+fn a_panel_that_ends_under_a_fullscreen_window_is_forgotten() {
+    let (record, _) = super::bar_step(None, true, || Some(10));
+    let (record, toggle) = super::bar_step(record, true, || None);
+    assert_eq!((record, toggle), (None, None), "no panel, no record");
+    let (_, toggle) = super::bar_step(record, true, || Some(12));
+    assert_eq!(toggle, Some(12), "the successor is hidden");
+}
