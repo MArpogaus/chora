@@ -189,6 +189,37 @@ Base e4157dbd, head d3d28cfa, 2 files +143 -15 (under 200: PM review). Red a83ae
 - rxt-2: tests only (green on base), hold as a regression guard; accepted.
 Lane gate incomplete: it stopped at mc-sofa volume-wheel (FLAKE-SOFA, rpx1-15; fixed by flake-sofa r2 in t145), so launcher-click..e2e did not run. Verdict: INCOMPLETE on the lane gate, code 0 open MAJOR; it joins train146 and its full gate is the missing run: MERGE-OK d3d28cfa once t146 is green.
 
+## r5 (2026-11-26)
+Base 3be27e32, head 7614fd24 (branch claude/xp-minor-r5), 8 files +92 -11 (plugins/chora-xp/src, tests/xp.sh). Captures: media/2026-11-26/xp-minor-r5/ (before = base binary, after = head; 468 KB).
+
+- rpx2-1 DONE. Red 4913117a: `assertion left == right failed: the old words go  left: 0 right: 1` (tooltip::tests::a_shown_tooltip_takes_new_words_at_once). Fix e3fa2fa4: `Tooltip::retext` swaps the words and removes the shown tip, `show_volume` calls it while the tooltip is on the speaker; the tip shows again at once with the new words. Capture: 1-speaker-tooltip-before ("Volume 50%" while muted) / -after ("Muted").
+- rpx2-3 DONE. Red b96cf4ae: `assertion failed: opens_missing_manager(...)` (wm::press::tests::a_folder_command_of_a_missing_file_manager_is_told_not_started). Fix cd23f490: a Start place whose file manager is not on PATH says what Super+E says ("No file manager", one shared text, no program name). Gate case tests/xp.sh step 13 moved from "Cannot open chora-no-such-manager" to "No file manager" (7614fd24); the first gate run failed there (`FAIL: timeout: said Notify Cannot open chora-no-such-manager`), my change. Capture: 2-my-documents-before ("Cannot open thunar") / -after. Desktop icons (My Documents icon, My Computer, Trash) still go the old way, not in the report item.
+- rpx2-4 DONE. Red 0d62c611: `left: "Log Off Windows" right: "Log Off"` (session::tests::the_titles_do_not_name_windows). Fix f346b174: title "Log Off", doc comments, and the gray text in Taskbar and Start Menu Properties "earlier versions of Windows." now "earlier versions.". Capture 3-log-off-title-before/after. Other user-visible "Windows" strings in chora-xp, not changed: "Cascade Windows", "Tile Windows Horizontally/Vertically" (context.rs; XP's own menu verbs), "Wobbly Windows" (control.rs, Keyboard Shortcuts effect name), help.rs group "Windows" (a group of window keys), display.rs "Windows XP" (theme combo, "Windows XP style", "Play Windows XP's sounds"). The last ones name the product (xp-style says no "Windows" name): left for the PM, they are a wider rename of the look's name. Asset paths WindowsXP/ are not shown.
+- rpx2-5 SKIPPED (reverted, 70196814). The chat field is a layer surface of chora-chat; the core focuses it with `set_layer_focus` and sends xp neither `focus.changed` nor `focus.node` (checked: `choractl state xp` still says holder xp, surface s1). xp has nothing to hear, so it needs a core event for a layer focus (crates/chora). My xp-side change (no title bar active while a node of another client holds the keys) was right for `focus.node` and tested, but it did not change the real chat case (4-chat-title-after still active blue), so it is reverted. Needs: crates/chora emits focus.node (or focus.changed null) for a layer focus.
+
+Gate: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2 --allow-skip docs` EXIT 0 (second run; the first stopped at xp step 13 as above). Last 20 lines:
+```
+launcher-mc PASS    36s /tmp/merge-gate.H7xBOF/launcher-mc.log
+voice-acp  PASS    12s /tmp/merge-gate.H7xBOF/voice-acp.log
+voice-events PASS     2s /tmp/merge-gate.H7xBOF/voice-events.log
+acts       PASS  1918s /tmp/merge-gate.H7xBOF/acts.log
+agent      PASS    38s /tmp/merge-gate.H7xBOF/agent.log
+tiling-keys-more PASS    42s /tmp/merge-gate.H7xBOF/tiling-keys-more.log
+tiling-system PASS    15s /tmp/merge-gate.H7xBOF/tiling-system.log
+handover   PASS    94s /tmp/merge-gate.H7xBOF/handover.log
+mc-scale   PASS    13s /tmp/merge-gate.H7xBOF/mc-scale.log
+watchdog-starved PASS    54s /tmp/merge-gate.H7xBOF/watchdog-starved.log
+tiling-windows PASS   199s /tmp/merge-gate.H7xBOF/tiling-windows.log
+xp-run     PASS    13s /tmp/merge-gate.H7xBOF/xp-run.log
+demo       PASS   244s /tmp/merge-gate.H7xBOF/demo.log
+tiling-bar PASS   180s /tmp/merge-gate.H7xBOF/tiling-bar.log
+tiling-theme PASS    18s /tmp/merge-gate.H7xBOF/tiling-theme.log
+leak       PASS   475s /tmp/merge-gate.H7xBOF/leak.log
+mc-host    PASS    22s /tmp/merge-gate.H7xBOF/mc-host.log
+tiling-disc PASS    72s /tmp/merge-gate.H7xBOF/tiling-disc.log
+e2e        PASS   280s /tmp/merge-gate.H7xBOF/e2e.log
+all steps passed; no --push, nothing is pushed
+```
 ## Review r5 (PM, 92 lines, rules.md 7: builder is not the reviewer)
 Base 3be27e32, head 7614fd24, 8 files +92 -11; red commits 4913117a, b96cf4ae, 0d62c611 each before their fix (e3fa2fa4, cd23f490, f346b174); rpx2-5 red 8e9280d2 and fix 351087a4 both reverted by 70196814 (net zero).
 Checks: rpx2-1 `Tooltip::retext` drops a shown tip and re-arms it (unit a_shown_tooltip_takes_new_words_at_once), called only for the speaker node from `show_volume`; rpx2-3 `opens_missing_manager` checks the first word of file_manager on PATH before start, notice "No file manager" (xp.sh step 13 updated); rpx2-4 "Log Off" title and "earlier versions." text, unit the_titles_do_not_name_windows. Lane gate EXIT 0.

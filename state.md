@@ -25,7 +25,7 @@ burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88 open
 | Lane | Model, branch | State |
 |---|---|---|
 | tour-rows-r4.md (Q 4, 1.2 %) | opus high | running s..NWJPZjCXoCT77WnZn |
-| h-rf2-r1.md (Q 4b, 0.6 %) | sonnet high, 4d8bbe36 | starting |
+| h-rf2-r1.md (Q 4, 0.6 %) | sonnet high, 4d8bbe36 | starting |
 | tiling-focus-r4.md (Q 3, 1.0 %) | opus high, 3be27e32 | running s..LXp8QBhegY1oEWiDc |
 | co-reach-r6.md (Q 2, 1.0 %) | opus high, 4d8bbe36 | running s..Lj635mZvdmt7myT7J |
 | rc1-pass-mc-r2.md (Q 4, 1.2 %) | opus high, 4d8bbe36 | running s..PVpuUFAbj4pjA97GK |
