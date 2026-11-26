@@ -25,11 +25,11 @@ burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88 open
 | Lane | Model, branch | State |
 |---|---|---|
 | tour-fix-r2.md (Q 4, 0.6 %) | sonnet high, 84e31324 | s..LaZa9mxvCe9PHc5BE |
-| window-loss-r1.md (rc 9, 0.4 %) | haiku high, 7c6955c8 | starting |
+| window-loss-r1.md (rc 9, 0.4 %) | haiku high, 7c6955c8 | s..LJCa3VLviJj9SXMTE |
 | kit-swallow-r2.md (Q 3, 0.4 %) | sonnet high, 02e745c3 | s..N37HHuzX8ujDusKFR |
 | review-co-reach-r6.md (Q 2, 0.5 %) | opus high, bcecb671 | s..LKkaw6DPk5FomcT42 |
 | mc-minor-r3.md (Q 4c, 0.5 %) | sonnet high, 59dd6894 | s..NjzArxCW9sJ9LRKQ1 |
-| flake-series-r10.md (Q 5, 0.6 %) | haiku high, 4d8bbe36 | running s..MrWJ1FZ4X7WVbaJa6 |
+| flake-series-r10.md (Q 5, 0.6 %) | haiku high, 4d8bbe36 | s..MrWJ1FZ4X7WVbaJa6 |
 ## Queue (% week; 5 % reserve)
 1. (rc 3) FLAKE-BAR-FULL r1 t152, TOUR-HARNESS r2 t153 merged.
 2. (rc 2) construct r14 not met: co-75, co-76 hold 5/5; co-79: CO-REACH r6 bcecb671 5/5 all paths, review runs; then rc1 pass co r2.
