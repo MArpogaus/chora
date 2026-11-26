@@ -108,3 +108,11 @@ Finding rtr2-2 (product, new): m1 m1b m1c m2 m2b m3 m4 m4b regress in every take
 Diff jsons: media/2026-11-25/tour-rows-r2/take1-diff.json, take2-diff.json, take3-diff.json.
 
 Gate: CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2 (no --push), all 50-odd cells PASS, last lines: "e2e PASS 263s ... all steps passed; no --push, nothing is pushed". pytest tests/test_tour_diff.py tests/test_tour.py: 198 passed. pgrep -fa 'chora --headless' empty.
+
+## Review r2 (PM, 01:32 UTC)
+
+Base 1ac365f1, head f992fe6a, +329 -9 (intended.toml +290 data; tour-diff.py and its test +46). Red f5a4d670 before fix 1c6e66e7: yes. rtr1-1 box [500,225,270,290]: yes. rtr1-2 KEYS rows: mc acts reproduce in all three takes. rtr1-4: yes.
+- Done-when "two takes with equal counts" fails (15/9/10 regressions): INCOMPLETE, not MERGE-OK.
+- rtr2-1 (MAJOR, harness): the tiling t3b..t3g still is taken before the typed text lands; the counts depend on timing. Fix in the tour (wait for the text), not a mask.
+- rtr2-2 is not new: the takes ran on 1ac365f1, which lacks MC-PAGE-END r1 (8a0249a2, t144). rv9ka-1 is fixed on the session head; the r3 takes run on a head with it.
+Verdict: INCOMPLETE; round r3 on f992fe6a merged with the session head.
