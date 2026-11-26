@@ -5,7 +5,6 @@ companions, a stand-in wpctl, the fake voice agent. Every pid is kept, and
 
 import json
 import os
-import re
 import shutil
 import signal
 import subprocess
@@ -28,6 +27,7 @@ ENTRIES = [
 
 
 NOTICE_SECONDS = 600
+NOTIFY_WAIT = 15
 
 LAUNCHER_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 LAUNCHER_DATA_DIRS = "/usr/local/share:/usr/share"
@@ -42,9 +42,8 @@ MIN_FUZZEL = (1, 11)
 
 
 def fuzzel_version(binary):
-    out = subprocess.run([binary, "--version"], capture_output=True, text=True).stdout
-    found = re.match(r"^[^0-9]*([0-9][0-9.]*)", out)
-    return tuple(int(x) for x in found.group(1).split(".")) if found else ()
+    out = subprocess.run([f"{REPO}/tests/tool-version.sh", binary], capture_output=True, text=True).stdout.strip()
+    return tuple(int(x) for x in out.split(".")) if out else ()
 
 
 def supported_fuzzel():
@@ -275,10 +274,18 @@ class Launcher:
         return env
 
     def ensure_notify(self, env):
-        """Every product starts chora-notify; a look without it shows no notice and no launcher failure."""
-        serving = subprocess.run([f"{BIN}/choractl", "call", "notify", "state.get"], env=env, capture_output=True).returncode == 0
-        if not serving:
-            subprocess.run([f"{BIN}/choractl", "run", "setsid", f"{BIN}/chora-notify"], env=env, check=False, capture_output=True)
+        """Every product starts chora-notify; a look without it shows no notice and no launcher failure.
+        Returns once `choractl call notify state.get` answers, or stops with one line (rtl1-1)."""
+        state = [f"{BIN}/choractl", "call", "notify", "state.get"]
+        serving = lambda: subprocess.run(state, env=env, capture_output=True).returncode == 0
+        if serving():
+            return
+        subprocess.run([f"{BIN}/choractl", "run", "setsid", f"{BIN}/chora-notify"], env=env, check=False, capture_output=True)
+        end = time.monotonic() + NOTIFY_WAIT
+        while not serving():
+            if time.monotonic() > end:
+                raise RuntimeError("harness: chora-notify does not answer notify state.get after %d s" % NOTIFY_WAIT)
+            time.sleep(0.2)
 
     def start_voice(self, env):
         entries = f"{self.dir}/entries.json"

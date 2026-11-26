@@ -1214,7 +1214,8 @@ class LauncherSupported(unittest.TestCase):
 
         def fake_run(argv, *a, **kw):
             calls.append(list(argv))
-            return subprocess.CompletedProcess(argv, 1, "", "")
+            started = any(str(x).endswith("chora-notify") for c in calls for x in c)
+            return subprocess.CompletedProcess(argv, 0 if "state.get" in argv and started else 1, "", "")
 
         with tempfile.TemporaryDirectory() as scratch, mock.patch.object(launch, "SCRATCH", scratch):
             L = launch.Launcher("t")
