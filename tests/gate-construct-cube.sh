@@ -77,9 +77,16 @@
 #    for the window of the pane, which then is on face 0 and takes keys.
 #    Pulled out of the face again by Super+Alt+4, Alt+Escape out of that
 #    pane stands back from the cube too, and Super Alt 2 is told again.
+# 9. The key sheet in a pane is honest (rpc2-1, rpc2-2): with the cube
+#    stood back, a program of the launcher flown into, a click on All keys
+#    lists only keys that work with a window holding the keyboard: no
+#    Return Fly in, no Step into the face, no Esc; Escape closes it, and a
+#    click on Step back names Super Alt 2 as it does without the sheet.
 #
 # Usage: tests/gate-construct-cube.sh   BIN: directory with the binaries
 #   SHOT  a PNG path that keeps a capture of the cube during a turn
+#   SHEET_SHOT, BACK_SHOT  PNG paths that keep a capture of the key list in a
+#         pane (step 9) and of the stood-back bar after it
 #   INJECT_LAG  seconds before each injection (default 0): the start of a
 #         choractl on a loaded machine, the stress of the keys in a row
 #   CUBE_LOAD   1 starts 4 busy shell loops per CPU for the run (a loaded host): the
@@ -1103,3 +1110,48 @@ until_ok 'test "$(call cube.list | jq -r .mode)" = use' 40 || fail "co-79: after
 ok "co-79: Alt+Escape out of a pane pulled from a face stands back, and the told Super+Alt+2 puts the window back"
 call cube.close >/dev/null || fail "cube.close after step 8"
 until_ok 'test -z "$(virtuals)"' || fail "cube.close after step 8 left $(virtuals)"
+
+python3 -I - "$CHORA_SOCKET" "$work/term.log" <<'PY'
+import os, signal, sys
+for pid in filter(str.isdigit, os.listdir("/proc")):
+    try:
+        cmd = open(f"/proc/{pid}/cmdline", "rb").read().split(b"\0")
+        env = open(f"/proc/{pid}/environ", "rb").read().split(b"\0")
+        out = os.readlink(f"/proc/{pid}/fd/1")
+    except OSError:
+        continue
+    if cmd[0].endswith(b"chora-probe") and b"CHORA_SOCKET=" + sys.argv[1].encode() in env and out == sys.argv[2]:
+        os.kill(int(pid), signal.SIGTERM)
+PY
+until_ok '! probe | grep -q "^$term "' 40 || fail "rpc2-1: the window of the Terminal row does not end: $(probe | grep "^$term ")"
+sheet_words() { ctl query '*' | jq -r '[.[] | select((.id | startswith("construct-help")) and (.text != null)) | .text] | join("|")'; }
+call cube.open '{}' >/dev/null || fail "rpc2-1: cube.open: $(call cube.open '{}' 2>&1 | head -c 300)"
+until_ok 'test "$(virtuals | wc -w)" = 4' || fail "rpc2-1: cube.open gave $(virtuals)"
+call view.step_back >/dev/null || fail "rpc2-1: view.step_back"
+until_ok 'test "$(call cube.list 2>/dev/null | jq -r .mode)" = navigate' 40 || fail "rpc2-1: the cube did not stand back: $(call cube.list 2>&1 | head -c 300)"
+until_ok 'test "$(bars)" = 4' 80 || fail "rpc2-1: xp shows $(bars) taskbars"
+had=" $(probe | awk '{print $1}' | tr '\n' ' ') "
+key Super+space
+until_ok 'fresh | grep -q " construct "' 100 || fail "rpc2-1: the program of the launcher stood back is no pane: $(probe)"
+until_ok 'test "$(prop construct-hint-step-back visible)" = True' 40 || fail "rpc2-1: in the pane of the program no Step back shows"
+inject '[{"pointer_move": {"node": "construct-hint-keys", "point": [8, 8]}}, {"click": {}}]'
+until_ok help_shown 12 || fail "rpc2-1: a click on the hint All keys in a pane shows no key list"
+until_ok 'sheet_words | grep -q "Step back out of a pane"' 20 || fail "rpc2-1: the key list in a pane does not list the way out: $(sheet_words)"
+for typed in "Fly into the pane ahead" "Walk forward, back, sideways" "Step into the face" "Close the cube, stood back" "Back out one step"; do
+    if sheet_words | grep -q "$typed"; then
+        fail "rpc2-1: the key list in a pane lists \"$typed\", which types into the window: $(sheet_words)"
+    fi
+done
+[ -z "${SHEET_SHOT:-}" ] || ctl capture "$SHEET_SHOT" >/dev/null
+ok "rpc2-1: the key list in a pane lists only the keys that work there"
+plain Escape
+until_ok '! help_shown' 20 || fail "rpc2-2: Escape keeps the key list opened in a pane"
+until_ok 'ctl query id:construct-hint-step-back | jq -e ".[0].rects | length > 0" >/dev/null' 40 || fail "rpc2-2: after the key list in a pane no hint Step back shows: $(hint_words)"
+inject '[{"pointer_move": {"node": "construct-hint-step-back", "point": [8, 8]}}, {"click": {}}]'
+until_ok 'test "$(call cube.list | jq -r .mode)" = navigate && test "$(prop construct-mode-step-in visible)" = True' 40 || fail "rpc2-2: the hint Step back after the key list did not stand back: $(call cube.list | jq -c '{mode, front}'), camera $(call construct.list | jq -c .camera), focus $(ctl query kind:surface | jq -c '[.[] | select(.focused) | .id]'), bar: $(hint_words)"
+until_ok 'test "$(put_keys)" = " Super Alt 2"' 20 ||
+    fail "rpc2-2: stood back out of a pane after the key list the hint bar names no way into a face (put-in keys:$(put_keys); bar: $(hint_words))"
+[ -z "${BACK_SHOT:-}" ] || ctl capture "$BACK_SHOT" >/dev/null
+ok "rpc2-2: after the key list in a pane the step back names Super Alt 2 as it does without it"
+call cube.close >/dev/null || fail "cube.close after step 9"
+until_ok 'test -z "$(virtuals)"' || fail "cube.close after step 9 left $(virtuals)"
