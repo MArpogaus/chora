@@ -189,7 +189,7 @@ fn start_menu_tab(theme: &mut Theme, body: &mut Picture, controls: &mut Vec<Cont
         "Select this option to use the menu style from",
         300,
     );
-    picture = gray(picture, "earlier versions of Windows.", 313);
+    picture = gray(picture, "earlier versions.", 313);
     controls.extend([
         Control::radio("xp", "Start menu", [25, 226, 200, CHECK], true),
         Control::push("customize", "Customize...", [292, 226]).enabled(false),
