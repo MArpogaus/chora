@@ -94,6 +94,10 @@
 #               covers a text of the header: not the date, not the clock,
 #               with the mic on and muted (rmmr2-1)
 #
+#   clock-chat  with the column hidden and the mic muted, the clock of the
+#               header keeps its place as the chat opens (Super+a) and
+#               closes again (rmmr1-1, rmmr2-2)
+#
 # Usage: tests/gate-mc-sofa.sh   BIN: directory with the binaries
 #   THEME  light or dark (default dark)
 #   CELLS  a regular expression of the cells that run (default all)
@@ -731,6 +735,32 @@ cell_pill_chat() {
     done
 }
 
+cell_clock_chat() {
+    local at
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    emit voice.state '{"state": "listening", "task": "", "said": "", "muted": {"mic": true, "speaker": false}}'
+    until_ok 'ctl query id:hud-badge | jq -e "length > 0" >/dev/null' 20 || fail "the host draws no badge of the muted mic"
+    key Super+n
+    until_ok '! has_text "Back one step"' 20 || fail "Super+n does not hide the column"
+    clock_x() {
+        ctl query "owner:mc kind:text" | jq -r "[.[] | $shown | select(.text | test(\"^[A-Z]+ [0-9]+ [A-Z]+ +[0-9]+:[0-9]+\$\"))][0].rects | to_entries[0].value[0]"
+    }
+    until_ok '[ "$(clock_x)" != null ]' 20 || fail "no clock in the header"
+    sleep 1.5
+    at=$(clock_x)
+    key Super+a
+    until_ok 'ctl query id:hud-chat | jq -e "length > 0" >/dev/null' 20 || fail "Super+a opens no chat"
+    sleep 2
+    [ "$(clock_x)" = "$at" ] || fail "the clock moves from $at to $(clock_x) as the chat opens, column hidden, mic muted (rmmr1-1)"
+    key Escape
+    until_ok '! ctl query id:hud-chat | jq -e "length > 0" >/dev/null' 20 || fail "Escape does not close the chat"
+    sleep 2
+    [ "$(clock_x)" = "$at" ] || fail "the clock moves from $at to $(clock_x) as the chat closes (rmmr1-1)"
+    key Super+n
+    until_ok 'has_text "Back one step"' 20 || fail "Super+n does not bring the column back"
+}
+
 cell_helpers_empty() {
     local name words
     for name in $(ctl call mc agent.list '{}' | jq -r '.agents[].name'); do
@@ -843,7 +873,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist keylist-click more launcher-theme volume-wheel page-end boil-lines page-edges pill-clock pill-chat helpers-empty remote-back launcher-click-row rooms-card rooms-pill rooms-pill-status)
+cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist keylist-click more launcher-theme volume-wheel page-end boil-lines page-edges pill-clock pill-chat clock-chat helpers-empty remote-back launcher-click-row rooms-card rooms-pill rooms-pill-status)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done
