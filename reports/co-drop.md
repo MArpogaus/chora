@@ -96,3 +96,24 @@ Findings:
 - rcdr2-2, MINOR, plugins/chora-construct/src/command.rs:638 (and :515), the three-column sheet keeps 16 from the sides with a pad of 8 and a gap of 12, against docs/construct-style.md rule 8 (a screen-fixed element keeps 32 from the edge; spacing in whole units of 8), and its width has no cap (2528 wide at 2560x720); 822d5be4 lowered the lane's own red side assert from 32 (bffb0f2d) to 16 (command.rs:974) and moved the co-71 outside click to x 8 (tests/gate-construct-cube.sh:303) to fit; fix: cap the three-column width at what three widest rows need, keep 32 at the sides with a gap of 16 or 24, and restore `x >= 32` and the click at x 20.
 - rcdr2-3, MINOR, tests/gate-construct-pull.sh:493, case `turned` (as `side`) asserts no new `key 28` after Return, but chora-probe logs only presses (tests/probe/src/main.rs:1044) and the construct, holding the keyboard stood back, takes the Return press for the step in, so the case cannot fail when the step in gives the hidden window the keyboard (it would pass on 75d4623e); it asserts no holder; fix: after the step in, type `x` and assert no new `key 45` in `$log` (or that `keyboard_holder` does not name `$surface`).
 - rcdr2-4, NIT, plugins/chora-construct/src/command.rs:624, the comment of `sheet_columns` says "less `UNIT` each side" while the code takes 4 `UNIT` (16 each side); fix: say 2 `UNIT` each side, or what rcdr2-2 makes it.
+
+## r3 (2026-11-26)
+
+Lane (cloud, sonnet), branch claude/co-drop-r3: base 636287c0 (r2 head) merged with the session head 6daaaab8 (92264c9c), **head 369cf96f**, pushed. rc 1, 2: rcdr2-1 MAJOR, rcdr2-2, rcdr2-3 MINOR, rcdr2-4 NIT.
+
+Commits: red 9f25bf35 (`test: the key sheet at 1024x768; no key in a hidden window (red)`), fix 369cf96f (`fix: the key sheet takes its columns from the widest row, 32 aside`). Diffstat of both over the merge: command.rs +92/-28 (111 lines changed), tests/gate-construct-cube.sh 1, tests/gate-construct-pull.sh 7; 3 files, +92 -28.
+
+Red first: the sheet test (`the_key_sheet_fits_an_output_of_720`) now runs 1024x768, 1280x720, 1280x800, 1920x1080 and 2560x720 with `x >= 32` and `x + w <= out - 32`, a width of at most 1360, and for every row the text end before its first keycap; on 636287c0 it fails at 1024x768 ("the sheet lies at 16..1008, 32 from the sides"). Gate case `turned`/`side` types `x` after the step in and asserts no new `key 45`. It fails on 75d4623e (built in a worktree, case alone): `FAIL: rcdr2-3: after the step in over face 2 a key typed into the window on that face, which the person does not see: construct:None/None xp:xp/s1`. On the fix head the pull step passes (520 s in the full gate).
+
+Fix (command.rs only, no new option, no kit helper copied): `sheet_columns` takes the look and `or`, keeps 32 (`HELP_MARGIN`) from the sides for every width, and for three columns takes 3 widest rows (`row_need`: 12 + text + 8 + `keycaps_width` as `key_row` measures + 8) + 2 gaps of 16 + 2 pads of 16, at most the room between the sides. `key_row` cuts a text that does not fit with `Look::one_line` (the search mark only where it lies in the shown text). Pad 16 for all, gap 16 (three) or 24 (two). `sheet_columns` comment says 32 each side. co-71 outside click back at x 20.
+
+Per size (the unit test, `Metrics::default`; rect x/w; worst text end to first keycap = the smallest gap, none negative):
+- 1024x768: 3 columns, x 32, w 960, worst +9.3
+- 1280x720: 3 columns, x 32, w 1216, worst +9 (1280x800 the same)
+- 1920x1080: 2 columns, x 520, w 880, worst +9 (unchanged from base)
+- 2560x720: 3 columns, x 618, w 1324 (capped, was 2528), worst +8
+With the real fonts the wide rows of 1024x768 and 1280x720 show a cut text (`Turn the cube` is `T…` at 1024, `Start a program or run a com…` at 1280); no text under a keycap.
+
+Captures media/2026-11-26/co-drop-r3/: c4-sheet-1024x768.png (247 KB), c4-sheet-1280x720.png (263 KB), c4-sheet-1920x1080.png (351 KB), each with Esc Close in the foot row.
+
+Gate: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` (no --push, no step filter) on 369cf96f: all steps passed; EXIT 0 (last lines: demo PASS 234s, leak PASS 473s, tiling-theme PASS, tiling-bar PASS 177s, mc-host PASS, tiling-disc PASS 73s, e2e PASS 277s, "all steps passed; no --push, nothing is pushed"). No red cell, no flake. `pgrep -fa 'chora --headless'` empty.

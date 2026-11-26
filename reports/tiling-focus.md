@@ -111,3 +111,23 @@ Findings:
 - rtf2-2 nit docs/decisions.md:168, docs/api.md:441: both list the "window to" rows of xp's Control Panel under `window.give` with `stay`, but they run `give::focused` -> `Windows::hand_kept` (plugins/chora-xp/src/wm/choices.rs:81), as the give keys do. Fix: name them under the give-key path.
 
 Counts: BLOCK 0, MAJOR 1 (rtf2-1), nit 1. rtf1-1..5 fixed for tiling and xp. Verdict: **FIX** (open MAJOR). Known, not findings: FLAKE-CUBE r1, FLAKE-SOFA, FLAKE-PERSONA-NOTEPAD r1, words.rs:594, construct list.rs give menu (filed).
+
+## r3
+
+Lane: cloud, claude/tiling-focus-r3. Base 712a01f5 (r2 head); step 0 merged 6daaaab8 (session head) and 1ab2e6a7 (mc-minor r5): merge 668a9c67, `cargo check`/`cargo build --workspace` green. Head d4fd349f. Diffstat 668a9c67..d4fd349f (own work): 7 files changed, 333 insertions(+), 49 deletions(-); 712a01f5..d4fd349f with the merges: 43 files, +2063 -218.
+
+Commits: 8b22151a test(mc) red (before the fix), 41ddd4ba fix(mc) with D119/api.md, 7b46b322 and 0dd8cb1d test (a cell places the window through the keyboard holder, until_ok), d4fd349f test (panes cell places the window with mc before the walk).
+
+Red first (8b22151a, fails before 41ddd4ba): mc `the_give_key_keeps_the_keyboard_with_mc` (Super+Alt+1 path `give::focused`: s1 of the next scene, else `focus_node mc`, before the remove), `a_refused_give_key_gives_the_keyboard_back`, `a_window_given_in_while_tiling_holds_the_keyboard_comes_without_it` (tiling window or tiling desktop holds); `a_window_given_in_while_nobody_holds_the_keyboard_takes_it` guards the old way. Matrix and virtual EXPECTED: `tiling mc key`, `xp mc key`, `mc tiling key`, `mc xp key` kept. After: chora-mc 219 passed, 0 failed.
+
+Findings:
+- rtf2-1 fixed (plugins/chora-mc/src/manage.rs, windows.rs, main.rs): `Windows::hand_kept` -> `Mc::hand_kept` (keep_keys: held window, mc output vs `claims_over`, `Focus::keep(next, "mc")` where next is the window of the scene that shows after the leave, else the root node `mc`; then the give; focus back on a refused give). `window.give` with `stay` and no grab goes the same way, so a key served by another holder (construct, xp, tiling) that forwards to mc keeps too. Receiver: settle computes `keys = origin != Given || focus.takes_given("mc", holds)`, adopt shows the scene with the keyboard only with keys, `Book::confirm_keys(id, keys)`. No per-look copy of the rule: the kit `Focus` keep/takes_given as tiling and xp.
+- rtf2-2 fixed: D119 and api.md "Window managers" list the xp Control Panel "window to" rows under the give-key path (`give::focused` -> `hand_kept`), and name mc as keeping and yielding; the construct stays open (CO-DROP).
+- Gate setup (not a rule change): after a kept cell the giver holds the keyboard, so a `window.give` to a third look comes without it (D119). `place` of the matrix and the virtual gate first gives the window to the holder (tiling, xp or mc), which takes it with the keyboard (repair line in the log); the path-major virtual gate and the ONLY runs of gate-give-holders hit this. The panes cell of the matrix places the window with mc before the fillers: a filler is the focused surface and the walk of the construct holds the keys, so mc (as tiling and xp would) took the window without the keyboard; first full gate run failed there (`FAIL: the window has no focus with mc before a cell`), fixed in d4fd349f.
+
+Holder before (r2 mc binary, virtual gate ONLY mc key cells): `mc xp key pass`, focused `s1` owner xp, `mc {"holder":null}`, `xp {"holder":"xp","surface":"s1"}`; `xp mc key pass`: `xp {"holder":null}`, `mc {"holder":"mc","surface":"s1"}`; same for mc tiling and tiling mc; 4 MISMATCH against kept.
+Holder after (fix): `mc xp key kept`: focused `{"id":"mc","owner":"mc","kind":"group"}`, `mc {"holder":"mc"}`, `xp {"holder":null}`; `mc tiling key kept` the same; `xp mc key kept`: focused `xp` root, `xp {"holder":"xp"}`, `mc {"holder":null}`; `tiling mc key kept`: `tiling {"holder":"tiling"}`, `mc {"holder":null}`. Matrix key cells: the four mc cells and tiling/xp kept, the construct cells pass; gate-give-holders green with xp, tiling, mc as holder and the refused run.
+
+Captures: media/2026-11-26/tiling-focus-r3/ (before/virtual-mc-key-cells.txt; after/virtual-mc-key-cells.txt, matrix-key-cells.txt, give-holders.txt; text, largest 1.5 KB).
+
+Gate: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` on d4fd349f: 67 PASS, 0 FAIL, 0 SKIP, "all steps passed; no --push, nothing is pushed" (matrix 367 s, virtual 65 s, handover 93 s). Earlier runs failed on my own changes: ratchets (sleep 779 of 778, a sleep loop in place, now until_ok) and matrix (panes cell, above). No foreign flake. `pgrep -fa 'chora --headless'` empty after the run.

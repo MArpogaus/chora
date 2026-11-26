@@ -1,0 +1,21 @@
+gate-give-holders (holder xp, tiling, mc, construct refused):
+== xp
+phase startup 3s
+tiling mc key kept owner=mc focus=null pane= 3s
+repair give mc to tiling, which holds the keyboard (D119)
+xp mc key kept owner=mc focus=null pane= 4s
+== tiling
+phase startup 3s
+tiling xp key kept owner=xp focus=null pane= 3s
+repair give xp to tiling, which holds the keyboard (D119)
+mc xp key kept owner=xp focus=null pane= 4s
+== mc
+phase startup 3s
+xp tiling key kept owner=tiling focus=null pane= 2s
+repair give tiling to xp, which holds the keyboard (D119)
+mc tiling key kept owner=tiling focus=null pane= 4s
+== refused
+phase startup 3s
+tiling xp key gap owner=tiling focus=true pane= 2s
+xp mc key gap owner=xp focus=true pane= 3s
+mc tiling key gap owner=mc focus=true pane= 2s
