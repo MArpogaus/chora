@@ -477,3 +477,113 @@ head). co-70 is fixed (30, 31). co-39 (sheet over the chips) did not show (no I5
 - The persona construct session starts no chora-notify and has no session bus, so its notices (refusals, Screenshot saved)
   are only logged; a persona never sees them. A harness gap (session.sh line 249).
 - Context used about 200 k; no `chora --headless` left.
+
+## r2 xp
+
+Lane rc1-pass-xp-r2, opus high, cloud, head 3be27e32 (claude/rc1-pass-xp-r2, t152 green). Run and read only, no product,
+test or design change. Step 0 green: `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`,
+`run.py --help` (still no help: it starts the chapters, as r1 noted).
+
+Runs, each from a fresh compositor:
+- tour1: `TOUR_OUT=<scratch>/tour1 python3 demo/tour/run.py xp handover`: xp 31 acts (30 green, 1 known ca-4, again
+  "known act 31 is green: drop known"), handover 11 acts (9 green, 2 red: acts 7, 8, see Notes).
+- tour2: `run.py --check xp handover`: the same counts, the same two red rows.
+- p1: `CHORA_TEST_FLAGS=--test-injected-press-is-real tests/persona/session.sh xp 1280x800`, then `tests/persona/act.py`.
+- p2: the same at 1280x720 (second reproductions). p3: xp 1920x1080. h1: `session.sh xp+tiling 1280x720` (give keys).
+Host calls went to the stand-ins (`calls.log`); no host power call. Fallback art (no import), as the tour runs.
+
+Captures: `media/2026-11-26/rc1-pass-xp-r2/` (51 PNG, each under 600 KB). The brief puts them on the code branch;
+its installed pre-commit hook `no-session-files` refuses `media/` and --no-verify is out, so they sit beside this
+report on claude/session-log, as r1 did. `t-` = tour1 stills, `p1-`, `p2-`, `p3-`, `h1-` = persona sessions.
+
+### Verdict
+
+**xp: confirms rc 1.** No BLOCK or MAJOR found. New: 3 MINOR (rpx2-1, rpx2-3, rpx2-4), 2 COSMETIC (rpx2-2, rpx2-5). The r1 MAJORs are gone: rpx1-1 / xp-46 (p1-02: "start:||||||||:end", nothing typed, Start shut) and rpx1-2 /
+xp-47 (t-01: the greeting says "Click me to ask", no "no helper" line in any chat: t-03, t-05, p1-07).
+
+### xp: shared RC bar and main paths (r1 rows rerun, plus the chat)
+
+| Item | Result | Capture |
+|---|---|---|
+| Start a program (mouse) | pass: Start > Notepad opens the editor (stand-in); Start > Run... | p1-01, p1-02, t-08 |
+| Start a program (keys) | pass: Super alone opens Start; Super+Space Run box; Enter on no match says Nothing found for "nosuchprog" (before Enter the list is empty, fuzzel) | p1-03, p1-04, p1-05 |
+| Key list (mouse) | pass: Start > Help and Support > Keyboard shortcuts | t-09 |
+| Key list (keys) | pass: Super+F1 on Keyboard shortcuts, all rows at 1280x800; at 1280x720 the pane scrolls to Vol-, Mute (ca-1); Esc shuts Help | p1-06, p2-09-help720, p2-10c |
+| Helper (mouse) | pass: paperclip, tray clip and Start > Chat with a helper each open the chat; the field takes the keys | p1-20, t-03 |
+| Helper (keys) | pass: Super+A opens the chat, field ready; Esc shuts it | p1-07 |
+| Chat: send, Working, Stop, answer | pass: 250 ms after Return "atlas — Working" with Stop live (xp-busy); answer lands, Stop greys; Stop sends `agent.cancel` and shows Idle (the stand-in answers anyway: fake-voice ignores cancel, not chora) | p1-07, p1-08 |
+| Question card | pass with rpx1-3 (seen again): Yes clicked, card goes, Done line | t-04, t-05 |
+| Paperclip and tail | pass: tail tip on the head (xp-tail), the blink seen (p1-27: eyes shut) | t-01, p1-07 |
+| No stray keys into clients | pass: Super+x, k, m, q, j, 7, F2, Tab over Notepad type nothing and open nothing | p1-02 |
+| Lock | pass: Start > Lock and Super+Shift+Escape each run `swaylock -f` (stand-in window "Screen locked") | p1-16 |
+| Power | pass: Start > Turn Off Computer, Cancel runs nothing; Super+Shift+E opens it, Turn Off runs `systemctl poweroff` (stand-in); Log Off runs `loginctl terminate-user`; rpx2-2, rpx2-4 | p1-17, p1-19, p1-26, t-10 |
+| Volume | pass with rpx2-1: tray click opens the popup with 50 % ticked, 75 % runs `wpctl set-volume 75%`; keys Vol+ and Mute run, red no-sign shows; tooltip under the paperclip (rpx1-6 seen again) | p1-10, p1-11, p1-12, p1-13 |
+| Screenshot | pass: Start > Screenshot and Super+Print each run grim; balloons "Screenshot saved" with the path, queued one after the other | p1-14, p1-15, t-07 |
+| Clock | pass: double click opens Date and Time Properties, now with a taskbar button (xp-10 in part) | p1-15 |
+| Honest failure states | pass with rpx2-3: Notepad with no editor says so (rpx1-7 seen again), Super+E "No file manager", Run Nothing found | t-02, p1-25, p2-06c |
+| Handover from and to xp | pass: tour Send To tiling and Super+drag construct > xp keep every line (acts 5, 9, 10 green twice); Super+Alt+1 xp > tiling and Super+Alt+2 back keep the window and its lines; the keyboard stays with the giver (D119, by design); the window comes back fitted to the work area | t-12, t-13, h1-01, h1-02, h1-03 |
+| Erika (74, mouse): letter, helper, sound 75 %, question Yes | pass with rpx1-3, rpx1-4, rpx2-5 | t-01..t-06 |
+| Murat (52, mouse): volume popup, screenshot, Run, Help, Turn Off Cancel, minimize and task button, Super+D twice | pass | p1-10, p1-14, t-08, t-09, p1-17, p1-23 |
+| Keyboard user: Ctrl+Esc, arrows, Return, type, Alt+F4, keys back to the first window | pass | p1-21, p1-22, p1-24 |
+| 1920x1080 | pass: Start, All Programs flyout over the right column (as XP), chat | p3-01, p3-02 |
+| Style (xp-style.md) | rpx2-2, rpx2-4, rpx2-5; seen again rpx1-3..rpx1-7 | as listed |
+
+### Findings
+
+| id | look | severity | text |
+|---|---|---|---|
+| rpx2-1 | xp | MINOR | the speaker tooltip stays up with the old level after Vol+ or Mute ("Volume 75%" while muted at 80 %) |
+| rpx2-2 | xp | COSMETIC | Turn Off Computer: Lock, Log Off, Restart captions on a dark plate, Stand By and Turn Off without; those two 4 px apart |
+| rpx2-3 | xp | MINOR | Start > My Documents with no file manager: "Cannot open thunar / The program is not installed.": a program name, no next step; Super+E says "No file manager" with the next step |
+| rpx2-4 | xp | MINOR | the Log Off dialog is titled "Log Off Windows": the trademarked name that xp-style forbids |
+| rpx2-5 | xp | COSMETIC | while the chat field has the keys, the window behind keeps its active title bar (two focus cues) |
+
+**rpx2-1 (xp, MINOR; honest states).** With the pointer resting on the tray speaker, the tooltip "Volume 75%" stays
+when Vol+ (`wpctl set-volume 5%+`) and Mute (`set-mute toggle`) change the state; the red no-sign and the "Volume /
+Muted" balloon are right, the tooltip under them is not. Only leaving the speaker and coming back shows "Muted"
+(p1-13). Repro: fresh `session.sh xp`; `act.py move 1195 785` (speaker; 705 at 720 high), wait 1.2 s,
+`key XF86AudioRaiseVolume`, `key XF86AudioMute`, look. R1 p1 (p1-12: "Volume 75%" while muted), R2 p2 (p2-01c:
+"Volume 50%" while muted at 55 %). Also the balloon lies over the tooltip and the tooltip under the paperclip (rpx1-6).
+
+**rpx2-2 (xp, COSMETIC).** Start > Turn Off Computer: the captions Lock, Log Off and Restart sit on a dark blue plate,
+Stand By and Turn Off on the bare gradient, and "Stand By" ends 4 px before "Turn Off" starts (p1-18 zoom 3x; t-10 at
+1280x720, p1-17 at 1280x800). Log Off's own dialog shows the plate under Log Off only (p2-07c). One look for all
+five, and a gap of 8 or more.
+
+**rpx2-3 (xp, MINOR; honest states, P4).** Start > My Documents (right column) with no file manager installed shows
+"Cannot open thunar / The program is not installed." (p1-25 right, p2-04c): "thunar" appears nowhere on screen and
+there is no next step (shared.md: a failure names the thing and the next step). The key door to the same thing,
+Super+E, says "No file manager / No file manager is installed. Ask whoever looks after this computer to install one."
+(p1-25 left, p2-06c). Repro: fresh `session.sh xp 1280x720`; `click 48 705`, `click 262 432`. R1 p1, R2 p2.
+
+**rpx2-4 (xp, MINOR; xp-style intro, vision card: no "Windows" name).** Start > Log Off opens a dialog titled "Log Off
+Windows" (`plugins/chora-xp/src/session.rs:199`). xp-style: "never in trademarked art: ... no "Windows" name". R1 p1
+(p1-26), R2 p2 (p2-07c). Repro: Start, Log Off.
+
+**rpx2-5 (xp, COSMETIC).** With Notepad focused, a click on the paperclip gives the chat field the keys (the editor's
+cursor turns hollow) but the Notepad title bar stays active blue (0,83,210) (t-03, t-04, t-05); the person sees two
+places that look like they take the typing. XP greys the title of a window that lost the keys.
+
+### Known ids seen again (not new)
+
+rpx1-3 / xp-48 and xp-14 (card in a DejaVu face, Yes/No above the key line: t-04), rpx1-4 / xp-48 (balloon and notices
+11 px: t-01, t-02, p1-14), rpx1-5 (bold italic arrow caps: t-09, p1-06), rpx1-6 (tooltip under the paperclip, balloon
+over it: t-07, p1-11), rpx1-7 (no-editor notice names chora-xp.yaml: t-02; Super+E too: p1-25), xp-10 (single click on
+the clock: not retested), xp-20 (green dot for Chat with a helper: p1-01), xp-21 (Help close box only: t-09), xp-34
+(tray clock 11 px), sh-12 (no time left, no answer line after Yes: t-04, t-05), sh-13 (helper name "atlas" lower case
+in the persona, "Atlas" in the tour: p1-07), ca-1 (Help pane scrolls at 1280x720: p2-09), ca-4 (act 31 green both
+takes). The yellow square at the pointer in persona captures is the injection mark of the core (D23,
+`crates/chora/src/inject.rs:8`), not a cursor bug (p1-09).
+
+### Notes for the PM
+
+- Handover chapter, not xp: acts 7 and 8 red in both takes on 3be27e32 ("expected the focus with mc, holders
+  ['tiling']"; then "s1 is owned by mc, expected construct"). The window is not lost (t-11: page 7 NOTEPAD with both
+  lines; t-12: back on xp with every line). Cause (read): D119 (tiling-focus r2, r3; tests/gate-handover-matrix.sh:10)
+  keeps the keyboard with the giver after a give key, so the tour's Expect(focus="mc") and its next give key no longer
+  hold. r1 had them green on d40142e4; tiling-focus-r3 merged after tour-rows-r3. Either the rows follow D119 (click
+  the page before Super+Alt+4) or D119 is revisited for the nurse; a decision, not a fix lane, and outside this pass.
+- The tour still `01-02-start-menu` shows the no-editor balloon, not the Start menu (the still is taken at the act's
+  end); the menu is in p1-01.
+- `run.py --help` still runs every chapter.
+- Context used about 175 k; `pgrep -fa 'chora --headless'` empty at the end.
