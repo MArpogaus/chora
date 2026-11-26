@@ -1011,6 +1011,18 @@ impl Session {
         true
     }
 
+    /// A taken send is a running prompt from now on: the header says
+    /// Working and Stop is on until the first state of the helper, which
+    /// replaces this one.
+    fn busy_until_the_helper_says(&mut self) {
+        if self.running() {
+            return;
+        }
+        "working".clone_into(&mut self.status.state);
+        self.status.task.clear();
+        self.status.steps = None;
+    }
+
     /// A line the field sent. In a chat it goes to the helper. In the
     /// list a number or a name picks, and a line that picks nobody is
     /// held and given back to the field. A number after the held line
@@ -1029,6 +1041,7 @@ impl Session {
                 }
                 if !refused {
                     self.sent.push((sanitize(text), self.transcript.after()));
+                    self.busy_until_the_helper_says();
                 }
                 self.pull(out);
                 true
