@@ -1225,6 +1225,12 @@ class TilingWaitsForText(unittest.TestCase):
         self.assertEqual(len(str(err.exception).splitlines()), 1)
         self.assertIn("tile 3", str(err.exception))
 
+    def test_content_pending_counts_the_sh_and_python_not_the_foot(self):
+        ps = "1 foot foot -e sh -c sleep 3; python3 -I content.py page\n2 sh sh -c sleep 3; python3 -I content.py page\n3 sleep sleep infinity\n4 python3 python3 -I content.py notes x\n"
+        with mock.patch.object(subprocess, "run", return_value=mock.Mock(stdout=ps)):
+            got = self.tiling().content_pending()
+        self.assertEqual([line.split()[0] for line in got], ["2", "4"])
+
     def test_wait_for_text_waits_for_the_window(self):
         wait = self.tiling().wait_for_text
         shown = iter([1, 1, 2])

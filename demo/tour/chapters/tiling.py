@@ -129,9 +129,11 @@ def chat_beside(after, look="tiling"):
 
 
 def content_pending():
-    """The command lines of the tiles that still wait to print their text (`sleep N; python3 content.py KIND`)."""
-    out = subprocess.run(["pgrep", "-af", r"content\.py (code|notes|page)"], capture_output=True, text=True).stdout
-    return [line for line in out.splitlines() if "pgrep" not in line]
+    """The sh and python3 processes of the tiles that still wait to print their text (`sleep N; python3
+    content.py KIND`); the foot that holds them and the `sleep infinity` after the print do not count."""
+    out = subprocess.run(["ps", "-eo", "pid=,comm=,args="], capture_output=True, text=True).stdout
+    rows = [line.split(None, 2) for line in out.splitlines()]
+    return [" ".join(r) for r in rows if len(r) == 3 and r[1] in ("sh", "python3") and re.search(r"content\.py (code|notes|page)", r[2])]
 
 
 def wait_for_text(tiles, pending=content_pending, shown=None, timeout=30, sleep=time.sleep, now=time.monotonic):
