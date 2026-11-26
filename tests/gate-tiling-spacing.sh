@@ -1,7 +1,7 @@
 #!/bin/bash
 # The spacing of the tiling bar: in the
 # left island the layout chip starts 6 px after the separator and its word
-# 10 px inside the chip, left aligned; "Keys" is drawn like "Apps" (the colour of the text, the same
+# in the middle of the chip, which sets the gaps on both sides alike; "Keys" is drawn like "Apps" (the colour of the text, the same
 # weight); and every gap between two items of the islands, from the edge
 # of an island to the first item, from item to separator, from separator
 # to item, is the same 12 px, within 2 px for the side bearing of a glyph.
@@ -95,14 +95,18 @@ gaps = {
 }
 chip = words[0][0]
 chip_fill = px(chip + 3, 24)
-chip_words = groups(ink(chip + 3, left[1] - 3, chip_fill, range(20, 28)), 10)
+chip_start = min(x for x in range(chip, left[1]) if px(x, 16) == chip_fill and px(x, 32) == chip_fill)
+chip_end = max(x for x in range(chip, left[1]) if px(x, 16) == chip_fill and px(x, 32) == chip_fill)
+chip_words = groups(ink(chip + 3, chip_end - 3, chip_fill, range(20, 28)), 10)
 gaps_chip = {
     "separator to the layout chip": chip - sep2 - 1,
-    "the layout chip to its word": chip_words[0][0] - chip - 1,
+    "the layout chip to its word": chip_words[0][0] - chip_start,
+    "its word to the end of the layout chip": chip_end - chip_words[-1][1] + 1,
 }
-for name, want in (("separator to the layout chip", 6), ("the layout chip to its word", 10)):
-    if abs(gaps_chip[name] - want) > 2:
-        problems.append(f"{name}: {gaps_chip[name]} px, not {want}")
+if abs(gaps_chip["separator to the layout chip"] - 6) > 2:
+    problems.append(f"separator to the layout chip: {gaps_chip['separator to the layout chip']} px, not 6")
+if abs(gaps_chip["the layout chip to its word"] - gaps_chip["its word to the end of the layout chip"]) > 2:
+    problems.append(f"the word sits off centre in the layout chip: {gaps_chip}")
 print("chip:", gaps_chip)
 fill_r = px(right[0] + 30, 10)
 seps_r = separators(*right)
@@ -141,7 +145,7 @@ if any(abs(p - q) > 12 for p, q in zip(apps_word, keys_word)):
 if problems:
     sys.exit("; ".join(problems))
 PY
-ok "12 px between the items of the islands, the layout word left aligned, Keys like Apps"
+ok "12 px between the items of the islands, the layout word centred, Keys like Apps"
 
 grant input.inject
 for target in 50 1230; do
