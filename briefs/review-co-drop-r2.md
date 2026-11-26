@@ -3,7 +3,7 @@
 Model: opus, effort high, because it is a look review (construct focus rule across faces: a wrong rule sends keys into a window on a face the person does not see; critic 11-24: opus for look reviews); the builder never reviews itself (rules.md 7)
 Lane: cloud, read-only on code: claude/co-drop-r2 head 636287c0, base 75d4623e (7 files, +241 -52). One round. Stop at 120 k context; cost at most 0.5 %; at most 8 findings. No merge gate run (the lane's: all steps passed on 822d5be4; 636287c0 touches only tests/gate-construct-pull.sh, the pull step alone passed).
 Read briefs/co-drop-r2.md (done criteria) and reports/co-drop.md ("## Review r1", "## r2") on claude/session-log; `git diff 75d4623e..636287c0`.
-Step 0: `git fetch --unshallow`, `cargo check --workspace`.
+Step 0: `git fetch --unshallow`, `cargo check --workspace`. A failure: send_message the PM "review-co-drop-r2 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
 Checks, each with its command and files:
 1) Red first: 1d820350 (and bffb0f2d) before the fixes; at 1d820350 `cargo test -p chora-construct` fails the 3-face drop and the sheet test, nothing else; at 636287c0 all pass.
 2) rcdr1-1 pull.rs: the noted window is forgotten on any face (raw focus); with 3+ faces Return after turning back activates no hidden window; no path where no look holds the keyboard or keys reach an unseen face. rcdr1-2 list.rs comment true.
