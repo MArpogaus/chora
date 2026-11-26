@@ -7,3 +7,9 @@
 - rhm1-1: docs step prints SKIP with the reason, FAIL when docs or mkdocs.yml changed without mkdocs.
 - Diffstat: 5 files, 71 insertions, 18 deletions (launch.py, merge-gate.sh, merge-gate-selftest.sh, test_tour.py, tool-version.sh).
 - Gate: CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2: all steps passed (docs SKIP, mkdocs not installed, docs unchanged), EXIT 0; test_tour 98 passed; merge-gate-selftest ok.
+
+## Review r1 (PM, 65 lines, 4583836c..06c3f7cc)
+- Red 19900551 before fix 06c3f7cc: yes. rtl1-1 (ensure_notify waits on state.get, 15 s, one error line): fixed. rtl1-2 (one version parse, tests/tool-version.sh, used by merge-gate preflight and launch.py): fixed. rhm1-1 (docs NOT RUN passed silently): now SKIP with reason, FAIL when docs or mkdocs.yml changed; selftest asserts no NOT RUN left.
+- Lane gate: full, all PASS, docs SKIP; test_tour 98 pass.
+- rth1-1 MINOR (harness): mkdocs is not in the cloud environment, so docs SKIP on every run and `--push` refuses without `--allow-skip docs`. Trains from now pass `--allow-skip docs` (known host gap); backlog: mkdocs in the environment setup.
+Verdict (computed): no open MAJOR -> MERGE-OK 06c3f7cc. Harness: own train after t149, before t150.
