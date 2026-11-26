@@ -160,3 +160,21 @@ partial run: nothing is pushed
 - rpc2-3, rpc2-4, rpc2-5, rpc2-6, rcrr6-2..6 stay in the backlog as briefed.
 - Seen while building the cell, not filed before: with a face window left on the cube and a pane flown into from the launcher stood back, the keyboard can stay with the face window (rcrr6-3 family); Alt+Escape then does not stand back.
 - The gate lane needs mkdocs and PIL on the host for `docs` and `ci-check`; the venv is a host fix, nothing in the repo.
+
+## Review r2 (co-minor r1: rpc2-1, rpc2-2, rcrr6-1; reviewer not the builder)
+
+Reviewed claude/co-minor-r1 **57ce1480..dc532d60** (9 files +268 -27), one round, read-only on code. Step 0: `git fetch --unshallow`, `cargo check --workspace` green. On head: `cargo test -p chora-construct` 305 passed; `cargo clippy -p chora-construct` clean; `tests/gate-construct-cube.sh` EXIT 0, 70 ok (rpc2-1, rpc2-2 and the five co-79 lines among them).
+
+**Verdict: MERGE-OK** (0 BLOCK, 0 MAJOR).
+
+Checks:
+1. Red first: confirmed by runs of my own. 3d312128 (tests only, +193 in reach_tests.rs and the gate) builds on 57ce1480's code: `cargo test -p chora-construct` 302 passed, 3 failed (`the_key_sheet_in_a_pane_lists_only_the_keys_that_work_there`, `..._opened_by_its_key_in_a_pane_lists_the_same_keys`: `"Fly into the pane ahead" reaches the window, not the sheet: Esc|Close|WALK|CUBE|...`; `after_the_key_sheet_in_a_pane_the_step_back_names_the_way_into_the_face`: `closing the sheet gives the pane's window the keyboard back`). Head gate script on a 57ce1480 build: EXIT 1 at `FAIL: rpc2-1: the key list in a pane lists "Fly into the pane ahead"` (every earlier cell ok); on dc532d60 all 305 pass, gate EXIT 0. rpc2-2 has no cell red on base (the gate stops at rpc2-1), its red is the unit test, as the lane says.
+2. rpc2-1: yes. `help_groups(cube, window)` drops held bindings by `works_in_window`, the Cube group, `Back out one step Escape`, and empty groups; `help_window` is read before the key of the list flies out (`grabbed_key`). Face path: `window` is false (`own_window` is panes only). One rule only in part: rcmr1-1, rcmr1-2.
+3. rpc2-2: `help_takes_keyboard` now notes a pane's window in every mode (`stood_back` arm gone), so the close gives it back; unit test and cell step 9 (bar `Super Alt 2`) green.
+4. POLS: step 7, 8 and the face-path cells green on head; no walk or face sheet changes (`window` false there); the walk hints hold at most six (`walking`, Walk, FlyIn, Windows, Cube, Terminal, Keys).
+5. Docs: configuration.md "at most six", `Super C Cube` with its condition (pane window has the keyboard, no cube open) and the pane sheet paragraph match `hints::walking`, `cube_window` and docs/cube-modes.md:124, :140.
+6. ci-check and docs: confirmed host only. merge-gate.sh:261 fails `docs` with "mkdocs is not installed and docs changed" (docs/configuration.md changed, `command -v mkdocs` empty; mkdocs absent on this host too). tests/tiling-scripts-selftest.sh:98-111 prints `skip: ... PIL is missing` and its TF-1 case needs a skip line naming Inter, so it fails without PIL; no code path of this diff.
+
+Findings:
+- rcmr1-1, MINOR, plugins/chora-construct/src/config.rs:443 vs camera.rs:656: the rule is not one: `grab_keys` also filters by action (only Terminal, Close, Run, `in_every_look` and Look Cube/Windows are grabbed) while the sheet filters by key form only, so a ricer binding `Super+Return: fly_in` is listed as "Fly into the pane ahead" in a pane though it is not grabbed and types into the window; fix: let `works_in_window` take key and action and have the grabs and the sheet call it.
+- rcmr1-2, NIT, config.rs:669, hints.rs:116: `works_in_window` counts `F1` as working, but the core grabs it only with `input.grab-any` (the hint's `keys_chord` asks `holds`, and keeps its own `contains('+')` copy), so a lone `F1: keys` binding without the grant is listed in a pane; docs/configuration.md says "the chords with a modifier and the media keys", no F1; fix: `keys_chord` calls `works_in_window` with `holds` for F1, the sheet takes the same held check, and the docs name F1 with its grant.
