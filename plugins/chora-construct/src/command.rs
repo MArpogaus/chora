@@ -31,6 +31,15 @@ const LIST_TOP: f64 = 104.0;
 const HELP_WIDE: f64 = 880.0;
 const HELP_NARROW: f64 = 560.0;
 const HELP_TOP: f64 = 64.0;
+/// The margin that the key sheet keeps from the top and the bottom of
+/// the output.
+const HELP_MARGIN: f64 = 32.0;
+/// The pad of the key sheet and the gap of its columns: two or three.
+const SHEET_PAD: f64 = 2.0 * UNIT;
+const GAP_TWO: f64 = 24.0;
+const GAP_THREE: f64 = 16.0;
+/// What a row keeps free between its text and its first keycap.
+const TEXT_GAP: f64 = UNIT;
 /// The search line, the footer and a row of the help.
 const SEARCH: f64 = 56.0;
 const FOOTER: f64 = 48.0;
@@ -505,30 +514,16 @@ pub fn help(
 ) -> Vec<Command> {
     let m = &command_glass(look);
     let narrow = !model.query.is_empty();
-    let w = if narrow { HELP_NARROW } else { HELP_WIDE }.min(out[0] - 2.0 * UNIT);
-    let shown = found(model.groups, model.query);
-    let columns: Vec<Vec<(&KeyGroup, Vec<&KeyRow>)>> =
-        if narrow { vec![shown] } else { split(shown) };
-    let col_w = if narrow {
-        w - 4.0 * UNIT
-    } else {
-        (w - 4.0 * UNIT - 24.0) / 2.0
-    };
-    let col_h = |col: &[(&KeyGroup, Vec<&KeyRow>)]| -> f64 {
-        #[allow(clippy::cast_precision_loss, reason = "a few rows")]
-        col.iter()
-            .map(|(_, rows)| UNIT + KEY_ROW + rows.len() as f64 * KEY_ROW)
-            .sum()
-    };
-    let body_h = columns
-        .iter()
-        .map(|c| col_h(c))
-        .fold(0.0, f64::max)
-        .max(KEY_ROW);
     let top = UNIT + SEARCH + 1.0 + UNIT;
-    let h = top + body_h + UNIT + 1.0 + FOOTER;
+    let fixed = top + UNIT + 1.0 + FOOTER;
+    let shown = found(model.groups, model.query);
+    let (w, columns) = sheet_columns(look, (&model.or, shown), narrow, out, fixed);
+    let (pad, gap) = spacing(columns.len());
+    let col_w = column_width(w, columns.len());
+    let body_h = body_height(look, &model.or, &columns, col_w);
+    let h = fixed + body_h;
     let x = ((out[0] - w) / 2.0).round();
-    let y = HELP_TOP.min((out[1] - h) / 2.0).max(UNIT).round();
+    let y = HELP_TOP.min((out[1] - h) / 2.0).max(HELP_MARGIN).round();
     let mut scrim = scrim(look, (&format!("{id}-scrim"), id), out);
     if let Command::Create { props, .. } = &mut scrim {
         props.input = Some(InputMode::Accept);
@@ -568,7 +563,7 @@ pub fn help(
     let mut index = 0;
     for (c, column) in columns.iter().enumerate() {
         #[allow(clippy::cast_precision_loss, reason = "two columns")]
-        let cx = 2.0 * UNIT + c as f64 * (col_w + 24.0);
+        let cx = pad + c as f64 * (col_w + gap);
         let mut cy = top;
         for (group, rows) in column {
             cy += UNIT;
@@ -589,7 +584,7 @@ pub fn help(
                     (model, selected),
                     [cx, cy, col_w],
                 ));
-                cy += KEY_ROW;
+                cy += row_height(look, row, &model.or, col_w);
                 index += 1;
             }
         }
@@ -616,29 +611,192 @@ pub fn help(
     commands
 }
 
-/// The two columns of the help: the first groups at the left and the
-/// rest at the right, cut where the taller column is the least tall.
+/// The height of the tallest column, its columns `col_w` wide.
+fn body_height(look: &Look, or: &str, columns: &[Shown<'_>], col_w: f64) -> f64 {
+    let col_h = |col: &Shown<'_>| -> f64 {
+        (col.iter())
+            .map(|(_, rows)| group_height(look, or, rows, col_w))
+            .sum()
+    };
+    columns.iter().map(col_h).fold(0.0, f64::max).max(KEY_ROW)
+}
+
+/// The pad of the sheet and the gap of its `n` columns.
+const fn spacing(n: usize) -> (f64, f64) {
+    if n > 2 {
+        (SHEET_PAD, GAP_THREE)
+    } else {
+        (SHEET_PAD, GAP_TWO)
+    }
+}
+
+/// The width of one of `n` columns of a sheet `w` wide.
+#[allow(clippy::cast_precision_loss, reason = "three columns at most")]
+fn column_width(w: f64, n: usize) -> f64 {
+    let (pad, gap) = spacing(n);
+    let n = n.max(1) as f64;
+    (w - 2.0 * pad - gap * (n - 1.0)) / n
+}
+
+/// The height of a group in a column `col_w` wide: its head and its rows.
+fn group_height(look: &Look, or: &str, rows: &[&KeyRow], col_w: f64) -> f64 {
+    UNIT + KEY_ROW
+        + (rows.iter())
+            .map(|row| row_height(look, row, or, col_w))
+            .sum::<f64>()
+}
+
+/// The height of a row in a column `w` wide: `KEY_ROW`, and a line more
+/// for a text that wraps, or for keycaps that go below their text.
+fn row_height(look: &Look, row: &KeyRow, or: &str, w: f64) -> f64 {
+    let text = row_what(look, row, or, w);
+    KEY_ROW + (text.lines - 1.0 + f64::from(u8::from(text.below))) * LINE
+}
+
+/// The line of the text face in a row.
+const LINE: f64 = 24.0;
+
+/// The text of a row as it shows: its lines, the width that it wraps at,
+/// and whether its keycaps go to a line below it.
+struct RowText {
+    text: String,
+    lines: f64,
+    room: f64,
+    below: bool,
+}
+
+/// The text of a row in a column `w` wide: whole on one line; wrapped
+/// to a second line beside its keycaps where no word is cut by that;
+/// else the keycaps go below the text, which wraps at the column. A text
+/// is cut only past two lines.
+fn row_what(look: &Look, row: &KeyRow, or: &str, w: f64) -> RowText {
+    let side = w - 20.0 - TEXT_GAP - row_caps(look, row, or)[2];
+    if row_need(look, row, or) <= w {
+        return RowText {
+            text: row.what.clone(),
+            lines: 1.0,
+            room: side,
+            below: false,
+        };
+    }
+    let what = face(Type::Text, 400);
+    let lines = |t: &str, room: f64| (look.size(what, t, Some(room))[1] / LINE).round().max(1.0);
+    let words = row.what.split(' ');
+    let beside = words
+        .clone()
+        .all(|word| look.size(what, word, None)[0] <= side)
+        && lines(&row.what, side) <= 2.0;
+    let room = if beside { side } else { w - 20.0 };
+    if lines(&row.what, room) <= 2.0 {
+        return RowText {
+            text: row.what.clone(),
+            lines: lines(&row.what, room),
+            room,
+            below: !beside,
+        };
+    }
+    let ends: Vec<usize> = row.what.char_indices().map(|(i, _)| i).skip(1).collect();
+    let cuts: Vec<String> = (ends.into_iter().rev())
+        .map(|i| format!("{}\u{2026}", row.what[..i].trim_end()))
+        .collect();
+    let fits: Vec<bool> = cuts.iter().map(|t| lines(t, room) <= 2.0).collect();
+    let text = (cuts.into_iter().zip(fits))
+        .find_map(|(t, fits)| fits.then_some(t))
+        .unwrap_or_else(|| '\u{2026}'.to_string());
+    RowText {
+        text,
+        lines: 2.0,
+        room,
+        below: !beside,
+    }
+}
+
+/// The width of the key sheet and its columns: two without a search, one
+/// with it, three when two would not leave 32 at the top and the bottom
+/// of the output (rv9kb-3), `fixed` being the height that the body leaves
+/// out. The sheet keeps 32 from the sides of the output; three columns
+/// are as wide as three of the widest row need, less if the output is
+/// narrower: a row text that does not fit wraps to a second line (see
+/// `row_what`).
+fn sheet_columns<'a>(
+    look: &Look,
+    (or, shown): (&str, Shown<'a>),
+    narrow: bool,
+    out: [f64; 2],
+    fixed: f64,
+) -> (f64, Vec<Shown<'a>>) {
+    let room = out[0] - 2.0 * HELP_MARGIN;
+    if narrow {
+        return (HELP_NARROW.min(room), vec![shown]);
+    }
+    let wide = HELP_WIDE.min(room);
+    let col_w = column_width(wide, 2);
+    let two = split(shown.clone(), 2, &|rows| {
+        group_height(look, or, rows, col_w)
+    });
+    if fixed + body_height(look, or, &two, col_w) <= out[1] - 2.0 * HELP_MARGIN {
+        return (wide, two);
+    }
+    let widest = (shown.iter().flat_map(|(_, rows)| rows))
+        .map(|row| row_need(look, row, or))
+        .fold(0.0, f64::max);
+    let need = (3.0 * widest + 2.0 * GAP_THREE + 2.0 * SHEET_PAD).min(room);
+    let col_w = column_width(need, 3);
+    (
+        need,
+        split(shown, 3, &|rows| group_height(look, or, rows, col_w)),
+    )
+}
+
+/// The width of a row for its text, `TEXT_GAP` and the keycaps with the
+/// 12 and the 8 that `key_row` keeps at its sides.
+fn row_need(look: &Look, row: &KeyRow, or: &str) -> f64 {
+    let text = look.size(face(Type::Text, 400), &row.what, None)[0];
+    12.0 + text + TEXT_GAP + row_caps(look, row, or)[2] + 8.0
+}
+
+/// The widths of the gesture and of the `or` of a row, and of everything
+/// that its keycaps take, as `key_row` lays it out.
+fn row_caps(look: &Look, row: &KeyRow, or: &str) -> [f64; 3] {
+    let small = face(Type::Small, 400);
+    let gesture = (row.gesture.as_ref()).map_or(0.0, |g| look.size(small, g, None)[0] + 4.0);
+    let or_w = if row.alt.is_empty() {
+        0.0
+    } else {
+        look.size(small, or, None)[0] + 12.0
+    };
+    let total = keycaps_width(look, &row.keys) + or_w + keycaps_width(look, &row.alt) + gesture;
+    [gesture, or_w, total]
+}
+
+/// The columns of the help: the first groups at the left and the rest
+/// to the right, cut where the tallest column is the least tall.
 type Shown<'a> = Vec<(&'a KeyGroup, Vec<&'a KeyRow>)>;
 
-#[allow(clippy::cast_precision_loss, reason = "a few rows")]
-fn split(mut shown: Shown<'_>) -> Vec<Shown<'_>> {
-    let heights: Vec<f64> = (shown.iter())
-        .map(|(_, rows)| UNIT + KEY_ROW + rows.len() as f64 * KEY_ROW)
-        .collect();
-    let total: f64 = heights.iter().sum();
-    let mut left = 0.0;
-    let mut cut = 1;
+fn split<'a>(
+    mut shown: Shown<'a>,
+    columns: usize,
+    height: &dyn Fn(&[&KeyRow]) -> f64,
+) -> Vec<Shown<'a>> {
+    let heights: Vec<f64> = (shown.iter()).map(|(_, rows)| height(rows)).collect();
+    let len = heights.len();
+    let sum = |from: usize, to: usize| heights[from..to].iter().sum::<f64>();
     let mut best = f64::INFINITY;
-    for (k, height) in heights.iter().enumerate() {
-        left += height;
-        let taller = left.max(total - left);
-        if taller < best {
-            best = taller;
-            cut = k + 1;
+    let mut cuts = (1, len);
+    for first in 1..=len {
+        for second in if columns == 3 { first..=len } else { len..=len } {
+            let tallest = sum(0, first).max(sum(first, second)).max(sum(second, len));
+            if tallest < best {
+                best = tallest;
+                cuts = (first, second);
+            }
         }
     }
-    let right = shown.split_off(cut.min(shown.len()));
-    vec![shown, right]
+    let last = shown.split_off(cuts.1.min(len));
+    let right = shown.split_off(cuts.0.min(shown.len()));
+    let mut all = vec![shown, right, last];
+    all.truncate(columns);
+    all
 }
 
 fn head(
@@ -690,13 +848,25 @@ fn key_row(
         commands.push(rect(
             &format!("{id}-sel"),
             body,
-            [x, y, w, KEY_ROW],
+            [x, y, w, row_height(look, row, &model.or, w)],
             12.0,
             m.select,
         ));
     }
     let what = face(Type::Text, 400);
-    if let Some((start, len)) = find(&row.what, model.query) {
+    let [_, or_w, total] = row_caps(look, row, &model.or);
+    let RowText {
+        text: shown,
+        lines,
+        room,
+        below,
+    } = row_what(look, row, &model.or, w);
+    let cy = if below { y + lines * LINE } else { y };
+    let found = find(&row.what, model.query).filter(|&(start, len)| {
+        shown.starts_with(&row.what[..start + len])
+            && look.size(what, &row.what[..start + len], None)[0] <= room
+    });
+    if let Some((start, len)) = found {
         let before = look.size(what, &row.what[..start], None)[0];
         let mark = look.size(what, &row.what[start..start + len], None)[0];
         commands.push(rect(
@@ -707,32 +877,26 @@ fn key_row(
             m.mark,
         ));
     }
-    commands.push(text(
+    let mut line = text(
         look,
         &format!("{id}-what"),
         body,
-        (what, &row.what),
+        (what, &shown),
         [x + 12.0, y + 4.0],
         m.text,
-    ));
+    );
+    if let (Command::Create { props, .. }, true) = (&mut line, lines > 1.0) {
+        props.max_width = Some(room);
+    }
+    commands.push(line);
     let small = face(Type::Small, 400);
-    let gesture_w = row
-        .gesture
-        .as_ref()
-        .map_or(0.0, |g| look.size(small, g, None)[0] + 4.0);
-    let or_w = if row.alt.is_empty() {
-        0.0
-    } else {
-        look.size(small, &model.or, None)[0] + 12.0
-    };
-    let total = keycaps_width(look, &row.keys) + or_w + keycaps_width(look, &row.alt) + gesture_w;
     let mut kx = (x + w - 8.0 - total).round();
     let (caps, used) = keycaps(
         look,
         m,
         (&format!("{id}-keys"), body),
         &row.keys,
-        [kx, y + 4.0],
+        [kx, cy + 4.0],
     );
     commands.extend(caps);
     kx += used;
@@ -742,7 +906,7 @@ fn key_row(
             &format!("{id}-gesture"),
             body,
             (small, gesture),
-            [kx + 4.0, y + 6.0],
+            [kx + 4.0, cy + 6.0],
             m.muted,
         ));
     }
@@ -752,7 +916,7 @@ fn key_row(
             &format!("{id}-or"),
             body,
             (small, &model.or),
-            [kx + 6.0, y + 6.0],
+            [kx + 6.0, cy + 6.0],
             m.muted,
         ));
         kx += or_w;
@@ -762,7 +926,7 @@ fn key_row(
                 m,
                 (&format!("{id}-alt"), body),
                 &row.alt,
-                [kx, y + 4.0],
+                [kx, cy + 4.0],
             )
             .0,
         );
@@ -847,9 +1011,12 @@ mod tests {
                 .collect(),
         };
         let groups: Vec<KeyGroup> = [7, 4, 3, 4, 9].into_iter().map(group).collect();
-        let columns = split(found(&groups, ""));
+        let tall = |rows: &[&KeyRow]| {
+            UNIT + KEY_ROW + f64::from(u8::try_from(rows.len()).unwrap()) * KEY_ROW
+        };
+        let columns = split(found(&groups, ""), 2, &tall);
         assert_eq!(columns.iter().map(Vec::len).collect::<Vec<_>>(), [3, 2]);
-        let one = split(found(&groups[..1], ""));
+        let one = split(found(&groups[..1], ""), 2, &tall);
         assert_eq!(one.iter().map(Vec::len).collect::<Vec<_>>(), [1, 0]);
     }
 
@@ -889,6 +1056,159 @@ mod tests {
             footer: Vec::new(),
         };
         help(&look, &model, ("help", "root"), [1280.0, 720.0])
+    }
+
+    /// rv9kb-3: the key sheet of the default settings, at 1280x720 (and the
+    /// outputs of 800 and 1080), lies inside the output with a margin of
+    /// 32 at the top and the bottom, and its foot row (the divider and the
+    /// Close) is on the screen. co-drop r4: no row text is cut (no `…`) at
+    /// any size; at 1024x768 (the estimates of `Metrics::default`) three
+    /// columns of rows that wrap need more than the 704 between the
+    /// margins, so the bottom margin is asserted from 1280 wide on.
+    #[test]
+    fn the_key_sheet_fits_an_output_of_720() {
+        let settings: crate::config::Config =
+            serde_saphyr::from_str(crate::config::DEFAULT).unwrap();
+        let metrics = crate::Metrics::default();
+        let look = Look {
+            style: &settings.style,
+            colors: &settings.style.themes.light,
+            plain: false,
+            shader: "/glass.frag",
+            shadow: "/shadow.frag",
+            glass: chora_kit::glass::Material::of(false),
+            metrics: &metrics,
+        };
+        let groups = settings.help_groups(true);
+        let model = HelpModel {
+            groups: &groups,
+            query: "",
+            sel: 0,
+            scope: String::new(),
+            placeholder: String::new(),
+            every_look: String::new(),
+            or: String::new(),
+            note: String::new(),
+            footer: vec![(vec!["Esc".to_owned()], "Close".to_owned())],
+        };
+        for out in [
+            [1024.0, 768.0],
+            [1280.0, 720.0],
+            [1280.0, 800.0],
+            [1920.0, 1080.0],
+            [2560.0, 720.0],
+        ] {
+            let commands = help(&look, &model, ("help", "root"), out);
+            let find = |id: &str| {
+                commands
+                    .iter()
+                    .find_map(|c| match c {
+                        Command::Create {
+                            id: made, props, ..
+                        } if made == id => Some(props),
+                        _ => None,
+                    })
+                    .unwrap_or_else(|| panic!("no node {id}"))
+            };
+            let y = find("help-body")
+                .transform
+                .as_ref()
+                .unwrap()
+                .translation_2d()
+                .1;
+            let x = find("help-body")
+                .transform
+                .as_ref()
+                .unwrap()
+                .translation_2d()
+                .0;
+            let w = find("help-body-glass").size.unwrap()[0];
+            assert!(
+                x >= 32.0 && x + w <= out[0] - 32.0,
+                "{out:?}: the sheet lies at {x}..{}, 32 from the sides (rule 8)",
+                x + w
+            );
+            assert!(
+                w <= 1360.0,
+                "{out:?}: the sheet is {w} wide, no more than three rows need"
+            );
+            assert!(
+                y >= 32.0,
+                "{out:?}: the sheet starts at {y}, 32 from the top"
+            );
+            let foot = find("help-body-divider-foot");
+            let foot_y = y + foot.transform.as_ref().unwrap().translation_2d().1;
+            assert!(
+                out[0] < 1280.0 || foot_y + 1.0 + FOOTER <= out[1] - 32.0,
+                "{out:?}: the sheet foot ends at {}, 32 from the bottom",
+                foot_y + 1.0 + FOOTER
+            );
+            let what = face(Type::Text, 400);
+            for i in 0..groups.iter().map(|g| g.rows.len()).sum() {
+                let row = format!("help-body-row-{i}");
+                let line = find(&format!("{row}-what"));
+                let shown = line.text.as_ref().unwrap();
+                assert!(
+                    !shown.contains('…'),
+                    "{out:?}: the text of row {i} is cut: {shown:?} (co-drop r4)"
+                );
+                let start = line.transform.as_ref().unwrap().translation_2d().0;
+                let end = start + look.size(what, shown, line.max_width)[0];
+                let cap = find(&format!("{row}-keys-0"));
+                let (cap_x, cap_y) = cap.transform.as_ref().unwrap().translation_2d();
+                let line_y = line.transform.as_ref().unwrap().translation_2d().1;
+                assert!(
+                    cap_y > line_y || end <= cap_x,
+                    "{out:?}: the text of row {i} ends at {end}, past its first keycap at {cap_x}"
+                );
+            }
+        }
+    }
+
+    /// co-drop r4: a row text that does not fit beside its keycaps wraps to
+    /// a second line; where its keycaps leave no room for a word, they go
+    /// below the whole text; the text is cut only past two lines.
+    #[test]
+    fn a_row_text_wraps_then_sends_its_keycaps_below_and_is_cut_past_two_lines() {
+        let settings: crate::config::Config =
+            serde_saphyr::from_str(crate::config::DEFAULT).unwrap();
+        let metrics = crate::Metrics::default();
+        let look = Look {
+            style: &settings.style,
+            colors: &settings.style.themes.light,
+            plain: false,
+            shader: "/glass.frag",
+            shadow: "/shadow.frag",
+            glass: chora_kit::glass::Material::of(false),
+            metrics: &metrics,
+        };
+        let whole = row("Open", &["X"]);
+        let one = row_what(&look, &whole, "or", 300.0);
+        assert_eq!(
+            (one.text.as_str(), one.lines, one.below),
+            ("Open", 1.0, false)
+        );
+        assert_eq!(row_height(&look, &whole, "or", 300.0), KEY_ROW);
+        let long = row("Walk forward and back and sideways", &["W", "A", "S"]);
+        let wrapped = row_what(&look, &long, "or", 300.0);
+        assert_eq!(
+            (wrapped.text.as_str(), wrapped.lines),
+            (long.what.as_str(), 2.0)
+        );
+        assert!(!wrapped.below);
+        assert_eq!(row_height(&look, &long, "or", 300.0), KEY_ROW + LINE);
+        let caps = ["Ctrl", "Alt", "Left", "Ctrl", "Alt", "Right"];
+        let crowded = row("Turn the cube", &caps);
+        let below = row_what(&look, &crowded, "or", 300.0);
+        assert_eq!((below.text.as_str(), below.below), ("Turn the cube", true));
+        assert_eq!(row_height(&look, &crowded, "or", 300.0), KEY_ROW + LINE);
+        let endless = row(&"word ".repeat(40), &["X"]);
+        let cut = row_what(&look, &endless, "or", 300.0);
+        assert!(
+            cut.text.ends_with('\u{2026}') && (cut.lines - 2.0).abs() < 1e-9,
+            "{}",
+            cut.text
+        );
     }
 
     /// Polish 4: nothing of the space reads through a command surface.

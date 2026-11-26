@@ -13,7 +13,7 @@ use chora_kit::{
 use chora_scene::{Command, NodeKind, PropsUpdate, ROOT};
 use serde_json::{Value, json};
 
-use super::with_hint_bar;
+use super::{host_of, with_hint_bar};
 use crate::{Construct, LOOK, Moving, PANES};
 
 /// The cube of `with_hint_bar` stood back, its face manager `xp`, with
@@ -21,7 +21,19 @@ use crate::{Construct, LOOK, Moving, PANES};
 /// `foot` in the scene and in the hand of a drag: xp claims the outputs of the two faces, `VIRTUAL-1` (the front)
 /// and `VIRTUAL-2`, side by side.
 fn dragging_stood_back(tag: &str) -> (Construct, FakeCore, Log) {
+    dragging_stood_back_on(tag, 2)
+}
+
+/// As [`dragging_stood_back`] with `faces` faces and outputs.
+fn dragging_stood_back_on(tag: &str, faces: usize) -> (Construct, FakeCore, Log) {
     let (mut construct, core, lines) = with_hint_bar(tag);
+    if faces != 2 {
+        let mut host = host_of(faces);
+        assert!(host.act(chora_kit::modes::Act::StepBack, std::time::Instant::now()));
+        host.stand = 1.0;
+        host.step = None;
+        construct.cube = Some(host);
+    }
     construct.cube.as_mut().unwrap().program = "xp".into();
     core.model().lock().unwrap().selects = true;
     let output = |name: &str, x: i32| {
@@ -29,7 +41,15 @@ fn dragging_stood_back(tag: &str) -> (Construct, FakeCore, Log) {
             "camera": chora_scene::Transform::IDENTITY, "work_area": [0, 0, 1280, 800],
             "default_work_area": [0, 0, 0, 0], "virtual": true, "owner": crate::NAME})
     };
-    core.outputs(json!([output("VIRTUAL-1", 0), output("VIRTUAL-2", 2000)]));
+    let outputs: Vec<Value> = (0..faces)
+        .map(|i| {
+            output(
+                &format!("VIRTUAL-{}", i + 1),
+                2000 * i32::try_from(i).unwrap(),
+            )
+        })
+        .collect();
+    core.outputs(Value::Array(outputs));
     (core.model().lock().unwrap().scene).add_surface("s1", chora_scene::SurfaceInfo::default());
     let look = Command::Create {
         id: LOOK.into(),
@@ -53,7 +73,10 @@ fn dragging_stood_back(tag: &str) -> (Construct, FakeCore, Log) {
             ..PropsUpdate::default()
         },
     };
-    xp.apply(vec![desk(0, 0.0), desk(1, 2000.0)]).unwrap();
+    let desks = (0..faces)
+        .map(|i| desk(i, 2000.0 * f64::from(u16::try_from(i).unwrap())))
+        .collect();
+    xp.apply(desks).unwrap();
     drop(xp);
     construct.moving = Some(Moving {
         name: "foot".into(),
@@ -245,5 +268,38 @@ fn a_put_that_xp_places_steps_in_with_the_window() {
         told(&lines).is_empty(),
         "nothing to tell: {:?}",
         told(&lines)
+    );
+}
+
+/// rcdr1-1: with three faces, the window noted at the step back on face 0
+/// is dropped onto face 2 from face 1 and the cube turns back to face 0:
+/// `Return` (the step in) gives the keyboard to no window, for the dropped
+/// one is on a face that the person does not see.
+#[test]
+fn a_drop_on_a_third_face_leaves_no_key_for_the_step_in_after_a_turn_back() {
+    let (mut construct, _core, lines) = dragging_stood_back_on("drop-three", 3);
+    construct
+        .cube
+        .as_mut()
+        .unwrap()
+        .note_focus(Some("s1".into()));
+    construct.turn_cube(1, Some(0), false).unwrap();
+    construct.step_cube().unwrap();
+    assert_eq!(construct.cube.as_ref().unwrap().front_face(), (1, 3));
+    let went = construct
+        .drop_on_a_face("VIRTUAL-3", [640.0, 400.0])
+        .unwrap();
+    assert!(went, "the window goes to xp");
+    construct.turn_cube(-1, Some(0), false).unwrap();
+    construct.step_cube().unwrap();
+    assert_eq!(construct.cube.as_ref().unwrap().front_face(), (0, 3));
+    lines.lock().unwrap().clear();
+    construct
+        .mode_act(chora_kit::modes::Act::StepIn, crate::modes::By::Person)
+        .unwrap();
+    assert!(
+        !activated(&lines, "s1"),
+        "the window on face 2 gets no keys: {:?}",
+        called(&lines)
     );
 }

@@ -251,7 +251,8 @@ impl Construct {
     /// with its props back to the defaults, and the pane goes. The core
     /// refuses a `to` without a connection, and the pane and the camera
     /// stay. After a give the keyboard is left to `to`, also when the
-    /// camera was in the window.
+    /// camera was in the window, unless the cube stands back: see
+    /// `given_from_a_pane`.
     pub(crate) fn give(&mut self, surface: &str, to: &str) -> Result<Value, ClientError> {
         self.give_dragged(surface, to, None)
     }
