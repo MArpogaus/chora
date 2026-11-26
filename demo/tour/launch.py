@@ -42,8 +42,12 @@ MIN_FUZZEL = (1, 11)
 """The package minimum (tests/gate-package-deps.sh, merge-gate tool_minimums): fuzzel 1.9.2 ignores clicks."""
 
 
+TOOL_VERSION = pathlib.Path(__file__).resolve().parents[2] / "tests/tool-version.sh"
+"""The version parse of the harness's own tree, not of TOUR_REPO: the v8 tree of the replay has none (rtr4-5)."""
+
+
 def fuzzel_version(binary):
-    out = subprocess.run([f"{REPO}/tests/tool-version.sh", binary], capture_output=True, text=True).stdout.strip()
+    out = subprocess.run([str(TOOL_VERSION), binary], capture_output=True, text=True).stdout.strip()
     return tuple(int(x) for x in out.split(".")) if out else ()
 
 
@@ -276,7 +280,11 @@ class Launcher:
 
     def ensure_notify(self, env):
         """Every product starts chora-notify; a look without it shows no notice and no launcher failure.
-        Returns once `choractl call notify state.get` answers, or stops with one line (rtl1-1)."""
+        Returns once `choractl call notify state.get` answers, or stops with one line (rtl1-1). On the v8 replay
+        (TOUR_BASELINE) it does nothing: the 733967aa chora-notify has no method to ask, and a v8 look that did
+        not start it ran without it, as the r3 replay did (rtr4-4)."""
+        if os.environ.get("TOUR_BASELINE"):
+            return
         state = [f"{BIN}/choractl", "call", "notify", "state.get"]
         serving = lambda: subprocess.run(state, env=env, capture_output=True).returncode == 0
         if serving():

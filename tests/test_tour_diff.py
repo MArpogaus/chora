@@ -620,6 +620,19 @@ class NoRowKindAbsorbsWhatItDoesNotName(unittest.TestCase):
         loose = [(r["act"], r["kind"]) for r in rows if r["kind"] != "check" and not r.get("open") and not (r.get("boxes") if r["kind"] == "pixel" else r.get("nodes"))]
         self.assertEqual(loose, [])
 
+    FRAME = (1280, 720)
+    """The size of the outputs the tour captures (HEADLESS-1)."""
+
+    def test_no_pixel_row_box_covers_the_whole_frame(self):
+        """rtr4r-1: a pixel row of c5d had the box [0, 0, 1280, 720]: it names every blob of its act, so no pixel
+        regression of that act is ever seen again. A box names what one commit changes, never the whole frame."""
+        import tomllib
+
+        rows = tomllib.loads((HERE.parent / "demo/tour/intended.toml").read_text())["change"]
+        w, h = self.FRAME
+        whole = [(r["act"], b) for r in rows if r["kind"] == "pixel" for b in r.get("boxes", []) if b[0] <= 0 and b[1] <= 0 and b[0] + b[2] >= w and b[1] + b[3] >= h]
+        self.assertEqual(whole, [])
+
 
 class IntendedRows(unittest.TestCase):
     def test_h2_lists_kinds_and_no_wildcard(self):
@@ -788,6 +801,186 @@ class IntendedCauses(unittest.TestCase):
         marks = self.UNPROVEN + self.UNPROVEN_FINDINGS
         unproven = [(r["act"], r["kind"]) for r in self.rows() if any(m in r["cause"] for m in marks) and not r.get("open")]
         self.assertEqual(unproven, [])
+
+
+V8 = "733967aa"
+"""The build of the baseline replay (TOUR_BASELINE): a cause of a v9 diff is a commit after it."""
+
+
+def git(*args):
+    return subprocess.run(["git", "-C", str(HERE.parent), *args], capture_output=True, text=True)
+
+
+@unittest.skipUnless(git("cat-file", "-e", f"{V8}^{{commit}}").returncode == 0, "no history back to 733967aa (git fetch --unshallow)")
+class IntendedCommits(unittest.TestCase):
+    """tour-rows r4 (rtr3-2): a row says which commit made its change, and that commit is in the history the two
+    takes span: an ancestor of HEAD, not of the v8 build, and it changes what the binaries are built from. Both takes
+    run the head's harness, so a commit of tests/, demo/ or docs/ alone cannot change a capture."""
+
+    SHA = re.compile(r"\b(?=[0-9a-f]*\d)[0-9a-f]{7,40}\b")
+    PRODUCT = ("crates/", "plugins/", "flavors/", "services/", "dist/", "Cargo.toml", "Cargo.lock")
+
+    @classmethod
+    def setUpClass(cls):
+        import tomllib
+
+        cls.rows = tomllib.loads((HERE.parent / "demo/tour/intended.toml").read_text())["change"]
+        cls.shas = sorted({s for r in cls.rows for s in cls.SHA.findall(r["cause"])})
+
+    def test_every_row_names_a_commit_sha(self):
+        self.assertEqual([(r["act"], r["kind"]) for r in self.rows if not self.SHA.search(r["cause"])], [])
+
+    def test_every_named_sha_is_a_commit_between_v8_and_head(self):
+        wrong = []
+        for sha in self.shas:
+            if git("cat-file", "-e", f"{sha}^{{commit}}").returncode:
+                wrong.append((sha, "no such commit"))
+            elif git("merge-base", "--is-ancestor", sha, "HEAD").returncode:
+                wrong.append((sha, "not in the history of HEAD"))
+            elif not git("merge-base", "--is-ancestor", sha, V8).returncode:
+                wrong.append((sha, f"already in {V8} (v8)"))
+        self.assertEqual(wrong, [])
+
+    @classmethod
+    def files_of(cls, sha):
+        """The files a commit brings to its first parent (a merge too: `git show` lists nothing for a clean merge)."""
+        return git("diff", "--name-only", f"{sha}^1", sha).stdout.split()
+
+    @classmethod
+    def no_product_code(cls, sha):
+        """The files of a commit when none of them is product code (a commit that cannot change a capture), else []."""
+        files = cls.files_of(sha)
+        return [] if files and any(f.startswith(cls.PRODUCT) for f in files) else files or ["(no files)"]
+
+    def test_every_named_sha_changes_product_code(self):
+        wrong = [(sha, " ".join(self.no_product_code(sha)[:3])) for sha in self.shas if self.no_product_code(sha)]
+        self.assertEqual(wrong, [])
+
+    @unittest.skipUnless(git("cat-file", "-e", "19348b95^{commit}").returncode == 0, "no commit 19348b95")
+    def test_a_clean_merge_is_judged_by_what_it_brings_to_its_first_parent(self):
+        """rtr4r-3: `git show --name-only` lists nothing for a clean merge, so a row citing 19348b95 (chore: merge
+        session head a93bc75b; it brings tests/persona-selftest.sh only) passed. A merge counts what it brings to its
+        first parent: `git diff --name-only <sha>^1 <sha>`."""
+        self.assertEqual(self.no_product_code("19348b95"), ["tests/persona-selftest.sh"])
+
+
+def load_launch(repo):
+    """demo/tour/launch.py as a take on the build in REPO loads it (TOUR_REPO; the v8 tree of the replay)."""
+    from unittest import mock
+
+    sys.path.insert(0, str(HERE.parent / "demo/tour"))
+    try:
+        with mock.patch.dict(os.environ, {"TOUR_REPO": str(repo)}):
+            spec = importlib.util.spec_from_file_location("launch_of_take", HERE.parent / "demo/tour/launch.py")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+    finally:
+        sys.path.remove(str(HERE.parent / "demo/tour"))
+    return module
+
+
+class LaunchOnTheBaseline(unittest.TestCase):
+    """The harness of the head runs the v8 replay (TOUR_REPO the 733967aa tree, TOUR_BASELINE=1): what it needs of
+    its own lives next to it, and what the old build cannot answer is not waited for."""
+
+    def tool(self, d, text):
+        path = pathlib.Path(d, "fuzzel")
+        path.write_text(f"#!/bin/sh\necho '{text}'\n")
+        path.chmod(0o755)
+        return str(path)
+
+    def test_the_tool_version_script_is_the_harness_own(self):
+        """rtr4-5: `fuzzel_version` ran `{TOUR_REPO}/tests/tool-version.sh`; the v8 tree has none, so every v8
+        chapter broke with FileNotFoundError."""
+        with tempfile.TemporaryDirectory() as old, tempfile.TemporaryDirectory() as bins:
+            launch = load_launch(old)
+            self.assertEqual(launch.fuzzel_version(self.tool(bins, "fuzzel version: 1.11.1 +cairo")), (1, 11, 1))
+
+    def test_the_baseline_neither_starts_nor_waits_for_a_notify_it_cannot_ask(self):
+        """rtr4-4: the 733967aa chora-notify has no method (no `state.get`), so `ensure_notify` stopped the v8
+        mc dark and handover chapters after 15 s with no capture. On the replay a look that does not list
+        chora-notify runs without it, as v8 did (the r3 replay)."""
+        from unittest import mock
+
+        with tempfile.TemporaryDirectory() as old:
+            launch = load_launch(old)
+            calls = []
+            fake = lambda argv, **kw: calls.append(argv) or subprocess.CompletedProcess(argv, 1, "", "")
+            with mock.patch.dict(os.environ, {"TOUR_BASELINE": "1"}), mock.patch.object(launch.subprocess, "run", fake), mock.patch.object(launch, "NOTIFY_WAIT", 0.3):
+                launch.Launcher.ensure_notify(object(), {})
+            self.assertEqual(calls, [])
+
+
+class ConstructAfterTheDrop(unittest.TestCase):
+    """rtr4-3: since 75d4623e the drop of c5c steps into the front face; the chapter steps out where an act needs the
+    cube, and the replay on 733967aa (which stays stood back) spends the same frame."""
+
+    @classmethod
+    def setUpClass(cls):
+        import ast
+
+        cls.source = (HERE.parent / "demo/tour/chapters/construct.py").read_text()
+        tree = ast.parse(cls.source)
+        cls.functions = {f.name: f for f in tree.body if isinstance(f, ast.FunctionDef)}
+
+    def step_out(self):
+        import ast
+
+        if "step_out" not in self.functions:
+            self.fail("construct.py has no step_out")
+        scope = {}
+        exec(compile(ast.Module([self.functions["step_out"]], []), "construct.py", "exec"), scope)
+        return scope["step_out"]
+
+    class Take:
+        def __init__(self):
+            self.frame, self.keys = 0, []
+
+        def key(self, combo):
+            self.keys.append(combo)
+            self.frame += 1
+
+    def test_the_step_out_presses_alt_escape_only_inside_a_face_and_spends_one_frame_either_way(self):
+        for inside, keys in ((True, ["Alt+Escape"]), (False, [])):
+            t = self.Take()
+            self.step_out()(t, inside)
+            self.assertEqual((t.keys, t.frame), (keys, 1), inside)
+
+    def stepped_in(self):
+        import ast
+        import re as regex
+
+        scope = {"NO_METHOD": regex.compile(r"no (?:exported )?method", regex.IGNORECASE)}
+        exec(compile(ast.Module([self.functions["stepped_in"]], []), "construct.py", "exec"), scope)
+        return scope["stepped_in"]
+
+    class Old:
+        """A session on 733967aa: construct exports no `cube.list`."""
+
+        def call(self, look, method):
+            raise RuntimeError(f"choractl call {look} {method} {{}}: choractl: {look}.{method} is no exported method (code 1)")
+
+    class New:
+        def __init__(self, mode):
+            self.mode = mode
+
+        def call(self, look, method):
+            return {"mode": self.mode, "front": 0}
+
+    def test_the_replay_without_cube_list_is_stood_back_and_does_not_stop(self):
+        """The v8 take of construct stopped at `stepped_in` with `construct.cube.list is no exported method`, so c3..c2b
+        were `baseline: none` (tour-fix r1 take)."""
+        self.assertFalse(self.stepped_in()(self.Old()))
+        self.assertTrue(self.stepped_in()(self.New("use")))
+        self.assertFalse(self.stepped_in()(self.New("navigate")))
+
+    def test_c5d_looks_at_the_stepped_in_face_and_c3_steps_out_before_it_turns(self):
+        lines = self.source.splitlines()
+        c5d = next(i for i, line in enumerate(lines) if '"04-13-back-on-face"' in line)
+        self.assertIn('"mode": "use"', lines[c5d])
+        self.assertNotIn("The cube with the window on the face", lines[c5d])
+        turn = next(i for i in range(c5d, len(lines)) if 't.key("Ctrl+Alt+Right")' in lines[i])
+        self.assertTrue(any("step_out(t, " in lines[i] for i in range(c5d, turn)), "no step out between c5d and the first turn")
 
 
 @unittest.skipUnless(shutil.which("ffmpeg"), "no ffmpeg")
