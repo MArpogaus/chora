@@ -240,6 +240,12 @@ mod tests {
     }
 
     #[test]
+    fn the_full_list_has_no_more_rows_than_the_column_holds_at_720() {
+        let rows = all(&config(), true);
+        assert!(rows.len() <= 21, "{} rows: {rows:?}", rows.len());
+    }
+
+    #[test]
     fn the_full_list_names_the_drag_beside_the_give_keys() {
         let rows = all(&config(), false);
         let drag = rows.iter().find(|r| r.words == "Drag window");
