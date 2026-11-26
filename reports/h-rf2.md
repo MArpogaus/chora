@@ -121,3 +121,9 @@ Results:
 1. Selftest on 4b0d327a0: all ok. On 59ba5c21e with the new cases: 7 FAIL.
 2. Real range `--base 3be27e32` (head's own range, HEAD included): rc 0, 47 s, `2 proven red, 6 not run` (8582a5284, c3925fc55 red; 07654d7c2 no test function; 369cf96fd, e6afbf977, 23dc8ec22, 0e4d426ab gate cell; 142260b96 edits tests).
 3. Full gate `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2`, no --push, on 4b0d327a0: every step PASS (docs SKIP, mkdocs missing), last lines: `e2e PASS 278s`, `skipped: docs (mkdocs is not installed (docs unchanged))`, `all steps passed; no --push, nothing is pushed`. No flakes. `pgrep -fa 'chora --headless'` empty.
+
+## Review r3 (PM review, 2026-11-26; diff 59ba5c21e..4b0d327a0, 2 files +44 -3, under 200 lines)
+1. Red first: `tests/red-first-selftest.sh` on 0270d2bc4 (script of 59ba5c21e): 8 FAIL lines; on 4b0d327a0: rc 0, "ok: red-first-selftest".
+2. rhrf2r2-1 MAJOR closed: a pass beside an edited test prints "test commit edits tests too, not run", counted not run (selftest case 1). rhrf2r2-2 MINOR closed: an `unproven` crate excuses a pass (selftest case 2). One rule `gate$edits$unp != 000`, KISS.
+3. rhrf2r2-3 NIT stays (backlog).
+Verdict (computed): no BLOCK, no MAJOR: MERGE-OK. Joins train 158 first (harness).
