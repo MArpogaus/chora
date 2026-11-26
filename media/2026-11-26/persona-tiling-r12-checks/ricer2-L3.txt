@@ -1,0 +1,17 @@
+task L3 FAIL: expected the focus with tiling, holders []
+breach I3 in look: the core focuses tiling of tiling, no look says it holds the focus
+breach I6 in look: on HEADLESS-2 'foot' (xp-task-s1-HEADLESS-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-2 '10:43 AM' (xp-tray-HEADLESS-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I3 in click: the core focuses tiling of tiling, no look says it holds the focus
+breach I6 in click: on HEADLESS-2 'foot' (xp-task-s1-HEADLESS-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1
+breach I6 in click: on HEADLESS-2 '10:43 AM' (xp-tray-HEADLESS-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I3 in look: the core focuses tiling of tiling, no look says it holds the focus
+breach I6 in look: on HEADLESS-2 'foot' (xp-task-s1-HEADLESS-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-2 '10:44 AM' (xp-tray-HEADLESS-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I3 in click: the core focuses tiling of tiling, no look says it holds the focus
+breach I6 in click: on HEADLESS-2 'foot' (xp-task-s1-HEADLESS-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1
+breach I6 in click: on HEADLESS-2 '10:44 AM' (xp-tray-HEADLESS-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I3 in look: the core focuses tiling of tiling, no look says it holds the focus
+breach I6 in look: on HEADLESS-2 'foot' (xp-task-s1-HEADLESS-2) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-2 '10:44 AM' (xp-tray-HEADLESS-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breaches 15
