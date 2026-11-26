@@ -99,6 +99,21 @@ fn the_picker_offers_the_moves_with_a_window() {
     );
 }
 
+/// rpt3-4: the box of the picker has the lines of its rows, as the power
+/// menu passes its `--lines`.
+#[test]
+fn the_picker_box_fits_its_rows_rpt3_4() {
+    let lines = |args: &str| -> Option<usize> {
+        let words: Vec<&str> = args.split_whitespace().collect();
+        let at = words.iter().position(|w| *w == "--lines")?;
+        words.get(at + 1)?.parse().ok()
+    };
+    let (args, _) = picked("lines-two", true);
+    assert_eq!(lines(&args), Some(2), "{args}");
+    let (args, _) = picked("lines-one", false);
+    assert_eq!(lines(&args), Some(1), "{args}");
+}
+
 fn flavor_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../flavors/tiling")
 }
