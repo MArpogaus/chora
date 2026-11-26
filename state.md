@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-26 01:49 UTC)
+## Now (2026-11-26 01:59 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 01:31 PM 1.7 % (11-26 BKK); week about 46 % vs 68 % time; need (100-46-5)/50 h = 0.98 %/h; lanes 6 build
 session branch: 157be195 (t146 00:20); 92 greens. TRAIN147 6daaaab8 = t146 + flake-cube b8cd9136, mc-launcher 53789bea, xp-blink c2625c0f, co-drop 75d4623e
@@ -23,12 +23,12 @@ burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head; F7 open (
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| train147 | PM, 6daaaab8 on 157be195 | gate 00:22, placed PASS 01:32 |
+| train147 | PM, 6daaaab8 on 157be195 | gate 00:22, tiling-disc PASS 01:59 |
 | xp-blink-r2.md (0.4 %) | sonnet med, c2625c0f | running s..P6afS88iCp3cmooSK |
 | flake-persona-notepad-r1.md (0.5 %) | sonnet med, df3d1ccf | running s..PVzKu2DC4f86sGRkY |
 | tour-rows-r3.md (0.6 %) | sonnet med, f992fe6a + 157be195 | running s..QgZbQTLiR8q7MVDgf |
 | co-drop-r2.md (0.6 %) | sonnet high, 75d4623e | running s..MVitc1ELinZfjMSPQ |
-| mc-minor-r5.md (0.6 %) | sonnet med, 157be195 | starting |
+| mc-minor-r5.md (0.6 %) | sonnet med, 157be195 | running s..PUjQt7D2R4B1JfAFV (red 01:58) |
 | tiling-focus-r2.md (1.2 %) | opus high, 6261d3e0 | running s..PNcZM4JvQiQQUQXh1 |
 ## Queue (% week; 5 % reserve)
 1. (rc 3) FLAKE-SOFA r1 (t144); r2 MERGE-OK 7db16e74 (t145 green). rfs2-2: FLAKE-CUBE r1 b8cd9136 in t147; FLAKE-PERSONA-NOTEPAD r1 runs. HARNESS-MINOR r1 b1a6465c, TOUR-LAUNCH r1 07eb539f MERGE-OK: train t148 after t147.
