@@ -1,0 +1,44 @@
+=== run 1
+sent 488 unbound chords + 1 bound probe + 8 plain keys in 106.7s
+unbound chords that reached the client: 0 of 488 []
+bound probe: [('Super+Alt+1', '')]
+plain keys arrived as expected: 8 of 8 [('Alt+x', "'\\x1bx'"), ('Ctrl+x', "'\\x18'"), ('Alt+9', "'\\x1b9'"), ('Alt+d', "'\\x1bd'"), ('Ctrl+a', "'\\x01'"), ('Alt+period', "'\\x1b.'"), ('q', "'q'"), ('Shift+x', "'X'")]
+/tmp/persona.2btVcl/shots/001.png capture=1280x720 screen=1280x720 scale=1.0
+--- bound chords act
+before: layout  desks [[1]]
+Super+Ctrl+Shift+2: desks [[1,2]]
+Super+Ctrl+Shift+space: layout
+Super+3: shown [[3]]
+Super+1: shown [[1]]
+bytes tail: ||||||||||||||||||||||||||||||||||||||||||#B:|#P:^[x|^X|^[9|^[d|^A|^[.|q|X|:end<after>
+/tmp/persona.2btVcl/shots/002.png capture=1280x720 screen=1280x720 scale=1.0
+=== run 2
+sent 488 unbound chords + 1 bound probe + 8 plain keys in 106.7s
+unbound chords that reached the client: 0 of 488 []
+bound probe: [('Super+Alt+1', '')]
+plain keys arrived as expected: 8 of 8 [('Alt+x', "'\\x1bx'"), ('Ctrl+x', "'\\x18'"), ('Alt+9', "'\\x1b9'"), ('Alt+d', "'\\x1bd'"), ('Ctrl+a', "'\\x01'"), ('Alt+period', "'\\x1b.'"), ('q', "'q'"), ('Shift+x', "'X'")]
+/tmp/persona.n7gsVh/shots/001.png capture=1280x720 screen=1280x720 scale=1.0
+--- bound chords act
+before: layout  desks [[1]]
+Super+Ctrl+Shift+2: desks [[1,2]]
+Super+Ctrl+Shift+space: layout
+Super+3: shown [[3]]
+Super+1: shown [[1]]
+bytes tail: ||||||||||||||||||||||||||||||||||||||||||#B:|#P:^[x|^X|^[9|^[d|^A|^[.|q|X|:end<after>
+/tmp/persona.n7gsVh/shots/002.png capture=1280x720 screen=1280x720 scale=1.0
+=== run 3
+sent 488 unbound chords + 1 bound probe + 8 plain keys in 106.7s
+unbound chords that reached the client: 0 of 488 []
+bound probe: [('Super+Alt+1', '')]
+plain keys arrived as expected: 8 of 8 [('Alt+x', "'\\x1bx'"), ('Ctrl+x', "'\\x18'"), ('Alt+9', "'\\x1b9'"), ('Alt+d', "'\\x1bd'"), ('Ctrl+a', "'\\x01'"), ('Alt+period', "'\\x1b.'"), ('q', "'q'"), ('Shift+x', "'X'")]
+/tmp/persona.UMumG4/shots/001.png capture=1280x720 screen=1280x720 scale=1.0
+--- bound chords act
+before: layout  desks [[1]]
+Super+Ctrl+Shift+2: desks [[1,2]]
+Super+Ctrl+Shift+space: layout
+Super+3: shown [[3]]
+Super+1: shown [[1]]
+bytes tail: ||||||||||||||||||||||||||||||||||||||||||#B:|#P:^[x|^X|^[9|^[d|^A|^[.|q|X|:end<after>
+/tmp/persona.UMumG4/shots/002.png capture=1280x720 screen=1280x720 scale=1.0
+
+[exited with code 0]

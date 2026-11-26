@@ -1,23 +1,17 @@
-# tiling-minor r1 (rc 1, 2: tiling has no open BLOCK or MAJOR; close the open MINOR of the tiling-honest and tiling-doors reviews)
+# tiling-minor r1 (rc 1b, F7: tiling MINOR and COSMETIC after the pass confirmed rc 1)
 
-Model: sonnet, effort high (routine fixes, one core routing change with a unit test)
-Lane: cloud, claude/tiling-minor-r1 at 84f66d43 (session head, t133). One round.
-Step 0: `git fetch --unshallow`; `cargo check --workspace`. A failure: send_message the PM "tiling-minor-r1 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore.
-Stop at 150 k context; cost at most 1.0 %.
-Findings (full text: reports/tiling-honest.md "rth-", reports/tiling-doors.md "rtd1-" on claude/session-log):
-- rth-1 MINOR input.rs:1037: a layer press outside every claim goes to `first_manager`; give the act to the manager whose claim lies on the layer surface's output (else every live manager); two-manager unit test.
-- rth-2 MINOR: docs/api.md:941, docs/architecture.md:441, state.rs:1070 list a layer-surface press as an act.
-- rth-3 MINOR input.rs:1025: core unit test for `press_layer` (injected press: no act; locked: no act; outside claims: right manager).
-- rth-4 MINOR reload.rs:62: without chora-notify a failed reload shows the reason in tiling's own chip (`show_chip`).
-- rth-5 MINOR main.rs:1137: on `Ok` of `reload_settings` dismiss `reload_notice`; a gate step checks it.
-- rth-7 NIT, rth-8 NIT, rtd1-2 MINOR, rtd1-3 MINOR, rtd1-4 MINOR, rtd1-5 COSMETIC: the fixes the reports name.
-- rth-6 stays open (backlog).
-Steps:
-1) Red first: per finding a commit with the failing test (or the gate step) before its fix (rules.md 8). Docs-only rows need no test.
-2) No new `sleep` line anywhere: waits only (gate-lib until_ok / ctl wait). tools/sleep-ratchet, tools/size-ratchet, tools/lint-ratchet pass on your head (counts never raised).
-3) One full tests/merge-gate.sh (no --only) on your head.
-Done when: each finding above has its red test commit and fix (or a docs commit), the three ratchets pass, full gate PASS on one run.
-Report: reports/tiling-minor.md "## r1" on claude/session-log (table finding | red sha | fix sha | test, ratchet output, gate run dir). send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN (at most 6 lines): head sha, ratchets, gate.
-Never end a turn to wait; poll every command in the same turn.
-Rules: push only claude/tiling-minor-r1 and the report on claude/session-log (fetch and merge on reject, no force); author and committer
-Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email); no attribution lines; never --no-verify.
+Model: sonnet, effort high (routine: words, a sync and two sizes, causes named in the report)
+Red on head: rpt2-2, rpt3-1, rpt3-2 MINOR and rpt3-3, rpt3-4 COSMETIC open on 7822a66c (reports/rc1-pass.md "## r2 tiling", "## r3 tiling"); no BLOCK or MAJOR open in tiling (r3 confirms rc 1), so rules.md 6 allows this round.
+Lane: cloud, branch claude/tiling-minor-r1 at 7822a66c8f6a78080fd416f03ef0420b65d172e7 (session head with kit-swallow r2, train 159). Area: the tiling look (chora-tiling, its bar, chip, picker and fuzzel config). One look. Stop at 250 k. Cost at most 0.6 %.
+Why: owner 11-17 10:59 "Be perfectionist and very critical about the met targets."; vision card: POLS, honest states.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`. A failure: send_message the PM "tiling-minor-r1 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1. rpt3-1: the unbound-chord chip spells chords as the key list does ("Super+Alt+X", "Super+[", "Page Down"/"Page Up"); one formatter shared with the key list, not a second table.
+2. rpt3-2: the bar helper word and the chat header show the same state at the same moment (one source of the state).
+3. rpt2-2: the Looks picker offers "Move window ..." only when a window has focus; no tool name in a notice.
+4. rpt3-3: the volume tooltip does not cover the key list or tiles (hide on a key list open, or no hover tooltip).
+5. rpt3-4: the Looks picker box fits its rows (pass --lines like the power menu).
+Each fix: a red test commit first (a cell or unit test failing on 7822a66c), then the fix; a capture before and after under media/2026-11-27/tiling-minor-r1/ (each under 500 KB). Use 0.15 s between a chord and text in one inject (rpt3 harness note).
+Run: the full gate, no step filter: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2 --allow-skip docs` (no --push) detached with setsid nohup, poll in the same turn; paste the last 20 lines. A red cell you did not cause: name it with its log line, rerun that step alone and then the steps after it. Never end a turn to wait. Before ending: `pgrep -fa 'chora --headless'` empty.
+Done when: five ids closed each with red commit, fix commit and captures (or one id left with a reason); gate EXIT 0 (or a named foreign flake and every later step run); reports/tiling-minor.md "## r1" on claude/session-log (base, head, diffstat, per id).
+Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 5 lines): head sha, ids closed, gate result.
+Rules: push claude/tiling-minor-r1 and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report and media folder); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).

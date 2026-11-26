@@ -1,0 +1,16 @@
+fuzzel --config /tmp/chora-hl.muGtTe/chora-tiling/theme/fuzzel.ini --dmenu
+fuzzel-first-row Chat with a helper (atlas)
+fuzzel --config /tmp/chora-hl.muGtTe/chora-tiling/theme/fuzzel.ini --dmenu --prompt Power   --lines 5 --width 20
+fuzzel-first-row Lock
+systemctl poweroff
+fuzzel --config /tmp/chora-hl.muGtTe/chora-tiling/theme/fuzzel.ini --dmenu --prompt Power   --lines 5 --width 20
+fuzzel-first-row Lock
+swaylock -C /tmp/chora-hl.muGtTe/chora-tiling/theme/swaylock.conf -f
+loginctl lock-session
+wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+
+wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+grim /tmp/persona.d0hGXZ/pictures/Screenshots/2026-11-26_21-10-38.png
+notify-send -a Screenshot Screenshot saved /tmp/persona.d0hGXZ/pictures/Screenshots/2026-11-26_21-10-38.png
+fuzzel --config /tmp/chora-hl.muGtTe/chora-tiling/theme/fuzzel.ini --dmenu --prompt Move this window to
+fuzzel-first-row No other look is running

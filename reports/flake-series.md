@@ -374,3 +374,29 @@ Red steps: none in any of the five runs, so no log was copied to media/ and no k
 F5 series: 5/5 green on c3c37c2e
 
 Verdict: the train132 head is green in five full gates in a row (exit 0, 65 PASS each, 75-84 min). Nothing new to file in findings/shared.md.
+
+## r10
+
+Brief: flake-series-r10 (F5, rc 3): five full gates in a row on the t153+154 head 4d8bbe36, run only (no product, test or harness change). Lane: cloud, branch claude/flake-series-r10 at 4d8bbe36. Step 0: `git fetch --unshallow`, `cargo check --workspace` exit 0, `cargo build --workspace` exit 0.
+
+Gate: `tests/merge-gate.sh --jobs 2`, full, no --only, no rerun, one after the other, CARGO_BUILD_JOBS=2. The gate stops at its first red step, so a red run has fewer PASS lines.
+
+| run | exit | PASS | red steps | minutes | log |
+|---|---|---|---|---|---|
+| 1 | 0 | 68 | none | 82 | /tmp/gate-1-run.log |
+| 2 | 0 | 68 | none | 80 | /tmp/gate-2-run.log |
+| 3 | 0 | 68 | none | 77 | /tmp/gate-3-run.log |
+| 4 | 1 | 56 | handover: "FAIL: the picker of the Looks door did not start" (tests/gate-looks-move.sh:92, launcher_up 80 tries) | 64 | /tmp/gate-4-run.log; step log media/2026-11-26/flake-series-r10/run-4-handover.log |
+| 5 | 0 | 68 | none | 77 | /tmp/gate-5.log |
+
+Red step match: handover (run 4) is "new". It is not one of sh-37..sh-42: sh-39 and sh-40 are tiling launcher and slide cells, sh-41 is the tiling double bar, sh-42 is keyboard focus when tiling joins beside xp or mc. The assertion is a launcher start wait in tests/gate-looks-move.sh. Nothing was rerun to make it green. The handover step's earlier focus checks (give key, s3 to xp, keys on tiling) passed in run 4 before this failure. Not filed in findings/shared.md (this lane only reports).
+
+Environment notes (not counted as runs):
+- The docs step needs mkdocs, which this container did not have, and this head changes docs and mkdocs.yml against the base. First attempt (13:08 UTC) went red at docs with "mkdocs is not installed and docs changed". I installed the declared docs/requirements.txt (mkdocs 1.6.1) into a venv under the scratchpad and put only a `mkdocs` symlink on PATH. Repo files were not changed, and no system package was installed. A strict `mkdocs build` run by hand exited 0.
+- A second attempt (13:10 UTC) put the whole venv bin first on PATH. The venv's python3 has no PIL, so ci-check went red with "the Python module PIL is missing" (skip path of tests/tiling-scripts-selftest.sh:110). The fix was the mkdocs-only symlink PATH. This attempt is discarded.
+- Run 2 was first started at 14:38 UTC. The worker restart at about 15:54 UTC killed it at 67 PASS, with no EXIT line and no gate process left. Per the r9 precedent it is not counted, and run 2 was restarted from scratch at 15:54 UTC. The timings in the table are for the complete attempts.
+- Between runs: no `chora --headless` left (pgrep empty after each run), root disk 46-47 G free (above 5 G, so no sccache cleanup).
+
+F5 series: 4/5 green on 4d8bbe36
+
+Verdict: four of five full gates were green on 4d8bbe36 (exit 0, 68 PASS each). Run 4 went red at handover with a new launcher-start failure, so this series does not re-earn rc 3 on its own. Next: a flake round on the Looks-door launcher wait (tests/gate-looks-move.sh:92), with the run 4 log in media/2026-11-26/flake-series-r10/.
