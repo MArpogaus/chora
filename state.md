@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-26 02:49 UTC)
+## Now (2026-11-26 03:10 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 01:31 PM 1.7 % (11-26 BKK); week about 46 % vs 68 % time; need (100-46-5)/50 h = 0.98 %/h; lanes 6 build
 session branch: 6daaaab8 (t147 02:02: flake-cube, mc-launcher, xp-blink r1, co-drop r1); 93 greens. TRAIN148 3e3b1b2d = t147 + harness-minor b1a6465c, tour-launch 07eb539f
@@ -29,8 +29,8 @@ burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head; F7 open (
 | co-drop-r2.md (0.6 %) | sonnet high, 75d4623e | running s..MVitc1ELinZfjMSPQ |
 | mc-minor-r5.md (0.6 %) | sonnet med, 157be195 | running s..PUjQt7D2R4B1JfAFV |
 | xp-blink-r3.md (0.3 %) | sonnet med, 312a5ff1 + 6daaaab8 | running s..LbEm47JYWeUTPVQyF |
-| flake-bar-full-r1.md (0.8 %) | sonnet high, 6daaaab8 | starting |
-| tour-harness-r1.md (0.4 %) | sonnet med, 07eb539f + 6daaaab8 + b1a6465c | starting |
+| flake-bar-full-r1.md (0.8 %) | sonnet high, 6daaaab8 | running s..MRoVkQ1EbwsGcjcGg |
+| tour-harness-r1.md (0.4 %) | sonnet med, 07eb539f + 6daaaab8 + b1a6465c | running s..Nr2Jefb9u8CQ7MGbz |
 ## Queue (% week; 5 % reserve)
 1. (rc 3) FLAKE-CUBE r1 (t147); FLAKE-PERSONA-NOTEPAD r1 MERGE-OK ef55b4fb: t149. t148 tiling-audit fullscreen ink red: FLAKE-BAR-FULL r1. HARNESS-MINOR r1, TOUR-LAUNCH r1 in t148; then lanes merge the head.
 2. (rc 2) construct r13 not met: co-75, co-76 hold; CO-DROP r1 (t147); rcdr1-1, -2, rv9kb-3: CO-DROP r2 runs.
