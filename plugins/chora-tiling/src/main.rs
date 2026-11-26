@@ -644,6 +644,18 @@ impl Plugin for Tiling {
         Some(&mut self.settings)
     }
 
+    /// Drops the desktop node that tiling holds the keyboard with when the
+    /// core does not focus it any more: a lock, a click on a layer
+    /// surface or a node of another client end it, but a picker over it
+    /// does not (`Focus::refresh_node`, as mc). The key list of tiling
+    /// holds the keyboard over the desktop and gives it back when it
+    /// hides, so the desktop stays while it shows.
+    fn refresh(&mut self) {
+        if !self.keys_open() {
+            self.focus.refresh_node(&mut self.rt.conn, NAME);
+        }
+    }
+
     fn state(&self) -> Option<Value> {
         Some(self.state_value())
     }
@@ -889,9 +901,6 @@ impl Tiling {
     }
 
     fn handle_scene(&mut self, event: Event) -> Result<(), ClientError> {
-        if matches!(event, Event::FocusNode { node: None, .. }) && self.focus.node() == Some(NAME) {
-            self.focus.drop_node();
-        }
         if self.focus.hear(&event).is_some() || matches!(event, Event::FocusNode { .. }) {
             return Ok(());
         }
@@ -1946,12 +1955,38 @@ mod tests {
     /// the windows `ids` open on A, the last has the keyboard. The core
     /// refuses a give to `gone`.
     fn beside_xp(tag: &str, xp_claim: [f64; 4], ids: &[&str]) -> (Tiling, Log) {
+        let (tiling, methods, _) = beside_xp_desk(tag, xp_claim, ids);
+        (tiling, methods)
+    }
+
+    /// [`beside_xp`], and whether the scene of the core focuses the
+    /// desktop of tiling, its root node, as `scene.query` of `id:tiling`
+    /// with the filter `focused` answers it; at first it does not.
+    fn beside_xp_desk(
+        tag: &str,
+        xp_claim: [f64; 4],
+        ids: &[&str],
+    ) -> (Tiling, Log, std::sync::Arc<std::sync::atomic::AtomicBool>) {
+        use std::sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+        };
         let dir = chora_kit::testing::TempDir::new(&format!("chora-tiling-{tag}")).keep();
         std::fs::create_dir_all(&dir).unwrap();
         let core = FakeCore::start();
         core.respond(|method, params| {
             let refused = params.to_string().contains(r#""to":"gone""#);
             (method == "scene.apply" && !refused).then_some(Value::Null)
+        });
+        let desk = Arc::new(AtomicBool::new(false));
+        let focused_desk = Arc::clone(&desk);
+        core.respond(move |method, params| {
+            let asks = method == "scene.query" && params["selector"] == format!("id:{NAME}");
+            let node = json!({"id": NAME, "kind": "group", "owner": NAME});
+            asks.then(|| {
+                let focused = focused_desk.load(Ordering::SeqCst);
+                if focused { json!([node]) } else { json!([]) }
+            })
         });
         let xp = chora_scene::Node {
             id: "xp".into(),
@@ -1990,7 +2025,7 @@ mod tests {
             tiling.book.keep(id);
         }
         tiling.relayout().unwrap();
-        (tiling, methods)
+        (tiling, methods, desk)
     }
 
     /// The commands that tiling sent from the call `from` on.
@@ -2012,8 +2047,11 @@ mod tests {
         tiling.give(params).unwrap();
     }
 
-    /// The holder that `state.get` of tiling tells.
-    fn holder(tiling: &Tiling) -> chora_kit::wm::state::Focus {
+    /// The holder that `state.get` of tiling tells: the runtime calls
+    /// `refresh` before it answers.
+    fn holder(tiling: &mut Tiling) -> chora_kit::wm::state::Focus {
+        use chora_kit::runtime::Plugin as _;
+        tiling.refresh();
         tiling.focus.state(NAME, |s| tiling.wm.has(s))
     }
 
@@ -2037,7 +2075,7 @@ mod tests {
             kept.is_some_and(|k| k < give),
             "s1 takes the keyboard before s2 goes: {sent:?}"
         );
-        let held = holder(&tiling);
+        let held = holder(&mut tiling);
         assert_eq!(
             (held.holder.as_deref(), held.surface.as_deref()),
             (Some(NAME), Some("s1")),
@@ -2049,7 +2087,10 @@ mod tests {
     /// holds the keyboard with its own desktop, the root of its nodes.
     #[test]
     fn the_last_window_handed_to_another_output_leaves_the_keyboard_with_the_desktop() {
-        let (mut tiling, methods) = beside_xp("keep-desk", [100.0, 0.0, 100.0, 80.0], &["s1"]);
+        use std::sync::atomic::Ordering;
+        let (mut tiling, methods, desk) =
+            beside_xp_desk("keep-desk", [100.0, 0.0, 100.0, 80.0], &["s1"]);
+        desk.store(true, Ordering::SeqCst);
         let from = methods.lock().unwrap().len();
         stay(&mut tiling, "s1");
         let sent = commands_from(&methods, from);
@@ -2060,9 +2101,13 @@ mod tests {
             kept.is_some_and(|k| k < give),
             "the desktop takes the keyboard before s1 goes: {sent:?}"
         );
-        let held = holder(&tiling);
+        let held = holder(&mut tiling);
         assert_eq!((held.holder.as_deref(), held.surface), (Some(NAME), None));
         tiling.toggle_keys().unwrap();
+        desk.store(false, Ordering::SeqCst);
+        let open = holder(&mut tiling).holder;
+        assert_eq!(open.as_deref(), Some(NAME), "the key list holds it");
+        desk.store(true, Ordering::SeqCst);
         let from = methods.lock().unwrap().len();
         tiling.hide_keys().unwrap();
         let back = commands_from(&methods, from);
@@ -2070,6 +2115,7 @@ mod tests {
             back.iter().any(|c| c["focus_node"]["node"] == NAME),
             "the key list gives the keyboard back to the desktop: {back:?}"
         );
+        desk.store(false, Ordering::SeqCst);
         tiling
             .event(Event::FocusNode {
                 node: None,
@@ -2077,10 +2123,49 @@ mod tests {
             })
             .unwrap();
         assert_eq!(
-            holder(&tiling).holder,
+            holder(&mut tiling).holder,
             None,
             "a click elsewhere took the keyboard from the desktop"
         );
+    }
+
+    /// tiling-focus r4 (ti-57, ricer run 2 of p2-r12): the picker of the
+    /// Looks door, opened again on the empty desktop, is a layer surface
+    /// that takes the keyboard exclusively. The core then tells
+    /// `focus.node` without a node, but its scene still focuses the
+    /// desktop of tiling under the picker, and tells it again when Escape
+    /// closes the picker: tiling says that it holds the keyboard all the
+    /// while, and after Super+2 and Super+1 (I3, L3).
+    #[test]
+    fn the_desktop_holds_the_keyboard_under_and_after_the_picker() {
+        use std::sync::atomic::Ordering;
+        let (mut tiling, methods, desk) =
+            beside_xp_desk("picker", [100.0, 0.0, 100.0, 80.0], &["s1"]);
+        stay(&mut tiling, "s1");
+        assert!(
+            commands_from(&methods, 0)
+                .iter()
+                .any(|c| c["focus_node"]["node"] == NAME),
+            "the desktop took the keyboard"
+        );
+        desk.store(true, Ordering::SeqCst);
+        let held = holder(&mut tiling);
+        assert_eq!((held.holder.as_deref(), held.surface), (Some(NAME), None));
+        let told = |node: Option<&str>| Event::FocusNode {
+            node: node.map(String::from),
+            owner: node.map(String::from),
+        };
+        tiling.event(told(None)).unwrap();
+        let held = holder(&mut tiling);
+        assert_eq!(held.holder.as_deref(), Some(NAME), "under the picker");
+        tiling.event(told(Some(NAME))).unwrap();
+        let held = holder(&mut tiling);
+        assert_eq!(held.holder.as_deref(), Some(NAME), "after Escape");
+        for tag in [2, 1] {
+            tiling.turn(&Own::ViewTag(tag)).unwrap();
+            let held = holder(&mut tiling);
+            assert_eq!(held.holder.as_deref(), Some(NAME), "after Super+{tag}");
+        }
     }
 
     /// rtf1-1: the give key Super+Alt+2 is a give of the person, as the
@@ -2099,7 +2184,7 @@ mod tests {
             kept.is_some_and(|k| k < give),
             "s1 takes the keyboard before s2 goes: {sent:?}"
         );
-        let held = holder(&tiling);
+        let held = holder(&mut tiling);
         assert_eq!(
             (held.holder.as_deref(), held.surface.as_deref()),
             (Some(NAME), Some("s1")),
@@ -2140,7 +2225,11 @@ mod tests {
                 sent.iter().all(|c| c.get("focus").is_none()),
                 "tiling focused a window given in while xp holds the keyboard: {sent:?}"
             );
-            assert_eq!(holder(&tiling).holder, None, "tiling holds the keyboard");
+            assert_eq!(
+                holder(&mut tiling).holder,
+                None,
+                "tiling holds the keyboard"
+            );
         }
     }
 
@@ -2167,7 +2256,7 @@ mod tests {
             "{sent:?}"
         );
         assert!(tiling.wm.has("s2"), "s2 stays with tiling");
-        assert_eq!(holder(&tiling).surface.as_deref(), Some("s2"));
+        assert_eq!(holder(&mut tiling).surface.as_deref(), Some("s2"));
     }
 
     /// A give without `stay` (automation, the voice, MCP) leaves the
