@@ -429,3 +429,9 @@ rtr4-2 MINOR (m8); rtf1-1 MINOR (c5d, c5e); rtf1-3 MINOR (tiling); rtf1-4 MINOR 
 
 `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2 --allow-skip docs` (no --push, no step filter) on b16c888fa, run detached: 67 steps PASS (acts 1518 s, pull 512 s, leak 458 s, e2e 268 s), docs SKIP (allowed: mkdocs is not installed). It ends "all steps passed; no --push, nothing is pushed", printed just before `exit 0`, so **EXIT 0**; no foreign red. Last 20 lines: media/2026-11-26/tour-fix-r2/gate-last.txt.
 `pgrep -fa 'chora --headless'` empty.
+
+## Review fix r2 (PM, 2026-11-26, 84e31324c..b16c888fa, 4 files +77 -2)
+- Red first: 4a1d8357 and 4bc210b1 precede fixes 46e5ac61 and b16c888f; the lane's full gate is green.
+- handover act 7 clicks mc before act 8 (rtf1-2 h3b h4 closed); m2 m2b m3 get rect and cut rows with c3925fc5 (rtr4-1 rows owed: closed).
+- rtf2r-1 MINOR (mc m2 m2b m3; findings/mc.md mc-63): the rows whitelist a cut side panel (one 28 px line of 2) as intended. Under the 11-17 perfectionist order cut text is a look defect, not an intended change; the panel must show whole content or drop it.
+- The text-grep tests are weak but red-first. No MAJOR. Verdict (computed): MERGE-OK b16c888fa, train 159.
