@@ -13,3 +13,10 @@
 - Lane gate: full, all PASS, docs SKIP; test_tour 98 pass.
 - rth1-1 MINOR (harness): mkdocs is not in the cloud environment, so docs SKIP on every run and `--push` refuses without `--allow-skip docs`. Trains from now pass `--allow-skip docs` (known host gap); backlog: mkdocs in the environment setup.
 Verdict (computed): no open MAJOR -> MERGE-OK 06c3f7cc. Harness: own train after t149, before t150.
+
+## r2
+
+Base 06c3f7cc (tour-harness r1) + merge of a93bc75b; head f396ebe63.
+Commits: red 87b373406 (test: REPO is the root of the repo holding launch.py; no fixed checkout literal), fix f396ebe63 (launch.py REPO from `__file__`, TOUR_REPO overrides).
+Diffstat: demo/tour/launch.py 2 lines, tests/test_tour.py +27.
+pytest tests/test_tour.py in /tmp/claude-0/th2: 100 passed. Gate in that worktree (--jobs 2 --allow-skip docs): all steps passed, docs skipped (mkdocs not installed); EXIT 0.
