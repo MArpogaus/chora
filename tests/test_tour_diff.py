@@ -680,12 +680,12 @@ class IntendedCauses(unittest.TestCase):
                 self.assertIn(r["kind"], ("meta", "rect", "missing", "added", "visible", "owner", "cut"), r)
 
     def test_the_boil_page_side_panel_of_m2_m2b_m3_has_its_rows(self):
-        """rtr4-1: c3925fc55 (a panel takes whole lines at the page edge) makes `mc-s-boil-panels-side-lines` one whole line
+        """rtr4-1: c3925fc55 (a panel takes whole lines at the page edge) (c3925fc5 is its 8-digit form) makes `mc-s-boil-panels-side-lines` one whole line
         of 28 px; the cut check still flags it and the panels change. Each act names the rect of lead and side and the cut
         of side-lines with that commit, by node and no wider than the judged act."""
         rows = self.rows()
         for act in ("m2", "m2b", "m3"):
-            mine = [r for r in rows if r["act"] == act and "c3925fc55" in r["cause"]]
+            mine = [r for r in rows if r["act"] == act and "c3925fc5" in r["cause"]]
             kinds = {r["kind"]: r for r in mine}
             self.assertEqual(sorted(kinds), ["cut", "rect"], (act, mine))
             self.assertEqual(kinds["cut"]["nodes"], ["mc-s-boil-panels-side-lines"], act)

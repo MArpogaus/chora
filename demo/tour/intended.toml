@@ -4756,3 +4756,39 @@ act = "x9b"
 cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x9b.Q.png)"
 kind = "added"
 nodes = ["hud-line-tail"]
+
+[[change]]
+act = "m2"
+cause = "c3925fc5 a panel takes whole lines at the page edge: the lead panel 280 -> 287 px, the side panel 136 -> 30 px (rtr4-1, fix r2 take, captures/m2.Q.png)"
+kind = "rect"
+nodes = ["mc-s-boil-panels-lead", "mc-s-boil-panels-lead-lines", "mc-s-boil-panels-side", "mc-s-boil-panels-side-lines"]
+
+[[change]]
+act = "m2"
+cause = "c3925fc5 the side panel ends at the page edge on whole lines: one line of 28 px of its 2 shows, the cut check still counts it (rtr4-1, fix r2 take, captures/m2.Q.png)"
+kind = "cut"
+nodes = ["mc-s-boil-panels-side-lines"]
+
+[[change]]
+act = "m2b"
+cause = "c3925fc5 a panel takes whole lines at the page edge: the lead panel 280 -> 287 px, the side panel 136 -> 30 px (rtr4-1, fix r2 take, captures/m2b.Q+1.png)"
+kind = "rect"
+nodes = ["mc-s-boil-panels-lead", "mc-s-boil-panels-lead-lines", "mc-s-boil-panels-side", "mc-s-boil-panels-side-lines"]
+
+[[change]]
+act = "m2b"
+cause = "c3925fc5 the side panel ends at the page edge on whole lines: one line of 28 px of its 2 shows, the cut check still counts it (rtr4-1, fix r2 take, captures/m2b.Q+1.png)"
+kind = "cut"
+nodes = ["mc-s-boil-panels-side-lines"]
+
+[[change]]
+act = "m3"
+cause = "c3925fc5 a panel takes whole lines at the page edge: the lead panel 280 -> 287 px, the side panel 136 -> 30 px (rtr4-1, fix r2 take, captures/m3.Q.png)"
+kind = "rect"
+nodes = ["mc-s-boil-panels-lead", "mc-s-boil-panels-lead-lines", "mc-s-boil-panels-side", "mc-s-boil-panels-side-lines"]
+
+[[change]]
+act = "m3"
+cause = "c3925fc5 the side panel ends at the page edge on whole lines: one line of 28 px of its 2 shows, the cut check still counts it (rtr4-1, fix r2 take, captures/m3.Q.png)"
+kind = "cut"
+nodes = ["mc-s-boil-panels-side-lines"]
