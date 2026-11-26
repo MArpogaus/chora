@@ -1,0 +1,45 @@
+ok: desktop ink-1280x800 (bar)
+ok: question ink-1280x800 (bar)
+ok: chatq ink-1280x800 (bar)
+ok: chat ink-1280x800 (bar)
+ok: toast ink-1280x800 (bar)
+ok: keys ink-1280x800 (bar)
+ok: layout ink-1280x800 (bar)
+ok: tooltip ink-1280x800 (bar)
+ok: launcher ink-1280x800 (bar)
+FAIL: fullscreen ink-1280x800: the bar does not hide over the fullscreen window within 20 s: {"window":[0.0,0.0,1280.0,800.0],"output":[1280,800],"work_area":[0,40,1280,760]}
+FAIL: fullscreen ink-1280x800:
+  FAIL: fullscreen: the bar shows over the window at x 33
+ok: desktop ink-2560x1600@2 (bar)
+ok: question ink-2560x1600@2 (bar)
+ok: chatq ink-2560x1600@2 (bar)
+ok: chat ink-2560x1600@2 (bar)
+ok: toast ink-2560x1600@2 (bar)
+ok: keys ink-2560x1600@2 (bar)
+ok: layout ink-2560x1600@2 (bar)
+ok: tooltip ink-2560x1600@2 (bar)
+ok: launcher ink-2560x1600@2 (bar)
+FAIL: fullscreen ink-2560x1600@2: the bar does not hide over the fullscreen window within 20 s: {"window":[0.0,0.0,1280.0,800.0],"output":[1280,800],"work_area":[0,40,1280,760]}
+FAIL: fullscreen ink-2560x1600@2:
+  FAIL: fullscreen: the bar shows over the window at x 33
+ok: desktop paper-1280x800 (bar)
+ok: question paper-1280x800 (bar)
+ok: chatq paper-1280x800 (bar)
+ok: chat paper-1280x800 (bar)
+ok: toast paper-1280x800 (bar)
+ok: keys paper-1280x800 (bar)
+ok: layout paper-1280x800 (bar)
+ok: tooltip paper-1280x800 (bar)
+ok: launcher paper-1280x800 (bar)
+ok: fullscreen paper-1280x800
+ok: desktop paper-2560x1600@2 (bar)
+ok: question paper-2560x1600@2 (bar)
+ok: chatq paper-2560x1600@2 (bar)
+ok: chat paper-2560x1600@2 (bar)
+ok: toast paper-2560x1600@2 (bar)
+ok: keys paper-2560x1600@2 (bar)
+ok: layout paper-2560x1600@2 (bar)
+ok: tooltip paper-2560x1600@2 (bar)
+ok: launcher paper-2560x1600@2 (bar)
+ok: fullscreen paper-2560x1600@2
+FAIL: the layout audit found flaws

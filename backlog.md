@@ -441,3 +441,5 @@ rr9-1 | MINOR | review-record-v9 r4 (reports/record-v9.md "## Review r4") | open
 - rml1-2 follow-up (harness): tests/persona/session.sh starts chora-notify for mc, tiling, construct personas (only xp has it); after HARNESS-MINOR r1; reports/launcher-notice.md PM decision r1.
 - harness: rhm1-1 NIT (gate docs step passes as NOT RUN without mkdocs); rsl1-1 (product: chora-construct --output for persona join); reports/harness-minor.md Review r1.
 - tour harness: rtl1-1 MINOR (ensure_notify does not wait until notify serves), rtl1-2 NIT (fuzzel parse not shared with the gate); reports/tour-launch.md Review r1.
+- rtf2-1 MAJOR (mc keeps and yields keys on give; mc hand_kept, confirm_keys) and rtf2-2 NIT (D119/api.md xp Control Panel rows): TILING-FOCUS r3 after MC-MINOR r5; reports/tiling-focus.md Review r2.
+- rfpn1-1 NIT (PERSONA_ROW_LAG default 3 not named in the header comment); reports/flake-persona-notepad.md Review r1.
