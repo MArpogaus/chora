@@ -137,6 +137,44 @@ check "that mixed commit is no NOT RED" "$(grep -c 'NOT RED' <<<"$out")" 0
 check "that mixed commit counts as not run" "$(grep -c '^red-first: 0 proven red, 1 not run$' <<<"$out")" 1
 
 fresh
+add_src 'a + b'
+add_test
+rr_commit "test(x): adds is 3 (sh-9)"
+printf '#[test]\nfn it_sums() {\n    assert_eq!(rfx::add(2, 2), 4);\n}\n' >"$rr/tests/it.rs"
+rr_commit "test(x): it_sums is 4 (sh-9)"
+add_src 'a + b + 0'
+rr_commit "fix(x): add stays right (sh-9)"
+fix=$(git -C "$rr" rev-parse --short HEAD)
+out=$(red)
+check "a passing added test beside an edited test is not flagged" "$(red >/dev/null; echo $?)" 0
+check "that pass is no NOT RED" "$(grep -c 'NOT RED' <<<"$out")" 0
+check "that pass names the edited test too" "$(grep -c "^red-first: $fix test commit edits tests too, not run" <<<"$out")" 1
+check "that pass counts as not run" "$(grep -c '^red-first: 0 proven red, 1 not run$' <<<"$out")" 1
+
+fresh
+mkdir -p "$rr/sub/src"
+printf '[package]\nname = "rfy"\nversion = "0.1.0"\nedition = "2021"\n' >"$rr/sub/Cargo.toml"
+printf '[workspace]\nmembers = ["sub"]\n' >>"$rr/Cargo.toml"
+printf 'pub fn one() -> i32 {\n    1\n}\n' >"$rr/sub/src/lib.rs"
+rr_commit "chore: a second crate"
+git -C "$rr" tag base3
+add_src 'a + b'
+add_test
+printf 'mod other;\npub fn one() -> i32 {\n    1\n}\n\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn is_one() {\n        assert_eq!(super::one(), 1);\n    }\n}\n' >"$rr/sub/src/lib.rs"
+printf 'pub fn broken( {\n' >"$rr/sub/src/other.rs"
+rr_commit "test(x): adds is 3 and one is 1 (sh-9)"
+printf '' >"$rr/sub/src/other.rs"
+add_src 'a + b + 0'
+rr_commit "fix(x): add stays right and other builds (sh-9)"
+fix=$(git -C "$rr" rev-parse --short HEAD)
+out=$(cd "$rr" && tests/merge-gate.sh --red-first-check --red-first-run --base base3 2>&1)
+check "a passing crate beside an unproven crate is not flagged" "$(cd "$rr" && tests/merge-gate.sh --red-first-check --red-first-run --base base3 >/dev/null 2>&1; echo $?)" 0
+check "that pass is no NOT RED" "$(grep -c 'NOT RED' <<<"$out")" 0
+check "that unproven crate is named" "$(grep -c "^red-first: $fix rfy: build error outside the added test, not run" <<<"$out")" 1
+check "that pair counts as not run" "$(grep -c '^red-first: 0 proven red, 1 not run$' <<<"$out")" 1
+git -C "$rr" tag -d base3 >/dev/null
+
+fresh
 printf '#[test]\nfn it_sums() {\n    assert_eq!(rfx::add(2, 2), 4);\n}\n' >"$rr/tests/it.rs"
 rr_commit "test(x): it_sums is 4 (sh-9)"
 add_src 'a + b + 0'
