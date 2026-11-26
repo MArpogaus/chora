@@ -61,13 +61,14 @@ impl Mc {
     /// What the pill and the card take now. A card counts only when it
     /// stands on the output of mc and its top lies under the top of the
     /// page, in output coordinates (rmm2-1); the room is what the card
-    /// takes beyond the room of the footer, and none once it closed.
+    /// takes beyond the room of the footer, and none once it closed. The
+    /// rect is output-local already (rmm3-1); a card is at the foot by its
+    /// bottom in the lower third, and its room is clamped to a third (rmm3-2).
     pub(crate) fn read_rooms(&mut self) -> Result<Rooms, ClientError> {
         let Some(output) = self.output.clone() else {
             return Ok(self.rooms);
         };
         let [width, height] = output.size.map(f64::from);
-        let [left, top] = output.position.map(f64::from);
         let page_top = self.page_top();
         let mut pill_left: Option<f64> = None;
         for id in PILL {
@@ -79,11 +80,11 @@ impl Mc {
             pill_left: pill_left.map(f64::round),
             card: None,
         };
-        if let Some([x, y, ..]) = self.card_rect() {
-            let (across, down) = (x - left, y - top);
-            let room = (height - down).round();
-            let at_foot = room <= (height / MOST_OF_HEIGHT).round();
-            if (0.0..width).contains(&across) && down > page_top && at_foot {
+        if let Some([x, y, _, h]) = self.card_rect() {
+            let third = (height / MOST_OF_HEIGHT).round();
+            let room = (height - y).round().min(third);
+            let at_foot = y + h >= height - third;
+            if (0.0..width).contains(&x) && y > page_top && at_foot {
                 rooms.card = (room > self.foot_room()).then_some(room);
             }
         }
@@ -285,5 +286,36 @@ mod tests {
         assert_eq!(mc.card_room(), mc.foot_room(), "the band comes back");
         assert_eq!(mc.scroll.get("boil").copied().unwrap_or_default(), 0.0);
         assert!(lines_shown(&mc, "boil", "side") >= 3, "the page is whole");
+    }
+
+    /// A foot card on an output that stands right of another one takes
+    /// its room: the rect of the card is output-local (rmm3-1).
+    #[test]
+    fn a_foot_card_on_an_output_off_the_origin_takes_room() {
+        let core = chora_kit::testing::FakeCore::start().selecting();
+        core.answer_with("state.get", json!({"shown": []}));
+        let mut mc = crate::testing::mc_on(&core, "page-end-offset", [1280, 720]);
+        mc.output.as_mut().unwrap().position = [1280, 0];
+        core.answer_with(
+            "state.get",
+            json!({"shown": [{"rect": [160, 585, 291, 79]}]}),
+        );
+        mc.learn_rooms().unwrap();
+        assert_eq!(mc.card_room(), 135.0, "the card's band");
+    }
+
+    /// A long foot card (8 body lines) on 1280x720 is a foot card all the
+    /// same; its room is clamped to a third of the height (rmm3-2).
+    #[test]
+    fn a_long_foot_card_takes_the_clamped_third() {
+        let core = chora_kit::testing::FakeCore::start().selecting();
+        core.answer_with("state.get", json!({"shown": []}));
+        let mut mc = crate::testing::mc_on(&core, "page-end-long", [1280, 720]);
+        core.answer_with(
+            "state.get",
+            json!({"shown": [{"rect": [160, 400, 291, 264]}]}),
+        );
+        mc.learn_rooms().unwrap();
+        assert_eq!(mc.card_room(), 240.0, "a third of 720");
     }
 }
