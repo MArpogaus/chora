@@ -106,3 +106,7 @@ partial run: nothing is pushed
 ```
 
 `pgrep -fa 'chora --headless'`: empty after the runs.
+
+## Review r2 (PM, diff under 200 lines)
+
+Base 02e745c3, head bbfcf1c0, +34 -3. Checks: red commit 4d4c0326 comes before the fix fa914160 (rules.md 8): yes. The fix is in `grab_give_keys` only: a swallowed give key is re-grabbed with its give action and leaves `swallowed`; the test asserts both for every `give::KEYS` entry. rksr1-2 cell line and its red-by-removal named; rksr1-1 D118 count 570 explained (75 x 8 - 30). Gate: every step PASS across three parts on bbfcf1c0; the three reds were host gaps (no mkdocs, PIL in the lane container), not the branch; the train gate reruns all steps in one run. Findings: none new; rksr1-4 NIT and rpt2-2 MINOR stay in backlog. Verdict (computed, no open MAJOR): MERGE-OK bbfcf1c0, next train.
