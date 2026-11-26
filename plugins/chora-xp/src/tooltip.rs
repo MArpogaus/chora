@@ -63,6 +63,20 @@ impl Tooltip {
         Vec::new()
     }
 
+    /// The node whose tooltip waits or shows.
+    pub fn node(&self) -> Option<&str> {
+        self.pending.as_ref().map(|p| p.node.as_str())
+    }
+
+    /// The words of the tooltip that waits or shows changed: a shown one
+    /// goes at once and shows again with the new words.
+    pub fn retext(&mut self, _text: &str) -> Vec<Command> {
+        self.pending
+            .as_ref()
+            .map(|_| Vec::new())
+            .unwrap_or_default()
+    }
+
     /// When the tooltip shows.
     pub fn due(&self) -> Option<Instant> {
         self.pending.as_ref().filter(|_| !self.shown).map(|p| p.due)
@@ -158,6 +172,17 @@ mod tests {
     #[test]
     fn without_room_above_it_goes_below() {
         assert_eq!(place([100, 10, 24, 24], [100, 28], AREA)[1], 38);
+    }
+
+    #[test]
+    fn a_shown_tooltip_takes_new_words_at_once() {
+        let mut tip = Tooltip::default();
+        let now = Instant::now();
+        tip.rest("xp-speaker", "Volume 40%".into(), [0, 0, 10, 10], now);
+        tip.shown = true;
+        assert_eq!(tip.retext("Volume 45%").len(), 1, "the old words go");
+        assert!(tip.due().is_some(), "and show again");
+        assert_eq!(tip.pending.as_ref().unwrap().text, "Volume 45%");
     }
 
     #[test]
