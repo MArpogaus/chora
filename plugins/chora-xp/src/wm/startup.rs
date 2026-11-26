@@ -333,12 +333,12 @@ impl Wm {
     pub(super) fn grab(&mut self) -> Result<(), ClientError> {
         let cube = self.wanted_keys();
         self.cube_keys = cube;
-        grab_keys(&mut self.rt, &self.settings.value.common.bindings, cube)?;
-        self.rt
-            .accept_injected(self.settings.value.common.test_accept_injected_keys);
         self.rt.give_keys(Some(|to| {
             KeyAction::System(chora_kit::actions::System::Give(to.into()))
         }));
+        grab_keys(&mut self.rt, &self.settings.value.common.bindings, cube)?;
+        self.rt
+            .accept_injected(self.settings.value.common.test_accept_injected_keys);
         self.rt.grab_give_keys()
     }
 
