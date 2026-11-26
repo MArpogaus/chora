@@ -3,7 +3,7 @@
 Model: sonnet, effort high (harness review: tour scripts and their test, no product code; procedures: sonnet for harness)
 Red on head: none (a review; the lane's reds b0ac9cf8, f6a8b347 precede their fixes)
 Lane: cloud, read-only on code: claude/tour-fix-r1 at 84e31324c554821d5fac27c46c3995f8bf8618d2, review 972f9415..84e31324 (4 files, +189 -42: demo/tour/*, tests/test_tour_diff.py). One round. Stop at 120 k context; cost at most 0.4 %; at most 8 findings. No merge gate run (the lane ran it on 84e31324: EXIT 0).
-Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`. A failure: send_message the PM "review-tour-fix-r1 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`. A failure: send_message the PM "review-tour-fix-r1 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
 Read briefs/tour-fix-r1.md (done criteria), reports/tour-rows.md "## Review r4" and "## fix r1" on claude/session-log, stills media/2026-11-26/tour-fix-r1/; `git diff 972f9415..84e31324`.
 Checks, each with its command and files:
 1) Red first: b0ac9cf8 fails `python3 -m pytest tests/test_tour_diff.py -q` on its own tree before 7fc8b31f and passes at 84e31324; f6a8b347 likewise before aafd5611. a63becb3 holds the construct chapter step and its check in one commit: judge whether the chapter is the test (a tour script) or a fix without a red test (then MAJOR, per procedures).
