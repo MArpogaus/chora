@@ -553,7 +553,7 @@ impl Mc {
         let (note, gap) = (geo.note, geo.gap);
         let mut regions = BTreeMap::new();
         let column = on(Region::Right);
-        let end = self.header_end(w, column) - x;
+        let end = self.header_end(w) - x;
         let [header, footer] = if headless {
             self.app_lines(w, column)
         } else {
@@ -1560,13 +1560,14 @@ mod tests {
     }
 
     #[test]
-    fn the_header_stays_where_it_is_while_the_pill_moves_over_the_column() {
+    fn the_header_stays_where_it_is_while_the_pill_moves_into_the_chat() {
         let (mut mc, _) = crate::testing::mc("header-pill", [1280, 720]);
         let visible = [Region::Header, Region::Right];
         let header =
             |mc: &crate::Mc| mc.boxes("agenda", &visible).unwrap().regions[&Region::Header];
         let before = header(&mc);
         mc.rooms.pill_left = Some(764.0);
+        mc.chat = crate::Chat::Open;
         assert_eq!(header(&mc), before, "Super+a moves the date (rpm2-5)");
     }
 
