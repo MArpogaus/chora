@@ -190,9 +190,13 @@ here=\$(dirname "\$0")
 echo fuzzel "\$@" >>"\$here/calls.log"
 case " \$* " in
 *" --dmenu "*)
-    IFS= read -r first
+    cat >"\$here/rows.\$\$"
+    first=\$(head -n 1 "\$here/rows.\$\$" | tr '\\0' '\\n' | head -n 1)
     printf 'fuzzel-first-row %s\\n' "\$first" >>"\$here/calls.log"
-    { printf '%s\\n' "\$first"; cat; } | "$real_fuzzel" "\$@"
+    "$real_fuzzel" "\$@" <"\$here/rows.\$\$"
+    rc=\$?
+    rm -f "\$here/rows.\$\$"
+    exit "\$rc"
     ;;
 *) exec "$real_fuzzel" "\$@" ;;
 esac

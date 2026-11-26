@@ -147,7 +147,7 @@ cat >"$work/fake/fuzzel" <<FAKE
 [ ! -e "$work/fake/real" ] || exec "$real_fuzzel" "\$@"
 n=\$((\$(cat "$work/fake/calls" 2>/dev/null || echo 0) + 1))
 echo "\$n" >"$work/fake/calls"
-case " \$* " in *" --dmenu "*) cat >"$work/fake/rows.\$n" ;; esac
+case " \$* " in *" --dmenu "*) sed 's/\\x00icon\\x1f.*\$//' >"$work/fake/rows.\$n" ;; esac
 case " \$* " in *" --dmenu "*)
     if [ -s "$work/fake/pick" ]; then cat "$work/fake/pick"; rm "$work/fake/pick"
     elif [ "\$n" = 1 ]; then echo nosuchprogram; fi ;;

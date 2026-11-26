@@ -26,6 +26,8 @@ pub struct App {
     pub name: String,
     /// The shell command, in the terminal if the program needs one.
     pub command: String,
+    /// The icon name or path of the entry, empty if it has none.
+    icon: String,
     /// The words that find it besides its name, in lower case.
     words: Vec<String>,
 }
@@ -51,6 +53,7 @@ pub fn apps(
             App {
                 name: e.name,
                 command: desktop_entry::command(e.exec, e.terminal, terminal),
+                icon: e.icon,
                 words,
             }
         })
@@ -58,6 +61,21 @@ pub fn apps(
     apps.sort_by_cached_key(|a| a.name.to_lowercase());
     apps.dedup_by(|b, a| a.name == b.name);
     apps
+}
+
+impl App {
+    /// The row for fuzzel's dmenu: the name, and when the entry has an icon
+    /// the rofi syntax `name\0icon\x1fICON` that fuzzel (1.7 and later)
+    /// draws as the icon of the row. It prints the name only, so the line it
+    /// answers still matches the program; a fuzzel without the syntax or
+    /// with no such icon shows the name alone.
+    fn row(&self) -> String {
+        if self.icon.is_empty() {
+            self.name.clone()
+        } else {
+            format!("{}\0icon\x1f{}", self.name, self.icon)
+        }
+    }
 }
 
 /// The program of the row that opens the chat with a helper, and of the
@@ -223,7 +241,7 @@ enum Asked {
 /// one with such a line failed, and the text after the prefix is why.
 /// A warning or info line alone is no failure. One that cannot start
 /// failed too.
-fn ask(fuzzel: &[String], rows: &[&str]) -> Asked {
+fn ask(fuzzel: &[String], rows: &[String]) -> Asked {
     let Some((program, args)) = fuzzel.split_first() else {
         return Asked::Failed("no launcher command".into());
     };
@@ -260,7 +278,7 @@ fn ask(fuzzel: &[String], rows: &[&str]) -> Asked {
 /// does not know a key of the file, as 1.9.2 does not know `prompt`, exits
 /// at once), once more without the config: the launcher in the plain look
 /// is a way to start a program, a launcher that shows nothing is none.
-fn ask_or_plain(fuzzel: &[String], rows: &[&str]) -> Asked {
+fn ask_or_plain(fuzzel: &[String], rows: &[String]) -> Asked {
     let asked = ask(fuzzel, rows);
     match (&asked, without_config(fuzzel)) {
         (Asked::Failed(_), Some(plain)) => ask(&plain, rows),
@@ -314,14 +332,14 @@ pub fn choose_reporting(
     apps: &[App],
     report: &mut dyn FnMut(&str),
 ) -> Option<String> {
-    let all: Vec<&str> = apps.iter().map(|a| a.name.as_str()).collect();
+    let all: Vec<&App> = apps.iter().collect();
     let mut rows = all.clone();
     let mut notice: Option<String> = None;
     for _ in 0..ROUNDS {
-        let shown: Vec<&str> = notice
-            .as_deref()
-            .into_iter()
-            .chain(rows.iter().copied())
+        let shown: Vec<String> = notice
+            .iter()
+            .cloned()
+            .chain(rows.iter().map(|a| a.row()))
             .collect();
         let line = match ask_or_plain(fuzzel, &shown) {
             Asked::Line(line) => line,
@@ -335,7 +353,7 @@ pub fn choose_reporting(
             Answer::Closed => return None,
             Answer::Run(command) => return Some(command),
             Answer::Narrow(found) => {
-                rows = found.iter().map(|a| a.name.as_str()).collect();
+                rows = found;
                 notice = None;
             }
             Answer::Nothing(text) => {
@@ -610,6 +628,43 @@ mod tests {
         std::fs::write(&file, format!("#!/bin/sh\ncat >/dev/null\n{body}\n")).unwrap();
         let command = vec!["sh".to_owned(), file.to_string_lossy().into_owned()];
         (dir, command)
+    }
+
+    /// The rows that fuzzel gets on stdin carry the icon name of the desktop
+    /// entry (`label\0icon\x1fNAME`, the rofi syntax of fuzzel's dmenu), a
+    /// row of an entry without one stays plain text, and the label that
+    /// fuzzel prints back finds the same program.
+    #[test]
+    fn the_rows_carry_the_icon_of_their_entry() {
+        let apps = apps(
+            [
+                Entry {
+                    icon: "accessories-text-editor".into(),
+                    ..entry("Pad", "pad")
+                },
+                entry("Screenshot", "shot"),
+            ],
+            "foot",
+            on_path,
+        );
+        let (dir, mut fuzzel) = stand_in("chora-launcher-icons", "echo Pad");
+        let rows = dir.join("rows");
+        let script = std::fs::read_to_string(&fuzzel[1]).unwrap();
+        std::fs::write(
+            &fuzzel[1],
+            script.replace(
+                "cat >/dev/null",
+                &format!("cat >'{}'", rows.to_string_lossy()),
+            ),
+        )
+        .unwrap();
+        fuzzel.truncate(2);
+        let got = choose_reporting(&fuzzel, &apps, &mut |_| {});
+        assert_eq!(got.as_deref(), Some("pad"));
+        assert_eq!(
+            std::fs::read_to_string(&rows).unwrap(),
+            "Pad\0icon\x1faccessories-text-editor\nScreenshot"
+        );
     }
 
     fn reports(fuzzel: &[String]) -> (Option<String>, Vec<String>) {
