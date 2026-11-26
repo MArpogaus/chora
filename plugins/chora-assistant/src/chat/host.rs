@@ -281,6 +281,35 @@ impl Agent {
         held_box(self.slot.as_ref(), slot.as_deref(), output)
     }
 
+    /// The rects, on an output, of the texts that the other servers draw
+    /// there: what the pill must not stand over when it steps aside of the
+    /// chat panel (rmmr2-1).
+    fn texts_of_others(&mut self, output: &str) -> Vec<[i32; 4]> {
+        let query = chora_scene::ipc::Query {
+            selector: "kind:text".into(),
+            filter: Some(chora_scene::ipc::Filter {
+                visible: true,
+                ..chora_scene::ipc::Filter::default()
+            }),
+        };
+        let nodes: Vec<Value> = (self.rt.conn)
+            .call("scene.query", query)
+            .unwrap_or_default();
+        let others = nodes
+            .iter()
+            .filter(|n| n["owner"].as_str().is_some_and(|o| o != crate::NAME));
+        others
+            .filter_map(|n| {
+                let rect = n["rects"][output].as_array()?;
+                let [x, y, w, h] =
+                    <[f64; 4]>::try_from(rect.iter().filter_map(Value::as_f64).collect::<Vec<_>>())
+                        .ok()?;
+                #[allow(clippy::cast_possible_truncation, reason = "pixels of an output")]
+                Some([x, y, w, h].map(|v| v.round() as i32))
+            })
+            .collect()
+    }
+
     /// Draws the view again, and tells the context and the drawer of mc.
     pub fn chat_draw(&mut self) -> Result<(), ClientError> {
         let Some(frame) = self.chat_frame()? else {
@@ -300,7 +329,12 @@ impl Agent {
             && frame.look.style == ChatStyle::Plain
             && frame.slot.is_none();
         let panel = (open && at_edge).then(|| frame.rect());
-        commands.extend((self.assistant.as_mut()).and_then(|a| a.clear_of(panel)));
+        let texts = if panel.is_some() {
+            self.texts_of_others(&frame.output)
+        } else {
+            Vec::new()
+        };
+        commands.extend((self.assistant.as_mut()).and_then(|a| a.clear_of(panel, &texts)));
         commands.extend(self.card_follows()?);
         commands.extend(self.card_clears(panel)?);
         self.apply(commands)?;
