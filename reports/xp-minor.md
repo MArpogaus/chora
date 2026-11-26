@@ -188,3 +188,9 @@ Base e4157dbd, head d3d28cfa, 2 files +143 -15 (under 200: PM review). Red a83ae
 - rxm1-1 NIT, crates/chora-draw/src/bubble.rs:126: for a balloon narrower than 1.5 radius, `base_right - radius` is below 1 and `.max(1)` lets `at[0]` go under 0; no xp balloon is that narrow; a unit case would hold it.
 - rxt-2: tests only (green on base), hold as a regression guard; accepted.
 Lane gate incomplete: it stopped at mc-sofa volume-wheel (FLAKE-SOFA, rpx1-15; fixed by flake-sofa r2 in t145), so launcher-click..e2e did not run. Verdict: INCOMPLETE on the lane gate, code 0 open MAJOR; it joins train146 and its full gate is the missing run: MERGE-OK d3d28cfa once t146 is green.
+
+## Review r5 (PM, 92 lines, rules.md 7: builder is not the reviewer)
+Base 3be27e32, head 7614fd24, 8 files +92 -11; red commits 4913117a, b96cf4ae, 0d62c611 each before their fix (e3fa2fa4, cd23f490, f346b174); rpx2-5 red 8e9280d2 and fix 351087a4 both reverted by 70196814 (net zero).
+Checks: rpx2-1 `Tooltip::retext` drops a shown tip and re-arms it (unit a_shown_tooltip_takes_new_words_at_once), called only for the speaker node from `show_volume`; rpx2-3 `opens_missing_manager` checks the first word of file_manager on PATH before start, notice "No file manager" (xp.sh step 13 updated); rpx2-4 "Log Off" title and "earlier versions." text, unit the_titles_do_not_name_windows. Lane gate EXIT 0.
+Findings: rrx5-1 COSMETIC press.rs:432 `command.starts_with(manager)` also matches a longer program name with the same prefix (thunar vs thunarx); use the first word equal. rrx5-2 MINOR rpx2-5 (active title while chat has the keys) stays open: needs a core focus event for layer surfaces; backlog, known issues.
+Verdict (computed): no BLOCK or MAJOR open: MERGE-OK 7614fd24 (t156).
