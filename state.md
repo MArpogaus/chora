@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-26 14:17 UTC)
+## Now (2026-11-26 14:18 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 14:03 PM 5.1 % (11-26 BKK); week est. 51 % (unmeasured, owner reads) vs 76 % time; need (100-51-5)/40 h = 1.1 %/h; lanes 6 build
 session branch: 4d8bbe36 (t153+154 13:20); 98 greens. t153 red mc-scale (sh-37); t154 xp-run red 13s, green on rerun (flake); t155 (0efebc69 kit-icons) gate runs
@@ -24,7 +24,7 @@ burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88 open
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| tour-fix-r1.md (Q 4, 1.2 %) | opus high, 972f9415 | starting |
+| tour-fix-r1.md (Q 4, 1.2 %) | opus high, 972f9415 | running s..PCS93YNQQZy5cpfop |
 | h-rf2-r1.md (Q 4, 0.6 %) | sonnet high, 4d8bbe36 | running s..MAXjQyxSREAEeQzh6 |
 | rc1-pass-tiling-r2.md (Q 3, 1.2 %) | opus high, f484a92d | running s..QgWrwfXM6wjosmtQQ |
 | co-reach-r6.md (Q 2, 1.0 %) | opus high, 4d8bbe36 | running s..Lj635mZvdmt7myT7J |
