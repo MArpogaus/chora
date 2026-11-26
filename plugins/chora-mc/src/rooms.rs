@@ -11,7 +11,9 @@ use crate::{ClientError, Mc, region::Region};
 
 /// The nodes of the pill of the HUD host: its word and its mark, and the
 /// badge of a muted mic, which is wider than the word.
-const PILL: [&str; 3] = ["hud-word", "hud-figure", "hud-badge"];
+const PILL: [&str; 3] = ["hud-word", "hud-figure", BADGE];
+/// The badge of a muted mic in the pill.
+const BADGE: &str = "hud-badge";
 /// The most of the height of the output that a card at the foot may take;
 /// a card higher up stands in the middle or at the top, not at the foot.
 const MOST_OF_HEIGHT: f64 = 3.0;
@@ -58,13 +60,10 @@ impl Mc {
     }
 
     /// Where the header ends at the right: a baseline before the pill, or
-    /// at the output width `width` when the host draws none. While the
-    /// chat is open the host moves the pill into it for a moment
-    /// (Super+a), and the header ignores it.
+    /// at the output width `width` when the host draws none.
     pub(crate) fn header_end(&self, width: f64) -> f64 {
         let baseline = self.settings.value.scale.baseline;
-        let pill = (self.rooms.pill_left).filter(|_| self.chat != crate::Chat::Open);
-        pill.map_or(width, |left| left - baseline)
+        (self.rooms.pill_left).map_or(width, |left| left - baseline)
     }
 
     /// The top of the pages in output coordinates: where the text block of
@@ -74,6 +73,19 @@ impl Mc {
         first
             .and_then(|name| self.geometry(name))
             .map_or(0.0, |geo| geo.text[1])
+    }
+
+    /// The left edge of the pill. While the chat is open the host moves
+    /// the word of the pill into it for a moment (Super+a): the edge read
+    /// before stays, and only the badge of a muted mic, which may appear
+    /// meanwhile, moves it to the left (rmmr1-1).
+    fn read_pill(&mut self) -> Result<Option<f64>, ClientError> {
+        if self.chat != crate::Chat::Open {
+            return leftmost(|id| self.rect(id));
+        }
+        let badge = leftmost(|id| if id == BADGE { self.rect(id) } else { Ok(None) })?;
+        let kept = self.rooms.pill_left;
+        Ok(kept.map_or(badge, |kept| Some(badge.map_or(kept, |b| b.min(kept)))))
     }
 
     /// What the pill and the card take now. A card counts only when it
@@ -88,7 +100,7 @@ impl Mc {
         };
         let [width, height] = output.size.map(f64::from);
         let page_top = self.page_top();
-        let pill_left = leftmost(|id| self.rect(id))?;
+        let pill_left = self.read_pill()?;
         let mut rooms = Rooms {
             pill_left: pill_left.map(f64::round),
             card: None,

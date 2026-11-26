@@ -1603,7 +1603,7 @@ mod tests {
             mc.learn_rooms().unwrap();
             let open = mc.boxes_of("agenda")[&Region::Header];
             assert_eq!(open, before, "Super+a moves the date: {case}");
-            pill.lock().unwrap().insert("hud-badge".into(), 700.0);
+            pill.lock().unwrap().insert("hud-badge".into(), 300.0);
             mc.learn_rooms().unwrap();
             let moved = mc.boxes_of("agenda")[&Region::Header][2];
             assert!(moved < before[2], "the badge may move it left: {case}");
