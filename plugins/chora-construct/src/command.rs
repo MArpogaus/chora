@@ -34,6 +34,12 @@ const HELP_TOP: f64 = 64.0;
 /// The margin that the key sheet keeps from the top and the bottom of
 /// the output.
 const HELP_MARGIN: f64 = 32.0;
+/// The pad of the key sheet and the gap of its columns: two or three.
+const SHEET_PAD: f64 = 2.0 * UNIT;
+const GAP_TWO: f64 = 24.0;
+const GAP_THREE: f64 = 16.0;
+/// What a row keeps free between its text and its first keycap.
+const TEXT_GAP: f64 = UNIT;
 /// The search line, the footer and a row of the help.
 const SEARCH: f64 = 56.0;
 const FOOTER: f64 = 48.0;
@@ -510,13 +516,14 @@ pub fn help(
     let narrow = !model.query.is_empty();
     let top = UNIT + SEARCH + 1.0 + UNIT;
     let fixed = top + UNIT + 1.0 + FOOTER;
-    let (w, columns) = sheet_columns(found(model.groups, model.query), narrow, out, fixed);
+    let shown = found(model.groups, model.query);
+    let (w, columns) = sheet_columns(look, (&model.or, shown), narrow, out, fixed);
     let body_h = body_height(&columns);
     let n = f64::from(u8::try_from(columns.len()).unwrap_or(3));
     let (pad, gap) = if columns.len() > 2 {
-        (UNIT, 12.0)
+        (SHEET_PAD, GAP_THREE)
     } else {
-        (2.0 * UNIT, 24.0)
+        (SHEET_PAD, GAP_TWO)
     };
     let col_w = (w - 2.0 * pad - gap * (n - 1.0)) / n;
     let h = fixed + body_h;
@@ -622,22 +629,51 @@ fn body_height(columns: &[Shown<'_>]) -> f64 {
 
 /// The width of the key sheet and its columns: two without a search, one
 /// with it, three when two would not leave 32 at the top and the bottom
-/// of the output (rv9kb-3); then it takes the width of the output less
-/// `UNIT` each side, `fixed` being the height that the body leaves out.
-fn sheet_columns(
-    shown: Shown<'_>,
+/// of the output (rv9kb-3), `fixed` being the height that the body leaves
+/// out. The sheet keeps 32 from the sides of the output; three columns
+/// are as wide as three of the widest row need, less if the output is
+/// narrower: a row text that does not fit is cut (see `key_row`).
+fn sheet_columns<'a>(
+    look: &Look,
+    (or, shown): (&str, Shown<'a>),
     narrow: bool,
     out: [f64; 2],
     fixed: f64,
-) -> (f64, Vec<Shown<'_>>) {
+) -> (f64, Vec<Shown<'a>>) {
+    let room = out[0] - 2.0 * HELP_MARGIN;
     if narrow {
-        return (HELP_NARROW.min(out[0] - 2.0 * UNIT), vec![shown]);
+        return (HELP_NARROW.min(room), vec![shown]);
     }
     let two = split(shown.clone(), 2);
     if fixed + body_height(&two) <= out[1] - 2.0 * HELP_MARGIN {
-        return (HELP_WIDE.min(out[0] - 2.0 * UNIT), two);
+        return (HELP_WIDE.min(room), two);
     }
-    (out[0] - 4.0 * UNIT, split(shown, 3))
+    let widest = (shown.iter().flat_map(|(_, rows)| rows))
+        .map(|row| row_need(look, row, or))
+        .fold(0.0, f64::max);
+    let need = 3.0 * widest + 2.0 * GAP_THREE + 2.0 * SHEET_PAD;
+    (need.min(room), split(shown, 3))
+}
+
+/// The width of a row for its text, `TEXT_GAP` and the keycaps with the
+/// 12 and the 8 that `key_row` keeps at its sides.
+fn row_need(look: &Look, row: &KeyRow, or: &str) -> f64 {
+    let text = look.size(face(Type::Text, 400), &row.what, None)[0];
+    12.0 + text + TEXT_GAP + row_caps(look, row, or)[2] + 8.0
+}
+
+/// The widths of the gesture and of the `or` of a row, and of everything
+/// that its keycaps take, as `key_row` lays it out.
+fn row_caps(look: &Look, row: &KeyRow, or: &str) -> [f64; 3] {
+    let small = face(Type::Small, 400);
+    let gesture = (row.gesture.as_ref()).map_or(0.0, |g| look.size(small, g, None)[0] + 4.0);
+    let or_w = if row.alt.is_empty() {
+        0.0
+    } else {
+        look.size(small, or, None)[0] + 12.0
+    };
+    let total = keycaps_width(look, &row.keys) + or_w + keycaps_width(look, &row.alt) + gesture;
+    [gesture, or_w, total]
 }
 
 /// The columns of the help: the first groups at the left and the rest
@@ -724,7 +760,15 @@ fn key_row(
         ));
     }
     let what = face(Type::Text, 400);
-    if let Some((start, len)) = find(&row.what, model.query) {
+    let [_, or_w, total] = row_caps(look, row, &model.or);
+    let shown = if row_need(look, row, &model.or) > w {
+        look.one_line(what, &row.what, w - 20.0 - TEXT_GAP - total)
+    } else {
+        row.what.clone()
+    };
+    let found = find(&row.what, model.query)
+        .filter(|&(start, len)| shown.starts_with(&row.what[..start + len]));
+    if let Some((start, len)) = found {
         let before = look.size(what, &row.what[..start], None)[0];
         let mark = look.size(what, &row.what[start..start + len], None)[0];
         commands.push(rect(
@@ -739,21 +783,11 @@ fn key_row(
         look,
         &format!("{id}-what"),
         body,
-        (what, &row.what),
+        (what, &shown),
         [x + 12.0, y + 4.0],
         m.text,
     ));
     let small = face(Type::Small, 400);
-    let gesture_w = row
-        .gesture
-        .as_ref()
-        .map_or(0.0, |g| look.size(small, g, None)[0] + 4.0);
-    let or_w = if row.alt.is_empty() {
-        0.0
-    } else {
-        look.size(small, &model.or, None)[0] + 12.0
-    };
-    let total = keycaps_width(look, &row.keys) + or_w + keycaps_width(look, &row.alt) + gesture_w;
     let mut kx = (x + w - 8.0 - total).round();
     let (caps, used) = keycaps(
         look,
