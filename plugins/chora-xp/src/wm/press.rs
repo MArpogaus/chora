@@ -429,8 +429,10 @@ impl Wm {
 /// Whether a command opens a folder with a file manager that is not
 /// installed.
 pub(super) fn opens_missing_manager(command: &str, manager: &str) -> bool {
-    let _ = (command, manager);
-    false
+    let Some(exe) = manager.split_whitespace().next() else {
+        return false;
+    };
+    command.starts_with(manager) && !chora_kit::desktop_entry::on_path(exe)
 }
 
 /// The words of the notice that no file manager is installed.
