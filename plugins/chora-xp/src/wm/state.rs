@@ -106,25 +106,21 @@ impl Wm {
     /// desktop icons from a view of the focus older than the core's when
     /// the window that left xp already has the focus: the core then keeps
     /// the icons as the holder of the keyboard behind that window, and the
-    /// next new window goes to xp, not to the manager of the window. The
-    /// window with the focus draws its title as the keys say.
+    /// next new window goes to xp, not to the manager of the window.
     pub(super) fn node_focused(
         &mut self,
         node: Option<&str>,
         owner: Option<&str>,
     ) -> Vec<chora_scene::Command> {
-        let was_away = self.node_away();
         self.key_node = owner.map(String::from);
         if owner == Some(NAME) {
             self.arrival = super::Arrival::Settled;
         }
         let desktop = node == Some(crate::desktop_icons::GROUP) && owner == Some(NAME);
         if desktop && self.focus_away() {
-            return vec![chora_scene::Command::FocusNode { node: None }];
-        }
-        match self.focused.clone() {
-            Some(surface) if was_away != self.node_away() => self.restyle(&surface),
-            _ => Vec::new(),
+            vec![chora_scene::Command::FocusNode { node: None }]
+        } else {
+            Vec::new()
         }
     }
 
@@ -293,21 +289,6 @@ mod tests {
             node: Some(crate::desktop_icons::GROUP.into()),
         };
         assert!(none.contains(&icons), "the icons get no keys: {none:?}");
-    }
-
-    /// While the chat field of another client has the keys, the window
-    /// that lost them draws its inactive title, as on XP (rpx2-5).
-    #[test]
-    fn a_window_that_lost_the_keys_to_a_node_looks_inactive() {
-        let (mut wm, _methods) = wm_on_fake_core("state-title-node");
-        wm.focused = Some("s1".into());
-        assert!(wm.is_active("s1"));
-        let taken = json!({"event": "focus.node", "node": "chat", "owner": "chora-chat"});
-        wm.event(serde_json::from_value(taken).unwrap()).unwrap();
-        assert!(!wm.is_active("s1"), "the chat field has the keys");
-        let back = json!({"event": "focus.node", "node": null, "owner": null});
-        wm.event(serde_json::from_value(back).unwrap()).unwrap();
-        assert!(wm.is_active("s1"), "the keys came back");
     }
 
     /// A node of another client that has the keys keeps them: the focus
