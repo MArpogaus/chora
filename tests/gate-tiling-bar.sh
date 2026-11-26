@@ -97,3 +97,21 @@ for layout in tile_left fair spiral max; do
     [ "$now" = "$isend" ] || fail "the left island ends at $now with $layout, at $isend with tile"
 done
 ok "the left island keeps its width through four layout words"
+
+chip=$(sed -n 's/^@define-color surface-2 #\(..\)\(..\)\(..\);.*/\1 \2 \3/p' "$flavor/waybar/colors.css")
+# shellcheck disable=SC2207
+chip=($(for h in $chip; do printf '%d ' "0x$h"; done))
+chipw=""
+for layout in tile tile_left fair spiral max; do
+    ctl call tiling set_layout "{\"layout\": \"$layout\"}" >/dev/null || fail "set_layout $layout"
+    sleep 2.5
+    ctl capture --output HEADLESS-1 "$shot" >/dev/null || fail "the capture"
+    read -r gl gr gw < <(python3 -I "$repo/tests/chip-gaps.py" "$shot" "${chip[@]}")
+    [ -n "$gw" ] || { cp "$shot" /tmp/claude-0/chip-fail.png; fail "no layout chip of colour ${chip[*]} in the capture of $layout"; }
+    echo "chip $layout: left gap $gl, right gap $gr, width $gw"
+    d=$((gl - gr))
+    [ "${d#-}" -le 2 ] || fail "the word of $layout sits off centre in its chip: gaps $gl and $gr"
+    [ -z "$chipw" ] && chipw=$gw
+    [ "$gw" = "$chipw" ] || fail "the layout chip is $gw wide with $layout, $chipw with tile"
+done
+ok "the layout word sits in the middle of its chip, which keeps its width"
