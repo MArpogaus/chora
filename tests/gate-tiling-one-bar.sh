@@ -29,8 +29,9 @@
 # The cell "fork", with no session: waybar forks a shell for each of its custom
 # modules, and the child keeps the name waybar until it execs (a loaded host
 # stretches that to milliseconds, sh-41: "3 waybar processes on one config" with
-# one bar). A fake waybar with a forked child that keeps its name must count as
-# one bar, and a second waybar beside it (a parent that is no waybar) as two.
+# one bar). bars() counts the waybar processes whose parent is no waybar: a
+# fake waybar with a forked child that keeps its name counts as one bar, and
+# a second waybar beside it (a parent that is no waybar) makes two.
 #
 # Usage: tests/gate-tiling-one-bar.sh [lock|fork|product|unit|persona ...]
 #   BIN: the binaries (default target/debug); the cells to run (default all)
@@ -44,7 +45,15 @@ need dbus-daemon
 need_bins chora choractl chora-tiling chora-probe chora-assistant
 flavor=$repo/flavors/tiling
 
-bars() { XDG_RUNTIME_DIR=$1 session_pids -x waybar | wc -l; }
+bars() {
+    local pid ppid n=0
+    for pid in $(XDG_RUNTIME_DIR=$1 session_pids -x waybar); do
+        ppid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+        [ -n "$ppid" ] || continue
+        [ "$(ps -o comm= -p "$ppid" 2>/dev/null)" = waybar ] || n=$((n + 1))
+    done
+    echo "$n"
+}
 
 one_bar() {
     local name=$1 runtime=$2 n max=0
