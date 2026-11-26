@@ -344,10 +344,7 @@ place() {
         case $h in tiling | xp | mc)
             repair "give $o to $h, which holds the keyboard (D119)"
             ctl call "$o" window.give "{\"surface\": \"$w\", \"to\": \"$h\"}" >/dev/null 2>&1
-            for _ in $(seq 50); do
-                [ "$(owner_of)" = "$h" ] && break
-                sleep 0.2
-            done
+            until_ok '[ "$(owner_of)" = "$h" ]' 20
             has_focus || fail "the window has no focus with the holder $h: $(ctl query "id:$w" | jq -c '.[0] | {owner, focused}')"
             o=$h
             ;;
