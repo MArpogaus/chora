@@ -1,0 +1,15 @@
+# flake-launcher r1 (rc 3, F5: the launcher-start flake family)
+
+Model: sonnet, effort high (a routine flake fix in tests and the launcher spawn path)
+Red on head: no deterministic red yet. Four sightings of one family on recent heads: sh-44 (xp-run "Super+Space did not run the launcher", t154, t155), t156 launcher-mc, kit-swallow r1 run 2 launcher-mc ("mc dark, old fuzzel: no launcher after mouse"), sh-47 (flake-series r10 run 4, handover: "the picker of the Looks door did not start", tests/gate-looks-move.sh:92). All green on rerun. Step 1 makes it red.
+Lane: cloud, branch claude/flake-launcher-r1 at 0e18f14c4 (session head, t157). Area: the launcher start path (the code that spawns fuzzel or the picker for a key, a click on a door, Programs) and its gate cells in tests/. One area. Stop at 250 k context. Cost at most 0.7 %.
+Why: RC 3 needs 3 greens with no flake; flake-series r10 was 4/5 (reports/flake-series.md "## r10"); findings/shared.md sh-44, sh-47.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`. A failure: send_message the PM "flake-launcher-r1 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1) Reproduce: run the cells xp-run, launcher-mc, launcher-click and handover (tests/merge-gate.sh --only <cell>) 10 times each beside a `cargo build --workspace` load (or `stress`-like busy loops in bash), count misses; keep the first failing log. Read the session log at the miss: does the spawn happen late, fail, or not at all (a lost key, a refused grab, a spawn error, fuzzel exiting at once)?
+2) Find the root cause; fix it, not the timeout. A longer wait is acceptable only if the log proves the spawn happens and is merely slow, and then with a readiness signal, not a bigger number.
+3) Red test commit first: a cell or unit test that fails on 0e18f14c without the fix (e.g. a slow or failing launcher stand-in), then the fix commit. Never skip or quarantine a cell.
+4) After: the four cells 10 times each under the same load: 0 misses; then the full gate once (`tests/merge-gate.sh --jobs 2`, no --only).
+Never end a turn to wait; poll any long command in the same turn. Before ending: `pgrep -fa 'chora --headless'` empty.
+Done when: miss counts before and after (with logs), root cause in one paragraph with the log line, red commit before the fix, full gate green.
+Report: reports/flake-launcher.md "## r1" on claude/session-log (logs under media/2026-11-26/flake-launcher-r1/, each under 500 KB); send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 5 lines with the head sha.
+Rules: push claude/flake-launcher-r1 and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report and media folder); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).

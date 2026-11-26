@@ -1,12 +1,12 @@
 # State
 
-## Now (2026-11-26 20:47 UTC)
+## Now (2026-11-26 20:54 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 20:47 PM 5.7 % (11-26 BKK); week est. 51 % (unmeasured, owner reads) vs 76 % time; need (100-51-5)/40 h = 1.1 %/h; lanes 6 build
+budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 20:54 PM 5.7 % (11-26 BKK); week est. 51 % (unmeasured, owner reads) vs 76 % time; need (100-51-5)/40 h = 1.1 %/h; lanes 6 build
 session branch: 0e18f14c (t157 19:53); 101 greens. t153 red sh-37; t154, t155 flake sh-44; t156 flake launcher-mc; t158 runs (h-rf2-r3, mc-minor-r2, kit-swallow-r1, co-reach-r6)
 
-lanes: 4 of 6 (tour-fix-r2, co-minor-r1, rc1-pass-tiling-r3, flake-series-r10)
-burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88,10 regr)
+lanes: 4 of 6 (tour-fix-r2, co-minor-r1, rc1-pass-tiling-r3, flake-launcher-r1)
+burn-down: F1-4, F6, F8 met; F5 open (r10 4/5), flake-launcher runs; F7 open (88,10 regr)
 
 ## RC
 | # | Criterion | State |
@@ -27,7 +27,7 @@ burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88,10 r
 | tour-fix-r2.md (Q 4, 0.6 %) | sonnet high, 84e31324 | s..LaZa9mxvCe9PHc5BE |
 | co-minor-r1.md (Q 2, 0.5 %) | sonnet high, 57ce1480 | s..QfdXoTJwAHB4ThLKn |
 | rc1-pass-tiling-r3.md (Q 3, 1.2 %) | opus high, 7822a66c | s..M3tsq3SF7RgUqsCwy |
-| flake-series-r10.md (Q 5, 0.6 %) | haiku high, 4d8bbe36 | s..MrWJ1FZ4X7WVbaJa6 |
+| flake-launcher-r1.md (Q 5, 0.7 %) | sonnet high, 0e18f14c | starting |
 ## Queue (% week; 5 % reserve)
 1. (rc 3) FLAKE-BAR-FULL r1 t152, TOUR-HARNESS r2 t153 merged.
 2. (rc 1, 2) co r14: co-75, co-76 5/5; co-79: CO-REACH r6 bcecb671 MERGE-OK, t158; pass r2 57ce1480 confirms rc 1; CO-MINOR r1 runs; r15 NO (co-79 open MAJOR): CO-REACH r7 after co-minor-r1.
@@ -36,7 +36,7 @@ burn-down: F1-4, F6, F8 met; F5 open (reds since r9), r10 runs; F7 open (88,10 r
 4a. (F7, rc 11) KIT-ICONS r1 merged t155.
 4b. (rc 3) H-RF2 r3 in t158.
 4c. (rc 1b) XP-MINOR r5 merged t156 (rpx2-5 backlog); mc pass r2 met (MC-MINOR r1 1dd7edc9: -1, -5 fixed, -2, -3 part, -4 kit; r2 in t158; r3 d8eb907c MERGE-OK (review r3; rmmr3-1 MINOR backlog), t159; rpm2-6 backlog); take r3 next.
-5. (F5, rc 3) FLAKE-SERIES r10 runs on 4d8bbe36 (haiku).
+5. (F5, rc 3) FLAKE-SERIES r10 4/5 (sh-47, launcher family): FLAKE-LAUNCHER r1 runs; then r11.
 
 ## Needs owner
 - Delete claude/release-rc4 (403).
