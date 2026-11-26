@@ -242,7 +242,12 @@ In navigate mode a drag on a face or on a window that floats in front of
 it turns the cube. A press on a plane that moves less than 8 px is a
 click on its face. A pane of a pulled window moves by a plain drag
 and, dropped over a face, gives its window back to that face: while the
-cube stands back, the windows of the panes take no pointer input. A
+cube stands back, the windows of the panes take no pointer input.
+Dropped stood back onto the face at the front, the window ends as with
+the give key: the person steps in and it has the keyboard there. Dropped
+onto another face, or where the face manager could not place it (a
+notice says so, as for the give key), the cube stays stood back and
+keeps the keyboard, so no key reaches a window the person cannot see. A
 click on a pane stood back, a press that moves less than 8 px, flies
 into it, as `Tab` and `Return` do, and its window takes the keyboard.
 

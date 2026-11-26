@@ -567,8 +567,8 @@ impl Agent {
                 to: None,
             });
         }
-        commands.extend(self.sync_assistant(Instant::now())?);
-        commands.extend(self.say_again(Instant::now()));
+        commands.extend(self.sync_assistant(chora_kit::clock::now())?);
+        commands.extend(self.say_again(chora_kit::clock::now()));
         commands.extend(self.sync_badge()?);
         commands.extend(self.sync_row()?);
         self.chat_restyle()?;

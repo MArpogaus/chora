@@ -1151,20 +1151,20 @@ impl Assistant {
             }),
             ..PropsUpdate::default()
         };
-        if std::mem::replace(&mut self.speech, true) {
-            leaning.push(Command::Update {
+        let balloon = if std::mem::replace(&mut self.speech, true) {
+            Command::Update {
                 id: SPEECH.into(),
                 props,
-            });
-            return leaning;
-        }
-        leaning.push(Command::Create {
-            id: SPEECH.into(),
-            kind: NodeKind::Image,
-            parent: GROUP.into(),
-            props,
-        });
-        leaning
+            }
+        } else {
+            Command::Create {
+                id: SPEECH.into(),
+                kind: NodeKind::Image,
+                parent: GROUP.into(),
+                props,
+            }
+        };
+        [vec![balloon], leaning].concat()
     }
 
     /// When the next move, blink or fade is due.
@@ -1765,6 +1765,91 @@ mod tests {
                 "{height}: the tail tip {tip} is not over the paperclip head"
             );
         }
+    }
+
+    /// The xp folder at the work area of a laptop, with its figure at the
+    /// right edge: the greeting balloon leans its tail out of the corner.
+    fn xp_leaning(test: &str) -> (Theme, Assistant, chora_kit::testing::TempDir) {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let folder = root.join("../../flavors/xp/assets/assistant");
+        let cache = crate::tests::cache(test);
+        let (theme, values) =
+            crate::load_folder(&folder, &chora_kit::hud::Context::default(), &cache)
+                .expect("the folder loads");
+        let mut a = assistant(&values, "speaking", Instant::now());
+        a.area = [0, 0, 1280, 770];
+        a.origin = origin_of(&values, a.area);
+        a.home = a.origin;
+        (theme, a, cache)
+    }
+
+    fn index_of(commands: &[Command], id: &str) -> Option<usize> {
+        commands.iter().position(|c| match c {
+            Command::Create { id: i, .. } | Command::Update { id: i, .. } => i == id,
+            _ => false,
+        })
+    }
+
+    /// rxt-1: the tail is drawn after the balloon, so that no black seam of
+    /// the box edge shows where they meet, whatever came before.
+    #[test]
+    fn the_leaning_tail_is_drawn_after_the_balloon() {
+        let (mut theme, mut a, _cache) = xp_leaning("tail-order");
+        let now = Instant::now();
+        for text in ["Hello there, I am here.", "A second sentence follows."] {
+            let commands = a.say(&mut theme, text, Duration::ZERO, now);
+            let balloon = index_of(&commands, SPEECH).expect("the balloon");
+            let tail = index_of(&commands, SPEECH_TAIL).expect("a leaning tail");
+            assert!(tail > balloon, "tail {tail} under balloon {balloon}");
+        }
+    }
+
+    /// rxt-2: the life of the tail node.
+    #[test]
+    fn the_leaning_tail_follows_the_balloon_through_its_life() {
+        let (mut theme, mut a, _cache) = xp_leaning("tail-life");
+        let now = Instant::now();
+        let props_of = |commands: &[Command]| {
+            commands.iter().find_map(|c| match c {
+                Command::Create { id, props, .. } | Command::Update { id, props }
+                    if id == SPEECH_TAIL =>
+                {
+                    Some(props.clone())
+                }
+                _ => None,
+            })
+        };
+        let commands = a.say(&mut theme, "Hello there, I am here.", Duration::ZERO, now);
+        let tail = props_of(&commands).expect("a tail");
+        assert_eq!(tail.input, Some(InputMode::Pass), "input passes through");
+        let ly = tail.transform.expect("placed").translation_2d().1;
+        let [_, head_y] = a.values.figure.head();
+        assert_eq!(
+            f64::from(a.values.speech.tail + 1) + ly,
+            f64::from(head_y),
+            "the tip stands at the head"
+        );
+        let hushed = a.hush();
+        assert_eq!(
+            props_of(&hushed).and_then(|p| p.visible),
+            Some(false),
+            "hush"
+        );
+        a.say(&mut theme, "Hello again.", Duration::ZERO, now);
+        a.fades_at = Some(now);
+        let faded = a.step(&mut theme, now);
+        let fade = faded.iter().any(|c| {
+            matches!(c, Command::Animate { id, props, .. }
+                if id == SPEECH_TAIL && props.opacity == Some(0.0))
+        });
+        assert!(fade, "the tail fades with the balloon: {faded:?}");
+        a.values.line.plain = true;
+        let plain = a.say(&mut theme, "Plain.", Duration::ZERO, now);
+        assert_eq!(
+            props_of(&plain).and_then(|p| p.visible),
+            Some(false),
+            "a plain balloon hides the tail"
+        );
     }
 
     #[test]

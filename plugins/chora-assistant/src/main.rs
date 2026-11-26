@@ -45,6 +45,7 @@ use chora_draw::{
     theme::{self, Sheet, Theme},
 };
 use chora_kit::{
+    clock,
     hud::{self, Context},
     runtime::{self, Plugin, Runtime},
     settings::{self, Store},
@@ -52,7 +53,7 @@ use chora_kit::{
 };
 use chora_scene::{
     Command, Event, OutputInfo,
-    ipc::{ClientError, RpcError},
+    ipc::{ClientError, ExportMethod, RpcError},
 };
 use clap::Parser;
 use serde_json::Value;
@@ -261,7 +262,7 @@ impl Plugin for Agent {
         }
         self.machine.hear(&event);
         if let Some(surface) = chora_kit::wm::focus::changed(&event) {
-            self.switcher.focus_changed(surface, Instant::now());
+            self.switcher.focus_changed(surface, clock::now());
             return self.apply(Vec::new());
         }
         let commands = match event {
@@ -269,7 +270,7 @@ impl Plugin for Agent {
             Event::PointerEntered { node, .. } => self.hover(&node, true), // injected: Plugin::event drops an injected pointer event first
             Event::PointerLeft { node } => self.hover(&node, false),
             Event::OutputChanged { .. } | Event::OutputRemoved { .. } => {
-                self.switcher.touch(Instant::now());
+                self.switcher.touch(clock::now());
                 if self.card.is_some() {
                     self.deferred.push("outputs");
                     Vec::new()
@@ -280,7 +281,7 @@ impl Plugin for Agent {
             Event::SurfaceChanged {
                 surface, app_id, ..
             } => {
-                let now = Instant::now();
+                let now = clock::now();
                 self.switcher
                     .surface_changed(&surface, app_id.as_deref(), now);
                 let gone = self.greeting_under_a_window(now);
@@ -326,6 +327,7 @@ impl Plugin for Agent {
                 self.chat_hide().map_err(|e| rejected(e.to_string()))?;
                 Ok(Value::Object(serde_json::Map::new()))
             }
+            clock::METHOD => self.clock_step(params),
             _ => Err(RpcError::new(
                 RpcError::METHOD_NOT_FOUND,
                 format!("{NAME} has no method {method}"),
@@ -376,7 +378,7 @@ impl Agent {
         let look = data["look"].as_str().filter(|_| shared).unwrap_or(client);
         if event == "look.theme" || event == format!("{client}.theme") {
             let theme = data["theme"].as_str().unwrap_or_default();
-            self.switcher.set_theme(look, theme, Instant::now());
+            self.switcher.set_theme(look, theme, clock::now());
         }
         let view = event == "look.view" || event == "construct.view";
         if look == "construct" && view {
@@ -385,6 +387,14 @@ impl Agent {
             self.apply(dim.into_iter().collect())?;
         }
         Ok(())
+    }
+
+    /// The clock of a recording: stops it and draws one frame of the figure.
+    fn clock_step(&mut self, params: Value) -> Result<Value, RpcError> {
+        clock::step(params)?;
+        self.assistant_step(clock::now())
+            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+        Ok(Value::Null)
     }
 
     /// Connects, subscribes to the events of the voice agent and exports
@@ -397,7 +407,7 @@ impl Agent {
         let card_theme = card::theme(&source.cache, HOST_FAMILY)?;
         source.loads = source.loads.max(1);
         let own = [chat::exported(), settings::File::<Config>::methods()];
-        let methods = [own.concat(), vec![chora_kit::runtime::state_method()]].concat();
+        let methods = [own.concat(), runtime_methods()].concat();
         let rt = Runtime::start(NAME, Vec::new(), EVENTS, methods).map_err(|e| e.to_string())?;
         let mut agent = Self {
             rt,
@@ -420,7 +430,7 @@ impl Agent {
             card_family: HOST_FAMILY.to_owned(),
             language: Language::of_session(),
             assistant: None,
-            greet: voice::greeting_pending().then(|| Instant::now() + voice::GREET_AFTER),
+            greet: voice::greeting_pending().then(|| clock::now() + voice::GREET_AFTER),
             greeting: None,
             state_home: chora_scene::paths::state_home(),
             in_pane: false,
@@ -432,10 +442,10 @@ impl Agent {
             claim_due: true,
             state_ask: None,
             chat: Session::new(),
-            chat_pulled: Instant::now(),
+            chat_pulled: clock::now(),
             announced: None,
             chat_seen: None,
-            chat_retried: Instant::now(),
+            chat_retried: clock::now(),
             row: None,
             chat_row: None,
             said: None,
@@ -448,7 +458,7 @@ impl Agent {
             .call::<_, Value>("events.emit", ready)
             .map_err(|e| e.to_string())?;
         agent.look_context = agent.switcher.applied().clone();
-        agent.evaluate(Instant::now()).map_err(|e| e.to_string())?;
+        agent.evaluate(clock::now()).map_err(|e| e.to_string())?;
         agent.watch_slot().map_err(|e| e.to_string())?;
         let row = agent.sync_row().and_then(|row| agent.apply(row));
         row.map_err(|e| e.to_string())?;
@@ -501,7 +511,7 @@ impl Agent {
     /// folder says, one on the badge turns it on, and one on a button of
     /// the question answers it.
     fn pressed(&mut self, node: &str, injected: bool) -> Result<Vec<Command>, ClientError> {
-        let gone = self.greeting_gone(Instant::now());
+        let gone = self.greeting_gone(clock::now());
         self.apply(gone)?;
         let (handled, commands) = self.press_card(node, injected)?;
         if handled {
@@ -612,7 +622,7 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     };
     let mut agent = Agent::start((source, theme, values, cache), (settings, name))?;
     loop {
-        let now = Instant::now();
+        let now = clock::now();
         let wait = [
             agent.assistant_due(),
             agent.switch_due(now),
@@ -632,13 +642,19 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         {
             runtime::dispatch(&mut agent, event)?;
         }
-        agent.ask_step(Instant::now())?;
-        agent.greet_step(Instant::now())?;
-        agent.flash_step(Instant::now())?;
-        agent.chat_step(Instant::now())?;
-        agent.assistant_step(Instant::now())?;
-        agent.switch_step(Instant::now())?;
+        agent.ask_step(clock::now())?;
+        agent.greet_step(clock::now())?;
+        agent.flash_step(clock::now())?;
+        agent.chat_step(clock::now())?;
+        agent.assistant_step(clock::now())?;
+        agent.switch_step(clock::now())?;
     }
+}
+
+/// The methods of the core every plugin exports: its state and the clock of
+/// a recording.
+fn runtime_methods() -> Vec<ExportMethod> {
+    vec![chora_kit::runtime::state_method(), clock::method()]
 }
 
 /// The values and the pictures of an asset folder of a flavor, which the
@@ -1130,6 +1146,20 @@ mod tests {
         assert!(agent.assistant.is_some(), "the paperclip shows");
         assert!(agent.balloon_chat(), "the chat of xp is the balloon");
         (agent, dirs)
+    }
+
+    /// xp-blink: the blink runs on the clock the tour steps, so a held
+    /// clock holds the eyes open in every still.
+    #[test]
+    fn the_blink_follows_the_stepped_clock_xp_blink() {
+        let (mut agent, _dirs) = xp_agent("blink-clock");
+        clock::step(serde_json::json!({"ms": 0.0})).unwrap();
+        std::thread::sleep(Duration::from_millis(50));
+        agent.replace_assistant().unwrap();
+        let due = agent.assistant_due().expect("the paperclip shows");
+        let held = clock::now();
+        assert_eq!(due, held, "the figure keeps the time of the held clock");
+        clock::set(None);
     }
 
     /// What greets at `GREET_AFTER` of a start without a voice agent: what

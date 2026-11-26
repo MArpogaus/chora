@@ -36,6 +36,11 @@
 #    under it, and no pane lies over a face.
 #    Stepped in again, the pane is home at the rect it had before the step
 #    back, and beside the cube at the same rect when it stands back again.
+#    Where the keyboard goes then (co-drop r1, rcr5-2): a drop onto the
+#    face at the front steps in, and the window has the keyboard there, as
+#    the give key of xp does (co-79); a drop onto face 1 beside it keeps
+#    the cube stood back with the keyboard, so Return steps in and no key
+#    goes into the window on a face the person does not see.
 # 2b. Stood back (K12): a drag on the floating plane of a window turns
 #    the cube and pulls nothing out; an injected drag on a plane pulls nothing where the construct takes
 #    no injected input (CHORA_TEST_ACCEPT_INJECTED_KEYS=0). A
@@ -388,7 +393,11 @@ until_ok 'grep -q "^key 45$" "$work/given-probe.log"' 20 ||
 ok "a key typed during the fly-in reaches the window"
 end_session
 
-for how in super plain; do
+keys_in() { grep -c "^key $2\$" "$1"; }
+for how in super plain side; do
+    drop_face=0
+    [ "$how" != side ] || drop_face=1
+    to=VIRTUAL-$((drop_face + 1))
     if [ "$how" = super ]; then
         mod_down='{"key": {"key": "Super_L", "state": "pressed"}},'
         mod_up=',
@@ -436,23 +445,44 @@ print(bool(nodes and nodes[0].get("visible") and nodes[0]["rects"].get("HEADLESS
     [ "$(pane_rect)" = "$aside_rect" ] || fail "the pane is not beside the cube again: $(pane_rect), the first time $aside_rect"
     ok "stepped in again the pane is home at $home_rect, and beside the cube again when stood back"
     read -r px py <<<"$(pane_middle)"
-    face=$(ctl query id:construct-cube-face-0 | python3 -I -c '
+    face=$(ctl query "id:construct-cube-face-$drop_face" | python3 -I -c '
 import json, sys
 r = json.load(sys.stdin)[0]["rects"]["HEADLESS-1"]
-print("%d %d" % (r[0] + r[2] * 0.4, r[1] + r[3] * 0.5))')
+print("%d %d" % (r[0] + r[2] * (0.4 if sys.argv[1] == "0" else 0.5), r[1] + r[3] * 0.5))' "$drop_face")
     inject "[{\"pointer_move\": {\"position\": [$px, $py]}},
         $mod_down
         {\"button\": {\"state\": \"pressed\", \"hold\": true}},
         {\"pointer_move\": {\"position\": [$((px + 20)), $py]}},
         {\"pointer_move\": {\"position\": [${face% *}, ${face#* }]}},
         {\"button\": {\"state\": \"released\"}}$mod_up]"
-    until_ok 'probe | grep -q " xp VIRTUAL-1 "' 40 ||
-        fail "the pane dragged back ($how) over a face stood back did not go to xp: $(probe), pane $(pane_of "$surface")"
+    until_ok 'probe | grep -q " xp $to "' 40 ||
+        fail "the pane dragged back ($how) over face $drop_face stood back did not go to xp on $to: $(probe), pane $(pane_of "$surface")"
     [ "$(pane_of "$surface")" = none ] || fail "the pane stays after the drag back over the face: $(pane_of "$surface")"
     [ "$(window_count)" = "$windows_before" ] || fail "the window count changed with the drag back: $windows_before, then $(window_count)"
-    until_ok 'test "$(task_on VIRTUAL-1)" = 1' 20 || fail "the window dragged back over a face has no task button on that face: $(task_on VIRTUAL-1)"
+    until_ok 'test "$(task_on "$to")" = 1' 20 || fail "the window dragged back over a face has no task button on that face: $(task_on "$to")"
     [ "$(pane_drawn)" != True ] || fail "a pane is still drawn in front of the cube after the drag back: $(ctl query "id:construct-pane-$surface" | tr -d "\n " | cut -c1-600)"
-    ok "stood back, the pane dragged ($how) over a face is a window of xp again, on the taskbar of that face, with no pane drawn: $(probe)"
+    ok "stood back, the pane dragged ($how) over face $drop_face is a window of xp again, on the taskbar of that face, with no pane drawn: $(probe)"
+    log=$work/behind-probe.log
+    mode() { call cube.list | jq -r .mode; }
+    if [ "$drop_face" = 0 ]; then
+        until_ok 'test "$(mode)" = use' 20 ||
+            fail "rcr5-2: after the drop ($how) onto the face at the front the cube did not step in: mode $(mode), keyboard $(keyboard_holder)"
+        before=$(keys_in "$log" 45)
+        inject '[{"key": {"key": "x", "state": "pressed"}}, {"key": {"key": "x", "state": "released"}}]'
+        until_ok 'test "$(keys_in "$log" 45)" -gt "$before"' 20 ||
+            fail "rcr5-2: after the drop ($how) onto the face at the front the window has no keyboard: $(keyboard_holder)"
+        ok "rcr5-2: a drop ($how) onto the face at the front steps in, and the window there takes keys"
+    else
+        settle
+        [ "$(mode)" = navigate ] || fail "rcr5-2: after the drop onto face 1 the cube did not stay stood back: mode $(mode)"
+        before=$(keys_in "$log" 28)
+        inject '[{"key": {"key": "Return", "state": "pressed"}}, {"key": {"key": "Return", "state": "released"}}]'
+        until_ok 'test "$(mode)" = use' 20 ||
+            fail "rcr5-2: after the drop onto face 1 the told Return did not step in: mode $(mode), keyboard $(keyboard_holder)"
+        [ "$(keys_in "$log" 28)" = "$before" ] ||
+            fail "rcr5-2: after the drop onto face 1 the told Return typed into the window on that face, which the person does not see: $(keyboard_holder)"
+        ok "rcr5-2: a drop onto face 1 keeps the cube stood back with the keyboard: Return steps in and types into no window"
+    fi
     end_session
 done
 
