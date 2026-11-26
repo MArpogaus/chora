@@ -1,0 +1,9 @@
+fuzzel --config /tmp/chora-hl.Mc769C/chora-tiling/theme/fuzzel.ini --dmenu --prompt Move this window to
+fuzzel-first-row Move window to the xp desktop
+fuzzel --config /tmp/chora-hl.Mc769C/chora-tiling/theme/fuzzel.ini --dmenu --prompt Move this window to
+fuzzel-first-row Move window to the xp desktop
+fuzzel --config /tmp/chora-hl.Mc769C/chora-tiling/theme/fuzzel.ini --dmenu --prompt Move this window to
+fuzzel-first-row Move window to the xp desktop
+fuzzel --config /tmp/chora-hl.Mc769C/chora-tiling/theme/fuzzel.ini --dmenu --prompt Move this window to
+fuzzel-first-row Move window to the xp desktop
+notify-send -a Desktop Window not moved choractl: no focused window

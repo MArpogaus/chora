@@ -1,0 +1,13 @@
+fuzzel --config /tmp/chora-hl.Gx85UX/chora-tiling/theme/fuzzel.ini --dmenu
+fuzzel-first-row Chat with a helper (atlas)
+fuzzel --config /tmp/chora-hl.Gx85UX/chora-tiling/theme/fuzzel.ini --dmenu --prompt Power   --lines 5 --width 20
+fuzzel-first-row Lock
+swaylock -C /tmp/chora-hl.Gx85UX/chora-tiling/theme/swaylock.conf -f
+loginctl lock-session
+fuzzel --config /tmp/chora-hl.Gx85UX/chora-tiling/theme/fuzzel.ini --dmenu --prompt Power   --lines 5 --width 20
+fuzzel-first-row Lock
+systemctl poweroff
+grim /tmp/persona.HkK3nJ/pictures/Screenshots/2026-11-26_14-37-46.png
+notify-send -a Screenshot Screenshot saved /tmp/persona.HkK3nJ/pictures/Screenshots/2026-11-26_14-37-46.png
+fuzzel --config /tmp/chora-hl.Gx85UX/chora-tiling/theme/fuzzel.ini --dmenu --prompt Move this window to
+fuzzel-first-row No other look is running
