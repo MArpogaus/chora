@@ -790,6 +790,53 @@ class IntendedCauses(unittest.TestCase):
         self.assertEqual(unproven, [])
 
 
+V8 = "733967aa"
+"""The build of the baseline replay (TOUR_BASELINE): a cause of a v9 diff is a commit after it."""
+
+
+def git(*args):
+    return subprocess.run(["git", "-C", str(HERE.parent), *args], capture_output=True, text=True)
+
+
+@unittest.skipUnless(git("cat-file", "-e", f"{V8}^{{commit}}").returncode == 0, "no history back to 733967aa (git fetch --unshallow)")
+class IntendedCommits(unittest.TestCase):
+    """tour-rows r4 (rtr3-2): a row says which commit made its change, and that commit is in the history the two
+    takes span: an ancestor of HEAD, not of the v8 build, and it changes what the binaries are built from. Both takes
+    run the head's harness, so a commit of tests/, demo/ or docs/ alone cannot change a capture."""
+
+    SHA = re.compile(r"\b(?=[0-9a-f]*\d)[0-9a-f]{7,40}\b")
+    PRODUCT = ("crates/", "plugins/", "flavors/", "services/", "dist/", "Cargo.toml", "Cargo.lock")
+
+    @classmethod
+    def setUpClass(cls):
+        import tomllib
+
+        cls.rows = tomllib.loads((HERE.parent / "demo/tour/intended.toml").read_text())["change"]
+        cls.shas = sorted({s for r in cls.rows for s in cls.SHA.findall(r["cause"])})
+
+    def test_every_row_names_a_commit_sha(self):
+        self.assertEqual([(r["act"], r["kind"]) for r in self.rows if not self.SHA.search(r["cause"])], [])
+
+    def test_every_named_sha_is_a_commit_between_v8_and_head(self):
+        wrong = []
+        for sha in self.shas:
+            if git("cat-file", "-e", f"{sha}^{{commit}}").returncode:
+                wrong.append((sha, "no such commit"))
+            elif git("merge-base", "--is-ancestor", sha, "HEAD").returncode:
+                wrong.append((sha, "not in the history of HEAD"))
+            elif not git("merge-base", "--is-ancestor", sha, V8).returncode:
+                wrong.append((sha, f"already in {V8} (v8)"))
+        self.assertEqual(wrong, [])
+
+    def test_every_named_sha_changes_product_code(self):
+        wrong = []
+        for sha in self.shas:
+            files = git("show", "--format=", "--name-only", sha).stdout.split()
+            if files and not any(f.startswith(self.PRODUCT) for f in files):
+                wrong.append((sha, " ".join(files[:3])))
+        self.assertEqual(wrong, [])
+
+
 @unittest.skipUnless(shutil.which("ffmpeg"), "no ffmpeg")
 class VideoCheck(unittest.TestCase):
     def clip(self, *parts):
