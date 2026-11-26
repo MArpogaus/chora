@@ -612,6 +612,43 @@ mod tests {
         (dir, command)
     }
 
+    /// The rows that fuzzel gets on stdin carry the icon name of the desktop
+    /// entry (`label\0icon\x1fNAME`, the rofi syntax of fuzzel's dmenu), a
+    /// row of an entry without one stays plain text, and the label that
+    /// fuzzel prints back finds the same program.
+    #[test]
+    fn the_rows_carry_the_icon_of_their_entry() {
+        let apps = apps(
+            [
+                Entry {
+                    icon: "accessories-text-editor".into(),
+                    ..entry("Pad", "pad")
+                },
+                entry("Screenshot", "shot"),
+            ],
+            "foot",
+            on_path,
+        );
+        let (dir, mut fuzzel) = stand_in("chora-launcher-icons", "echo Pad");
+        let rows = dir.join("rows");
+        let script = std::fs::read_to_string(&fuzzel[1]).unwrap();
+        std::fs::write(
+            &fuzzel[1],
+            script.replace(
+                "cat >/dev/null",
+                &format!("cat >'{}'", rows.to_string_lossy()),
+            ),
+        )
+        .unwrap();
+        fuzzel.truncate(2);
+        let got = choose_reporting(&fuzzel, &apps, &mut |_| {});
+        assert_eq!(got.as_deref(), Some("pad"));
+        assert_eq!(
+            std::fs::read_to_string(&rows).unwrap(),
+            "Pad\0icon\x1faccessories-text-editor\nScreenshot"
+        );
+    }
+
     fn reports(fuzzel: &[String]) -> (Option<String>, Vec<String>) {
         let mut said = Vec::new();
         let got = choose_reporting(fuzzel, &list(), &mut |line| said.push(line.to_owned()));
