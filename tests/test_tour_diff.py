@@ -864,6 +864,53 @@ class IntendedCommits(unittest.TestCase):
         self.assertEqual(self.no_product_code("19348b95"), ["tests/persona-selftest.sh"])
 
 
+def load_launch(repo):
+    """demo/tour/launch.py as a take on the build in REPO loads it (TOUR_REPO; the v8 tree of the replay)."""
+    from unittest import mock
+
+    sys.path.insert(0, str(HERE.parent / "demo/tour"))
+    try:
+        with mock.patch.dict(os.environ, {"TOUR_REPO": str(repo)}):
+            spec = importlib.util.spec_from_file_location("launch_of_take", HERE.parent / "demo/tour/launch.py")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+    finally:
+        sys.path.remove(str(HERE.parent / "demo/tour"))
+    return module
+
+
+class LaunchOnTheBaseline(unittest.TestCase):
+    """The harness of the head runs the v8 replay (TOUR_REPO the 733967aa tree, TOUR_BASELINE=1): what it needs of
+    its own lives next to it, and what the old build cannot answer is not waited for."""
+
+    def tool(self, d, text):
+        path = pathlib.Path(d, "fuzzel")
+        path.write_text(f"#!/bin/sh\necho '{text}'\n")
+        path.chmod(0o755)
+        return str(path)
+
+    def test_the_tool_version_script_is_the_harness_own(self):
+        """rtr4-5: `fuzzel_version` ran `{TOUR_REPO}/tests/tool-version.sh`; the v8 tree has none, so every v8
+        chapter broke with FileNotFoundError."""
+        with tempfile.TemporaryDirectory() as old, tempfile.TemporaryDirectory() as bins:
+            launch = load_launch(old)
+            self.assertEqual(launch.fuzzel_version(self.tool(bins, "fuzzel version: 1.11.1 +cairo")), (1, 11, 1))
+
+    def test_the_baseline_neither_starts_nor_waits_for_a_notify_it_cannot_ask(self):
+        """rtr4-4: the 733967aa chora-notify has no method (no `state.get`), so `ensure_notify` stopped the v8
+        mc dark and handover chapters after 15 s with no capture. On the replay a look that does not list
+        chora-notify runs without it, as v8 did (the r3 replay)."""
+        from unittest import mock
+
+        with tempfile.TemporaryDirectory() as old:
+            launch = load_launch(old)
+            calls = []
+            fake = lambda argv, **kw: calls.append(argv) or subprocess.CompletedProcess(argv, 1, "", "")
+            with mock.patch.dict(os.environ, {"TOUR_BASELINE": "1"}), mock.patch.object(launch.subprocess, "run", fake), mock.patch.object(launch, "NOTIFY_WAIT", 0.3):
+                launch.Launcher.ensure_notify(object(), {})
+            self.assertEqual(calls, [])
+
+
 @unittest.skipUnless(shutil.which("ffmpeg"), "no ffmpeg")
 class VideoCheck(unittest.TestCase):
     def clip(self, *parts):
