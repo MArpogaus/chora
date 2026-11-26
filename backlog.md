@@ -466,3 +466,6 @@ After Super+Alt+3 into mc, a Super+drag onto xp leaves the keyboard on tiling's 
 - rpt2-2 (MINOR, tiling): Looks picker on an empty tag offers a move; hide it without a focused window.
 - rhrf2r2-3 NIT (harness): SIGTERM to the gate lead pid orphans the red_first_run subshell; worktree and tmp stay until cargo ends (reports/h-rf2.md Review r2).
 - rtf1r-1 MINOR (harness): test_tour_diff.py:845 a row citing a merge sha passes; reject a cited sha with more than one parent. rtf1r-2 MINOR red-first commit order; rtf1r-3 NIT source-grep test; rtf1r-4 NIT guard the cube.list fallback with TOUR_BASELINE (reports/tour-rows.md Review fix r1).
+
+## MC-PILL-BOUND (rmmr3-1, MINOR)
+The assistant pill drop under the header is unbounded and can leave the output in bottom-anchored looks; clamp to the output. reports/mc-minor.md "## Review r3 (mc-minor-r3)"; rmmr3-2..4 NIT there.
