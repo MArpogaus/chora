@@ -312,3 +312,72 @@ Findings:
 - rtr4r-3 MINOR tests/test_tour_diff.py:835: `git show --format= --name-only` lists nothing for a clean merge, so `files and ...` accepts it: a row citing 19348b95 (chore: merge session head a93bc75b, tests/persona-selftest.sh only) passes all three tests; fix: take the files from `git diff --name-only <sha>^1 <sha>` (or reject merge commits).
 - rtr4r-4 MINOR demo/tour/intended.toml:4413-4600 (m8b m9 m9b m10, about 100 nodes per act): the rows absorb the whole page and column because the v8 replay is on Agents / The Morning (no Home in v8) while v9 is on the agenda, so from m8b on the dark mc look is compared with another page and a regression of the dark agenda there is not seen; fix: a TOUR lane lets the v8 replay reach the agenda (Left twice under TOUR_BASELINE for Home), then the rows shrink to the column.
 Verdict (computed): one open MAJOR (rtr4r-1): FIX.
+
+## fix r1
+
+Base 972f9415f (claude/tour-rows-r4 head, review r4 FIX); head 84e31324c (claude/tour-fix-r1). Step 0 green (`git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`).
+Commits: b0ac9cf83 **red** (test(tour): no whole-frame pixel box; a merge counts its 1st parent: fails on 972f9415 with `[('c5e', [0, 0, 1280, 720]), ('c5d', [0, 0, 1280, 720])] != []` and `[] != ['tests/persona-selftest.sh']` for 19348b95), 7fc8b31f5 (c5d rows out, first-parent diff), f6a8b347d red (launch on the baseline), aafd56112 (rtr4-4, rtr4-5), a63becb36 (test and fix of the chapter in one commit: the fix was staged when the test was committed and the push went out before I saw it; no force push), 8f38e5e0b (c5e loses its whole-frame box), 84e31324c (the replay without `cube.list` counts as stood back, with its test).
+Diffstat 972f9415..84e31324: demo/tour/chapters/construct.py +27 -4, demo/tour/intended.toml +1 -31, demo/tour/launch.py +10 -2, tests/test_tour_diff.py +151 -5 (4 files, +189 -42). No product code.
+
+**rtr4r-1.** The five c5d rows are gone. The new test holds for every act, so the c5e pixel row (r1) loses its box [0, 0, 1280, 720] too; its five small boxes stay.
+**rtr4r-3.** `IntendedCommits.files_of` is `git diff --name-only <sha>^1 <sha>`. 19348b95 is rejected; the nine shas the rows cite still pass.
+**rtr4-3.** Since 75d4623e the drop of c5c steps into face 0. c5d now says and expects that ("The first face at 1:1: xp with the sunset window on it, no pane, the hint Alt Esc Step back"; `cube front 0 mode use`). c3 first steps out with Alt+Escape and then turns the cube (`step_out`: Alt+Escape only when `cube.list` says `use`; otherwise it spends the same one frame, so the replay keeps its frames). After that c3 c3b c3c c3d c4 c4b turn the cube from outside, c5e steps into face 0 and c2b leaves it. The v9 stills show what each act says (media sheet below). Acts 9 and 10 hold their own checks, and "front is 2/1, expected 1/0" is gone. They are still RED, but only on **I2 of co-44** (chip gaps of 9, COSMETIC, open; its ledger row names acts c4..c18). The same red holds on every stood-back act: 4, 7..12 and 14..18, 12 in all. Before 75d4623e acts 7..12 were stood back too and carried it. They are not marked `known`: one `known=I2` would hide every I2 line of the act.
+**rtr4-4.** `ensure_notify` does nothing under TOUR_BASELINE, as the r3 replay did: the 733967aa chora-notify exports no method. **rtr4-5.** `fuzzel_version` runs `tests/tool-version.sh` from the harness's own tree (`TOOL_VERSION`, next to launch.py).
+Found during the take: the head's harness calls `cube.list` (`stepped_in`), which 733967aa does not export, so v8 construct stopped at c3 (12 captures `baseline: none`). Fixed in 84e31324: a missing method reads as stood back. v8 construct now takes c1..c2b and stops, as before, at the `front_now` of c3e (4 captures `baseline: none`).
+
+### Takes (head 84e31324 for the harness; each chapter its own TOUR_OUT)
+
+v9 (head build): xp 31 acts 0 red (1 known), tiling 28/0, mc 22/0, construct 18 acts 6 green 12 red (I2 co-44 only), handover 11 acts 2 red (acts 7, 8; rtf1-2, the same on a second run).
+v8 (733967aa build in a worktree, TOUR_BASELINE=1, the head's harness unchanged): all five chapters run. mc runs both halves (light and dark, 22 captures). handover takes h1 h1b h1c h1d and stops at the Send To row `xp-ctx-1-0` (handover.py:234, a TypeError; 733967aa has no row; h2..h7 are `baseline_none` in intended.toml, as in r1..r4). construct takes c1..c2b (14 captures).
+
+### Counts (tests/tour-diff.py, all chapters, 110 captures)
+
+| rows | same | change | open | regression | none |
+|---|---|---|---|---|---|
+| 972f9415 (base) | 1 | 73 | 0 | 27 | 9 |
+| 84e31324 (head) | 1 | 71 | 0 | 29 | 9 |
+
+The two extra regressions on the head are c5d and c5e. The whole-frame boxes used to hide them; the review asked for that (rtr4r-1). c3 is not a regression any more. Compared with r4's 12, the 972f9415 merge (t153, t154) brings the product changes of mc-boil, tiling-chip, xp-chat, the key sheet and D119 into the v9 build, and no rows came with them.
+Regressions on the head, each with its finding: c2b c3b c3c c3d c4 c4b (rtf1-7), c5d c5e (rtf1-1), h3b h4 (rtf1-2), m1 m1b m1c m4 m4b (rtf1-4), m2 m2b m3 (rtr4-1), m8 (rtr4-2), t3f t5 t6 t6b t6c t6d t7 t10c (rtf1-3), x1 (rtf1-6), x5b (rtf1-5): 6 + 2 + 2 + 5 + 3 + 1 + 8 + 1 + 1 = 29.
+Stills: media/2026-11-26/tour-fix-r1/<act>.<capture>-v8-v9.jpg (v8 above v9, blobs boxed in red), h3b.Q-v9.jpg and h4.Q-v9.jpg (no v8 capture), take-diff.json and take-diff.txt.
+`python3 -m pytest tests/test_tour_diff.py tests/test_tour.py -q`: 220 passed, 19 subtests passed.
+
+### Findings
+
+- **rtr4-3 fixed** (84e31324): the chapter follows the drop. **rtr4-4, rtr4-5 fixed** (aafd5611). **rtr4r-1, rtr4r-3 fixed** (7fc8b31f, 8f38e5e0).
+- **rtr4-1 MAJOR, still open, rows owed** (m2 m2b m3): its fix has landed. c3925fc55 (a panel takes whole lines at the page edge, in 972f9415) makes `mc-s-boil-panels-side-lines` [160, 530, 185, 28]: one whole line of 28 px. The cut check still flags it ("28 px high for 56 px of 2 lines"), and the lead panel changes as in rtf1-4. A row lane names `rect` lead/side and `cut` side-lines with c3925fc55. Stills m2.Q-v8-v9.jpg, m2b.Q+1-v8-v9.jpg, m3.Q-v8-v9.jpg.
+- **rtr4-2 MINOR, still open** (m8): unchanged, the launcher without icons. m8.Q-v8-v9.jpg.
+- **rtf1-1 MINOR** (construct c5d, c5e; tour comparability, no product defect): v9 steps into the face where 733967aa stays stood back (c5d: the drop, 75d4623e; c5e: Return, f5bdc61f co-40). The whole frame differs, every pixel, fraction 1.0, and no row may name that (rtr4r-1). Both acts show what v9 does. Fix (TOUR lane): under TOUR_BASELINE the replay steps in by the Step in chip that 733967aa has, or tour-diff gets a declared "no comparable baseline" for a capture. Stills c5d.Q-v8-v9.jpg, c5e.Q-v8-v9.jpg.
+- **rtf1-2 MAJOR** (F7, tour; handover h3b h4 = v9 acts 7, 8 red, reproduced on a second run): 41ddd4ba2 (rtf2-1, in 972f9415) intends that a window given to mc while another look holds the keyboard arrives without it. demo/tour/chapters/handover.py still expects "the focus with mc" after Super+Alt+3 (act 7). Its next key, Super+Alt+4, then reaches tiling and not mc, so act 8 fails with "s1 is owned by mc". Fix (TOUR lane): act 7 expects no mc focus, and a click into mc comes before act 8. No v8 capture (baseline_none). Stills h3b.Q-v9.jpg, h4.Q-v9.jpg.
+- **rtf1-3 MINOR** (tiling t3f t5 t6 t6b t6c t6d t7 t10c, rows owed): the blob [12, 8, 438, 32] is the left island of the tiling bar (+[475, 21, 19, 8] in t3f t6 t6c). e6afbf977 (tiling-chip-r1: centre the layout word in its chip) gives "Fair rows" its own chip, and the island's outline and widths change (seen in t6). Rows: a box of the left island with e6afbf977. Stills t*.Q*-v8-v9.jpg.
+- **rtf1-4 MINOR** (mc m1 m1b m1c m4 m4b, rows owed): c3925fc55 makes the lead panels 287 px (`-lead-lines` 280 = 10 whole lines of 28, was 273) and moves `-lead-rule` from x 42 to 94. The unnamed nodes are `rect mc-s-*-panels-lead` and `-lead-lines`. Rows with c3925fc55. Stills m1.Q-v8-v9.jpg ... m4b.Q-v8-v9.jpg.
+- **rtf1-5 MINOR** (xp x5b, row owed): `meta hud-chat` 'Atlas — Idle' -> 'Atlas — Working'. 88951ae4d (xp-chat: a send shows Working and Stop at once). x5b.Q-v8-v9.jpg.
+- **rtf1-6 MINOR** (xp x1, open: cause not traced): the blob [1182, 560, 50, 18] near the paperclip. It is r3's blob of x1/x5e/x5g/x6e, gone in r4's takes and back here in x1 alone. x1.Q-v8-v9.jpg.
+- **rtf1-7 MINOR** (construct c2b c3b c3c c3d c4 c4b, rows owed): the r1 pixel rows of these acts list blob-exact boxes of the hint bar. The bar shows the same hints (cfc805d4 Keys as a chip, f5bdc61f the F1 hint), but this take's blobs fall a few px outside those boxes: [195, 673, 187, 16] against the row box [195, 680, 187, 9] in c2b c3d c4b, and 21 and 26 keycap blobs in c3b and c3c. c3d also has [446, 355, 166, 144], the sunset window on face 0; c4b's row names it, c3d's does not. c4: the key sheet [27, 78, 472, 603] and more, from the key-sheet commits of 972f9415 (d590aae69 1200 wide in three columns, 822d5be4a, 369cf96fd, 142260b96). Rows: one bar box per act (the precedent is c2's 5025dc47 box [118, 647, 1045, 42]) and a key-sheet box with those commits. Stills c2b c3b c3c c3d c4 c4b .Q-v8-v9.jpg.
+
+### Gate
+
+`CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2 --allow-skip docs` (no --push, no step filter) on 84e31324c, run detached: 67 steps PASS (matrix 363 s, acts 2325 s, leak 485 s, e2e 284 s), docs SKIP (allowed: mkdocs is not installed). It ends "all steps passed; no --push, nothing is pushed", which tests/merge-gate.sh:622-623 prints just before `exit 0`, so **EXIT 0**; no foreign red. Last 20 lines: media/2026-11-26/tour-fix-r1/gate-last.txt.
+```
+voice-acp  PASS    13s /tmp/merge-gate.bV4vYL/voice-acp.log
+voice-events PASS     2s /tmp/merge-gate.bV4vYL/voice-events.log
+agent      PASS    41s /tmp/merge-gate.bV4vYL/agent.log
+tiling-keys-more PASS    43s /tmp/merge-gate.bV4vYL/tiling-keys-more.log
+acts       PASS  2325s /tmp/merge-gate.bV4vYL/acts.log
+tiling-system PASS    16s /tmp/merge-gate.bV4vYL/tiling-system.log
+handover   PASS    96s /tmp/merge-gate.bV4vYL/handover.log
+mc-scale   PASS    16s /tmp/merge-gate.bV4vYL/mc-scale.log
+tiling-windows PASS   197s /tmp/merge-gate.bV4vYL/tiling-windows.log
+watchdog-starved PASS    52s /tmp/merge-gate.bV4vYL/watchdog-starved.log
+xp-run     PASS    14s /tmp/merge-gate.bV4vYL/xp-run.log
+demo       PASS   253s /tmp/merge-gate.bV4vYL/demo.log
+leak       PASS   485s /tmp/merge-gate.bV4vYL/leak.log
+tiling-bar PASS   197s /tmp/merge-gate.bV4vYL/tiling-bar.log
+tiling-theme PASS    19s /tmp/merge-gate.bV4vYL/tiling-theme.log
+mc-host    PASS    22s /tmp/merge-gate.bV4vYL/mc-host.log
+tiling-disc PASS    75s /tmp/merge-gate.bV4vYL/tiling-disc.log
+e2e        PASS   284s /tmp/merge-gate.bV4vYL/e2e.log
+skipped: docs (mkdocs is not installed (docs unchanged))
+all steps passed; no --push, nothing is pushed
+```
+`pgrep -fa 'chora --headless'` empty.

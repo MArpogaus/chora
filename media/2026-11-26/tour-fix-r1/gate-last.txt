@@ -1,0 +1,20 @@
+voice-acp  PASS    13s /tmp/merge-gate.bV4vYL/voice-acp.log
+voice-events PASS     2s /tmp/merge-gate.bV4vYL/voice-events.log
+agent      PASS    41s /tmp/merge-gate.bV4vYL/agent.log
+tiling-keys-more PASS    43s /tmp/merge-gate.bV4vYL/tiling-keys-more.log
+acts       PASS  2325s /tmp/merge-gate.bV4vYL/acts.log
+tiling-system PASS    16s /tmp/merge-gate.bV4vYL/tiling-system.log
+handover   PASS    96s /tmp/merge-gate.bV4vYL/handover.log
+mc-scale   PASS    16s /tmp/merge-gate.bV4vYL/mc-scale.log
+tiling-windows PASS   197s /tmp/merge-gate.bV4vYL/tiling-windows.log
+watchdog-starved PASS    52s /tmp/merge-gate.bV4vYL/watchdog-starved.log
+xp-run     PASS    14s /tmp/merge-gate.bV4vYL/xp-run.log
+demo       PASS   253s /tmp/merge-gate.bV4vYL/demo.log
+leak       PASS   485s /tmp/merge-gate.bV4vYL/leak.log
+tiling-bar PASS   197s /tmp/merge-gate.bV4vYL/tiling-bar.log
+tiling-theme PASS    19s /tmp/merge-gate.bV4vYL/tiling-theme.log
+mc-host    PASS    22s /tmp/merge-gate.bV4vYL/mc-host.log
+tiling-disc PASS    75s /tmp/merge-gate.bV4vYL/tiling-disc.log
+e2e        PASS   284s /tmp/merge-gate.bV4vYL/e2e.log
+skipped: docs (mkdocs is not installed (docs unchanged))
+all steps passed; no --push, nothing is pushed
