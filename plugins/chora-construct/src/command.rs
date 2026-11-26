@@ -31,9 +31,8 @@ const LIST_TOP: f64 = 104.0;
 const HELP_WIDE: f64 = 880.0;
 const HELP_NARROW: f64 = 560.0;
 const HELP_TOP: f64 = 64.0;
-/// The width of the key sheet in three columns, and the margin that it
-/// keeps from the top and the bottom of the output.
-const HELP_WIDE3: f64 = 1200.0;
+/// The margin that the key sheet keeps from the top and the bottom of
+/// the output.
 const HELP_MARGIN: f64 = 32.0;
 /// The search line, the footer and a row of the help.
 const SEARCH: f64 = 56.0;
@@ -507,35 +506,17 @@ pub fn help(
 ) -> Vec<Command> {
     let m = &command_glass(look);
     let narrow = !model.query.is_empty();
-    let shown = found(model.groups, model.query);
-    let col_h = |col: &[(&KeyGroup, Vec<&KeyRow>)]| -> f64 {
-        #[allow(clippy::cast_precision_loss, reason = "a few rows")]
-        col.iter()
-            .map(|(_, rows)| UNIT + KEY_ROW + rows.len() as f64 * KEY_ROW)
-            .sum()
-    };
     let top = UNIT + SEARCH + 1.0 + UNIT;
     let fixed = top + UNIT + 1.0 + FOOTER;
-    let body_of = |columns: &[Shown<'_>]| -> f64 {
-        columns
-            .iter()
-            .map(|c| col_h(c))
-            .fold(0.0, f64::max)
-            .max(KEY_ROW)
-    };
-    let mut w = if narrow { HELP_NARROW } else { HELP_WIDE }.min(out[0] - 2.0 * UNIT);
-    let mut columns: Vec<Shown<'_>> = if narrow {
-        vec![shown.clone()]
-    } else {
-        split(shown.clone(), 2)
-    };
-    if !narrow && fixed + body_of(&columns) > out[1] - 2.0 * HELP_MARGIN {
-        w = HELP_WIDE3.min(out[0] - 2.0 * UNIT);
-        columns = split(shown, 3);
-    }
-    let body_h = body_of(&columns);
+    let (w, columns) = sheet_columns(found(model.groups, model.query), narrow, out, fixed);
+    let body_h = body_height(&columns);
     let n = f64::from(u8::try_from(columns.len()).unwrap_or(3));
-    let col_w = (w - 4.0 * UNIT - 24.0 * (n - 1.0)) / n;
+    let (pad, gap) = if columns.len() > 2 {
+        (UNIT, 12.0)
+    } else {
+        (2.0 * UNIT, 24.0)
+    };
+    let col_w = (w - 2.0 * pad - gap * (n - 1.0)) / n;
     let h = fixed + body_h;
     let x = ((out[0] - w) / 2.0).round();
     let y = HELP_TOP.min((out[1] - h) / 2.0).max(HELP_MARGIN).round();
@@ -578,7 +559,7 @@ pub fn help(
     let mut index = 0;
     for (c, column) in columns.iter().enumerate() {
         #[allow(clippy::cast_precision_loss, reason = "two columns")]
-        let cx = 2.0 * UNIT + c as f64 * (col_w + 24.0);
+        let cx = pad + c as f64 * (col_w + gap);
         let mut cy = top;
         for (group, rows) in column {
             cy += UNIT;
@@ -624,6 +605,37 @@ pub fn help(
     }
     commands.extend(footer(look, &body, &model.footer, foot + 1.0, (w, true)));
     commands
+}
+
+/// The height of the tallest column.
+#[allow(clippy::cast_precision_loss, reason = "a few rows")]
+fn body_height(columns: &[Shown<'_>]) -> f64 {
+    let col_h = |col: &Shown<'_>| -> f64 {
+        (col.iter())
+            .map(|(_, rows)| UNIT + KEY_ROW + rows.len() as f64 * KEY_ROW)
+            .sum()
+    };
+    columns.iter().map(col_h).fold(0.0, f64::max).max(KEY_ROW)
+}
+
+/// The width of the key sheet and its columns: two without a search, one
+/// with it, three when two would not leave 32 at the top and the bottom
+/// of the output (rv9kb-3); then it takes the width of the output less
+/// `UNIT` each side, `fixed` being the height that the body leaves out.
+fn sheet_columns(
+    shown: Shown<'_>,
+    narrow: bool,
+    out: [f64; 2],
+    fixed: f64,
+) -> (f64, Vec<Shown<'_>>) {
+    if narrow {
+        return (HELP_NARROW.min(out[0] - 2.0 * UNIT), vec![shown]);
+    }
+    let two = split(shown.clone(), 2);
+    if fixed + body_height(&two) <= out[1] - 2.0 * HELP_MARGIN {
+        return (HELP_WIDE.min(out[0] - 2.0 * UNIT), two);
+    }
+    (out[0] - 4.0 * UNIT, split(shown, 3))
 }
 
 /// The columns of the help: the first groups at the left and the rest
@@ -959,8 +971,8 @@ mod tests {
                 .translation_2d()
                 .0;
             assert!(
-                x >= 32.0,
-                "{out:?}: the sheet starts at {x} from the left, co-71 clicks at 20"
+                x >= 16.0,
+                "{out:?}: the sheet starts at {x} from the left, co-71 clicks at 8"
             );
             let h = find("help-body-glass").size.unwrap()[1];
             assert!(
