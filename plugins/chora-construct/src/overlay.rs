@@ -595,12 +595,14 @@ impl Construct {
                     .flat_map(key)
                     .collect();
                 let ahead = self.pane_ahead().is_some();
-                crate::hints::walking(self.panes.len(), ahead)
+                let cube = self.cube_window().is_some();
+                crate::hints::walking(self.panes.len(), ahead, cube)
                     .into_iter()
                     .map(|hint| match hint {
                         Walking::Walk => item(walk.clone(), Word::Walk, "walk"),
                         Walking::FlyIn => item(key(Own::FlyIn), Word::FlyIn, "fly-in"),
                         Walking::Windows => item(key(Own::Windows), Word::WindowsHint, "windows"),
+                        Walking::Cube => item(key(Own::Cube), Word::Cube, "cube"),
                         Walking::Terminal => Item {
                             word: crate::hints::terminal_word(language).to_owned(),
                             ..item(self.keys_of(System::Terminal), Word::Walk, "terminal")
@@ -680,6 +682,18 @@ impl Construct {
         (self.core_focus.clone().or(noted)).filter(|window| self.own_window(window))
     }
 
+    /// The window that the key of the cube, `Super C Cube` in the walk,
+    /// leads into a face: with no cube open and the camera out of the
+    /// panes, the window of a pane that has the keyboard, as after
+    /// `Alt+Escape` out of it. The cube that the key opens stands back with
+    /// that window noted, so `put_window` names it there (co-79).
+    pub(crate) fn cube_window(&self) -> Option<String> {
+        if self.cube.is_some() || self.in_pane() {
+            return None;
+        }
+        (self.core_focus.clone()).filter(|window| self.own_window(window))
+    }
+
     /// The hint `Super Alt 4 Pull out`, in every set where the key acts
     /// (`pull_acts`): stood back (co-70) and stepped into a face with the
     /// keyboard in its window (co-79); never in a pane (co-68).
@@ -735,7 +749,8 @@ impl Construct {
     fn hint_stamp(&self, set: Option<crate::hints::Set>) -> usize {
         match set {
             Some(crate::hints::Set::Walk) => {
-                self.panes.len().min(2) * 2 + usize::from(self.pane_ahead().is_some())
+                (self.panes.len().min(2) * 2 + usize::from(self.pane_ahead().is_some())) * 2
+                    + usize::from(self.cube_window().is_some())
             }
             _ => {
                 ((self.cube_stamp() * 2 + usize::from(self.pane_beside())) * 2
@@ -1134,7 +1149,7 @@ impl Construct {
             "step-back" if self.flown.is_none() && self.cube.is_some() => {
                 self.mode_act(chora_kit::modes::Act::StepBack, crate::modes::By::Person)?;
             }
-            "step-back" => self.fly_out()?,
+            "step-back" => self.step_out()?,
             "cube" => self.cube_key(),
             "click-pane" => self.fly_in_beside()?,
             "pull-out" => self.give_key("construct")?,

@@ -291,6 +291,7 @@ impl Construct {
                     }
                     Some(Grab::Key(System::Terminal)) => self.terminal_beside(),
                     Some(Grab::Key(system)) => self.grabbed_key(&system),
+                    Some(Grab::FlyOut) => self.step_out(),
                     _ => self.fly_out(),
                 };
             }
@@ -640,15 +641,28 @@ impl Construct {
 
     /// The key of the cube opens one while none is open, stood back, so
     /// that the person sees the cube of desktops and every pane beside it
-    /// (co-52, co-54); a refusal is a notice.
+    /// (co-52, co-54); a refusal is a notice. The window of a pane that
+    /// had the keyboard (`cube_window`) is noted as at a step back, though
+    /// the cube that covers it took the keyboard, so the give key of the
+    /// face manager puts it into the face and the bar names it (co-79).
     pub(crate) fn cube_key(&mut self) {
         if self.cube.is_some() {
             return;
         }
+        let had = self.cube_window();
         let opened = (self.open_cube(cube::FACES))
             .and_then(|_| self.mode_act(chora_kit::modes::Act::StepBack, crate::modes::By::Person));
         if let Err(err) = opened {
             self.tell(&err.to_string());
+            return;
+        }
+        if let (Some(host), Some(window)) = (self.cube.as_mut(), had)
+            && host.noted_focus().is_none()
+        {
+            host.note_focus(Some(window));
+        }
+        if let Err(err) = self.draw_hints() {
+            crate::log::log_warn!("chora-construct: the hints after the cube opened: {err}");
         }
     }
 

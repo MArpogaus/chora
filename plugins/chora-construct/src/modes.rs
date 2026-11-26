@@ -309,6 +309,21 @@ impl Construct {
         }
     }
 
+    /// The step of the person out of a pane, by the fly-out key or the
+    /// hint `Step back`: the camera leaves the pane, and with a cube open
+    /// the person stands back from it in every case, also when the pane
+    /// was flown into from a face, so one state follows every pane, where
+    /// the bar names the way into a face (co-79).
+    pub(crate) fn step_out(&mut self) -> Result<(), ClientError> {
+        let from_pane = self.in_pane();
+        self.fly_out()?;
+        let in_face = (self.cube.as_ref()).is_some_and(|c| c.view().mode() == Mode::Use);
+        if from_pane && in_face {
+            return self.mode_act(Act::StepBack, By::Person);
+        }
+        Ok(())
+    }
+
     /// Does an act on the view of the cube, by a chip, a key, the voice
     /// or a method. An act that the mode has no use for does nothing. A
     /// step back from inside a pane flies out of the pane first.
