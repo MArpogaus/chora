@@ -70,11 +70,18 @@ impl Tooltip {
 
     /// The words of the tooltip that waits or shows changed: a shown one
     /// goes at once and shows again with the new words.
-    pub fn retext(&mut self, _text: &str) -> Vec<Command> {
-        self.pending
-            .as_ref()
-            .map(|_| Vec::new())
-            .unwrap_or_default()
+    pub fn retext(&mut self, text: &str) -> Vec<Command> {
+        let Some(pending) = self.pending.as_mut().filter(|p| p.text != text) else {
+            return Vec::new();
+        };
+        pending.text = text.into();
+        if std::mem::take(&mut self.shown) {
+            return vec![Command::Remove {
+                id: ID.into(),
+                to: None,
+            }];
+        }
+        Vec::new()
     }
 
     /// When the tooltip shows.
