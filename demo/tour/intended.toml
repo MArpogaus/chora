@@ -3625,7 +3625,7 @@ kind = "pixel"
 
 [[change]]
 act = "c5e"
-boxes = [[0, 0, 1280, 720], [759, 245, 37, 3], [808, 270, 33, 20], [809, 337, 21, 8], [817, 350, 13, 9], [817, 360, 12, 17]]
+boxes = [[759, 245, 37, 3], [808, 270, 33, 20], [809, 337, 21, 8], [817, 350, 13, 9], [817, 360, 12, 17]]
 cause = "8ca85eab, d78fc4bb the pager (rv9j-1); 62708d35 the bin; cfc805d4 Keys rests as a chip (co-42); f5bdc61f co-40 the start card (r1 take, captures/c5e.Q.png)"
 kind = "pixel"
 
