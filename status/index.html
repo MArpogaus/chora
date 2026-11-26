@@ -57,26 +57,26 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-26T00:23:00Z",
+  updated: "2026-11-26T02:04:00Z",
   start: "2026-11-21T04:00:00Z",   // budget reset (owner)
   end: "2026-11-28T03:59:00Z",     // next reset; F5, F7 carried over
-  budget: 45,                       // % of the new week used (reset 04:00)
+  budget: 46,                       // % of the new week used (reset 04:00)
   goals: [
     ["F1", "Plan in merge-sized slices", "done", "reviewed plan"],
     ["F2", "Shared code in one kit, no copies", "done", "met by audit r2 (19:13): 0 copies; kit-report keeps it after debt-down"],
     ["F3", "Window-manager core, first slices", "done", "met by audit r2: wm parts and records D107-D116"],
     ["F4", "No file over 1,500 lines", "done", "met again by audit r6: 0 files over, debt 17 of 47; but sleep lines in tests are exactly at their limit (779), so a guard lane now freezes that count"],
     ["F5", "No flaky tests, coverage over 80 %", "risk", "coverage 91.76 % holds; five full gates in a row were green on c3c37c2e (series r9); the series reruns on the final head after train 140"],
-    ["F6", "Every change through the merge gate", "done", "92 green merges, all reviewed (one, 689bff45, without its test first: logged); train 146 green 00:20 UTC (07:20 Bangkok); train 147 (cube flake, mc launcher, paperclip blink, construct drop) runs now"],
+    ["F6", "Every change through the merge gate", "done", "93 green merges, all reviewed (one, 689bff45, without its test first: logged); train 147 green 02:02 UTC (09:02 Bangkok); train 148 (tour fuzzel and notice server, four harness fixes) runs now"],
     ["F7", "No visual regression vs tour v8", "behind", "new v9 take today on the session head, video below. Against v8: 1 act same, 10 regressions (6 in mc, 4 in the handover) and 88 differences whose cause is not yet proven; the stricter check no longer lets a broad reason cover a difference it does not name. Two reviews on the strongest model now judge each act by eye, then one fix lane per look"],
     ["F8", "Docs and decision records", "done", "met by audit r6 (01:40 UTC, 08:40 Bangkok): the kit log module is documented and decision record D120 exists; every decision named in a commit has its record"]
   ],
   now: [
-    "Train 147 runs: cube test flake fix, mc launcher with old fuzzel, paperclip blink on the tour clock, construct drop onto a face. Train 146 (xp small fixes) is merged.",
+    "Train 147 is merged: cube test flake fix, mc launcher, paperclip blink on the tour clock, construct drop onto a face. Train 148 runs: the tour uses fuzzel 1.11 and a notice server in every look, four harness fixes.",
     "Tiling: round 2 fixes the two paths that send keys to the other screen (MAJOR).",
-    "mc: no launcher failure was shown because the test session had no notice server; the tour now starts one in every look and checks fuzzel 1.11 or newer.",
+    "mc: four small page faults (foot card on a second screen, long foot card, wheel rest, a doc line) are being fixed.",
     "Running: tour v9 rows, paperclip timers, four small harness faults, a persona flake.",
-    "Spending is under pace (45 % vs 68 %): six build lanes run."
+    "Spending is under pace (46 % vs 68 %): six build lanes run."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
 };
