@@ -457,6 +457,26 @@ mod tests {
         assert_eq!(look.rt.action("Super+d"), Some(&"desktop"));
     }
 
+    /// A plugin that sets its give keys after its swallow still serves
+    /// them: the swallow holds the chords of the give keys too, when it
+    /// came first, and the give keys take them over (rksr1-3).
+    #[test]
+    fn give_keys_set_after_the_swallow_take_over_its_chords() {
+        let core = FakeCore::start();
+        let mut rt: Runtime<&'static str> = core.runtime("xp");
+        rt.start_grabs();
+        rt.grab_swallowed("Super", &"swallow").unwrap();
+        rt.end_grabs().unwrap();
+        assert_eq!(rt.action("Alt+Super+1"), Some(&"swallow"));
+        rt.give_keys(Some(|to| to));
+        rt.grab_give_keys().unwrap();
+        for (key, to) in crate::give::KEYS {
+            let normal = key.parse::<Binding>().unwrap().to_string();
+            assert_eq!(rt.action(&normal), Some(&to), "{key} gives to {to}");
+            assert!(!rt.swallowed.contains(&normal), "{key} is no swallow now");
+        }
+    }
+
     /// The event of a window manager that says whether it swallows, as
     /// the core hands it on.
     fn swallows(name: &str, on: bool) -> Event {
