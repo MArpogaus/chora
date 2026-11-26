@@ -56,3 +56,12 @@ rtb6-3 | MINOR (F7) | review tour-base r6 | open | handover alive check scans al
 rtb6-4 | MINOR (F7) | review tour-base r6 | open; TOUR-BASE r7 | m1 row omits rv9j-2
 rtb6-5 | MINOR (F7) | review tour-base r6 | open; TOUR-BASE r7 | xp-desktop rows cite no capture; no r6 tour-diff output committed
 rssm-1 | MINOR | PM review stray-super minor r1 (reports/stray-super.md) | open | inside a set of grabs every refusal is logged as "grabbed already" without its error text; a set left open by an early return keeps its refusals unlogged
+rpm2-6 | MINOR (handover) | rc1-pass r2 mc (reports/rc1-pass.md "## r2 mc") | open; backlog HANDOVER-DRAG-FOCUS (shared focus, not one look) | after a give key into mc, Super+drag onto xp leaves the keyboard on tiling's empty desktop | h-captures in media/2026-11-26/rc1-pass-mc-r2/
+sh-43 | FLAKE (rc 3) | tiling-focus-r4 gate (reports/tiling-focus.md "## r4") | open; FLAKE-SERIES r10 watches | FLAKE-NOTICE-SOCKET: gate-tiling-notice.sh:31 "choractl: socket: No such file or directory" at session start; green on rerun | tiling-focus-r4 gate log
+sh-44 | FLAKE (rc 3) | train 154 xp-run | open; FLAKE-SERIES r10 watches | xp-run "FAIL: Super+Space did not run the launcher" after 13 s; green on rerun (t154b) | /tmp/claude-0/train154.log
+sh-45 | FLAKE (rc 3) | tour-rows-r4 gate (reports/tour-rows.md "## r4") | open; FLAKE-SERIES r10 watches | xp-notepad "xp-46: the client typed ':end' and not start::end"; green alone | tour-rows-r4 gate log
+rtr4-3 | MAJOR (F7, tour) | tour-rows r4 take | open; tour take r3 (chapter fix first) | the construct chapter keeps its stood-back acts after the drop that now steps in (c2b c3 c3b c3c c3d c4 c4b c5e); acts 9 and 10 red | media/2026-11-26/tour-rows-r4/
+rtr4-4 | MAJOR (F7, tour harness) | tour-rows r4 take | open; tour take r3 | launch.py:274 ensure_notify breaks the v8 replay (mc dark, handover) | media/2026-11-26/tour-rows-r4/
+rtr4-5 | MINOR (tour harness) | tour-rows r4 take | open; after rtr4-4 | launch.py:46 reads tool-version.sh from TOUR_REPO | reports/tour-rows.md "## r4"
+rpt2-1 | MAJOR (rc 1, all looks) | rc1 pass tiling r2 | open; KIT-SWALLOW r1 | chora-kit swallow.rs WITH lacks Alt and Ctrl+Shift: Super+Alt+key and Super+Ctrl+Shift+key reach the client (3/3) | media/2026-11-26/rc1-pass-tiling-r2/
+rpt2-2 | MINOR (tiling) | rc1 pass tiling r2 | backlog | Looks picker on an empty tag offers a move, then "choractl: no focused window" | reports/rc1-pass.md "## r2 tiling"

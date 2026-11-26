@@ -1,0 +1,7 @@
+# gate-looks-move.sh with the red gate case (21cb4101), binaries of base 3be27e32
+ok: the give key: s3 went to xp on HEADLESS-2, the keyboard stays with s2 on tiling (tiling {"holder":"tiling","surface":"s2"}, xp {"holder":null})
+ok: the first move: s2 went to xp on HEADLESS-2, the keyboard stays with s1 on tiling (tiling {"holder":"tiling","surface":"s1"}, xp {"holder":null})
+ok: the second move: the last window went to xp, tiling holds the keyboard with its desktop (tiling {"holder":"tiling"}, xp {"holder":null})
+holders with the picker open: tiling {"holder":null}, xp {"holder":null}
+FAIL: the picker closed on the empty desktop: tiling does not hold the keyboard: tiling {"holder":null}, xp {"holder":null}
+EXIT 1

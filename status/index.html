@@ -57,7 +57,7 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-26T13:25:00Z",
+  updated: "2026-11-26T14:03:00Z",
   start: "2026-11-21T04:00:00Z",   // budget reset (owner)
   end: "2026-11-28T03:59:00Z",     // next reset; F5, F7 carried over
   budget: 51,                       // % of the new week used (reset 04:00)
@@ -72,10 +72,11 @@ const S = {
     ["F8", "Docs and decision records", "done", "met by audit r6 (01:40 UTC, 08:40 Bangkok): the kit log module is documented and decision record D120 exists; every decision named in a commit has its record"]
   ],
   now: [
-    "Trains 153 and 154 are merged (13:20 UTC, 20:20 Bangkok): tour harness fix, construct cut texts at 1024x768, mc boil page side panel. One launcher test failed once and passed on rerun: logged as a flake.",
-    "Train 155 (launcher icons) runs now.",
-    "Construct: the simulated users found one more way into a window with no way back into a face (from the start card's Terminal row); a fix lane started 13:17 UTC (20:17 Bangkok) to make one rule for every path.",
-    "Running: tour rows r4, xp minor r5, tiling focus r4 (last round), mc independent pass r2, flake series r10, construct reach r6.",
+    "Trains 153 and 154 are merged (13:20 UTC, 20:20 Bangkok). Train 155 (launcher icons) is green in every step so far and is finishing.",
+    "mc: the second independent pass found no serious issue, so mc now meets the release bar (xp too). Six small issues: five are being fixed now, one waits until after the release.",
+    "Tiling: the fix for the lost keyboard after the Looks picker passed its review; a fresh independent pass of the whole tiling look started 14:01 UTC (21:01 Bangkok).",
+    "Construct: a fix lane is making one rule for every way out of a window (the start card's Terminal row path).",
+    "Running: tour rows r4, construct reach r6, tiling pass r2, mc small fixes, helper review fixes, flake series r10.",
     "Spending is under pace (51 % vs 76 %): six build lanes."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]

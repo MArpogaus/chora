@@ -1,0 +1,12 @@
+chapter tiling: 28 acts, 28 green, 0 inv, 0 known, 0 red, 0 todo, 0 unchecked
+tour: record: 0 red, 0 broken
+EXIT 0
+--- handover
+RED act 7 Super+Alt+3 gives the window to mc: ["expected the focus with mc, holders ['tiling']"]
+RED act 8 Super+Alt+4 gives the window to the construct: ['s1 is owned by mc, expected construct']
+AUDIT [('s1', 'xp')]
+chapter handover: 11 acts, 9 green, 0 inv, 0 known, 2 red, 0 todo, 0 unchecked
+  RED act 7: Super+Alt+3 gives the window to mc: expected the focus with mc, holders ['tiling']
+  RED act 8: Super+Alt+4 gives the window to the construct: s1 is owned by mc, expected construct
+tour: record: 2 red, 0 broken
+EXIT 1

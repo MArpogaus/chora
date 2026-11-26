@@ -153,3 +153,162 @@ Findings:
 - rtr3-2 (MAJOR, F7, harness): 44 regressions are session-head product changes with no intended.toml row (x: hud-line, xp-desktop, notify-card, Foot names; c2 hints; m: right column). Each needs a judged row or a fix: TOUR-ROWS r4 (judge by eye, one row per intended change, regressions filed).
 - rtr3-3 (NIT): content_started counts every foot with app-id code/notes/page on the machine; a foot left over from another chapter would satisfy it early. Accept; note.
 Verdict (computed on this diff): no open MAJOR in the lane's change: MERGE-OK f36a229d, joins train 151. rtr3-1, rtr3-2 are new lanes.
+
+## r4
+
+Base 613844fc6 (session head, t151), Step 0 merge of the harness fix f396ebe63 (claude/tour-harness-r2) as 035df1fc1; head 67a2dc4d1 (claude/tour-rows-r4). Step 0 green (`git fetch --unshallow`, merge, `cargo check --workspace`, `cargo build --workspace`).
+Commits: 2680e71be red (test(tour): intended rows name product commits after v8), 30f0ac17e (h2 rows: 4278d4cd, not 22fead94), 67a2dc4d1 (75 rows). Diffstat 035df1fc1..67a2dc4d1: demo/tour/intended.toml +458 -4, tests/test_tour_diff.py +47 (2 files, +501 -4). No product code, no launch.py, no chapter.
+
+**Red first.** `IntendedCommits` in tests/test_tour_diff.py: every row of intended.toml names a commit sha, every named sha is a commit, in the history of HEAD and not of 733967aa (v8), and it changes product code (crates/, plugins/, flavors/, services/, dist/, Cargo.*). The literal rule ("names a sha that exists") holds on the base (720 rows, 44 shas, all in the history); what fails on the base is that a cited commit can make a v9 diff: the three h2 rows cite 22fead94, which touches only tests/gate-handover.sh (`AssertionError: [('22fead94', 'tests/gate-handover.sh')] != []`). Both takes run the head's harness, so a commit of tests/ cannot change a capture. Fix 30f0ac17e: the Send To submenu row `xp-ctx-1-0` comes from 4278d4cd (feat(xp): Send To in the window menu).
+
+**Takes.** v9: this branch, each chapter its own TOUR_OUT. v8: the 733967aa binaries (worktree), TOUR_BASELINE=1, each chapter its own TOUR_OUT, run by the head's harness from a scratch worktree with two take-side changes the replay needs (rtr4-4, rtr4-5; not committed, launch.py is outside this lane): tests/tool-version.sh copied into the v8 tree, and `ensure_notify` skipped under TOUR_BASELINE (as the r3 harness ran the replay: no chora-notify for a look that does not list it). Without them every v8 chapter BROKE (rtr4-5) and then mc dark and handover BROKE with 0 captures (rtr4-4). v8 handover stops after h1d as in r1 to r3 (h2.. are `baseline_none`).
+
+Take 1 regressions (old rows): 57, not 44. All 44 of r3 are among them; the 13 more: c2b c3 c3b c3c c3d c4 c4b c5c c5d c5e (construct: 75d4623e, after r3) and m8b m9 m9b (mc dark: since 80dbd0b48 the launcher opens, so its Escape no longer turns v9 back to Agents and v9 stays on the agenda while the v8 replay drifts to Agents and The Morning).
+
+### Judged, act by act (take 1; stills in media/2026-11-26/tour-rows-r4/)
+
+Every act was looked at in both stills (v8 over v9) and its unnamed nodes traced with `git log -S` / `git log -- <path>` in 733967aa..HEAD. Rows name only the unnamed nodes of their act and kind (a pixel row the box of the act's unnamed blobs); each cause starts with the commit and cites the still.
+
+| act | in r3's 44 | unnamed in the take | judged | commit (rows) or finding | still |
+|---|---|---|---|---|---|
+| c2 | yes | added, pixel | row x2 | 5025dc47 | c2.Q-v8-v9.jpg |
+| c2b | no | visible, rect, missing, added, pixel | finding | rtr4-3 | c2b.Q-v8.jpg, c2b.Q-v9.jpg |
+| c3 | no | visible, rect, missing, added | finding | rtr4-3 | c3.H50-v8.jpg, c3.H50-v9.jpg |
+| c3b | no | visible, rect, missing, added, pixel | finding | rtr4-3 | c3b.Q-v8.jpg, c3b.Q-v9.jpg |
+| c3c | no | visible, rect, missing, added, pixel | finding | rtr4-3 | c3c.Q-v8.jpg, c3c.Q-v9.jpg |
+| c3d | no | visible, rect, missing, added, pixel | finding | rtr4-3 | c3d.Q-v8.jpg, c3d.Q-v9.jpg |
+| c4 | no | visible, rect, missing, pixel | finding | rtr4-3 | c4.Q-v8.jpg, c4.Q-v9.jpg |
+| c4b | no | visible, rect, missing, added, pixel | finding | rtr4-3 | c4b.Q-v8.jpg, c4b.Q-v9.jpg |
+| c5c | no | visible, rect, missing, added | row x4 | 75d4623e | c5c.H50-v8-v9.jpg |
+| c5d | no | visible, rect, missing, added, pixel | row x5 | 75d4623e | c5d.Q-v8-v9.jpg |
+| c5e | no | visible, rect | finding | rtr4-3 | c5e.Q-v8.jpg, c5e.Q-v9.jpg |
+| m1 | yes | rect | row x1 | 859cf3fe | m1.Q-v8-v9.jpg |
+| m1b | yes | rect | row x1 | 859cf3fe | m1b.Q-v8-v9.jpg |
+| m1c | yes | rect | row x1 | 859cf3fe | m1c.Q-v8-v9.jpg |
+| m2 | yes | rect, cut | finding | rtr4-1 | m2.Q-v8.jpg, m2.Q-v9.jpg |
+| m2b | yes | rect, cut | finding | rtr4-1 | m2b.Q+1-v8.jpg, m2b.Q+1-v9.jpg |
+| m3 | yes | rect, cut | finding | rtr4-1 | m3.Q-v8.jpg, m3.Q-v9.jpg |
+| m4 | yes | rect | row x1 | 859cf3fe | m4.Q-v8-v9.jpg |
+| m4b | yes | rect | row x1 | 859cf3fe | m4b.Q-v8-v9.jpg |
+| m6 | yes | missing, rect, added | row x3 | 4363de11 | m6.Q-v8-v9.jpg |
+| m6b | yes | missing, added | row x2 | 4363de11 | m6b.Q-v8-v9.jpg |
+| m8 | yes | pixel | finding | rtr4-2 | m8.Q-v8.jpg, m8.Q-v9.jpg |
+| m8b | no | rect, visible, pixel | row x6 | 675ebd55, fa7faabd | m8b.Q-v8-v9.jpg |
+| m9 | no | missing, visible, rect, added, pixel | row x5 | 675ebd55, fa7faabd | m9.Q-v8-v9.jpg |
+| m9b | no | missing, rect, visible, added | row x5 | 675ebd55, fa7faabd | m9b.Q-v8-v9.jpg |
+| m10 | yes | missing, rect, visible, added, pixel | row x7 | 675ebd55, fa7faabd | m10.Q+0.5-v8-v9.jpg |
+| x1 | yes | added | row x1 | e4157dbd | x1.Q-v8-v9.jpg |
+| x2 | yes | added | row x1 | e4157dbd | x2.Q-v8-v9.jpg |
+| x2b | yes | added | row x1 | e4157dbd | x2b.Q-v8-v9.jpg |
+| x2c | yes | added | row x1 | e4157dbd | x2c.Q-v8-v9.jpg |
+| x3 | yes | added | row x1 | e4157dbd | x3.Q-v8-v9.jpg |
+| x4 | yes | added | row x1 | e4157dbd | x4.H50-v8-v9.jpg |
+| x5 | yes | added | row x1 | e4157dbd | x5.Q-v8-v9.jpg |
+| x5b | yes | added | row x1 | e4157dbd | x5b.Q-v8-v9.jpg |
+| x5c | yes | added | row x1 | e4157dbd | x5c.Q-v8-v9.jpg |
+| x5d | yes | added | row x1 | e4157dbd | x5d.Q+1-v8-v9.jpg |
+| x5e | yes | added | row x1 | e4157dbd | x5e.Q-v8-v9.jpg |
+| x5f | yes | added | row x1 | e4157dbd | x5f.Q-v8-v9.jpg |
+| x5g | yes | added | row x1 | e4157dbd | x5g.Q-v8-v9.jpg |
+| x6 | yes | added | row x1 | e4157dbd | x6.Q-v8-v9.jpg |
+| x6b | yes | added | row x1 | e4157dbd | x6b.Q-v8-v9.jpg |
+| x6c | yes | added | row x1 | e4157dbd | x6c.Q-v8-v9.jpg |
+| x6d | yes | added | row x1 | e4157dbd | x6d.Q+1-v8-v9.jpg |
+| x6e | yes | added | row x1 | e4157dbd | x6e.Q-v8-v9.jpg |
+| x7 | yes | added | row x1 | e4157dbd | x7.Q-v8-v9.jpg |
+| x7b | yes | added | row x1 | e4157dbd | x7b.Q-v8-v9.jpg |
+| x8 | yes | added | row x1 | e4157dbd | x8.Q+0.5-v8-v9.jpg |
+| x9 | yes | added | row x1 | e4157dbd | x9.Q-v8-v9.jpg |
+| x9b | yes | added | row x1 | e4157dbd | x9b.Q-v8-v9.jpg |
+| x10 | yes | added | row x1 | e4157dbd | x10.Q-v8-v9.jpg |
+| x10b | yes | added | row x1 | e4157dbd | x10b.Q-v8-v9.jpg |
+| x10c | yes | added | row x1 | e4157dbd | x10c.Q-v8-v9.jpg |
+| x11 | yes | added | row x1 | e4157dbd | x11.Q-v8-v9.jpg |
+| x11b | yes | added | row x1 | e4157dbd | x11b.Q-v8-v9.jpg |
+| x12 | yes | added | row x1 | e4157dbd | x12.H50-v8-v9.jpg |
+| x12b | yes | added | row x1 | e4157dbd | x12b.Q-v8-v9.jpg |
+| x12c | yes | added | row x1 | e4157dbd | x12c.H50-v8-v9.jpg |
+
+Rows: 75 over 45 acts. Findings: 12 acts in 3 findings. 45 + 12 = 57 (the 44 of r3: 40 rows, 4 findings: m2 m2b m3 m8).
+
+Why each row is intended (the commit says so and the v9 still shows it):
+- x1..x9b (31 acts), `added hud-line-tail` and in x5..x6d `hud-chat-tail`: e4157dbd (rv9kb-2) makes the leaning tail of the balloon its own node; the v9 chat balloon's tail runs from the box to the paperclip head (judge r2b: in v8+62708d35 the tip ended 39 px left of the clip). No pixel blob left unnamed in this take (the blob [1182, 560, 50, 18] of r3's x1/x5e/x5g/x6e is gone; the blink is on the stepped clock since c2625c0f7).
+- m1 m1b (list), m1c m4b (boil side), m4 (sauce side and its lines) `rect`: 859cf3fe (rv9ka-1) ends the page at the footer with no card and puts the more mark where the lines end: the panel ends 21 px higher, v9 shows whole lines and the down mark where v8 cut "parsley." in half (m4).
+- m6 m6b `missing`/`added`/`rect` of `mc-r1-right-keys-N-*`: 4363de11 (rpe-1) adds the row "Up Down  Scroll the page" after Home; the rows after it shift by one, so the key-hit and key-mark of rows 3 and 13 move to 19 and the last row is 20.
+- c2 `added construct-hint-put-in*`, `construct-hints-sep-4` and the bar box [118, 647, 1045, 42]: 5025dc47 (co-79): stood back from a pane the bar names "Super Alt 2 Into face"; the bar grows by that hint.
+- c5c c5d (all kinds, c5d the whole frame): 75d4623e (co-drop r1, rcr5-1/2, MERGE-OK): a pane dropped onto the face at the front is placed there and the person steps in; the stood-back chrome (doors, face label, turn chips, cube edges) goes and the step-back hint comes. v9 c5d shows the xp face 1:1 with the sunset window on it.
+- m8b m9 m9b m10: the two builds show two pages: fa7faabd (Home goes to the first page, mc-38) plus 80dbd0b4 (the launcher opens, so its Escape closes it and turns no page; rtr1-3): v9 stays on the agenda; the v8 replay (no Home; its chat does not open, so its Escape steps back) is on Agents and then The Morning. The column: 675ebd55 (notices out of the column, the region slot flips by take; bb3de644 the cross-fade) and the chat open in the column with its keys folded (m9); m10 the volume card of chora-notify (box [1144, 599, 120, 65]). Every v9 still matches its act; no mc act of either v9 take is red.
+
+### Findings (not intended: no row)
+
+- **rtr4-1 MAJOR** (mc; m2, m2b, m3): rtr3-1 is still on this base. With the timer card at the foot, `mc-s-boil-panels-side-lines` is [160, 530, 185, 29]: 29 px for 2 lines, one line and a 1 px strip of the next. By eye the ink equals a clean cut (the strip is the empty top of the next line, the more mark shows); the box does not. f10be960 (MC-BOIL r1, MERGE-OK, train 154) makes it 28 px; it is not in 613844fc. Once it lands, `rect mc-s-boil-panels-side` and `-side-lines` rows (859cf3fe, ae7496f7: the card takes its band) close the three acts. Stills m2.Q-v8.jpg / m2.Q-v9.jpg, m2b.Q+1-v8.jpg / -v9.jpg, m3.Q-v8.jpg / -v9.jpg.
+- **rtr4-2 MINOR** (mc; m8): Programs opens the launcher again (80dbd0b4, rtr1-3 fixed) in mc's dark theme (cd277ee4, rpx1-10: intended), but its rows lost the icons that v8's fuzzel showed: rv9ka-2 (MINOR, KIT-ICONS r1). One blob [463, 198, 354, 324] holds both, so no row: the m8 row box [500, 225, 270, 290] (judge r2a) stays and m8 stays a regression until the icons land; then the box is the launcher, [463, 198, 354, 324], with cd277ee4 and the icons commit. Stills m8.Q-v8.jpg, m8.Q-v9.jpg.
+- **rtr4-3 MAJOR** (construct, tour chapter demo/tour/chapters/construct.py:90..134; c3, c3b, c3c, c3d, c4, c4b, c5e, c2b): since 75d4623e (co-drop r1) a drop onto the front face steps in, but the chapter still drops the pane back (c5c) and goes on with its stood-back acts: Ctrl+Alt+Right, the TURN LEFT chip, Ctrl+Alt+Left, Super+F1, Return and Alt+Escape run inside the face. The v9 stills show the xp desktop where the acts describe the turning cube (c3b: face 3 stepped in, v8: the cube from outside); acts 9 and 10 are red in both v9 takes ("the cube: front is 2, expected 1", "front is 1, expected 0"); c5e and c2b enter and leave face 1, not 0. The product does what co-drop r1 decided; the chapter needs an Alt+Escape after the drop (and c5d's text "the cube with the window on the face" changed to the stepped-in face). Chapters are outside this lane: a TOUR lane. Stills <act>.<capture>-v8.jpg / -v9.jpg of the eight acts. (Acts 4 and 14..18 of the v9 construct chapter are red on I2, "construct-mode-step-in and construct-mode-turn-left are 9 apart", as in r1..r3 (co-44); not new.)
+
+Harness findings of the takes (they break the v8 baseline, not v9; not among the 57):
+- **rtr4-4 MAJOR** (harness, demo/tour/launch.py:274, 06c3f7cc6 / 07eb539fa): `ensure_notify` waits for `notify state.get`, which the 733967aa chora-notify does not answer: the v8 replay of mc (its dark half) and of handover BROKE with "harness: chora-notify does not answer notify state.get after 15 s", no capture. A take needs the call skipped under TOUR_BASELINE (what the scratch harness did); with the v8 notify started but not waited for, v8 mc dark drifts the same way, so the skip is the r3 behaviour, not the cause of m8b..m10.
+- **rtr4-5 MINOR** (harness, demo/tour/launch.py:46): `fuzzel_version` runs `{REPO}/tests/tool-version.sh`, REPO being TOUR_REPO (the v8 tree), which has no such file: every v8 chapter BROKE with FileNotFoundError. The script is the harness's own: resolve it next to launch.py (`parents[2]`), not under TOUR_REPO.
+
+### Counts
+
+| take | same | change | open | regression | none | regressions |
+|---|---|---|---|---|---|---|
+| r3 (f36a229d, for reference) | 1 | 54 | 0 | 44 | 11 | c2, m1 m1b m1c m2 m2b m3 m4 m4b m6 m6b m8 m10, x1..x9b (31) |
+| take 1, rows of the base | 1 | 41 | 0 | 57 | 11 | r3's 44 and c2b c3 c3b c3c c3d c4 c4b c5c c5d c5e m8b m9 m9b |
+| take 1, rows of the head | 1 | 86 | 0 | 12 | 11 | c2b c3 c3b c3c c3d c4 c4b c5e m2 m2b m3 m8 |
+| take 2 (re-take), rows of the head | 1 | 86 | 0 | 12 | 11 | c2b c3 c3b c3c c3d c4 c4b c5e m2 m2b m3 m8 |
+
+The re-take leaves exactly the filed findings: rtr4-1 (3), rtr4-2 (1), rtr4-3 (8). v9 chapters in both takes: xp, tiling, mc, handover 0 red; construct 8 red (acts 4, 9, 10, 14..18; rtr4-3 and I2). v8 handover stops after h1d in both (h2.. `baseline_none`). `python3 -m pytest tests/test_tour_diff.py tests/test_tour.py -q`: 213 passed, 19 subtests passed.
+
+Diff jsons: media/2026-11-26/tour-rows-r4/take1-diff-old-rows.json (57 regressions, rows of the base), take1-diff.json and take2-diff.json (12 each, rows of the head).
+
+### Gate
+
+`CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2 --allow-skip docs` (no --push, no step filter) on 67a2dc4d1, detached: every step PASS up to matrix (docs SKIP, allowed), then **xp-notepad FAIL**: `FAIL: xp-46: the client typed ':end' and not start::end` (product typing of xp-46; this diff has no product code). Rerun alone (`--only xp-notepad`): PASS 56 s. Then every step after it (`--only xp-helper,hud,...,e2e`, 45 steps): all PASS, EXIT 0. A foreign flake, named; every later step run. Last lines (media/2026-11-26/tour-rows-r4/gate-last.txt):
+```
+matrix     PASS   367s /tmp/merge-gate.S6SvfV/matrix.log
+xp-notepad FAIL    13s /tmp/merge-gate.S6SvfV/xp-notepad.log
+exit code 1; last 30 lines of /tmp/merge-gate.S6SvfV/xp-notepad.log:
+ok: the start menu has Notepad as the first program below the pinned rows
+ok: a click on Notepad starts the editor of the settings
+FAIL: xp-46: the client typed ':end' and not start::end
+--- xp-notepad alone
+xp-notepad PASS    56s /tmp/merge-gate.gdfkUK/xp-notepad.log
+partial run: nothing is pushed
+--- the steps after it
+launcher-mc PASS    40s /tmp/merge-gate.4h4uiA/launcher-mc.log
+voice-acp  PASS    13s /tmp/merge-gate.4h4uiA/voice-acp.log
+voice-events PASS     3s /tmp/merge-gate.4h4uiA/voice-events.log
+agent      PASS    43s /tmp/merge-gate.4h4uiA/agent.log
+tiling-keys-more PASS    45s /tmp/merge-gate.4h4uiA/tiling-keys-more.log
+tiling-windows PASS   231s /tmp/merge-gate.4h4uiA/tiling-windows.log
+tiling-system PASS    18s /tmp/merge-gate.4h4uiA/tiling-system.log
+handover   PASS    30s /tmp/merge-gate.4h4uiA/handover.log
+mc-scale   PASS    18s /tmp/merge-gate.4h4uiA/mc-scale.log
+acts       PASS  2573s /tmp/merge-gate.4h4uiA/acts.log
+watchdog-starved PASS    58s /tmp/merge-gate.4h4uiA/watchdog-starved.log
+xp-run     PASS    15s /tmp/merge-gate.4h4uiA/xp-run.log
+demo       PASS   292s /tmp/merge-gate.4h4uiA/demo.log
+leak       PASS   494s /tmp/merge-gate.4h4uiA/leak.log
+tiling-theme PASS    19s /tmp/merge-gate.4h4uiA/tiling-theme.log
+tiling-bar PASS   208s /tmp/merge-gate.4h4uiA/tiling-bar.log
+mc-host    PASS    22s /tmp/merge-gate.4h4uiA/mc-host.log
+tiling-disc PASS    73s /tmp/merge-gate.4h4uiA/tiling-disc.log
+e2e        PASS   294s /tmp/merge-gate.4h4uiA/e2e.log
+partial run: nothing is pushed
+EXIT 0
+```
+`pgrep -fa 'chora --headless'` empty.
+
+## Review r4 (2026-11-26, 035df1fc..67a2dc4d, head 972f9415)
+Checks (brief review-tour-rows-r4; step 0 green: `git fetch --unshallow`, `cargo check --workspace`):
+- 1 Red first: `python3 -m pytest tests/test_tour_diff.py -q` at 2680e71b: 1 failed (IntendedCommits product check, 22fead94 tests only), 106 passed; at 67a2dc4d: 107 passed. Bad rows tried locally (not committed): a docs-only commit (3b8cf70f), a merge with conflict files (035df1fc), a v8 sha (7375daa1), a missing sha: each rejected. A clean merge (19348b95, first-parent diff tests/persona-selftest.sh only) passes: rtr4r-3. Holds otherwise.
+- 2 Rows: 75 new rows, no `*` row, no nodeless row (pixel rows carry boxes), every node a row lists is in its act's diff of the old-rows take. All 9 shas exist, lie in 733967aa..67a2dc4d and change product code (5025dc47, 75d4623e, 859cf3fe, 4363de11, 675ebd55, fa7faabd, 80dbd0b4, bb3de644, e4157dbd). No row for m2 m2b m3 (rtr4-1) or m8 (rtr4-2). Sampled against take1-diff-old-rows.json and the stills (no capture jsons are on the branch, only the three diff jsons): c2 x2, c5c x4, c5d x5, m1 m1b m1c m4 m4b, m6 x3, m8b x6, m9 x5, m9b x5, m10 x7, x1 x5 x12c. x, m1..m4b, m6, c2 and c5c are the commits' effects (x: only hud-line-tail/hud-chat-tail; m1..m4b: panel 136 -> 115 px; m6: rows 3/13 -> 19/20; c2: the bar box holds only the bar blobs; c5c: the drop steps in, 75d4623e). c5d is not: rtr4r-1. The m9..m10 chat rows give a wrong reason: rtr4r-2. bb3de644 for the region flip is the precedent of the old rows (bisect r2), accepted.
+- 3 New 13: m8b m9 m9b intended as cited (fa7faabd Home goes to the first page; 80dbd0b4 the launcher opens, so Escape closes it and turns no page; v9 m9b still: agenda, chat closed, as the acts say), but the v8 replay sits on another page from m8b on: rtr4r-4. Construct: c2b c3 c3b c3c c3d c4 c4b c5e correctly left as rtr4-3; c5d should be with them (rtr4r-1).
+- 4 Counts: reproduced with tests/tour-diff.py `verdict()` on the scene and blobs of take1-diff-old-rows.json and take2-diff.json under the head's intended.toml: 1 same, 86 change, 0 open, 12 regression, 11 none (the base's rows: 41 change, 57 regression); regressions c2b c3 c3b c3c c3d c4 c4b c5e m2 m2b m3 m8. Raw take files are not on the branch, so not re-diffed from captures. Holds.
+Findings:
+- rtr4r-1 MAJOR demo/tour/intended.toml:4377-4405: the five c5d rows (one pixel box [0, 0, 1280, 720], the whole frame) take c5d out of rtr4-3: the v9 still shows the stepped-in xp face while the act says "The cube with the window on the face, no pane", rtr4-3 itself leaves c5d to the chapter fix, and a whole-frame pixel row hides every c5d pixel regression for good; fix: drop the five c5d rows and list c5d under rtr4-3 (13 regressions), rows for c5d only after the TOUR lane settles the act, with boxes of what that act changes.
+- rtr4r-2 MINOR demo/tour/intended.toml:4414,4516,4546,4576 (and 4420,4438,4564,4582,4600): the cause "675ebd55 the chat opens in the column (mc-v2 item 6) ... the v8 replay opens no chat" is not that commit's effect: 733967aa already opens the chat in the column (plugins/chora-mc/src/main.rs:1174, chat-slot); v8 opens none because demo/tour/chapters/mc.py:287 clicks door("mc-r1-right-chat-door") while v8 shows the r0 buffer (its chat at y 252, not 168), and at m8b no chat is open at all (the door moves because the notices left the column); fix: name the region flip and notices-out of 675ebd55 and the chapter's r1 lookup in those causes.
+- rtr4r-3 MINOR tests/test_tour_diff.py:835: `git show --format= --name-only` lists nothing for a clean merge, so `files and ...` accepts it: a row citing 19348b95 (chore: merge session head a93bc75b, tests/persona-selftest.sh only) passes all three tests; fix: take the files from `git diff --name-only <sha>^1 <sha>` (or reject merge commits).
+- rtr4r-4 MINOR demo/tour/intended.toml:4413-4600 (m8b m9 m9b m10, about 100 nodes per act): the rows absorb the whole page and column because the v8 replay is on Agents / The Morning (no Home in v8) while v9 is on the agenda, so from m8b on the dark mc look is compared with another page and a regression of the dark agenda there is not seen; fix: a TOUR lane lets the v8 replay reach the agenda (Left twice under TOUR_BASELINE for Home), then the rows shrink to the column.
+Verdict (computed): one open MAJOR (rtr4r-1): FIX.
