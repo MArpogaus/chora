@@ -725,7 +725,6 @@ cell_pill_chat() {
                  select(any(\$p[]; . as \$q | \$q[0] < \$t[0] + \$t[2] and \$t[0] < \$q[0] + \$q[2] and \$q[1] < \$t[1] + \$t[3] and \$t[1] < \$q[1] + \$q[3]))]")
             [ "$over" = "[]" ]
         }
-        sleep 1.5
         until_ok 'pill_over_header' 20 || fail "the pill $pill lies over the header text $over with the chat open, mic muted $mic (rmmr2-1)"
         shot "pill-chat-$mic"
         key Escape
@@ -747,16 +746,14 @@ cell_clock_chat() {
         ctl query "owner:mc kind:text" | jq -r "[.[] | $shown | select(.text | test(\"^[A-Z]+ [0-9]+ [A-Z]+ +[0-9]+:[0-9]+\$\"))][0].rects | to_entries[0].value[0]"
     }
     until_ok '[ "$(clock_x)" != null ]' 20 || fail "no clock in the header"
-    sleep 1.5
+    settled clock_x
     at=$(clock_x)
     key Super+a
     until_ok 'ctl query id:hud-chat | jq -e "length > 0" >/dev/null' 20 || fail "Super+a opens no chat"
-    sleep 2
-    [ "$(clock_x)" = "$at" ] || fail "the clock moves from $at to $(clock_x) as the chat opens, column hidden, mic muted (rmmr1-1)"
+    holds '[ "$(clock_x)" = "$at" ]' 2 || fail "the clock moves from $at to $(clock_x) as the chat opens, column hidden, mic muted (rmmr1-1)"
     key Escape
     until_ok '! ctl query id:hud-chat | jq -e "length > 0" >/dev/null' 20 || fail "Escape does not close the chat"
-    sleep 2
-    [ "$(clock_x)" = "$at" ] || fail "the clock moves from $at to $(clock_x) as the chat closes (rmmr1-1)"
+    holds '[ "$(clock_x)" = "$at" ]' 2 || fail "the clock moves from $at to $(clock_x) as the chat closes (rmmr1-1)"
     key Super+n
     until_ok 'has_text "Back one step"' 20 || fail "Super+n does not bring the column back"
 }
