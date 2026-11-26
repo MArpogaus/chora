@@ -5,6 +5,7 @@ companions, a stand-in wpctl, the fake voice agent. Every pid is kept, and
 
 import json
 import os
+import pathlib
 import shutil
 import signal
 import subprocess
@@ -12,7 +13,7 @@ import sys
 import tempfile
 import time
 
-REPO = os.environ.get("TOUR_REPO", "/home/user/chora")
+REPO = os.environ.get("TOUR_REPO") or str(pathlib.Path(__file__).resolve().parents[2])
 BIN = f"{REPO}/target/debug"
 SCRATCH = os.environ.get("TOUR_SCRATCH", "/tmp/claude-0/tour")
 CONTENT = f"{REPO}/demo/content.py"
