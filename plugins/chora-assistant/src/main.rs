@@ -453,10 +453,7 @@ impl Agent {
             flash: None,
             keyboard_told: false,
         };
-        let ready = serde_json::json!({"event": "assistant.ready", "data": {}});
-        (agent.rt.conn)
-            .call::<_, Value>("events.emit", ready)
-            .map_err(|e| e.to_string())?;
+        agent.ready().map_err(|e| e.to_string())?;
         agent.look_context = agent.switcher.applied().clone();
         agent.evaluate(clock::now()).map_err(|e| e.to_string())?;
         agent.watch_slot().map_err(|e| e.to_string())?;
@@ -464,6 +461,36 @@ impl Agent {
         row.map_err(|e| e.to_string())?;
         agent.ask_voice().map_err(|e| e.to_string())?;
         Ok(agent)
+    }
+
+    /// Drops the nodes of the last run and tells that the host is up.
+    fn ready(&mut self) -> Result<(), ClientError> {
+        self.drop_kept_nodes()?;
+        let ready = serde_json::json!({"event": "assistant.ready", "data": {}});
+        self.rt.conn.call::<_, Value>("events.emit", ready)?;
+        Ok(())
+    }
+
+    /// Removes the nodes that the core gave back with the `resume` of the
+    /// `hello` (a restart within its grace time): the host builds its
+    /// figure, card and chat again from the config it has now, and a kept
+    /// node of the old config would make that create fail.
+    fn drop_kept_nodes(&mut self) -> Result<(), ClientError> {
+        let kept = self.rt.conn.query(&format!("owner:{NAME}"))?;
+        let ids: Vec<&str> = kept.iter().map(|node| node.id.as_str()).collect();
+        let roots = kept
+            .iter()
+            .filter(|node| {
+                node.parent
+                    .as_deref()
+                    .is_none_or(|parent| !ids.contains(&parent))
+            })
+            .map(|node| Command::Remove {
+                id: node.id.clone(),
+                to: None,
+            })
+            .collect();
+        self.rt.conn.apply(roots)
     }
 
     /// Applies a transaction, with the logical sizes of the pictures of
@@ -1318,5 +1345,28 @@ mod tests {
         agent.chat_toggled(true, now);
         let text = transcript_text(&mut agent);
         assert!(!text.contains("old sentence"), "the chat holds: {text}");
+    }
+
+    #[test]
+    fn a_start_removes_the_nodes_the_core_kept_for_the_old_config() {
+        let (mut agent, _dirs, core) = on_core("kept-nodes", false);
+        core.model().lock().unwrap().selects = true;
+        let mut old = core.connect(NAME);
+        let create = |id: &str, parent: &str| chora_scene::Command::Create {
+            id: id.into(),
+            kind: chora_scene::NodeKind::Group,
+            parent: parent.into(),
+            props: chora_scene::PropsUpdate::default(),
+        };
+        old.apply(vec![create("hud", "root"), create("hud-body", "hud")])
+            .unwrap();
+        assert!(chora_kit::testing::has(&core.model(), "hud-body"));
+        agent.drop_kept_nodes().unwrap();
+        let model = core.model();
+        assert!(!chora_kit::testing::has(&model, "hud"), "the root goes");
+        assert!(
+            !chora_kit::testing::has(&model, "hud-body"),
+            "its child too"
+        );
     }
 }

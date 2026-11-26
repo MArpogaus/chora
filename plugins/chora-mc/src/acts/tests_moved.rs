@@ -289,28 +289,33 @@ fn a_release_on_another_claim_hands_the_dragged_window_over() {
 fn the_wheel_steps_one_notch_per_discrete_step() {
     use chora_scene::ScrollSource::{Continuous, Finger, Wheel};
     let (mut mc, _) = testing::mc("acts-wheel-steps", [1280, 800]);
-    assert_eq!(mc.wheel_steps(15.0, [0.0, 1.0], Wheel), 1, "one notch down");
+    let now = std::time::Instant::now();
     assert_eq!(
-        mc.wheel_steps(-15.0, [0.0, -1.0], Wheel),
+        mc.wheel_steps(15.0, [0.0, 1.0], Wheel, now),
+        1,
+        "one notch down"
+    );
+    assert_eq!(
+        mc.wheel_steps(-15.0, [0.0, -1.0], Wheel, now),
         -1,
         "one notch up"
     );
     let swipe: i32 = (0..40)
-        .map(|_| mc.wheel_steps(3.0, [0.0, 0.0], Finger))
+        .map(|_| mc.wheel_steps(3.0, [0.0, 0.0], Finger, now))
         .sum();
     assert!(
         (1..=4).contains(&swipe),
         "a swipe of 120 px is a few steps, not 40: {swipe}"
     );
     let roll: i32 = (0..40)
-        .map(|_| mc.wheel_steps(-3.0, [0.0, 0.0], Continuous))
+        .map(|_| mc.wheel_steps(-3.0, [0.0, 0.0], Continuous, now))
         .sum();
     assert!(
         (-4..=-1).contains(&roll),
         "a roll of 120 px is a few steps: {roll}"
     );
     assert_eq!(
-        mc.wheel_steps(1.0, [0.0, 0.0], Finger),
+        mc.wheel_steps(1.0, [0.0, 0.0], Finger, now),
         0,
         "a tiny move is no step"
     );
@@ -322,13 +327,26 @@ fn the_wheel_steps_one_notch_per_discrete_step() {
 fn a_rest_under_one_notch_does_not_outlive_its_gesture() {
     use chora_scene::ScrollSource::Finger;
     let (mut mc, _) = testing::mc("acts-wheel-rest", [1280, 800]);
+    let start = std::time::Instant::now();
+    let later = start + std::time::Duration::from_millis(600);
     assert_eq!(
-        mc.wheel_steps(30.0, [0.0, 0.0], Finger),
+        mc.wheel_steps(30.0, [0.0, 0.0], Finger, start),
         0,
         "three quarters"
     );
-    std::thread::sleep(std::time::Duration::from_millis(600));
-    assert_eq!(mc.wheel_steps(30.0, [0.0, 0.0], Finger), 0, "a new gesture");
-    assert_eq!(mc.wheel_steps(-30.0, [0.0, 0.0], Finger), 0, "a reversal");
-    assert_eq!(mc.wheel_steps(-30.0, [0.0, 0.0], Finger), -1, "from zero");
+    assert_eq!(
+        mc.wheel_steps(30.0, [0.0, 0.0], Finger, later),
+        0,
+        "a new gesture"
+    );
+    assert_eq!(
+        mc.wheel_steps(-30.0, [0.0, 0.0], Finger, later),
+        0,
+        "a reversal"
+    );
+    assert_eq!(
+        mc.wheel_steps(-30.0, [0.0, 0.0], Finger, later),
+        -1,
+        "from zero"
+    );
 }
