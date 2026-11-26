@@ -1,9 +1,10 @@
 # State
 
-## Now (2026-11-26 04:10 UTC)
+## Now (2026-11-26 05:02 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 04:10 PM 2.5 % (11-26 BKK); week about 48 % vs 71 % time; need (100-48-5)/48 h = 0.98 %/h; lanes 6 build
-session branch: 6daaaab8 (t147 02:02); 93 greens. TRAIN148 3e3b1b2d = t147 + harness-minor b1a6465c, tour-launch 07eb539f
+lanes-short: xp-busy-r1 starts next
+budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 05:01 PM 2.6 % (11-26 BKK); week about 48 % vs 71 % time; need (100-48-5)/48 h = 0.98 %/h; lanes 6 build
+session branch: 3e3b1b2d (t148 04:1x); 94 greens. TRAIN149 = t148 + flake-persona-notepad ef55b4fb (gate runs)
 
 burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head; F7 open (take r2: 88 open, 10 regr; judges r2)
 
@@ -23,20 +24,21 @@ burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head; F7 open (
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| train148 | PM, 3e3b1b2d | red 02:33 tiling-audit (flake, 3/3 alone green); rerun 02:47 |
-| flake-persona-notepad-r1.md (0.5 %) | sonnet med, ef55b4fb | MERGE-OK: own train after t148 |
+| train149 | PM, a93bc75b | gate runs, 28 cells green 05:01 |
+| flake-persona-notepad-r1.md (0.5 %) | sonnet med, ef55b4fb | in t149 |
 | tour-rows-r3.md (0.6 %) | sonnet med, f992fe6a + 157be195 | running s..QgZbQTLiR8q7MVDgf |
-| co-drop-r3.md (0.6 %) | sonnet high, 636287c0 + 6daaaab8 | starting |
-| mc-minor-r5.md (0.6 %) | sonnet med, 157be195 | MERGE-OK 1ab2e6a7 (PM review): t149 |
+| co-drop-r3.md (0.6 %) | sonnet high, 636287c0 + 6daaaab8 | running s..N8SWFfbTNnRgBU7v1 |
+| mc-minor-r5.md (0.6 %) | sonnet med, 157be195 | MERGE-OK 1ab2e6a7 (PM review): t150 |
 | tiling-focus-r3.md (1.0 %) | opus high, 712a01f5 + 6daaaab8 + 1ab2e6a7 | running s..QXm22Bg2sK5TKXfXg |
-| xp-blink-r3.md (0.3 %) | sonnet med, 312a5ff1 + 6daaaab8 | running s..LbEm47JYWeUTPVQyF |
+| xp-blink-r3.md (0.3 %) | sonnet med, 312a5ff1 + 6daaaab8 | MERGE-OK 3fd3a3bb (PM r3): t150 |
 | flake-bar-full-r1.md (0.8 %) | sonnet high, 6daaaab8 | running s..MRoVkQ1EbwsGcjcGg |
-| tour-harness-r1.md (0.4 %) | sonnet med, 07eb539f + 6daaaab8 + b1a6465c | running s..Nr2Jefb9u8CQ7MGbz |
+| tour-harness-r1.md (0.4 %) | sonnet med | DONE 06c3f7cc6: review, harness train after t149 |
+| xp-busy-r1.md (0.5 %) | sonnet high, 3e3b1b2d + 3fd3a3bb | starting |
 ## Queue (% week; 5 % reserve)
-1. (rc 3) FLAKE-PERSONA-NOTEPAD r1 MERGE-OK ef55b4fb: t149. t148 tiling-audit fullscreen ink red: FLAKE-BAR-FULL r1. HARNESS-MINOR r1, TOUR-LAUNCH r1 in t148.
+1. (rc 3) FLAKE-PERSONA-NOTEPAD r1 in t149; FLAKE-BAR-FULL r1 runs. TOUR-HARNESS r1 DONE: review, harness train, lanes merge head.
 2. (rc 2) construct r13 not met: co-75, co-76 hold; CO-DROP r1 (t147); rcdr1-1, -2, rv9kb-3: CO-DROP r2 review FIX (rcdr2-1 MAJOR sheet at 1024x768, rcdr2-2, -3, -4): CO-DROP r3 runs.
 3. (rc 2) P2 r11: T7 2/2; ti-57: TILING-FOCUS r2 FIX (rtf2-1 MAJOR: mc keeps and yields keys; rtf2-2 nit): TILING-FOCUS r3 runs.
-4. (F7, rc 1, 11) take r2: 88 open, 10 regr; judges r2: XP-BLINK r2 MERGE-OK 312a5ff1: t149; rxb2-1: r3; TOUR-ROWS r2 INCOMPLETE: r3; rtl1-1, -2, rhm1-1: TOUR-HARNESS r1. MC-MINOR r5 MERGE-OK 1ab2e6a7: t149 (rmm5-1 MINOR filed).
+4. (F7, rc 1, 11) take r2: 88 open, 10 regr; judges r2: XP-BLINK r3 MERGE-OK 3fd3a3bb: t150 (rxb3-1 NIT); XP-BUSY r1 (Stop at send); TOUR-ROWS r2 INCOMPLETE: r3; rtl1-1, -2, rhm1-1: TOUR-HARNESS r1. MC-MINOR r5 MERGE-OK 1ab2e6a7: t150 (rmm5-1 MINOR filed).
 5. (F5, rc 3, 4, 5) after t141: FLAKE-SERIES r10 on the final head (haiku); CI-DRY r1 merged (NOT RUN vkms, rpm, arch, mike).
 
 ## Needs owner

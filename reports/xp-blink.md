@@ -49,3 +49,8 @@ Verdict (computed): 0 BLOCK, 0 MAJOR, MERGE-OK 312a5ff10; rxb2-1 to the backlog 
 - rxb2-1 fixed. `cargo test -p chora-assistant`: 267 passed.
 - Gate: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2`: all steps passed, no FAIL, nothing pushed.
 - Tour: `demo/tour/run.py xp` once: 31 acts, 30 green, 1 known, 0 red; eyes open in x7, x10, x11; captures in media/2026-11-26/xp-blink-r3/ (each under 500 KB).
+
+## Review r3 (PM)
+Base 312a5ff1 + 6daaaab8, head 3fd3a3bb; own commits 1c6764a5 (red test) then 3fd3a3bb (fix), under 200 lines. `chora_kit::clock::held()`; `serve_wait(agent)` takes chat_due and ask_due from the real clock and, while the clock is held, skips the animations and caps the wait at HELD_RECHECK (500 ms): rxb1-2 closed. chat_pulled, chat_retried, the confirm card and state_ask on Instant::now(): rxb1-1, rxb2-1 closed. Lane gate green, 267 tests, xp tour 30 green, 1 known.
+- rxb3-1 NIT: chat/host.rs:541 calls Instant::now() twice where `now` is already the real clock; use `now`.
+Verdict (computed): 0 BLOCK, 0 MAJOR: MERGE-OK 3fd3a3bb (train 150).

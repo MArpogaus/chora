@@ -447,3 +447,4 @@ rr9-1 | MINOR | review-record-v9 r4 (reports/record-v9.md "## Review r4") | open
 - rmm5-1 MINOR mc: long foot card has no capture (mc-minor r5); next mc tour take shows it.
 - rmm5-2 NIT mc acts/tests_moved.rs: wheel test sleeps 600 ms; pass an Instant.
 - (CO-DROP r3) construct: rcdr2-1 MAJOR (command.rs:638 3 columns no row fit, 1024x768 text under keycaps), rcdr2-2 MINOR (sides 16 not 32, no width cap), rcdr2-3 MINOR (gate `turned` cannot fail), rcdr2-4 NIT; reports/co-drop.md Review r2.
+- xp: rxb3-1 NIT (chat/host.rs:541 a second Instant::now() where `now` is real); reports/xp-blink.md Review r3 (PM).
