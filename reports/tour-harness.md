@@ -20,3 +20,11 @@ Base 06c3f7cc (tour-harness r1) + merge of a93bc75b; head f396ebe63.
 Commits: red 87b373406 (test: REPO is the root of the repo holding launch.py; no fixed checkout literal), fix f396ebe63 (launch.py REPO from `__file__`, TOUR_REPO overrides).
 Diffstat: demo/tour/launch.py 2 lines, tests/test_tour.py +27.
 pytest tests/test_tour.py in /tmp/claude-0/th2: 100 passed. Gate in that worktree (--jobs 2 --allow-skip docs): all steps passed, docs skipped (mkdocs not installed); EXIT 0.
+
+## Review r2 (PM, 08:55 UTC)
+Base a93bc75b (merged 19348b95), head f396ebe6; r2 adds red 87b37340 (2 tests) then fix f396ebe6 (launch.py, 1 line).
+- rth2-1 fixed: REPO = TOUR_REPO or the repository root of launch.py (parents[2]); the no-literal test greps demo/ and tests/ for the fixed checkout path.
+- Red first holds: 87b37340 is before the fix; its grep test fails on the base (worker note: the REPO test passes only in the main checkout).
+- rth2-n1 NIT: SCRATCH still defaults to a fixed /tmp/claude-0/tour; harmless for the gate.
+- Worker gate: all steps PASS, docs skipped (no mkdocs, docs unchanged).
+Verdict (computed): no open MAJOR, MERGE-OK f396ebe6. Harness branch: own train t153 right after t152, before other trains; then the running lanes merge the session branch and train runs drop TOUR_REPO.
