@@ -26,7 +26,7 @@ burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head; F7 open (
 | train146 | PM, 157be195 on df3d1ccf | gate 22:43 |
 | xp-blink-r2.md (0.4 %) | sonnet med, c2625c0f | running s..P6afS88iCp3cmooSK |
 | flake-persona-notepad-r1.md (0.5 %) | sonnet med, df3d1ccf | running s..PVzKu2DC4f86sGRkY |
-| tour-launch-r1.md (0.5 %) | sonnet med, df3d1ccf | starting |
+| tour-launch-r1.md (0.5 %) | sonnet med, df3d1ccf | running s..LfrJy75sQhVPQb8EY |
 | tour-rows-r2.md (0.8 %) | sonnet med, 1ac365f1 | running s..MZSPbKahubVfGgjop |
 | harness-minor-r1.md (0.6 %) | sonnet med, 5646b8fd | running s..NgK9wKeey3B3chSbH |
 | tiling-focus-r2.md (1.2 %) | opus high, 6261d3e0 | running s..PNcZM4JvQiQQUQXh1 |
