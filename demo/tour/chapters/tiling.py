@@ -128,6 +128,34 @@ def chat_beside(after, look="tiling"):
     return [f"the chat covers the tiled windows {hit}"] if hit else []
 
 
+def content_pending():
+    """The sh and python3 processes of the tiles that still wait to print their text (`sleep N; python3
+    content.py KIND`); the foot that holds them and the `sleep infinity` after the print do not count."""
+    out = subprocess.run(["ps", "-eo", "pid=,comm=,args="], capture_output=True, text=True).stdout
+    rows = [line.split(None, 2) for line in out.splitlines()]
+    return [" ".join(r) for r in rows if len(r) == 3 and r[1] in ("sh", "python3") and re.search(r"content\.py (code|notes|page)", r[2])]
+
+
+def content_started():
+    """How many tiles with text (code, notes, page: every tile but the shell) have their foot running."""
+    out = subprocess.run(["ps", "-eo", "comm=,args="], capture_output=True, text=True).stdout
+    return sum(1 for line in out.splitlines() if line.startswith("foot ") and re.search(r"--app-id=(code|notes|page) ", line))
+
+
+def wait_for_text(tiles, pending=content_pending, started=content_started, timeout=30, sleep=time.sleep, now=time.monotonic):
+    """Wait on the wall clock until the `tiles` windows of the chapter (the shell and its text tiles) are running and no tile still waits for its text
+    (the "chora" page lands TILE_WAIT s after its window opens, so a take is not timed by the render speed)."""
+    end = now() + timeout
+    while True:
+        waiting = pending()
+        count = started()
+        if not waiting and count >= tiles - 1:
+            return
+        if now() >= end:
+            raise RuntimeError(f"tiling: the text of tile {tiles} did not land in {timeout} s ({count} text tiles started, waiting: {waiting})")
+        sleep(0.25)
+
+
 def run(ctx):
     OUT = ctx.out
     L = Launcher("tiling4")
@@ -173,7 +201,9 @@ def run(ctx):
         t.wait(0.5)
         for i, name in enumerate(["code", "notes", "page"], 2):
             t.act("key", f"Super+Return ({name})", f"A window opens and the windows re-tile ({i} windows)", scene="t3", still=f"02-0{i + 1}-window-{i}", settle=0.5, lead=0.05, contract="T1", cells=["act: a window opens"], capture="Q", expect=Expect(new_window={"owner": "tiling", "focused": True}, verify=both(windows_are(i), tiles_hold(i))))
-            t.key("Super+Return"); t.cut(0.5); t.wait(0.3); t.done()
+            t.key("Super+Return"); t.cut(0.5); t.flush("tile text")
+            wait_for_text(i)
+            t.wait(0.3); t.done()
         t.act("key", "Super+j moves focus down the stack, Super+Ctrl+Return makes it the master", "The focus mark moves; the window becomes the master", scene="t3", still="02-19-master", settle=0.6, lead=0.05, contract="L2", cells=["gate-tiling-gaps.sh"], capture="Q", expect=Diff(focus="tiling", verify=both(master_is_focused, tiles_hold(4)), delta=layout_changed))
         t.key("Super+j"); t.wait(0.5); t.key("Super+j"); t.wait(0.5); t.key("Super+Ctrl+Return"); t.wait(0.5); t.done()
         t.act("key", "Super+l widens the master", "The master area grows", scene="t3", still="02-20-wider", settle=0.6, lead=0.05, contract="L2", cells=["tiling-audit.py"], capture="Q", expect=Diff(verify=tiles_hold(4), delta=master_wider))

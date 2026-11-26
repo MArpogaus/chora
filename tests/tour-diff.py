@@ -13,8 +13,8 @@ so is a capture in BASE that CAND lacks. No capture at all (an empty or missing 
 
 Two diffs per capture:
 - scene diff (every capture, also H50): nodes matched by id, windows by app_id and title; visible,
-  rect (more than 2 px), meta text, owner, the z-order of the top layers, a node that is gone or new.
-- pixel diff (not H50): clock and text nodes and the listed masks are ignored; a pixel differs when
+  rect (more than 2 px), cut (a text shorter than its lines times its line height, rv9ka-3: only a row that names the node absorbs it), meta text, owner, the z-order of the top layers, a node that is gone or new.
+- pixel diff (not H50): clock and text nodes, the eyes of the paperclip and the listed masks are ignored; a pixel differs when
   a channel differs by more than 24; same = at most 0.1 % of the unmasked pixels differ and no
   8-connected blob of them has a box over 12x12.
 
@@ -68,6 +68,13 @@ top and height, centred on the output (flavors/tiling/waybar/config.jsonc `modul
 only where the node `tiling` is in the scene (RV9-1)."""
 
 
+FIGURE_NODE = "hud-figure"
+FIGURE_EYES = (16, 10, 48, 30)
+"""The eyes of the paperclip, relative to the rect of `hud-figure` (xp): the blink runs on the wall clock
+(plugins/chora-assistant/src/assistant.rs `blink_gap`, 140 ms every 2.5 to 6 s), not on the tour's stepped
+clock, so a still catches shut eyes at random (rv9kb-1). Masked; the rest of the figure is compared."""
+
+
 def key_of(node):
     """A window by app_id and title, any other node by id."""
     if node.get("kind") == "surface":
@@ -90,6 +97,38 @@ def keyed(nodes):
 
 def label(k):
     return k[1] if k[0] == "node" else f"{k[1]}:{k[2]}"
+
+
+CUT_SLACK = 2
+
+
+LINE_HEIGHT = 1.2
+"""The core default of a text without `line_height` (crates/chora/src/text.rs); the json skips the field when None (rtr1-4)."""
+
+
+def cut_of(node):
+    """The detail and the shortfall in px of a text node whose rect is shorter than its lines times its line height (rv9ka-3), else None:
+    a text that loses lines shows in the pixel diff as nothing (every text box is masked), only as a shorter rect."""
+    text = node.get("text") or (node.get("meta") or {}).get("text")
+    if node.get("kind") != "text" or not text or not node.get("font_size"):
+        return None
+    line = node["font_size"] * (node.get("line_height") or LINE_HEIGHT)
+    need = (str(text).count("\n") + 1) * line
+    for output, rect in sorted((node.get("rects") or {}).items()):
+        if rect[3] < need - CUT_SLACK - line / 2:
+            return f"{output} {rect[3]:g} px high for {need:g} px of {str(text).count(chr(10)) + 1} lines", line, rect[3]
+    return None
+
+
+def cut_more(na, nb):
+    """The detail when v9 cuts a text (nb) that v8 (na) did not cut, or cut by less than a line (rtr1-4)."""
+    cb = cut_of(nb)
+    if not cb:
+        return None
+    ca = cut_of(na) if na else None
+    if not ca or cb[2] <= ca[2] - cb[1] + CUT_SLACK:
+        return cb[0]
+    return None
 
 
 def scene_diff(a, b):
@@ -116,6 +155,9 @@ def scene_diff(a, b):
     for k in kb:
         if k not in ka:
             found.append({"kind": "added", "id": label(k), "detail": "in the candidate only"})
+        detail = cut_more(ka.get(k), kb[k])
+        if detail:
+            found.append({"kind": "cut", "id": label(k), "detail": detail})
     common = [k for k in ka if k in kb]
     top_a = [k for k in common][-TOP_LAYERS:]
     top_b = [k for k in kb if k in ka][-TOP_LAYERS:]
@@ -263,6 +305,8 @@ def masks_of(*sides, width=None):
             w, top, h = BAR_CLOCK
             out.append(((width - w) // 2, top, w, h))
         for node in side.get("nodes", []):
+            if node.get("id") == FIGURE_NODE:
+                out += [(r[0] + FIGURE_EYES[0], r[1] + FIGURE_EYES[1], FIGURE_EYES[2], FIGURE_EYES[3]) for r in (node.get("rects") or {}).values()]
             meta = node.get("meta") or {}
             if "clock" in str(node.get("id")) or node.get("kind") == "text" or "text" in meta:
                 out += [tuple(r) for r in (node.get("rects") or {}).values()]

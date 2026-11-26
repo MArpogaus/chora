@@ -731,6 +731,16 @@ class OldBuild(unittest.TestCase):
         self.assertEqual(sorted(p.name for p in old.glob("*")), [])
         self.assertEqual(out_dir, str(old.parent))
 
+    def test_a_chapter_keeps_the_captures_of_another_chapter_in_the_same_folder(self):
+        """r2a harness note: `run.py mc` then `run.py handover` in one TOUR_OUT lost the stills of mc."""
+        out_dir = tempfile.mkdtemp(prefix="tour-other-")
+        old = pathlib.Path(out_dir) / "captures"
+        old.mkdir()
+        for name in ("m1.Q.png", "m1.Q.json", "h5.Q.png"):
+            (old / name).write_bytes(b"old")
+        self.assertEqual(self.take(["handover"], out_dir), 0)
+        self.assertEqual(sorted(p.name for p in old.glob("*")), ["m1.Q.json", "m1.Q.png"])
+
     def test_a_check_leaves_the_folder_of_the_record_alone(self):
         out_dir = tempfile.mkdtemp(prefix="tour-keep-")
         keep = pathlib.Path(out_dir) / "captures"
@@ -1233,6 +1243,46 @@ class LauncherSupported(unittest.TestCase):
                 L.start(None, voice=False)
         started = [c for c in calls if any(str(x).endswith("chora-notify") for x in c) and "call" not in c]
         self.assertTrue(started, f"no chora-notify started: {calls}")
+
+
+class TilingWaitsForText(unittest.TestCase):
+    """rtr2-1: the Q captures t3..t3h of the tiling chapter are taken after the typed text (the
+    "chora" page of content.py, printed TILE_WAIT s after the window opens) landed in the tiles."""
+
+    def tiling(self):
+        return importlib.import_module("chapters.tiling")
+
+    def test_the_t3_loop_waits_for_the_text_between_flush_and_done(self):
+        tree = ast.parse((ROOT / "demo" / "tour" / "chapters" / "tiling.py").read_text())
+        loop = next(n for n in ast.walk(tree) if isinstance(n, ast.For) and "enumerate" in ast.dump(n.iter) and "'page'" in ast.dump(n.iter))
+        calls = [n.func.attr if isinstance(n.func, ast.Attribute) else getattr(n.func, "id", "") for n in ast.walk(loop) if isinstance(n, ast.Call)]
+        self.assertIn("wait_for_text", calls, "the window loop never waits for the typed text")
+        self.assertLess(calls.index("flush"), calls.index("wait_for_text"))
+        self.assertLess(calls.index("wait_for_text"), calls.index("done"))
+
+    def test_wait_for_text_returns_when_the_text_landed(self):
+        wait = self.tiling().wait_for_text
+        pending = iter([["sh -c sleep 3; python3 -I content.py page"], []])
+        wait(2, pending=lambda: next(pending), started=lambda: 1, timeout=5, sleep=lambda s: None)
+
+    def test_wait_for_text_names_the_tile_that_never_got_its_text(self):
+        wait = self.tiling().wait_for_text
+        clock = iter(range(0, 100, 10))
+        with self.assertRaises(RuntimeError) as err:
+            wait(3, pending=lambda: ["python3 -I content.py notes"], started=lambda: 2, timeout=30, sleep=lambda s: None, now=lambda: next(clock))
+        self.assertEqual(len(str(err.exception).splitlines()), 1)
+        self.assertIn("tile 3", str(err.exception))
+
+    def test_content_pending_counts_the_sh_and_python_not_the_foot(self):
+        ps = "1 foot foot -e sh -c sleep 3; python3 -I content.py page\n2 sh sh -c sleep 3; python3 -I content.py page\n3 sleep sleep infinity\n4 python3 python3 -I content.py notes x\n"
+        with mock.patch.object(subprocess, "run", return_value=mock.Mock(stdout=ps)):
+            got = self.tiling().content_pending()
+        self.assertEqual([line.split()[0] for line in got], ["2", "4"])
+
+    def test_wait_for_text_waits_for_the_window(self):
+        wait = self.tiling().wait_for_text
+        started = iter([0, 0, 1])
+        wait(2, pending=lambda: [], started=lambda: next(started), timeout=5, sleep=lambda s: None)
 
 
 if __name__ == "__main__":
