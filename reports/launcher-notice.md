@@ -18,3 +18,7 @@ Cause: code 1 is `RpcError::REJECTED`, not `MISSING_CAPABILITY` (4). `methods.ca
 Why it looked like a grant: the persona sessions of mc, tiling and construct (tests/persona/session.sh companions) start no chora-notify; only xp does. In the products every session starts it (flavor targets, README mc row, tests/flavor-notify.py). A plain `chora --headless` with the default config has no notice server either, so the notice has nowhere to go; `tell` already logs the reason on stderr.
 
 Options for the PM: (a) close rml1-2 as a harness gap and add chora-notify to the persona companions of mc, tiling and construct (tests/persona/session.sh); (b) if a failed launcher must be visible without a notice server, that is a new design (a fallback surface), not a grant. Gate not run: nothing changed.
+
+## PM decision r1 (2026-11-26 00:16 UTC)
+
+(a): rml1-2 closes as a harness gap, not a product MAJOR: every product session starts chora-notify; a session without one has no notice by design (KISS, no fallback surface). Follow-up: chora-notify as a companion of the mc, tiling and construct personas (tests/persona/session.sh) after HARNESS-MINOR r1 (same file); the tour's own sessions in TOUR-LAUNCH r1 with rml1-1.
