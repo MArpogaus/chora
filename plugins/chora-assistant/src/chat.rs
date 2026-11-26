@@ -2350,6 +2350,70 @@ mod tests {
         );
     }
 
+    fn say(session: &mut Session, out: &mut Fake, log: &Rc<RefCell<Log>>, frame: &Frame) {
+        log.borrow_mut()
+            .events
+            .push(FieldEvent::Say("Hello".into()));
+        session.field_events(out, frame);
+    }
+
+    #[test]
+    fn a_send_shows_working_and_stop_at_once_until_the_helper_answers_xp_busy() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        let idle = json!({"name": "Atlas", "state": "idle", "task": "", "seq": 0, "epoch": 1});
+        session.voice_event(&mut out, "voice.state", &idle);
+        assert!(!session.running(), "Stop is grey before the send");
+        say(&mut session, &mut out, &log, &frame);
+        assert_eq!(
+            session.header_xp(Language::En),
+            ("Atlas \u{2014} Working".into(), String::new()),
+            "the send itself is the busy state, before any state of the helper"
+        );
+        assert!(session.running(), "Stop is on one frame after the send");
+        session.voice_event(&mut out, "voice.state", &idle);
+        assert_eq!(
+            session.header_xp(Language::En),
+            ("Atlas \u{2014} Idle".into(), String::new())
+        );
+        assert!(!session.running(), "Stop is grey after the answer");
+    }
+
+    #[test]
+    fn a_refused_send_shows_the_failure_and_not_working_xp_busy() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        log.borrow_mut().down = true;
+        say(&mut session, &mut out, &log, &frame);
+        assert_eq!(log.borrow().failed, ["Hello"]);
+        assert!(!session.running(), "no Stop for a send that failed");
+        assert!(
+            !session.header_xp(Language::En).0.contains("Working"),
+            "{:?}",
+            session.header_xp(Language::En)
+        );
+    }
+
+    #[test]
+    fn a_send_without_a_helper_keeps_no_helper_and_is_not_busy_xp_busy() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        log.borrow_mut().list = Some("projects: none; agents: none".into());
+        session.clicked_row(&mut out, &frame).unwrap();
+        say(&mut session, &mut out, &log, &frame);
+        assert!(!session.running());
+        assert!(
+            session
+                .header_xp(Language::En)
+                .0
+                .starts_with("No helper is set up"),
+            "{:?}",
+            session.header_xp(Language::En)
+        );
+    }
+
     #[test]
     fn a_helper_that_ends_leaves_no_state() {
         let (mut session, mut out, _log) = setup();
