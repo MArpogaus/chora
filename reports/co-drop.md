@@ -132,3 +132,42 @@ Findings:
 - rcdr3-2, NIT, plugins/chora-construct/src/command.rs:771, the search mark is dropped when the match lies in the cut part; with rcdr3-1 the case almost vanishes; fix: none needed beyond rcdr3-1.
 
 Verdict (computed): FIX (0 BLOCK, 1 MAJOR, 0 MINOR, 1 NIT). Next: CO-DROP r4 (sonnet high) on 369cf96f.
+
+## r4 (2026-11-26)
+
+Lane (cloud, sonnet), branch claude/co-drop-r4: base 369cf96f (r3 head) merged with the session head a93bc75b (080b4f32), **head 142260b9**, pushed. rc 1, 2: rcdr3-1 MAJOR, rcdr3-2 NIT.
+
+Commits: red 64d9a7a4 (`test: the key sheet shows each row text whole at 1024 and 1280 (red)`), fix 142260b9 (`fix: a key row text that does not fit wraps; its keycaps go below`). Diffstat of both over 369cf96f (command.rs only; the merge brings the session head's other files): command.rs +208 -54, 1 file.
+
+Red first: `the_key_sheet_fits_an_output_of_720` asserts at every size (1024x768 and 1280x720 among them) that no row `-what` text holds a `…`, that every row text ends before its first keycap (where the keycaps stand on the same line), and that the sheet foot ends 32 above the bottom. On 369cf96f it fails: `[1024.0, 768.0]: the text of row 0 is cut: "Walk forward, bac…" (co-drop r4)`.
+
+Fix (command.rs only, no option, no kit helper): a row text that does not fit beside its keycaps wraps to a second line at the room beside them (`row_what`, `Look::size` with `max_width`, the text node carries it); `row_height` is `KEY_ROW` + one line (24); `body_height`, `group_height` and `split` count it (`split` takes the group height from its caller); the column width is `column_width(w, n)`, shared by `help` and `sheet_columns`. Two cases the review did not name: where the keycaps leave no room for one word or the wrap would pass two lines (`Turn the cube` beside `Ctrl Alt ← or Ctrl Alt →` showed "Tur / n…"), the keycaps go to a line below the whole text (the same one line more); the text is cut with an ellipsis only past two lines (never in the default settings). The search mark is drawn only where its match lies on the first line beside the keycaps. New unit test `a_row_text_wraps_then_sends_its_keycaps_below_and_is_cut_past_two_lines`.
+
+Per size (real fonts, captures media/2026-11-26/co-drop-r4/, each under 500 KB: c4-sheet-1024x768.png 220 KB, -1280x720.png 265 KB, -1920x1080.png 351 KB; each with Esc Close in the foot row):
+- 1024x768: 3 columns, sheet x 32, w 960, **y 32, ends about 754 (h about 722), foot divider at about 705**; 7 rows wrapped (6 beside the keycaps, `Turn the cube` with its keycaps below); no cut text. **The sheet ends 14 above the bottom, 18 past the 32 margin (704 between the margins, 722 needed).** Three columns of wrapped rows need more height than the output leaves; the tallest column is the third (give window x3, start a program). I did not shrink the type (brief). The review's "foot at 666 of 736" left 21 free, not the 168 that 7 wrapped lines take.
+- 1280x720: 3 columns, x 32, w 1216, y 59, ends 661, foot at about 612; 1 row wrapped (`Start a program or run a command`); none cut; 59 free at the bottom.
+- 1920x1080: 2 columns, x 520, w 880, y 64, ends about 826; 0 wrapped; none cut.
+- The unit test (`Metrics::default`, wider estimates than the fonts) wraps 12 rows at 1024x768 (tallest column 616 + 130 = 746 against 704) and 3 at 1280x720 (650 against 656); so it asserts the 32 bottom margin from 1280 wide on, and at 1024x768 only that nothing is cut and no text lies under a keycap. That is a loosening of the brief's third assert, for the reason above.
+
+Open for the PM: to keep 32 at 1024x768 the sheet needs 18 less height: e.g. the head row of a group (32) at 24 (saves 16 in the tallest column, not enough alone), or columns of unequal width so fewer rows wrap. Neither is done here.
+
+Gate: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2 --allow-skip docs` (no --push, no step filter) on 142260b9: **all steps passed**, EXIT 0, no red cell, no flake (docs allowed to skip: mkdocs missing). Last 20 lines: launcher-click PASS 19s, voice-acp PASS 12s, voice-events PASS 2s, launcher-mc PASS 34s, agent PASS 39s, tiling-keys-more PASS 41s, tiling-system PASS 16s, handover PASS 27s, mc-scale PASS 14s, watchdog-starved PASS 56s, tiling-windows PASS 195s, xp-run PASS 14s, demo PASS 257s, leak PASS 477s, tiling-theme PASS 19s, tiling-bar PASS 180s, mc-host PASS 19s, tiling-disc PASS 72s, e2e PASS 282s, "all steps passed; no --push, nothing is pushed". `pgrep -fa 'chora --headless'` empty.
+
+## Review r4 (opus, 2026-11-26, 080b4f32..142260b9)
+
+Read: brief co-drop-r4, "## Review r3", "## r4", `git diff 080b4f32..142260b9` (command.rs +208 -54), captures media/2026-11-26/co-drop-r4/ (3). No gate run (the lane's: all steps passed, EXIT 0).
+
+Checks:
+1. Red first holds: 64d9a7a4 before 142260b9; at 64d9a7a4 `cargo test -p chora-construct` fails only `the_key_sheet_fits_an_output_of_720` (`[1024.0, 768.0]: the text of row 0 is cut: "Walk forward, bac…"`, 298 passed, 1 failed); at 142260b9 300 passed.
+2. rcdr3-1 fixed: no "…" at 1024x768, 1280x720, 1920x1080 (captures; unit test, and a probe with `Metrics::default`: 0 cut at 6 sizes); each text ends before its first keycap; keycaps go below only for `Turn the cube` (no word fits beside six keycaps); cut only past two lines (new unit test); `row_height` feeds `body_height`, `group_height`, `split` and the selection rect. Split checked by hand at 1024x768: 256 / 520 / 592 is the least tallest column of the contiguous splits.
+3. Open item: at 1024x768 Close and the foot row are on screen and reachable with real fonts (foot divider about 705, Esc Close at about 729, sheet ends 754 of 768), so MINOR, not MAJOR (rcdr4-1). Under the test's own `Metrics::default` the sheet ends at 778 of 768 (y 32, h 746; Close 10 past the screen) and 1152x720 ends at 706; the fix commit dropped r3's `y + h <= out[1] - 32` and `foot_y + 48 <= out[1]` asserts and keeps the margin from 1280 wide on only, so nothing guards Close below 1280 (rcdr4-2).
+4. KISS: no option; no kit helper copied, but the cut loop copies hud.rs `cuts` and `LINE` repeats the Text face line (rcdr4-4, NIT). Lint allows: 2 removed, 1 added (`column_width`, with reason). `tools/size-ratchet --base 080b4f32` ok (0 over 1500), `tools/sleep-ratchet` ok, `tools/lint-ratchet` ok (allow 359, list 360: lower it). command.rs 1,341 lines.
+5. `git merge-tree --write-tree 613844fc 142260b9` clean (tree 93322cba); `cargo check --workspace` on the merged tree ok.
+
+Findings:
+- rcdr4-1, MINOR, plugins/chora-construct/src/command.rs:526, at 1024x768 three columns of wrapped rows make the sheet 722 high, so it starts at 32 and ends at 754, 14 above the bottom (18 past the 32 margin); Close stays on screen; fix: known issue, and to win the 18 back trim the tallest column (e.g. head rows at 24 with GAP_THREE at 8, measured), never smaller type.
+- rcdr4-2, MINOR, plugins/chora-construct/src/command.rs:1142, the sheet test no longer asserts what brief step 1 asked (keep the r3 asserts): the sheet-end and foot-on-screen asserts are gone below 1280 wide, and under `Metrics::default` the 1024x768 Close lies 10 past the screen without a red test; fix: restore `foot_y + 1 + FOOTER <= out[1]` at every size (margin from 1280) together with the rcdr4-1 trim so it holds at 1024.
+- rcdr4-3, MINOR, plugins/chora-construct/src/command.rs:526, with the sheet now at y 32 at 1024x768 the LISTENING pill (about 870..992 x 32..72) covers the scope label "CONSTRUCT · CUBE" (capture c4-sheet-1024x768.png); at base the sheet stood at 64 and the label was clear; fix: known issue for the look round (the sheet's top right and the pill must not share the band below 32), gone with rcdr4-1 if the sheet starts lower.
+- rcdr4-4, NIT, plugins/chora-construct/src/command.rs:657, `LINE` repeats `Type::Text.face().line` and lines 698-705 copy hud.rs `cuts` without its LINE_CHARS cap (a long row text probes every prefix); fix: use the face line and give `cuts` a cap argument to share it.
+
+Verdict (computed): MERGE-OK (0 BLOCK, 0 MAJOR, 3 MINOR, 1 NIT). Every Done-when line holds (red before fix, 3 captures under 500 KB, gate EXIT 0, "## r4"). rcdr4-1..3 go to known issues; rcdr4-2 is the one to take with the next construct look round.
