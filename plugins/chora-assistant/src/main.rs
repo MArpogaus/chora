@@ -1463,4 +1463,28 @@ mod tests {
             assert_eq!(presented["helper"], word, "state word of {state}");
         }
     }
+
+    /// rpt3-2: the panel is told at once, with `assistant.door {door}`,
+    /// when the door word changes, once for each change and not for a
+    /// change of anything else, so that it needs no poll that lags.
+    #[test]
+    fn the_door_word_is_told_once_for_each_change_rpt3_2() {
+        let (mut agent, _dirs, core) = on_core("door-told", true);
+        let _ = agent.chat_show(Some("atlas"), None);
+        let told = |core: &chora_kit::testing::FakeCore| -> Vec<String> {
+            (core.model().lock().unwrap().emits.iter())
+                .filter(|e| e["event"] == "assistant.door")
+                .filter_map(|e| e["data"]["door"].as_str().map(str::to_owned))
+                .collect()
+        };
+        let working = serde_json::json!({"name": "atlas", "state": "working", "seq": 0});
+        agent.chat_voice("voice.state", &working);
+        agent.chat_step(Instant::now()).unwrap();
+        agent.chat_step(Instant::now()).unwrap();
+        assert_eq!(told(&core), ["atlas \u{b7} working"]);
+        let idle = serde_json::json!({"name": "atlas", "state": "idle", "seq": 0});
+        agent.chat_voice("voice.state", &idle);
+        agent.chat_step(Instant::now()).unwrap();
+        assert_eq!(told(&core), ["atlas \u{b7} working", "atlas \u{b7} idle"]);
+    }
 }

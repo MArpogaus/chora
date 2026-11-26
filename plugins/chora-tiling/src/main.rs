@@ -2944,6 +2944,24 @@ mod panel {
         assert!(took < Duration::from_secs(5), "{took:?}");
     }
 
+    /// rpt3-2: the helper word of the panel changes when the assistant
+    /// tells that the door changed (SIGRTMIN+2), not at the next poll.
+    #[test]
+    fn the_helper_word_follows_the_door_at_once_rpt3_2() {
+        let config = std::fs::read_to_string(waybar_dir().join("config.jsonc")).expect("config");
+        let (_, helper) = config
+            .split_once("\"custom/helper\": {")
+            .expect("the module");
+        let helper = helper.split_once('}').expect("its end").0;
+        assert!(helper.contains("\"signal\": 2"), "{helper}");
+        let script = std::fs::read_to_string(waybar_dir().join("waybar.sh")).expect("waybar.sh");
+        assert!(
+            script.contains("trap '' USR1 USR2 RTMIN+1 RTMIN+2"),
+            "{script}"
+        );
+        assert!(super::EVENTS.contains(&"assistant.door"));
+    }
+
     #[test]
     fn the_panel_labels_the_volume() {
         let config = std::fs::read_to_string(waybar_dir().join("config.jsonc")).expect("config");
