@@ -1,0 +1,43 @@
+task T3 pass [scene: cube in a face, face 0, pane room yes, walk no]
+breach I6 in look: on VIRTUAL-1 'chora-probe' (xp-task-s2-VIRTUAL-1) has the contrast 2.79:1 ((255, 255, 255) on (82, 156, 253)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-1 '12:43 PM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-2 '12:43 PM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-3 '12:43 PM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-4 '12:43 PM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in click: on HEADLESS-1 'All keys' (construct-hints-keys-word) has the contrast 3.11:1 ((38, 128, 180) on (213, 220, 213)), the guide wants 7:1
+breach I6 in click: on VIRTUAL-1 'chora-probe' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1
+breach I6 in click: on VIRTUAL-1 '12:44 PM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in click: on VIRTUAL-2 '12:44 PM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in click: on VIRTUAL-3 '12:44 PM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in click: on VIRTUAL-4 '12:44 PM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 'All keys' (construct-hints-keys-word) has the contrast 3.11:1 ((38, 128, 180) on (213, 220, 213)), the guide wants 7:1
+breach I6 in look: on VIRTUAL-1 'chora-probe' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-1 '12:44 PM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-2 '12:44 PM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-3 '12:44 PM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-4 '12:44 PM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in type: on HEADLESS-1 'All keys' (construct-hints-keys-word) has the contrast 3.11:1 ((38, 128, 180) on (213, 220, 213)), the guide wants 7:1
+breach I6 in type: on VIRTUAL-1 'chora-probe' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1
+breach I6 in type: on VIRTUAL-1 '12:44 PM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in type: on VIRTUAL-2 '12:44 PM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in type: on VIRTUAL-3 '12:44 PM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in type: on VIRTUAL-4 '12:44 PM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in key: on HEADLESS-1 'All keys' (construct-hints-keys-word) has the contrast 3.11:1 ((38, 128, 180) on (213, 220, 213)), the guide wants 7:1
+breach I6 in key: on VIRTUAL-1 'chora-probe' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1
+breach I6 in key: on VIRTUAL-1 '12:44 PM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in key: on VIRTUAL-2 '12:44 PM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in key: on VIRTUAL-3 '12:44 PM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in key: on VIRTUAL-4 '12:44 PM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 'All keys' (construct-hints-keys-word) has the contrast 3.11:1 ((38, 128, 180) on (213, 220, 213)), the guide wants 7:1
+breach I6 in look: on VIRTUAL-1 'chora-probe' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-1 '12:44 PM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-2 '12:44 PM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-3 '12:44 PM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-4 '12:44 PM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on HEADLESS-1 'All keys' (construct-hints-keys-word) has the contrast 3.11:1 ((38, 128, 180) on (213, 220, 213)), the guide wants 7:1
+breach I6 in look: on VIRTUAL-1 'chora-probe' (xp-task-s2-VIRTUAL-1) has the contrast 3.86:1 ((255, 255, 255) on (56, 126, 242)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-1 '12:44 PM' (xp-tray-VIRTUAL-1) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-2 '12:44 PM' (xp-tray-VIRTUAL-2) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-3 '12:44 PM' (xp-tray-VIRTUAL-3) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breach I6 in look: on VIRTUAL-4 '12:44 PM' (xp-tray-VIRTUAL-4) has the contrast 3.27:1 ((255, 255, 255) on (13, 147, 237)), the guide wants 4.5:1
+breaches 41

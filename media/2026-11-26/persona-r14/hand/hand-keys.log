@@ -1,0 +1,25 @@
+run 1 key sheet at 1024x768:
+  cut texts: []
+  ids ['construct-help', 'construct-help-body', 'construct-help-body-divider', 'construct-help-body-divider-foot', 'construct-help-body-edge', 'construct-help-body-foot-0-0', 'construct-help-body-foot-0-0-low', 'construct-help-body-foot-0-0-text', 'construct-help-body-foot-0-hit', 'construct-help-body-foot-0-word', 'construct-help-body-glass', 'construct-help-body-head-0']
+  help rect {}
+  texts 101
+run 2 key sheet at 1024x768:
+  cut texts: []
+  ids ['construct-help', 'construct-help-body', 'construct-help-body-divider', 'construct-help-body-divider-foot', 'construct-help-body-edge', 'construct-help-body-foot-0-0', 'construct-help-body-foot-0-0-low', 'construct-help-body-foot-0-0-text', 'construct-help-body-foot-0-hit', 'construct-help-body-foot-0-word', 'construct-help-body-glass', 'construct-help-body-head-0']
+  help rect {}
+  texts 101
+run 3 key sheet at 1024x768:
+  cut texts: []
+  ids ['construct-help', 'construct-help-body', 'construct-help-body-divider', 'construct-help-body-divider-foot', 'construct-help-body-edge', 'construct-help-body-foot-0-0', 'construct-help-body-foot-0-0-low', 'construct-help-body-foot-0-0-text', 'construct-help-body-foot-0-hit', 'construct-help-body-foot-0-word', 'construct-help-body-glass', 'construct-help-body-head-0']
+  help rect {}
+  texts 101
+run 4 key sheet at 1024x768:
+  cut texts: []
+  ids ['construct-help', 'construct-help-body', 'construct-help-body-divider', 'construct-help-body-divider-foot', 'construct-help-body-edge', 'construct-help-body-foot-0-0', 'construct-help-body-foot-0-0-low', 'construct-help-body-foot-0-0-text', 'construct-help-body-foot-0-hit', 'construct-help-body-foot-0-word', 'construct-help-body-glass', 'construct-help-body-head-0']
+  help rect {}
+  texts 101
+run 5 key sheet at 1024x768:
+  cut texts: []
+  ids ['construct-help', 'construct-help-body', 'construct-help-body-divider', 'construct-help-body-divider-foot', 'construct-help-body-edge', 'construct-help-body-foot-0-0', 'construct-help-body-foot-0-0-low', 'construct-help-body-foot-0-0-text', 'construct-help-body-foot-0-hit', 'construct-help-body-foot-0-word', 'construct-help-body-glass', 'construct-help-body-head-0']
+  help rect {}
+  texts 101

@@ -35,6 +35,9 @@ fi
 if grep -qE 'Gate:.*merge-gate\.sh[^`]*--only' "$root/$rel"; then
   grep -qiE 'no product (code|change)' "$root/$rel" || die "$rel: its Gate runs --only, but a product-code lane runs the full gate (procedures.md Lane start); say 'no product code' if it is test-only"
 fi
+# Red on head (friction 11-26 07:08, xp-pager r1 fixed a finding already closed; same class 11-20 04:41, 13:31):
+# the brief names the red cell checked on the session head, or says why there is none (a pass, a review, a run-only round).
+grep -qE '^Red on head: .{8,}' "$root/$rel" || die "$rel lacks 'Red on head: <cell> red on <sha>' or 'Red on head: none (<reason>)' (check the finding is open before a lane starts)"
 # Opus gate (critic 11-18: opus started three times while over pace): the budget line decides.
 case "$model" in
   *opus*|*Fable*) grep -m1 '^budget:' "$root/state.md" | grep -qiE 'no new opus' && die "state.md budget line says no new opus today (rules.md 9)" ;;
