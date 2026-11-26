@@ -12,9 +12,10 @@
 #            has the keyboard focus
 #   kept     as pass, but the keyboard stays with the first window
 #            manager (a window or a node of it has the focus, not the
-#            window): a give key is a give of the person, and xp and
-#            tiling keep the keyboard when the window goes to another
-#            output, a virtual one too (D119, tiling-focus r2)
+#            window): a give key is a give of the person, and xp,
+#            tiling and mc keep the keyboard when the window goes to
+#            another output, a virtual one too (D119, tiling-focus r2
+#            and r3)
 #   gap      anything else; the window must still have an owner
 #   missing  the gate does not build the cell yet
 #
@@ -49,15 +50,15 @@ set -uo pipefail
 EXPECTED='
 mc xp give pass
 mc xp cgive pass
-mc xp key pass
+mc xp key kept
 mc xp drag pass
 mc tiling give pass
 mc tiling cgive pass
-mc tiling key pass
+mc tiling key kept
 mc tiling drag pass
 xp mc give pass
 xp mc cgive pass
-xp mc key pass
+xp mc key kept
 xp mc drag pass
 xp tiling give pass
 xp tiling cgive pass
@@ -65,7 +66,7 @@ xp tiling key kept
 xp tiling drag pass
 tiling mc give pass
 tiling mc cgive pass
-tiling mc key pass
+tiling mc key kept
 tiling mc drag pass
 tiling xp give pass
 tiling xp cgive pass
