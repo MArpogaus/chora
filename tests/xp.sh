@@ -627,7 +627,7 @@ open_my_documents_with() {
     wait_for menu_visible false
 }
 open_my_documents_with chora-no-such-manager
-wait_for said Notify "Cannot open chora-no-such-manager"
+wait_for said Notify "No file manager"
 grim "$out/cannot-open.png"
 item_text() { query kind:image | jq -r --arg t "$1" '[.[] | select(.meta.text == $t)] | .[0].rects | to_entries[0].value | map(floor) | join(" ")'; }
 click_text() {
