@@ -1,6 +1,6 @@
 # State
 
-## Now (2026-11-26 05:04 UTC)
+## Now (2026-11-26 05:05 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
 budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 05:01 PM 2.6 % (11-26 BKK); week about 48 % vs 71 % time; need (100-48-5)/48 h = 0.98 %/h; lanes 6 build
 session branch: 3e3b1b2d (t148 04:1x); 94 greens. TRAIN149 = t148 + flake-persona-notepad ef55b4fb (gate runs)
@@ -32,7 +32,7 @@ burn-down: F1-F4, F6, F8 met; F5 met (series r9), rerun on final head; F7 open (
 | xp-blink-r3.md (0.3 %) | sonnet med, 312a5ff1 + 6daaaab8 | MERGE-OK 3fd3a3bb (PM r3): t150 |
 | flake-bar-full-r1.md (0.8 %) | sonnet high, 6daaaab8 | running s..MRoVkQ1EbwsGcjcGg |
 | tour-harness-r1.md (0.4 %) | sonnet med | MERGE-OK 06c3f7cc (PM): own train after t149 |
-| mc-resume-r1.md (0.5 %) | sonnet high, 3e3b1b2d + 1ab2e6a7 | starting |
+| mc-resume-r1.md (0.5 %) | sonnet high, 3e3b1b2d + 1ab2e6a7 | running s..MaFjpYTR7g5JAHQ1J |
 | xp-busy-r1.md (0.5 %) | sonnet high, 3e3b1b2d + 3fd3a3bb | running s..LpwG2o9CLX3eG7mHu |
 ## Queue (% week; 5 % reserve)
 1. (rc 3) FLAKE-PERSONA-NOTEPAD r1 in t149; FLAKE-BAR-FULL r1 runs. TOUR-HARNESS r1 MERGE-OK 06c3f7cc: own train after t149 (--allow-skip docs, rth1-1), then lanes merge head.
