@@ -57,26 +57,26 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-26T06:00:00Z",
+  updated: "2026-11-26T07:01:00Z",
   start: "2026-11-21T04:00:00Z",   // budget reset (owner)
   end: "2026-11-28T03:59:00Z",     // next reset; F5, F7 carried over
-  budget: 48,                       // % of the new week used (reset 04:00)
+  budget: 49,                       // % of the new week used (reset 04:00)
   goals: [
     ["F1", "Plan in merge-sized slices", "done", "reviewed plan"],
     ["F2", "Shared code in one kit, no copies", "done", "met by audit r2 (19:13): 0 copies; kit-report keeps it after debt-down"],
     ["F3", "Window-manager core, first slices", "done", "met by audit r2: wm parts and records D107-D116"],
     ["F4", "No file over 1,500 lines", "done", "met again by audit r6: 0 files over, debt 17 of 47; but sleep lines in tests are exactly at their limit (779), so a guard lane now freezes that count"],
     ["F5", "No flaky tests, coverage over 80 %", "risk", "coverage 91.76 % holds; five full gates in a row were green on c3c37c2e (series r9); the series reruns on the final head after train 140"],
-    ["F6", "Every change through the merge gate", "done", "95 green merges, all reviewed (one, 689bff45, without its test first: logged); train 149 (persona flake fix) green 05:55 UTC (12:55 Bangkok); train 150 (tour harness fixes) runs now"],
+    ["F6", "Every change through the merge gate", "done", "95 green merges, all reviewed (one, 689bff45, without its test first: logged); train 149 (persona flake fix) green 05:55 UTC (12:55 Bangkok); train 150 failed on a real tour harness fault (fix lane); train 151 runs now"],
     ["F7", "No visual regression vs tour v8", "behind", "new v9 take today on the session head, video below. Against v8: 1 act same, 10 regressions (6 in mc, 4 in the handover) and 88 differences whose cause is not yet proven; the stricter check no longer lets a broad reason cover a difference it does not name. Two reviews on the strongest model now judge each act by eye, then one fix lane per look"],
     ["F8", "Docs and decision records", "done", "met by audit r6 (01:40 UTC, 08:40 Bangkok): the kit log module is documented and decision record D120 exists; every decision named in a commit has its record"]
   ],
   now: [
-    "Train 149 is merged: the persona Notepad flake is fixed. Train 150 (tour harness fixes) runs; train 151 then brings the paperclip blink and four mc page faults.",
-    "Tiling: round 3 fixes the paths that send keys to the other screen (MAJOR).",
-    "Construct: round 3 makes the key sheet legible at 1024x768 (MAJOR).",
-    "xp: the chat shows Working and an enabled Stop right after a send (new lane). mc: a host restart now must apply its new config (new lane).",
-    "Spending is under pace (48 % vs 71 %): six build lanes run."
+    "Train 150 failed for a real reason: the tour test read files from another folder. A fix lane starts now; train 151 (paperclip blink, four mc page faults, tour rows) runs with a workaround.",
+    "xp: the chat shows Working and an enabled Stop right after a send: reviewed, joins train 152.",
+    "Construct: round 3 still cuts key texts at 1024x768 (MAJOR): round 4 starts. Tiling: round 3 is done, a strong-model review starts.",
+    "mc: a host restart must apply its new config (lane runs); the boiling side panel is next.",
+    "Spending is under pace (49 % vs 73 %): six build lanes run."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
 };

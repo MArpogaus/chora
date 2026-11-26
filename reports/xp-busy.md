@@ -13,3 +13,13 @@ F7 (rc 1 shared bar "honest states"): right after a send the xp chat header read
 - Captures (crops 500x400 of the 1280x800 session, 49 KB and 47 KB): media/2026-11-26/xp-busy-r1/chat-just-after-send.png ("atlas — Working", Stop and the sent line "hi"), chat-after-answer.png.
 - Gate: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` (full, no step filter): `all steps passed; no --push, nothing is pushed`, 0 FAIL lines; xp-chat-idle PASS in it. No `chora --headless` left.
 - Note: the gate poll bound is 200 ms back to back; under the full gate load the busy line showed at 145 ms, so a heavier host may need a look (no timer in the product, only the test's bound).
+
+## Review r1 (PM, 2026-11-26, 155 lines, 83d106f3..88951ae4)
+- Red first: 84a8565d (unit tests + gate case FAKE_VOICE_LATE, base log "FAIL: xp-busy: the header says no Working within 200 ms of the send") before fix 88951ae4. Holds.
+- Fix: Session::said sets state "working" after a taken send (not after a refused one, not without a helper); the next voice.state replaces it. KISS: no timer, no option, kit State words unchanged. Holds.
+- Tests: Working and Stop at once, Idle and grey after the answer; refused send shows the failure, not Working; no helper keeps "No helper is set up". Holds.
+- Scope: the chat lives in plugins/chora-assistant/src/chat.rs (shared by all looks), not chora-xp/src/chat/ as the brief said (PM brief error). Effect: every look's chat shows Working at a send: the shared bar "honest states", wanted.
+- Gate: full, all steps passed, no foreign flake; captures 49 KB, 47 KB.
+Findings:
+- rxbu1-1 (NIT): a voice.state idle already queued before the send would set Idle again before the helper starts; states carry seq, a later round may ignore a state older than the send.
+Verdict (computed): no open MAJOR: MERGE-OK 88951ae4, joins train 152.

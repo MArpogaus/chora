@@ -117,3 +117,18 @@ With the real fonts the wide rows of 1024x768 and 1280x720 show a cut text (`Tur
 Captures media/2026-11-26/co-drop-r3/: c4-sheet-1024x768.png (247 KB), c4-sheet-1280x720.png (263 KB), c4-sheet-1920x1080.png (351 KB), each with Esc Close in the foot row.
 
 Gate: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` (no --push, no step filter) on 369cf96f: all steps passed; EXIT 0 (last lines: demo PASS 234s, leak PASS 473s, tiling-theme PASS, tiling-bar PASS 177s, mc-host PASS, tiling-disc PASS 73s, e2e PASS 277s, "all steps passed; no --push, nothing is pushed"). No red cell, no flake. `pgrep -fa 'chora --headless'` empty.
+
+## Review r3 (PM, 2026-11-26, 120 lines, 92264c9c..369cf96f)
+
+Read: brief co-drop-r3, "## r3", `git diff 92264c9c 369cf96f`, capture c4-sheet-1024x768.png, -1280x720.png. No gate run (the lane's: EXIT 0 on 369cf96f).
+
+Checks:
+1. Red first holds: 9f25bf35 (sheet test at 5 sizes with x >= 32, w <= 1360, text end before first keycap; gate case `turned` types `x`, asserts no new key 45) before 369cf96f (command.rs only).
+2. rcdr2-2 fixed: 32 at the sides (HELP_MARGIN), pad 16, gap 16 or 24, three-column width capped by three widest rows (2560x720: 1324, centred at 618); co-71 click back at x 20. rcdr2-3 fixed: the case can now fail (lane shows it red on 75d4623e). rcdr2-4 fixed: comment true.
+3. rcdr2-1 (text under keycaps): no text under a keycap at any size (unit test, capture). But the cut is the only remedy: at 1024x768 the capture shows "T…" (Turn the cube), "Walk forward, bac…", "Answer a que…", "Give window to Ti…", "Give window to M…", "Give window to C…", "Start a program or…". "T…" and the three give rows do not say what the key does; base (2 columns) drew them in full.
+
+Findings:
+- rcdr3-1, MAJOR, plugins/chora-construct/src/command.rs:763 (`key_row` cut), at 1024x768 the key sheet cuts row texts to a stub ("T…" for Turn the cube; "Give window to M…" / "C…" / "Ti…" hide which look), so the key list, part of the shared RC bar, no longer tells what 7 keys do; there is vertical room (sheet foot at 666 of 736); fix: a row text that does not fit wraps to a second line (the row grows by one line, `body_height` counts it) and is cut only past two lines; the unit test asserts at 1024x768 and 1280x720 that no row text is cut (no "…" in any `-what` text).
+- rcdr3-2, NIT, plugins/chora-construct/src/command.rs:771, the search mark is dropped when the match lies in the cut part; with rcdr3-1 the case almost vanishes; fix: none needed beyond rcdr3-1.
+
+Verdict (computed): FIX (0 BLOCK, 1 MAJOR, 0 MINOR, 1 NIT). Next: CO-DROP r4 (sonnet high) on 369cf96f.

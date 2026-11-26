@@ -140,3 +140,16 @@ rv9ka-1 (rtr2-2): the recipe list cut is gone (no `ingredients-panels-list-lines
 Diff jsons: media/2026-11-26/tour-rows-r3/take1-diff.json, take2-diff.json, take3-diff.json. Rows of intended.toml for the session-head changes are open work.
 
 Gate: CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2 (no --push): all cells PASS, last line "all steps passed; no --push, nothing is pushed" (last 20 lines in media/2026-11-26/tour-rows-r3/gate-last20.txt). pytest tests/test_tour_diff.py tests/test_tour.py: 203 passed. pgrep -fa 'chora --headless' empty.
+
+## Review r3 (PM, 2026-11-26, 71 lines, 39e40754..f36a229d)
+Checks (brief tour-rows-r3 Done when):
+- Red first: 87ee25b6 (test, fails on f992fe6a: no wait_for_text) before 1d8d2534 (fix); 2fabc1fd, f36a229d refine the same wait. Holds.
+- rtr2-1 fixed: the t3 loop is cut with flush, waits on wait_for_text (ps based, 30 s, one failure line), then done; 5 unit tests (order in the loop, return, timeout line, ps parse, window wait). Takes x3: equal counts and equal lists (54 change, 1 same, 11 none, 44 regression); all t* acts change or same. Holds.
+- KISS, no mask: holds.
+- Gate: full gate all PASS; pytest 203 passed. Holds.
+- "no m1..m4b cut": m1, m1b, m1c, m4, m4b clean; m2, m2b, m3 keep mc-s-boil-panels-side-lines 29 of 56 px in all three takes. A product cut outside this lane's area (harness), so not a lane failure: filed as rtr3-1 for an mc lane.
+Findings:
+- rtr3-1 (MAJOR, product, mc): boil page side panel cut (29 of 56 px, 2 lines) at m2, m2b, m3; rest of rv9ka-1. To an MC-BOIL r1 lane (red: no cut at m2/m2b/m3).
+- rtr3-2 (MAJOR, F7, harness): 44 regressions are session-head product changes with no intended.toml row (x: hud-line, xp-desktop, notify-card, Foot names; c2 hints; m: right column). Each needs a judged row or a fix: TOUR-ROWS r4 (judge by eye, one row per intended change, regressions filed).
+- rtr3-3 (NIT): content_started counts every foot with app-id code/notes/page on the machine; a foot left over from another chapter would satisfy it early. Accept; note.
+Verdict (computed on this diff): no open MAJOR in the lane's change: MERGE-OK f36a229d, joins train 151. rtr3-1, rtr3-2 are new lanes.

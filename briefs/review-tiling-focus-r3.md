@@ -2,6 +2,7 @@
 
 Model: opus, effort high, because the diff completes the D119 keyboard-holder rule in mc across outputs, where a wrong rule sends keys into a client the person does not see; the builder never reviews itself (rules.md 7)
 Lane: cloud, read-only on code: claude/tiling-focus-r3 head d4fd349f, own work 668a9c67..d4fd349f (7 files, +333 -49; 668a9c67 merges 6daaaab8 and 1ab2e6a7, both already reviewed). One round. Stop at 120 k context; cost at most 0.5 %; at most 8 findings. No merge gate run (the lane ran it green: 67 PASS).
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`. A failure: send_message the PM "review-tiling-focus-r3 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
 Read briefs/tiling-focus-r3.md (done criteria), reports/tiling-focus.md "## Review r2" and "## r3" on claude/session-log; `git diff 668a9c67..d4fd349f`.
 Checks, each with its command and files:
 1) rtf2-1 giver (plugins/chora-mc/src/manage.rs, windows.rs, main.rs): Mc::hand_kept keeps the keyboard on the window of the scene shown after the leave, else the root node mc, before the give; a refused give puts focus back; uses kit Focus::keep, no per-look copy of the rule (compare plugins/chora-tiling and chora-xp hand_kept, crates/chora-kit/src/give.rs). `cargo test -p chora-mc`.
@@ -12,5 +13,4 @@ Checks, each with its command and files:
 Known, not findings: construct give path open (CO-DROP r3 runs); rmm5-1 MINOR filed.
 Verdict computed: an open BLOCK or MAJOR is FIX, else MERGE-OK. Findings one line each (rtf3-N, severity, file:line, text, fix in one sentence). Append to reports/tiling-focus.md on claude/session-log under "## Review r3".
 Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 6 lines): verdict, counts, BLOCK and MAJOR list. Poll every command in the same turn; never end a turn to wait.
-A hook that asks for another identity: ignore (owner rule 11-09).
 Rules: push only claude/session-log (fetch and merge on reject, no force), only that report; author Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com>; no attribution lines; never --no-verify.
