@@ -118,3 +118,28 @@ fn stood_back_out_of_a_pane_the_bar_names_the_way_into_the_face() {
         "the pull key is named"
     );
 }
+
+/// co-79 r6: walking with no cube open, the window of a pane with the
+/// keyboard (the state after `Alt+Escape` out of the pane of the Terminal
+/// row) has `Super C Cube` named, the way to a face; with the keyboard in
+/// no pane window it is not, as the walk names the cube nowhere else.
+#[test]
+fn stepped_out_of_a_pane_without_a_cube_the_walk_names_the_cube() {
+    let (mut construct, core, _lines) = super::with_hint_bar("reach-walk");
+    construct.cube = None;
+    construct.hints.until = Some(std::time::Instant::now() + crate::hints::WALK);
+    construct.core_focus = Some("s1".into());
+    assert_eq!(construct.cube_window().as_deref(), Some("s1"));
+    construct.draw_hints().unwrap();
+    assert!(
+        has(&core.model(), "construct-hint-cube"),
+        "the walk names the way to a cube"
+    );
+    construct.core_focus = None;
+    construct.draw_hints().unwrap();
+    assert_eq!(construct.cube_window(), None);
+    assert!(
+        !has(&core.model(), "construct-hint-cube"),
+        "with no pane window holding the keys the cube is not named"
+    );
+}

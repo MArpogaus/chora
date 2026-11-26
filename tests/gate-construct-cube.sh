@@ -70,6 +70,13 @@
 #    back, the hint bar names the give key of the face manager, Super Alt
 #    2, and that key puts the window on the face at the front, steps into
 #    it and gives it the keyboard; then the bar names the pull key.
+# 8. Out of every pane a told key leads into a face (co-79 r6): the
+#    Terminal row of the start card starts a pane with no cube open;
+#    Alt+Escape steps out into the space, where the bar names Super C Cube;
+#    that key stands back from a new cube, where the bar names Super Alt 2
+#    for the window of the pane, which then is on face 0 and takes keys.
+#    Pulled out of the face again by Super+Alt+4, Alt+Escape out of that
+#    pane stands back from the cube too, and Super Alt 2 is told again.
 #
 # Usage: tests/gate-construct-cube.sh   BIN: directory with the binaries
 #   SHOT  a PNG path that keeps a capture of the cube during a turn
@@ -989,6 +996,7 @@ until_ok '! probe | grep -q "^$put "' 40 || fail "co-79: the program put into th
 call cube.close >/dev/null || fail "cube.close after the key"
 until_ok 'test -z "$(virtuals)"' || fail "cube.close after the key left $(virtuals)"
 
+
 until_ok "call cube.open '{}' >/dev/null 2>&1" || fail "cube.open before the kill: $(call cube.open '{}' 2>&1)"
 until_ok 'test "$(virtuals | wc -w)" = 4' || fail "no outputs before the kill"
 until_ok 'test "$(bars)" = 4' 80 || fail "no xp taskbars before the kill: $(bars)"
@@ -1033,3 +1041,65 @@ until_ok '[ "$(prop construct-label visible)" != True ] || [ "$(prop construct-l
 until_ok '[ "$(edge construct-face-label-glass 1)" -gt 0 ]' 20 || fail "no face label with a pane open"
 ok "stood back with a pane open, the pane goes beside the cube and shows, its label hides, the face label stays under the cube"
 call view.step_in >/dev/null || fail "view.step_in with a pane open"
+
+call cube.close >/dev/null || fail "cube.close before step 8"
+until_ok 'test -z "$(virtuals)"' || fail "cube.close before step 8 left $(virtuals)"
+python3 -I - "$CHORA_SOCKET" <<'PY'
+import os, signal, sys
+for pid in filter(str.isdigit, os.listdir("/proc")):
+    try:
+        cmd = open(f"/proc/{pid}/cmdline", "rb").read().split(b"\0")
+        env = open(f"/proc/{pid}/environ", "rb").read().split(b"\0")
+    except OSError:
+        continue
+    if cmd[0].endswith(b"chora-probe") and b"CHORA_SOCKET=" + sys.argv[1].encode() in env:
+        os.kill(int(pid), signal.SIGTERM)
+PY
+center() { ctl query "id:$1" | python3 -I -c 'import json, sys; r = next(iter(json.load(sys.stdin)[0]["rects"].values())); print(round(r[0] + r[2] / 2), round(r[1] + r[3] / 2))'; }
+cube_keys() { local k out=""; for k in 0 1; do out="$out $(prop "construct-hints-cube-keys-$k-text" text | grep -v -e False -e gone)"; done; echo "$out"; }
+hint_words() { ctl query '*' | jq -r '[.[] | select((.id | test("^construct-hints-.*-word$")) and (.rects | length > 0)) | .text] | join(", ")'; }
+had=" $(probe | awk '{print $1}' | tr '\n' ' ') "
+until_ok 'ctl query id:construct-start-row-0 | jq -e ".[0].rects | length > 0" >/dev/null' 40 ||
+    fail "co-79: no start card with its Terminal row on the empty floor: $(call construct.list | jq -c '[.panes[].name]') $(probe)"
+read -r x y <<<"$(center construct-start-row-0)"
+inject "[{\"pointer_move\": {\"position\": [$x, $y]}}, {\"click\": {}}]"
+until_ok 'fresh | grep -q " construct "' 100 || fail "co-79: the Terminal row of the start card started no pane: $(probe)"
+read -r term _ <<<"$(fresh | head -n 1)"
+until_ok 'test "$(prop construct-hint-step-back visible)" = True' 40 || fail "co-79: in the pane of the Terminal row no Step back shows"
+key Alt+Escape
+until_ok 'test "$(cube_keys)" = " Super C"' 20 ||
+    fail "co-79: stepped out of the pane of the Terminal row, with no cube open, the hint bar names no way to a cube (cube keys:$(cube_keys); bar: $(hint_words); focus: $(ctl query kind:surface | jq -c '[.[] | select(.focused) | .id]')): $(call cube.list | jq -c '{mode, faces: (.faces | length)}')"
+ok "co-79: stepped out of the pane of the Terminal row, the hint bar names Super C Cube"
+key Super+c
+until_ok 'test "$(call cube.list 2>/dev/null | jq -r .mode)" = navigate' 40 || fail "co-79: the told Super+C did not stand back from a cube: $(call cube.list 2>&1 | head -c 300)"
+until_ok 'test "$(bars)" = 4' 80 || fail "co-79: xp shows $(bars) taskbars after the told Super+C"
+until_ok 'test "$(put_keys)" = " Super Alt 2"' 20 ||
+    fail "co-79: stood back by the told Super+C, the hint bar names no way into a face for the window of the pane (put-in keys:$(put_keys))"
+front0=$(call cube.list | jq -r '.faces[0].output')
+until_ok '! ctl call xp window.move "{}" 2>&1 | grep -q "no exported method"' 20 || fail "co-79: the xp of the new cube exports no window.move"
+key Super+Alt+2
+until_ok 'probe | grep -q "^$term xp $front0 "' 40 || fail "co-79: the told Super+Alt+2 did not put the window of the Terminal row on the face at the front ($front0): $(probe | grep "^$term ")"
+until_ok 'test "$(call cube.list | jq -r .mode)" = use' 40 || fail "co-79: after Super+Alt+2 the cube did not step into the face: $(call cube.list | jq -c '{mode, front}')"
+before=$(keys_in "$work/term.log")
+plain a
+until_ok 'test "$(keys_in "$work/term.log")" -gt "$before"' 20 || fail "co-79: the window of the Terminal row put into the face has no keyboard"
+until_ok 'ctl query id:construct-hint-pull-out | grep -q construct-hint-pull-out' 20 || fail "co-79: in the face with the window of the Terminal row, the bar names no pull key"
+ok "co-79: Terminal row, Alt+Escape, the told Super+C and the told Super+Alt+2: the window is in face 0 and takes keys"
+camera() { call construct.list | jq -c .camera; }
+# shellcheck disable=SC2034 # used in the until_ok string
+cam_before=$(camera)
+key Super+Alt+4
+until_ok 'probe | grep -q "^$term construct "' 40 || fail "co-79: Super+Alt+4 did not pull the window out of the face: $(probe | grep "^$term ")"
+until_ok 'test "$(camera)" != "$cam_before" && test "$(camera)" = "$(camera)"' 40 || fail "co-79: the camera did not fly into the pulled pane: $(camera)"
+until_ok 'test "$(prop construct-hint-step-back visible)" = True' 40 || fail "co-79: in the pulled pane no Step back shows"
+key Alt+Escape
+until_ok 'test "$(call cube.list | jq -r .mode)" = navigate && test "$(prop construct-mode-step-in visible)" = True' 40 ||
+    fail "co-79: Alt+Escape out of the pulled pane did not stand back from the cube: $(call cube.list | jq -c '{mode, front}'), step-in chip $(prop construct-mode-step-in visible), bar: $(hint_words)"
+until_ok 'test "$(put_keys)" = " Super Alt 2"' 20 ||
+    fail "co-79: stood back out of the pulled pane the hint bar names no way into a face (put-in keys:$(put_keys))"
+key Super+Alt+2
+until_ok 'probe | grep -q "^$term xp $front0 "' 40 || fail "co-79: the told Super+Alt+2 did not put the pulled window back on the face at the front: $(probe | grep "^$term ")"
+until_ok 'test "$(call cube.list | jq -r .mode)" = use' 40 || fail "co-79: after Super+Alt+2 out of the pulled pane the cube did not step in"
+ok "co-79: Alt+Escape out of a pane pulled from a face stands back, and the told Super+Alt+2 puts the window back"
+call cube.close >/dev/null || fail "cube.close after step 8"
+until_ok 'test -z "$(virtuals)"' || fail "cube.close after step 8 left $(virtuals)"
