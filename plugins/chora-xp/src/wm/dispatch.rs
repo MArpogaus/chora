@@ -289,7 +289,15 @@ impl Wm {
     /// width, so that nothing moves. A tooltip that shows says the new
     /// level.
     pub(super) fn show_volume(&mut self) -> Vec<Command> {
-        self.trays()
+        let mut commands = self.trays();
+        let on_speaker = self
+            .tip
+            .node()
+            .is_some_and(|n| matches!(taskbar::Part::of(n), Some(taskbar::Part::Speaker(_))));
+        if on_speaker {
+            commands.extend(self.tip.retext(&self.speaker_tip()));
+        }
+        commands
     }
 
     /// The speakers show the reading after it at the next tick.

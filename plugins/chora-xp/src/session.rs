@@ -1,4 +1,4 @@
-//! XP's Log Off Windows and Turn off computer dialogs: a dark blue title
+//! XP's Log Off and Turn off computer dialogs: a dark blue title
 //! band with the flag, a light blue band with the big buttons, and Cancel
 //! below. They sit in the middle of the overlay root of an output, above a
 //! clear shield that takes the clicks outside. The measurements follow the
@@ -48,7 +48,7 @@ void main() {
 /// Which dialog.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mode {
-    /// Log Off Windows: Switch User and Log Off.
+    /// Log Off: Switch User and Log Off.
     LogOff,
     /// Turn off computer: Lock, Log Off, Stand By, Turn Off and Restart.
     TurnOff,
@@ -195,10 +195,7 @@ impl Dialog {
     /// Creates the shield, the dialog and its buttons on the overlay root
     /// of the output.
     pub fn create(&self, theme: &mut Theme) -> Vec<Command> {
-        let title = match self.mode {
-            Mode::LogOff => "Log Off Windows",
-            Mode::TurnOff => "Turn off computer",
-        };
+        let title = title(self.mode);
         let frame = Picture::new(SIZE[0], SIZE[1])
             .file(&theme.path("winxp/dialog.svg"), [0, 0, SIZE[0], SIZE[1]])
             .text(Text::new(
@@ -426,9 +423,23 @@ fn error_start(command: &str, err: &dyn std::fmt::Display) {
     tracing::error!("{command}: {err}");
 }
 
+/// The title of the dialog of a mode.
+fn title(mode: Mode) -> &'static str {
+    match mode {
+        Mode::LogOff => "Log Off",
+        Mode::TurnOff => "Turn off computer",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_titles_do_not_name_windows() {
+        assert_eq!(title(Mode::LogOff), "Log Off");
+        assert_eq!(title(Mode::TurnOff), "Turn off computer");
+    }
 
     #[test]
     fn cancel_is_a_push_button_of_80_by_28_inside_the_dialog() {

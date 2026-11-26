@@ -51,7 +51,7 @@ const CONTROL_PANEL: &str = "Control Panel";
 pub enum Action {
     /// Runs a shell command.
     Run(String),
-    /// Opens the Log Off Windows dialog.
+    /// Opens the Log Off dialog.
     LogOff,
     /// Opens the Turn off computer dialog.
     TurnOff,
