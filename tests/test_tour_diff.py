@@ -946,6 +946,34 @@ class ConstructAfterTheDrop(unittest.TestCase):
             self.step_out()(t, inside)
             self.assertEqual((t.keys, t.frame), (keys, 1), inside)
 
+    def stepped_in(self):
+        import ast
+        import re as regex
+
+        scope = {"NO_METHOD": regex.compile(r"no (?:exported )?method", regex.IGNORECASE)}
+        exec(compile(ast.Module([self.functions["stepped_in"]], []), "construct.py", "exec"), scope)
+        return scope["stepped_in"]
+
+    class Old:
+        """A session on 733967aa: construct exports no `cube.list`."""
+
+        def call(self, look, method):
+            raise RuntimeError(f"choractl call {look} {method} {{}}: choractl: {look}.{method} is no exported method (code 1)")
+
+    class New:
+        def __init__(self, mode):
+            self.mode = mode
+
+        def call(self, look, method):
+            return {"mode": self.mode, "front": 0}
+
+    def test_the_replay_without_cube_list_is_stood_back_and_does_not_stop(self):
+        """The v8 take of construct stopped at `stepped_in` with `construct.cube.list is no exported method`, so c3..c2b
+        were `baseline: none` (tour-fix r1 take)."""
+        self.assertFalse(self.stepped_in()(self.Old()))
+        self.assertTrue(self.stepped_in()(self.New("use")))
+        self.assertFalse(self.stepped_in()(self.New("navigate")))
+
     def test_c5d_looks_at_the_stepped_in_face_and_c3_steps_out_before_it_turns(self):
         lines = self.source.splitlines()
         c5d = next(i for i, line in enumerate(lines) if '"04-13-back-on-face"' in line)

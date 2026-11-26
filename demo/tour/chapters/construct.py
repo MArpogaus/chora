@@ -4,7 +4,7 @@ import sys, time, os, json, subprocess
 from launch import *
 import launch
 from human import Quick
-from tour import Session, checker_for
+from tour import NO_METHOD, Session, checker_for
 from harness import Expect
 from slides import slide
 
@@ -47,8 +47,14 @@ def front_now(S):
 
 
 def stepped_in(S):
-    """The person is inside a face (`use`), not stood back from the cube (`navigate`)."""
-    return S.call("construct", "cube.list").get("mode") == "use"
+    """The person is inside a face (`use`), not stood back from the cube (`navigate`). The 733967aa build of the
+    replay has no `cube.list`; its drop leaves the person stood back, so a missing method reads as stood back."""
+    try:
+        return S.call("construct", "cube.list").get("mode") == "use"
+    except RuntimeError as err:
+        if not NO_METHOD.search(str(err)):
+            raise
+        return False
 
 
 def step_out(t, inside):
