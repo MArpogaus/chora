@@ -441,6 +441,8 @@ struct Mc {
     scroll: BTreeMap<String, f64>,
     /// The wheel that a touchpad or a roll has not yet made a step of.
     wheel_acc: f64,
+    /// When the last scroll event came.
+    wheel_at: Option<std::time::Instant>,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -613,6 +615,7 @@ impl Mc {
             slot_sent: None,
             scroll: BTreeMap::new(),
             wheel_acc: 0.0,
+            wheel_at: None,
         };
         mc.keep_texts();
         mc

@@ -61,13 +61,14 @@ impl Mc {
     /// What the pill and the card take now. A card counts only when it
     /// stands on the output of mc and its top lies under the top of the
     /// page, in output coordinates (rmm2-1); the room is what the card
-    /// takes beyond the room of the footer, and none once it closed.
+    /// takes beyond the room of the footer, and none once it closed. The
+    /// rect is output-local already (rmm3-1); a card is at the foot by its
+    /// bottom in the lower third, and its room is clamped to a third (rmm3-2).
     pub(crate) fn read_rooms(&mut self) -> Result<Rooms, ClientError> {
         let Some(output) = self.output.clone() else {
             return Ok(self.rooms);
         };
         let [width, height] = output.size.map(f64::from);
-        let [left, top] = output.position.map(f64::from);
         let page_top = self.page_top();
         let mut pill_left: Option<f64> = None;
         for id in PILL {
@@ -79,11 +80,11 @@ impl Mc {
             pill_left: pill_left.map(f64::round),
             card: None,
         };
-        if let Some([x, y, ..]) = self.card_rect() {
-            let (across, down) = (x - left, y - top);
-            let room = (height - down).round();
-            let at_foot = room <= (height / MOST_OF_HEIGHT).round();
-            if (0.0..width).contains(&across) && down > page_top && at_foot {
+        if let Some([x, y, _, h]) = self.card_rect() {
+            let third = (height / MOST_OF_HEIGHT).round();
+            let room = (height - y).round().min(third);
+            let at_foot = y + h >= height - third;
+            if (0.0..width).contains(&x) && y > page_top && at_foot {
                 rooms.card = (room > self.foot_room()).then_some(room);
             }
         }

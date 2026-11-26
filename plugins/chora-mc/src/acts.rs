@@ -94,6 +94,9 @@ impl Mc {
 /// The scroll of a finger or a roll that makes one step of the volume, in
 /// logical pixels.
 const NOTCH: f64 = 40.0;
+/// A pause after which a scroll event starts a new gesture and drops the
+/// rest of the last one.
+const GESTURE_GAP: std::time::Duration = std::time::Duration::from_millis(300);
 
 impl Mc {
     /// How many steps of the volume a scroll event makes, positive down
@@ -110,7 +113,10 @@ impl Mc {
             chora_scene::ScrollSource::Wheel if discrete[1] != 0.0 => discrete[1],
             _ => dy / NOTCH,
         };
-        if notches * self.wheel_acc < 0.0 {
+        let now = std::time::Instant::now();
+        let fresh = self.wheel_at.is_none_or(|at| now - at > GESTURE_GAP);
+        self.wheel_at = Some(now);
+        if fresh || notches * self.wheel_acc < 0.0 {
             self.wheel_acc = 0.0;
         }
         self.wheel_acc += notches;
