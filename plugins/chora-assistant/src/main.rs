@@ -76,6 +76,10 @@ const HOST_FAMILY: &str = chora_kit::glass::SANS;
 /// How long the loop waits for an event while nothing moves.
 const IDLE: Duration = Duration::from_secs(60);
 
+/// How long the loop waits while a recording holds the clock: the clock runs
+/// again when no step comes, and the loop must see it.
+const HELD_RECHECK: Duration = Duration::from_millis(500);
+
 /// The events that the plugin handles.
 const EVENTS: &[&str] = &[
     "voice.*",
@@ -641,7 +645,8 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
 fn serve_wait(agent: &mut Agent) -> Duration {
     let now = clock::now();
     let real = Instant::now();
-    let animations = if clock::held() {
+    let held = clock::held();
+    let animations = if held {
         Vec::new()
     } else {
         vec![
@@ -652,12 +657,13 @@ fn serve_wait(agent: &mut Agent) -> Duration {
         ]
     };
     let timers = [agent.chat_due(now), agent.ask_due()];
-    [animations, timers.to_vec()]
+    let wait = [animations, timers.to_vec()]
         .concat()
         .into_iter()
         .flatten()
         .min()
-        .map_or(IDLE, |due| due.saturating_duration_since(real))
+        .map_or(IDLE, |due| due.saturating_duration_since(real));
+    if held { wait.min(HELD_RECHECK) } else { wait }
 }
 
 /// The methods of the core every plugin exports: its state and the clock of
@@ -1206,7 +1212,11 @@ mod tests {
         agent.replace_assistant().unwrap();
         let wait = serve_wait(&mut agent);
         clock::set(None);
-        assert_eq!(wait, IDLE, "a held clock waits for an event");
+        assert!(
+            wait >= Duration::from_millis(100),
+            "a held clock does not spin: {wait:?}"
+        );
+        assert!(wait <= HELD_RECHECK, "but it looks again: {wait:?}");
     }
 
     /// What greets at `GREET_AFTER` of a start without a voice agent: what
