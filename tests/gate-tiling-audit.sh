@@ -202,6 +202,11 @@ round() {
     ctl run "$bin/chora-tiling" --launch foot -F -T fullscreen sh -c 'printf "\\n\\n\\n\\n\\n\\n\\n\\n"; echo fullscreen; sleep 600' >/dev/null || fail "$tag: foot"
     if [[ fullscreen =~ ^(${CELLS:-.*})$ ]] && ! fullscreen_rests; then
         echo "FAIL: fullscreen $tag: the bar does not hide over the fullscreen window within 20 s: $(fullscreen_state)"
+        bar_pid=$(cat "$XDG_RUNTIME_DIR/chora-tiling/waybar.pid" 2>/dev/null)
+        echo "  the bar: waybar.pid ${bar_pid:-none}, $(grep -E 'Sig(Ign|Cgt)' "/proc/${bar_pid:-0}/status" 2>/dev/null | tr -s '\t\n' ' ')"
+        echo "  the fullscreen flag: $(ctl query kind:surface | jq -c '[.[] | {title: .surface.title, fullscreen: .surface.fullscreen}]' 2>&1)"
+        echo "  the outputs: $(ctl outputs 2>&1 | jq -c . 2>&1)"
+        tail -n 5 "$shots/waybar-$tag.log" | sed 's/^/  waybar: /'
         failed=1
     fi
     audit fullscreen "$tag" "$theme" "$scale"

@@ -356,17 +356,19 @@ impl Tiling {
 }
 
 /// What the bar needs after an event: the new record of the panel that was
-/// told (its pid and whether it was told to hide) and the pid that gets
+/// told to hide (its pid; none while it shows) and the pid that gets
 /// `SIGUSR1`, which toggles the panel, when its state is not the wanted
-/// one. `panel` names the running panel, and is asked only when the state
-/// can differ.
+/// one. `panel` names the running panel. It is asked at each event while a
+/// window is fullscreen or the record names a hidden panel, and the pid is
+/// compared each time: a panel that started again under a fullscreen
+/// window shows, whatever the record says, and is told anew.
 pub(super) fn bar_step(
     record: Option<(u32, bool)>,
     want: bool,
     panel: impl FnOnce() -> Option<u32>,
 ) -> (Option<(u32, bool)>, Option<u32>) {
-    if record.is_some_and(|(_, hidden)| hidden == want) || (!want && record.is_none()) {
-        return (record, None);
+    if !want && record.is_none() {
+        return (None, None);
     }
     let Some(pid) = panel() else {
         return (None, None);
@@ -374,7 +376,7 @@ pub(super) fn bar_step(
     let hidden = record
         .filter(|(old, _)| *old == pid)
         .is_some_and(|(_, hidden)| hidden);
-    (Some((pid, want)), (hidden != want).then_some(pid))
+    (want.then_some((pid, true)), (hidden != want).then_some(pid))
 }
 
 #[cfg(test)]
