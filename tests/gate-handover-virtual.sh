@@ -15,7 +15,9 @@
 #            window): a give key is a give of the person, and xp,
 #            tiling and mc keep the keyboard when the window goes to
 #            another output, a virtual one too (D119, tiling-focus r2
-#            and r3)
+#            and r3); a window given without the keyboard stays without
+#            it while another look holds it, so the next cell places the
+#            window through the holder, which takes it with the keyboard
 #   gap      anything else; the window must still have an owner
 #   missing  the gate does not build the cell yet
 #
@@ -124,6 +126,8 @@ run_pid $!
 w=$(ctl wait "app_id:probe kind:surface" --timeout 20 | jq -r '.[0].id') || fail "foot does not show"
 owner_of() { ctl query "id:$w" | jq -r '.[0].owner // "none"'; }
 
+holder_of() { ctl query '*' | jq -r 'first(.[] | select(.focused == true) | .owner) // "none"'; }
+
 with_owner() {
     local shown
     shown=".[0] | .owner == \$o and .parent != null and .focused == true
@@ -150,10 +154,17 @@ sleep 1
 give() { ctl call "$1" window.give "{\"surface\": \"$w\", \"to\": \"$2\"}" >/dev/null 2>&1; }
 
 place() {
-    local o other=xp
+    local o other=xp h
     o=$(owner_of)
     case $o in none | null | "") fail "the window is lost before a cell" ;; esac
     [ "$1" != xp ] || other=tiling
+    h=$(holder_of)
+    if ! with_owner "$o" 0.2 && [ "$h" != "$o" ] && [ "$h" != "$1" ] && [ -n "${out_of[$h]:-}" ]; then
+        echo "repair: $h holds the keyboard, the window goes there first" >>"$log"
+        give "$o" "$h"
+        with_owner "$h" 10 || fail "cannot move the window from $o to the holder $h"
+        o=$h
+    fi
     if [ "$o" != "$1" ]; then
         give "$o" "$1"
     elif ! with_owner "$1" 1; then

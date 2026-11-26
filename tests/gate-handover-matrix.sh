@@ -13,7 +13,10 @@
 #         key is a give of the person, who looks at the first output, so
 #         the giver keeps the keyboard there (D119, tiling-focus r2 and
 #         r3); tiling, xp and mc keep it, and as receivers they leave it
-#         with the giver; the construct does neither yet (CO-DROP);
+#         with the giver; the construct does neither yet (CO-DROP); as a
+#         window given without the keyboard stays without it while another
+#         look holds it, the next cell places the window through the holder,
+#         which takes it with the keyboard, and on from there;
 #         kept_by measures it: a window or a node of the first has the
 #         focus, the window has not, and so it is a second later
 #   gap   anything else; the window must still have an owner and no
@@ -332,10 +335,24 @@ has_focus() {
 }
 
 place() {
-    local o
+    local o h
     o=$(owner_of)
     [ "$o" != "$1" ] || return 0
     case $o in none | null | "") fail "the window is lost before a cell: owner ${o:-nobody}" ;; esac
+    h=$(ctl query '*' | jq -r 'first(.[] | select(.focused == true) | .owner) // "none"')
+    if ! ctl query "id:$w" | jq -e '.[0].focused == true' >/dev/null && [ "$h" != "$o" ] && [ "$h" != "$1" ]; then
+        case $h in tiling | xp | mc)
+            repair "give $o to $h, which holds the keyboard (D119)"
+            ctl call "$o" window.give "{\"surface\": \"$w\", \"to\": \"$h\"}" >/dev/null 2>&1
+            for _ in $(seq 50); do
+                [ "$(owner_of)" = "$h" ] && break
+                sleep 0.2
+            done
+            has_focus || fail "the window has no focus with the holder $h: $(ctl query "id:$w" | jq -c '.[0] | {owner, focused}')"
+            o=$h
+            ;;
+        esac
+    fi
     if ! ctl call "$o" window.give "{\"surface\": \"$w\", \"to\": \"$1\"}" >/dev/null 2>&1; then
         repair "give $o to $1 through tiling"
         ctl call "$o" window.give "{\"surface\": \"$w\", \"to\": \"tiling\"}" >/dev/null 2>&1
