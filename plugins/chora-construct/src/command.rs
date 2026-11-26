@@ -952,6 +952,16 @@ mod tests {
                 .unwrap()
                 .translation_2d()
                 .1;
+            let x = find("help-body")
+                .transform
+                .as_ref()
+                .unwrap()
+                .translation_2d()
+                .0;
+            assert!(
+                x >= 32.0,
+                "{out:?}: the sheet starts at {x} from the left, co-71 clicks at 20"
+            );
             let h = find("help-body-glass").size.unwrap()[1];
             assert!(
                 y >= 32.0,
