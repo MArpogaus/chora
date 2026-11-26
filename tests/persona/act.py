@@ -50,6 +50,9 @@ CHECK_TIMEOUT = 60
 LAST_LOOK = "last_look.json"
 PENDING = "checks.pending"
 CHAIN = "checks.chain"
+TICKET = "checks.ticket"
+TURN_POLL = 0.05
+TURN_LIMIT = 4 * CHECK_TIMEOUT
 APPROACH_STEPS = 3
 APPROACH_PAUSE = 0.05
 
@@ -242,6 +245,31 @@ def wait_for_checks(env):
         fcntl.flock(f, fcntl.LOCK_EX)
 
 
+def take_ticket(env):
+    """Number this check among the checks of the session, in the order of the
+    actions: the processes that run them start in any order."""
+    with lock_file(env, TICKET) as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        path = os.path.join(env["PERSONA_DIR"], TICKET + ".n")
+        try:
+            with open(path, encoding="utf-8") as n:
+                ticket = int(n.read() or 0) + 1
+        except (FileNotFoundError, ValueError):
+            ticket = 1
+        with open(path, "w", encoding="utf-8") as n:
+            n.write(str(ticket))
+    return ticket
+
+
+def read_done(env):
+    """The number of the last check that ended."""
+    try:
+        with open(os.path.join(env["PERSONA_DIR"], CHAIN + ".done"), encoding="utf-8") as f:
+            return int(f.read() or 0)
+    except (FileNotFoundError, ValueError):
+        return 0
+
+
 def check(env, env_path, action):
     """Start tests/persona/check.py on what the action changed, as a process
     of its own: the checker waits for a quiet scene (the hint chip of tiling
@@ -254,7 +282,14 @@ def check(env, env_path, action):
     with contextlib.suppress(OSError):
         fcntl.flock(pending, fcntl.LOCK_SH)
         subprocess.Popen(  # noqa: S603
-            [sys.executable, "-I", os.path.abspath(__file__), "--check", action],
+            [
+                sys.executable,
+                "-I",
+                os.path.abspath(__file__),
+                "--check",
+                action,
+                str(take_ticket(env)),
+            ],
             env={**os.environ, "PERSONA_ENV": env_path},
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
@@ -265,14 +300,22 @@ def check(env, env_path, action):
     pending.close()
 
 
-def run_check(action):
-    """The process of one check: one at a time, each against the snapshot
-    the check before it saved."""
+def run_check(action, ticket):
+    """The process of one check: one at a time, in the order of the tickets
+    (the order of the actions), each against the snapshot the check before
+    it saved. A check whose turn does not come in TURN_LIMIT seconds (an
+    earlier one was killed) runs anyway."""
     env_path = os.environ["PERSONA_ENV"]
     env = load_env(env_path)
     here = os.path.dirname(os.path.abspath(__file__))
+    deadline = time.monotonic() + TURN_LIMIT
     with lock_file(env, CHAIN) as chain:
-        fcntl.flock(chain, fcntl.LOCK_EX)
+        while True:
+            fcntl.flock(chain, fcntl.LOCK_EX)
+            if read_done(env) >= ticket - 1 or time.monotonic() > deadline:
+                break
+            fcntl.flock(chain, fcntl.LOCK_UN)
+            time.sleep(TURN_POLL)
         with contextlib.suppress(OSError, subprocess.TimeoutExpired):
             subprocess.run(
                 [sys.executable, "-I", os.path.join(here, "check.py"), "after", action],
@@ -282,12 +325,15 @@ def run_check(action):
                 timeout=CHECK_TIMEOUT,
                 check=False,
             )
+        last = max(ticket, read_done(env))
+        with open(os.path.join(env["PERSONA_DIR"], CHAIN + ".done"), "w", encoding="utf-8") as f:
+            f.write(str(last))
 
 
 def main():
     """Parse, run, log, report."""
     if sys.argv[1:2] == ["--check"]:
-        run_check(sys.argv[2])
+        run_check(sys.argv[2], int(sys.argv[3]))
         return
     args = parser().parse_args(type_takes_the_rest(sys.argv[1:]))
     if args.action == "type":

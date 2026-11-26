@@ -5,6 +5,7 @@ companions, a stand-in wpctl, the fake voice agent. Every pid is kept, and
 
 import json
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -34,6 +35,29 @@ LAUNCHER_CONFIG_DIRS = "/etc/xdg"
 """TOUR-LAUNCH: the xp start menu lists the desktop files that PATH and XDG_DATA_DIRS reach, so a
 run that took the environment of its shell showed other launchers than another run (xp-item-3
 "UXTerm" in the replay, "Foot" in the take). Every session of the tour gets this one."""
+
+
+MIN_FUZZEL = (1, 11)
+"""The package minimum (tests/gate-package-deps.sh, merge-gate tool_minimums): fuzzel 1.9.2 ignores clicks."""
+
+
+def fuzzel_version(binary):
+    out = subprocess.run([binary, "--version"], capture_output=True, text=True).stdout
+    found = re.match(r"^[^0-9]*([0-9][0-9.]*)", out)
+    return tuple(int(x) for x in found.group(1).split(".")) if found else ()
+
+
+def supported_fuzzel():
+    """The first fuzzel of the shell PATH or LAUNCHER_PATH that is MIN_FUZZEL or later; the tour stops
+    with one line when there is none, because it would judge an unsupported setup (rml1-1)."""
+    seen = []
+    for d in (os.environ.get("PATH", "") + ":" + LAUNCHER_PATH).split(":"):
+        path = shutil.which("fuzzel", path=d) if d else None
+        if path and path not in seen:
+            seen.append(path)
+            if fuzzel_version(path) >= MIN_FUZZEL:
+                return path
+    raise RuntimeError("harness: no fuzzel >= %d.%d on PATH (found: %s)" % (*MIN_FUZZEL, ", ".join(seen) or "none"))
 
 
 def notify_config(position="bottom_right"):
@@ -153,7 +177,11 @@ class Launcher:
 
     def base_env(self):
         env = dict(os.environ)
-        env["PATH"] = f"{self.dir}/stub:{BIN}:{self.path_without_writer(LAUNCHER_PATH)}"
+        fuzzel_dir = f"{self.dir}/fuzzel"
+        os.makedirs(fuzzel_dir, exist_ok=True)
+        if not os.path.lexists(f"{fuzzel_dir}/fuzzel"):
+            os.symlink(supported_fuzzel(), f"{fuzzel_dir}/fuzzel")
+        env["PATH"] = f"{self.dir}/stub:{BIN}:{fuzzel_dir}:{self.path_without_writer(LAUNCHER_PATH)}"
         env["XDG_DATA_DIRS"] = LAUNCHER_DATA_DIRS
         env["XDG_CONFIG_DIRS"] = LAUNCHER_CONFIG_DIRS
         env["CHORA_TEST_ACCEPT_INJECTED_KEYS"] = "1"
@@ -242,7 +270,15 @@ class Launcher:
             self.start_voice(env)
         for argv in companions:
             subprocess.run([f"{BIN}/choractl", "run", "setsid", *argv], env=dict(env, CHORA_FLAVOR_DIR=f"{REPO}/flavors/{flavor}") if flavor else env, check=False, capture_output=True)
+        if not any(argv[0].endswith("chora-notify") for argv in companions):
+            self.ensure_notify(env)
         return env
+
+    def ensure_notify(self, env):
+        """Every product starts chora-notify; a look without it shows no notice and no launcher failure."""
+        serving = subprocess.run([f"{BIN}/choractl", "call", "notify", "state.get"], env=env, capture_output=True).returncode == 0
+        if not serving:
+            subprocess.run([f"{BIN}/choractl", "run", "setsid", f"{BIN}/chora-notify"], env=env, check=False, capture_output=True)
 
     def start_voice(self, env):
         entries = f"{self.dir}/entries.json"
