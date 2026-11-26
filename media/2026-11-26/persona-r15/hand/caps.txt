@@ -1,0 +1,4 @@
+explorer: C1 12/6, T1 14/6, T2 19/8  (45 actions, 20 looks)
+max (run 1 and 2): C2 14/6, C3 9/4, T5 10/4, T3 12/6 (45, 20)
+demo (run 1 and 2): C1 15/7, C2 15/7, T4 15/6 (45, 20)
+(written before the run; actions/looks per goal; helper transcript seeded with one agent entry)

@@ -1,0 +1,40 @@
+run 1 before Super+x:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['s2']
+    surface s1 owner construct visible True rect [373.76, 233.59999999999997, 532.4799999999999, 332.7999999999999]
+    surface s2 owner xp visible True rect None
+ after Super+x:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['xp-icons']
+    surface s1 owner construct visible True rect [373.76, 233.59999999999997, 532.4799999999999, 332.7999999999999]
+  surfaces 2 -> 1, panes 1: pass
+run 2 before Super+x:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['s2']
+    surface s1 owner construct visible True rect [373.76, 233.59999999999997, 532.4799999999999, 332.7999999999999]
+    surface s2 owner xp visible True rect None
+ after Super+x:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['xp-icons']
+    surface s1 owner construct visible True rect [373.76, 233.59999999999997, 532.4799999999999, 332.7999999999999]
+  surfaces 2 -> 1, panes 1: pass
+run 3 before Super+x:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['s2']
+    surface s1 owner construct visible True rect [373.76, 233.59999999999997, 532.4799999999999, 332.7999999999999]
+    surface s2 owner xp visible True rect None
+ after Super+x:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['xp-icons']
+    surface s1 owner construct visible True rect [373.76, 233.59999999999997, 532.4799999999999, 332.7999999999999]
+  surfaces 2 -> 1, panes 1: pass
+run 4 before Super+x:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['s2']
+    surface s1 owner construct visible True rect [373.76, 233.59999999999997, 532.4799999999999, 332.7999999999999]
+    surface s2 owner xp visible True rect None
+ after Super+x:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['xp-icons']
+    surface s1 owner construct visible True rect [373.76, 233.59999999999997, 532.4799999999999, 332.7999999999999]
+  surfaces 2 -> 1, panes 1: pass
+run 5 before Super+x:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['s2']
+    surface s1 owner construct visible True rect [373.76, 233.59999999999997, 532.4799999999999, 332.7999999999999]
+    surface s2 owner xp visible True rect None
+ after Super+x:
+mode use front 0, panes ['foot'], construct , xp , core focus: ['xp-icons']
+    surface s1 owner construct visible True rect [373.76, 233.59999999999997, 532.4799999999999, 332.7999999999999]
+  surfaces 2 -> 1, panes 1: pass

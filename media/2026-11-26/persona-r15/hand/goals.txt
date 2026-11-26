@@ -1,0 +1,14 @@
+Persona words (kept verbatim this round; same text in both runs of Max and demo)
+explorer: "a person who likes to click around and has never used this desktop; mouse first"
+  C1: This desktop is meant to be a cube of screens. Open the cube view, go into one of the screens, then come back out to the cube.
+  T1: Start a terminal (a window where you type commands).
+  T2: Find the list of keyboard shortcuts, look at it, then close it again.
+max: "Max, a person who tweaks desktops and likes keys, but also uses the mouse"
+  C2: Get a program window out of one side of the cube so it sits on the front, then put it back where it was. If no window is open, start a terminal first.
+  C3: Have a terminal as a small window next to the cube, not filling the whole screen.
+  T5: A window titled "Probe window" is open somewhere. Find it and press Super+t while it is in front of you.
+  T3: Ask the helper to say hello: type a short message to it and wait for its answer.
+demo: "a person who follows three spoken steps, one after the other"
+  C1: Step one: open the cube of desktops. Step two: go into one desktop. Step three: step back out.
+  C2: Step one: make sure a program window is open on one desktop. Step two: pull it out of that desktop to the front. Step three: put it back.
+  T4 lock: Lock the screen.
