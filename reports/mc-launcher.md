@@ -26,3 +26,17 @@ Lane mc-launcher-r1 (rc 1, F7; rtr1-3 MAJOR). Branch `claude/mc-launcher-r1`, ba
 **Open.** (1) On a fuzzel 1.9.2 the fallback launcher is the plain fuzzel: a light box on the dark page in m8.Q (the theme of rpx1-10 applies on fuzzel 1.11+, the minimum of the package); a middle tier with only the keys of 1.9.2 would theme it too. (2) The power menu of mc has the same defect on 1.9.2: `power.sh` runs `CHORA_MENU='fuzzel --config FILE'` and exits 0 on the empty choice, so Power shows nothing; not in this area, not fixed. (3) the persona session of the gate printed `ipc: refused conn client="launcher" code=1` for the notice connection of the launcher (the failure notice of `tell` is refused: no grant); the notice of a failed launcher therefore never shows on a persona or tour session. (4) the column of the dark mc in a persona session shows the HELPERS and CHAT rows overlapped for the first seconds (capture 001); not this lane.
 
 **Gate.** `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` (no step filter, no --push) on 53789bea6: all steps passed, 67 PASS lines, no SKIP, exit 0; `launcher-mc PASS 32s`, `launcher-click PASS 17s`. Last lines: `tiling-disc PASS 73s`, `e2e PASS 276s`, `all steps passed; no --push, nothing is pushed`. `pgrep -fa 'chora --headless'` empty at the end.
+
+## Review r1 (PM, diff 196 lines < 200; rules.md 7: builder is not the reviewer)
+
+Base 5646b8fd, head 53789bea6, 3 files +196 -4. Red 7ed82ef4 before fix 80dbd0b4: yes (unit test and launcher-mc cell red on 5646b8fd per report). The fallback is narrow: only a failed fuzzel run with `--config` is asked once more plain; a plain failure is still said once (a_failure_without_a_config_is_still_said). No new sleep (53789bea6); gate full, 67 PASS.
+
+Root cause read against tests/merge-gate.sh:424: the package minimum is fuzzel >= 1.11 (mc-47: 1.9.2 ignores clicks). The tour ran an unsupported fuzzel, so the product fault is limited to "a fuzzel that rejects the config shows nothing"; the diff fixes that class for every kit launcher.
+
+Findings
+- rml1-1 MAJOR (harness, pre-existing) demo/tour/launch.py LAUNCHER_PATH: /usr/bin first finds fuzzel 1.9.2, below the package minimum; tour v9 evidence then judges an unsupported setup (act 4, and Power on mc). Fix: the tour checks fuzzel >= 1.11 like tests/gate-package-deps.sh and fails loudly, or puts the supported one first.
+- rml1-2 MAJOR (kit/core, pre-existing) crates/chora-kit/src/launcher.rs:355 `tell`: the notice connection "launcher" is refused (no grant), so a failed launcher is silent on screen; shared RC bar "honest failure states". Fix: confirm on a plain session; grant the launcher notice by default, or send the notice through the look that started it.
+- rml1-3 MINOR flavors/shared/power.sh:22: on an unsupported fuzzel the power menu shows nothing (same cause); covered by rml1-1 for the tour; the power menu could share the kit fallback.
+- rml1-4 COSMETIC the plain fallback is a light box on dark mc (only on an unsupported fuzzel).
+
+Verdict (computed on the diff): 0 BLOCK, 0 MAJOR in the diff, MERGE-OK. rml1-1, rml1-2 are pre-existing and queued.
