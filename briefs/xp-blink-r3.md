@@ -1,0 +1,13 @@
+# xp-blink r3 (F7, rc 1; rxb2-1 MINOR): the chat timer runs on the real clock, so the serve loop does not spin with the chat open in a recording
+
+Model: sonnet, effort medium (one timer fix in one plugin with a unit test; routine)
+Lane: cloud, branch claude/xp-blink-r3 at 312a5ff10 (xp-blink r2 head, MERGE-OK). Area: plugins/chora-assistant only (chat/host.rs chat_due and chat_step timers, main.rs serve_wait); no tour tooling, no other look. xp has no open BLOCK or MAJOR. Stop at 150 k. Cost at most 0.3 %.
+Why: reports/xp-blink.md "## Review r2" on claude/session-log: rxb2-1 chat/host.rs:511-519 chat_due adds FIELD_POLL to the held scene time while serve_wait measures against Instant::now(), so with the chat open during a held recording the wait falls to 1 ms (the rxb1-2 spin on the chat path).
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, then merge the session head: `git merge --no-ff 6daaaab8` (own identity), `cargo check --workspace`, `cargo build --workspace`. A failure: send_message the PM "xp-blink-r3 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1. Red first, its own commit: a unit test that fails on 312a5ff10: with the scene clock held and the chat open, serve_wait is at least 100 ms and at most HELD_RECHECK.
+2. Then the fix: the chat poll and pull timers (chat_pulled, chat_due, chat_step) on Instant::now(), as the other non-animation timers; KISS, no new option.
+3. After: `demo/tour/run.py xp` once: 0 red, eyes open in x7, x10, x11; captures media/2026-11-26/xp-blink-r3/ (each under 500 KB).
+Run: `cargo test -p chora-assistant` and the full gate, no step filter: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` (no --push) detached with setsid nohup, poll in the same turn; paste the last 20 lines. A red cell you did not cause: name it with its log line, rerun that step alone and then the steps after it. Never end a turn to wait. Before ending: `pgrep -fa 'chora --headless'` empty.
+Done when: red commit before fix commit; one xp take, 0 red; gate EXIT 0 (or a named foreign flake and every later step run); reports/xp-blink.md "## r3" on claude/session-log (base, head, diffstat, gate line).
+Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 5 lines): head sha, red and fix commits, gate result.
+Rules: push claude/xp-blink-r3 and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report and media folder); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).
