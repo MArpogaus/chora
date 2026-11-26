@@ -1558,6 +1558,17 @@ mod tests {
     }
 
     #[test]
+    fn the_header_stays_where_it_is_while_the_pill_moves_over_the_column() {
+        let (mut mc, _) = crate::testing::mc("header-pill", [1280, 720]);
+        let visible = [Region::Header, Region::Right];
+        let header =
+            |mc: &crate::Mc| mc.boxes("agenda", &visible).unwrap().regions[&Region::Header];
+        let before = header(&mc);
+        mc.rooms.pill_left = Some(764.0);
+        assert_eq!(header(&mc), before, "Super+a moves the date (rpm2-5)");
+    }
+
+    #[test]
     fn a_window_that_no_scene_started_keeps_off_the_edge() {
         let (mc, _) = crate::testing::mc("window-inset", [1280, 720]);
         let b = mc.settings.value.scale.baseline;
