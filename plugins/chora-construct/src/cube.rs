@@ -156,6 +156,10 @@ pub(crate) struct Host {
     /// The front face and the turning that the event of the cube role
     /// told last.
     told: Option<chora_kit::cube::Turned>,
+    /// The window of a pane that the give key of the face manager puts
+    /// into the face at the front once that manager can place it, when
+    /// the construct looks again and until when (co-79 r7).
+    pub(crate) put_later: Option<(String, Instant, Instant)>,
 }
 
 /// The face of the geometry of the kit that shows face `i`: the four sides
@@ -1295,6 +1299,7 @@ mod tests {
             again: None,
             denied: BTreeSet::new(),
             told: None,
+            put_later: None,
         }
     }
 

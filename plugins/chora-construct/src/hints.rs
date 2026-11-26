@@ -100,6 +100,7 @@ pub enum Walking {
     FlyIn,
     Windows,
     Cube,
+    IntoFace,
     Terminal,
     Keys,
 }
@@ -121,9 +122,10 @@ pub fn keys_chord(
 
 /// The hints of the walk that apply: the keys to walk and to start a
 /// terminal always, `Return Fly in` when a pane is ahead, `Tab Windows`
-/// from two windows, `Super C Cube` while the window of a pane has the
-/// keyboard and no cube is open (`cube`: stepped out of a pane, the way
-/// to a face, co-79), and the help; at most six.
+/// from two windows, while the window of a pane has the keyboard and no
+/// cube is open (`cube`: stepped out of a pane, co-79) `Super Alt 2 Into
+/// face`, the one key that puts that window into a face (r7), and before
+/// it `Super C Cube` while there is room, and the help; at most six.
 #[must_use]
 pub fn walking(panes: usize, ahead: bool, cube: bool) -> Vec<Walking> {
     let mut hints = vec![Walking::Walk];
@@ -134,7 +136,10 @@ pub fn walking(panes: usize, ahead: bool, cube: bool) -> Vec<Walking> {
         hints.push(Walking::Windows);
     }
     if cube {
-        hints.push(Walking::Cube);
+        if hints.len() < 3 {
+            hints.push(Walking::Cube);
+        }
+        hints.push(Walking::IntoFace);
     }
     hints.extend([Walking::Terminal, Walking::Keys]);
     hints
@@ -714,12 +719,19 @@ mod tests {
     }
 
     #[test]
-    fn stepped_out_of_a_pane_the_walk_names_the_cube_and_stays_at_six() {
-        use Walking::{Cube, FlyIn, Keys, Terminal, Walk, Windows};
-        assert_eq!(walking(1, true, true), [Walk, FlyIn, Cube, Terminal, Keys]);
+    fn stepped_out_of_a_pane_the_walk_names_the_key_into_a_face_and_stays_at_six() {
+        use Walking::{Cube, FlyIn, IntoFace, Keys, Terminal, Walk, Windows};
+        assert_eq!(
+            walking(1, true, true),
+            [Walk, FlyIn, Cube, IntoFace, Terminal, Keys]
+        );
         assert_eq!(
             walking(2, true, true),
-            [Walk, FlyIn, Windows, Cube, Terminal, Keys]
+            [Walk, FlyIn, Windows, IntoFace, Terminal, Keys]
+        );
+        assert_eq!(
+            walking(2, false, true),
+            [Walk, Windows, Cube, IntoFace, Terminal, Keys]
         );
         for panes in 0..8 {
             assert!(walking(panes, true, true).len() <= 6);

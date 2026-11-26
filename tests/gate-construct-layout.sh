@@ -366,7 +366,7 @@ more_panes() {
     until_ok any_front || { echo "FAIL: $tag: Return did not fly into a pane of three"; failed=1; return; }
     key Alt+Escape
     until_ok '! any_front' || { echo "FAIL: $tag: Alt+Escape did not step back from a pane of three"; failed=1; return; }
-    if until_ok 'hints_are "cube fly-in keys terminal walk windows"'; then
+    if until_ok 'hints_are "fly-in keys put-in terminal walk windows"'; then
         ok "$tag: three panes: $(hint_ids)"
     else
         echo "FAIL: $tag: the hints with three panes are: $(hint_ids)"
@@ -386,7 +386,7 @@ more_panes() {
     ok "$tag: a click on a row of the window list flew into its window"
     key Alt+Escape
     until_ok '! any_front' || { echo "FAIL: $tag: Alt+Escape after the row did not step back"; failed=1; return; }
-    until_ok 'hints_are "cube fly-in keys terminal walk windows"' ||
+    until_ok 'hints_are "fly-in keys put-in terminal walk windows"' ||
         { echo "FAIL: $tag: the hints after the step back are: $(hint_ids)"; failed=1; return; }
     press_at construct-hint-terminal || { echo "FAIL: $tag: no hint Terminal on the screen"; failed=1; return; }
     until_ok 'pane_named startcell' || { echo "FAIL: $tag: a click on the hint Terminal started no terminal"; failed=1; return; }
@@ -444,7 +444,7 @@ SCRIPT
     until_ok any_front || { echo "FAIL: $tag: Return did not fly into the pane of the sunset"; failed=1; }
     key Alt+Escape
     until_ok '! any_front' || { echo "FAIL: $tag: Alt+Escape did not step back from the pane of the sunset"; failed=1; }
-    if until_ok 'hints_are "cube fly-in keys terminal walk"'; then
+    if until_ok 'hints_are "cube fly-in keys put-in terminal walk"'; then
         ok "$tag: one pane: $(hint_ids)"
     else
         echo "FAIL: $tag: the hints with one pane are: $(hint_ids)"

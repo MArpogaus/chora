@@ -24,6 +24,13 @@ use super::{
 /// How long the window manager of a face may take to place a window.
 const PLACE_WAIT: Duration = Duration::from_secs(2);
 
+/// How often a put that waits looks whether the face manager of a cube
+/// that the give key opened can place the window (co-79 r7), how long it
+/// waits at most, and how long that manager has to answer.
+const PUT_POLL: Duration = Duration::from_millis(150);
+const PUT_LIMIT: Duration = Duration::from_secs(20);
+const PUT_ANSWER: Duration = Duration::from_millis(250);
+
 /// The share of the depth of the front face at which a pulled pane
 /// comes, toward the eye.
 const PULL: f64 = 0.9;
@@ -354,6 +361,87 @@ impl Construct {
         }
         let placed = self.place_on(surface, to, &output, None);
         self.given_from_a_pane(surface, to, &output, placed.err().as_deref())
+    }
+
+    /// The give key of the face manager with the window of a pane
+    /// (`pane_to_face`, co-79 r7): one key from every pane into a
+    /// face. In the pane the camera steps out first (`step_out`); with no
+    /// cube open the key opens one, stood back (`cube_key`), and the
+    /// window goes to the face at the front as soon as the face manager
+    /// can place it; stood back with every face up it goes at once.
+    pub(crate) fn put_pane(&mut self, surface: &str) -> Result<(), ClientError> {
+        if self.in_pane() {
+            self.step_out()?;
+        }
+        if self.cube.is_none() {
+            self.cube_key();
+        }
+        let Some(host) = self.cube.as_mut() else {
+            return Ok(());
+        };
+        let now = std::time::Instant::now();
+        host.put_later = Some((surface.to_owned(), now, now + PUT_LIMIT));
+        crate::log::log_info!("chora-construct: {surface} goes into the face at the front");
+        self.put_when_ready()
+    }
+
+    /// The put that waits (`put_pane`): once every face is up and the
+    /// face manager exports `window.move`, the window goes into the face
+    /// at the front, and the person steps in (`put_in_face`). It ends
+    /// unput when the person stepped into a face, the window is no
+    /// pane's any more, the cube failed or the wait is over.
+    pub(crate) fn put_when_ready(&mut self) -> Result<(), ClientError> {
+        let now = std::time::Instant::now();
+        let Some(host) = self.cube.as_ref() else {
+            return Ok(());
+        };
+        let Some((surface, at, until)) = host.put_later.clone() else {
+            return Ok(());
+        };
+        if at > now {
+            return Ok(());
+        }
+        let stood_back = host.view().mode() == chora_kit::modes::Mode::Navigate;
+        let ends = !stood_back || host.front_failed() || until <= now;
+        let ready = host.works();
+        let to = self.face_manager();
+        let gone = ends || !self.own_window(&surface);
+        let waits = !gone && (!ready || !self.places(&to));
+        if let Some(host) = self.cube.as_mut() {
+            host.put_later = waits.then(|| (surface.clone(), now + PUT_POLL, until));
+        }
+        if gone {
+            crate::log::log_info!(
+                "chora-construct: {surface} stays a pane (stood back {stood_back})"
+            );
+        }
+        if gone || waits {
+            return Ok(());
+        }
+        self.put_in_face(&surface, &to)
+    }
+
+    /// Whether the face manager `to` places a window now: it exports
+    /// `window.move` and answers a call in time. A manager that just
+    /// started exports its methods before it grabs its keys and adopts
+    /// the windows, and answers no call until then (co-79 r7).
+    fn places(&mut self, to: &str) -> bool {
+        let listed: Result<Value, _> = self.rt.conn.call("methods.list", Value::Null);
+        let exported = listed.is_ok_and(|listed| {
+            (listed.as_array().into_iter().flatten()).any(|m| {
+                m["name"].as_str() == Some("window.move") && m["client"].as_str() == Some(to)
+            })
+        });
+        let state = MethodCall {
+            client: to.to_owned(),
+            method: "state.get".into(),
+            params: json!({}),
+        };
+        exported && {
+            let answer: Result<Value, _> =
+                (self.rt.conn).call_within("methods.call", state, PUT_ANSWER);
+            answer.is_ok()
+        }
     }
 
     /// The moves and the release of the drag of a window pulled from a

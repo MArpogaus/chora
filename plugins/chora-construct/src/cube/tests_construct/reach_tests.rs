@@ -176,6 +176,36 @@ fn out_of_a_pane_and_in_one_the_bar_names_the_key_into_a_face() {
     );
 }
 
+/// co-79 r7: the key into a face waits for a face manager that cannot
+/// place the window yet (a cube just opened by the key, whose xp exports
+/// no `window.move` yet), and the construct looks again soon; the wait
+/// ends unput once the person stepped into a face.
+#[test]
+fn the_key_into_a_face_waits_for_the_face_manager_and_ends_at_a_step_in() {
+    let (mut construct, _core, _lines) = super::with_hint_bar("reach-r7-wait");
+    construct.cube.as_mut().unwrap().program = "xp".into();
+    construct.core_focus = Some("s1".into());
+    assert_eq!(construct.pane_to_face().as_deref(), Some("s1"));
+    construct.put_pane("s1").unwrap();
+    assert!(
+        construct.cube.as_ref().unwrap().put_later.is_some(),
+        "no window.move is exported: the put waits"
+    );
+    let soon = std::time::Instant::now() + std::time::Duration::from_secs(1);
+    assert!(
+        construct.cube_deadline().is_some_and(|at| at <= soon),
+        "the construct looks again soon"
+    );
+    let host = construct.cube.as_mut().unwrap();
+    assert!(host.act(chora_kit::modes::Act::StepIn, std::time::Instant::now()));
+    host.put_later.as_mut().unwrap().1 = std::time::Instant::now();
+    construct.put_when_ready().unwrap();
+    assert!(
+        construct.cube.as_ref().unwrap().put_later.is_none(),
+        "stepped into a face, the put ends"
+    );
+}
+
 /// The window `s1` of the pane of `with_hint_bar`, which exists and sits in
 /// the panes, so that the core can focus it and answers the query for the
 /// window with the keyboard.

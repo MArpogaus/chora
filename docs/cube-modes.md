@@ -48,7 +48,7 @@ in a construct without a cube and in xp (principle 1).
 | step in, from navigate mode | a click on a face, or on `STEP IN` for the front face | `fly_in`: `Return` | "step in"; `view.step_in` |
 | fly into a pane beside the cube, in navigate mode | a click on the pane, or on the hint `Click Fly in` | `Tab`, then `Return` on its row | `window.show` |
 | pull a window out of a face into a pane | a title drag off the face; a click on the hint `Super Alt 4 Pull out`, which shows only while a window of a face is there to pull | `Super+Alt+4`, the give key of the construct | `window.give` |
-| put the window of a pane into the face at the front, in navigate mode | a drag of the pane onto a face; a click on the hint `Super Alt 2 Into face`, which shows only while the window of a pane has the keyboard | the give key of the face manager, `Super+Alt+2` for xp | `window.give` |
+| put the window of a pane into the face at the front, in navigate mode | a drag of the pane onto a face; a click on the hint `Super Alt 2 Into face`, which shows only while the window of a pane has the keyboard, in the pane or stepped out of it; with no cube open the key opens one first | the give key of the face manager, `Super+Alt+2` for xp | `window.give` |
 | turn the cube by one face | a click on `TURN LEFT` or `TURN RIGHT`; in navigate mode also a drag on the cube | `Ctrl+Alt+Left` and `Ctrl+Alt+Right`, in both modes | "turn left", "turn right"; `cube.turn` |
 | walk and look, in navigate mode | a drag on the empty space, the wheel | the walk keys of the construct | the methods of the walk |
 | show the keys, in navigate mode | none | `F1`, and `Super+F1` | none |
@@ -103,8 +103,9 @@ by the same rule as stood back: the hint is told wherever the key acts
 the keyboard in a pane in front of the face the key is not told (co-68);
 the step out of the pane leads on, below. The same holds in a pane that the
 camera flew into from the cube stood back, as a program started from
-`Programs` opens: the hint bar shows `Alt Esc Step back` and `All keys`,
-never the hints of the cube, whose keys do not hold there. The
+`Programs` opens: the hint bar shows `Alt Esc Step back`,
+`Super Alt 2 Into face` and `All keys`, never the hints of the cube,
+whose keys do not hold there. The
 turn chips carry an arrow, `← TURN LEFT` and `TURN RIGHT →`. In
 navigate mode three chips show, and each face of the cube is a control
 of its own: the pointer over a face lights its edge, and a click steps
@@ -122,7 +123,8 @@ leaves the pane, so the cube opens ahead of where the person stood.
 While no cube is open, `Super+C`, the key `cube`, opens a cube of four
 faces, as `cube.open` without params does, and stands back from it; the
 walk hints name it, `Super C  Cube`, while the window of a pane has the
-keyboard, and a click on that hint does the same. Stood back, the
+keyboard and there is room (with `Tab Windows` it gives way to
+`Super Alt 2 Into face`), and a click on that hint does the same. Stood back, the
 hints at the bottom centre are the chips of the cube: `Ctrl Alt ← Turn
 left`, `Return Step in` and `Turn right Ctrl Alt →`; while a pane shows
 beside the cube, also `Click Fly in`, the click on the pane, and, only
@@ -137,9 +139,14 @@ one is open, also from a pane flown into from a face, and there the bar
 names `Super Alt 2 Into face`, the give key of the face manager, which
 puts the window of the pane on the face at the front, steps in and gives
 it the keyboard; with no cube open into the space, where the bar names
-`Super C Cube`, which opens the cube stood back with that window told
-`Into face` the same way, so the keys that the bar names lead from every
-pane into a face (co-79); and the face label
+`Super C Cube` and, beside it, `Super Alt 2 Into face`. One key, one step
+(co-79 r7): wherever the window of a pane has the keyboard, in the pane
+(flown in by its `Fly in` click, from a face, or pulled out of one by a
+drag or `Super+Alt+4`) or right after `Alt+Escape` out of it, the bar
+names `Super Alt 2 Into face`, and that key puts that pane's window on
+the face at the front, steps in and gives it the keyboard, and opens the
+cube first when none is open (the window goes as soon as the face
+manager can place it); and the face label
 under the cube names the window manager and the face, with a dot per
 face. A refusal, for example while another client `xp` runs, shows in
 the HUD.

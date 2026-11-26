@@ -133,6 +133,7 @@ impl Construct {
             again: None,
             denied: BTreeSet::new(),
             told: None,
+            put_later: None,
         };
         host.seen_from = host.eye([self.pose.x, self.pose.z]);
         host
@@ -157,13 +158,15 @@ impl Construct {
             .as_ref()
             .and_then(|c| c.start_deadline(Instant::now()));
         let panes = self.manager_deadline();
-        cube.into_iter().chain(panes).min()
+        let put = (self.cube.as_ref()).and_then(|c| c.put_later.as_ref().map(|(_, at, _)| *at));
+        cube.into_iter().chain(panes).chain(put).min()
     }
 
     /// The faces fail when their window manager exited or did not connect
     /// in time; the cube stays, and the card says why.
     pub(crate) fn check_cube(&mut self) -> Result<(), ClientError> {
         self.check_managers()?;
+        self.put_when_ready()?;
         let language = Language::of_session();
         let failed = (self.cube.as_mut()).and_then(|c| c.check_start(language, Instant::now()));
         if let Some(reason) = failed {

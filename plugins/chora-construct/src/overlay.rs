@@ -591,16 +591,11 @@ impl Construct {
     /// The hints of a set, with the keys of the settings.
     fn hint_items(&self, set: crate::hints::Set) -> Vec<crate::hints::Item> {
         use crate::{
-            config::Own,
             glass::chord,
-            hints::{HINT, Item, Set, Walking},
+            hints::{HINT, Item, Set},
         };
-        use chora_kit::{
-            actions::System,
-            words::{Language, Word},
-        };
+        use chora_kit::words::{Language, Word};
         let language = Language::of_session();
-        let key = |action: Own| self.keys_of(action);
         let item = |keys: Vec<String>, word: Word, hit: &str| Item {
             keys,
             word: word.text(language).to_owned(),
@@ -609,34 +604,14 @@ impl Construct {
             chip: false,
         };
         match set {
-            Set::Walk => {
-                let walk: Vec<String> = [Own::Forward, Own::Left, Own::Back, Own::Right]
-                    .into_iter()
-                    .flat_map(key)
-                    .collect();
-                let ahead = self.pane_ahead().is_some();
-                let cube = self.cube_window().is_some();
-                crate::hints::walking(self.panes.len(), ahead, cube)
-                    .into_iter()
-                    .map(|hint| match hint {
-                        Walking::Walk => item(walk.clone(), Word::Walk, "walk"),
-                        Walking::FlyIn => item(key(Own::FlyIn), Word::FlyIn, "fly-in"),
-                        Walking::Windows => item(key(Own::Windows), Word::WindowsHint, "windows"),
-                        Walking::Cube => item(key(Own::Cube), Word::Cube, "cube"),
-                        Walking::Terminal => Item {
-                            word: crate::hints::terminal_word(language).to_owned(),
-                            ..item(self.keys_of(System::Terminal), Word::Walk, "terminal")
-                        },
-                        Walking::Keys => item(self.keys_of(System::Keys), Word::AllKeys, "keys"),
-                    })
-                    .collect()
-            }
+            Set::Walk => self.walk_items(language),
             Set::Flown | Set::Rest => {
                 let mut hints = vec![item(
                     chord(&self.settings.value.fly_out),
                     Word::StepBack,
                     "step-back",
                 )];
+                hints.extend(self.put_in_hint(language));
                 hints.extend(self.pull_out_hint(language));
                 hints.push(item(self.hint_keys_chord(), Word::AllKeys, "keys"));
                 hints
@@ -649,6 +624,47 @@ impl Construct {
             }
             Set::Pull => vec![item(Vec::new(), Word::PullHint, "pull")],
         }
+    }
+
+    /// The hints of the walk (`hints::walking`), with the keys of the
+    /// settings.
+    fn walk_items(&self, language: chora_kit::words::Language) -> Vec<crate::hints::Item> {
+        use crate::{
+            config::Own,
+            hints::{HINT, Item, Walking},
+        };
+        use chora_kit::{actions::System, words::Word};
+        let key = |action: Own| self.keys_of(action);
+        let item = |keys: Vec<String>, word: Word, hit: &str| Item {
+            keys,
+            word: word.text(language).to_owned(),
+            keys_last: false,
+            hit: format!("{HINT}{hit}"),
+            chip: false,
+        };
+        let walk: Vec<String> = [Own::Forward, Own::Left, Own::Back, Own::Right]
+            .into_iter()
+            .flat_map(key)
+            .collect();
+        let ahead = self.pane_ahead().is_some();
+        let cube = self.cube_window().is_some();
+        crate::hints::walking(self.panes.len(), ahead, cube)
+            .into_iter()
+            .filter_map(|hint| {
+                Some(match hint {
+                    Walking::IntoFace => return self.put_in_hint(language),
+                    Walking::Walk => item(walk.clone(), Word::Walk, "walk"),
+                    Walking::FlyIn => item(key(Own::FlyIn), Word::FlyIn, "fly-in"),
+                    Walking::Windows => item(key(Own::Windows), Word::WindowsHint, "windows"),
+                    Walking::Cube => item(key(Own::Cube), Word::Cube, "cube"),
+                    Walking::Terminal => Item {
+                        word: crate::hints::terminal_word(language).to_owned(),
+                        ..item(self.keys_of(System::Terminal), Word::Walk, "terminal")
+                    },
+                    Walking::Keys => item(self.keys_of(System::Keys), Word::AllKeys, "keys"),
+                })
+            })
+            .collect()
     }
 
     /// The hints of the cube stood back besides its own: the click that
@@ -671,12 +687,12 @@ impl Construct {
         hints
     }
 
-    /// The hint `Super Alt 2 Into face` stood back, while the give key of
-    /// the face manager puts the window of a pane into the face at the
-    /// front (`put_window`, co-79): the way into a face out of a pane.
+    /// The hint `Super Alt 2 Into face`, wherever the give key of the face
+    /// manager puts the window of a pane into the face at the front
+    /// (`pane_to_face`, co-79): the one key into a face out of a pane.
     fn put_in_hint(&self, language: chora_kit::words::Language) -> Option<crate::hints::Item> {
         use crate::hints::{HINT, Item, give_key_of, put_word};
-        self.put_window()?;
+        self.pane_to_face()?;
         let key = give_key_of(&self.face_manager())?;
         Some(Item {
             keys: crate::glass::chord(key),
@@ -700,6 +716,17 @@ impl Construct {
         }
         let noted = host.noted_focus();
         (self.core_focus.clone().or(noted)).filter(|window| self.own_window(window))
+    }
+
+    /// The window of a pane that the give key of the face manager puts
+    /// into the face at the front (co-79 r7): stood back the one of
+    /// `put_window`; in a pane its window; stepped out of a pane with no
+    /// cube open the one of `cube_window`, for which the key opens the
+    /// cube first. The hint and the key ask the same.
+    pub(crate) fn pane_to_face(&self) -> Option<String> {
+        let flown = (self.flown.as_ref()).map(|f| f.surface.clone());
+        let flown = flown.filter(|window| self.own_window(window));
+        (self.put_window()).or(flown).or_else(|| self.cube_window())
     }
 
     /// The window that the key of the cube, `Super C Cube` in the walk,
@@ -776,7 +803,7 @@ impl Construct {
                 ((self.cube_stamp() * 2 + usize::from(self.pane_beside())) * 2
                     + usize::from(self.pull_acts()))
                     * 2
-                    + usize::from(self.put_window().is_some())
+                    + usize::from(self.pane_to_face().is_some())
             }
         }
     }
