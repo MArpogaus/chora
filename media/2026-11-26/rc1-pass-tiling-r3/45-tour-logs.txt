@@ -1,0 +1,12 @@
+known act 24 is green: drop known (Super+a: the chat of the helper beside the tiles: expect: ti-29 the chat covers the tiled windows; design/tour-v9.md t9 holds that it stands beside them)
+chapter tiling: 28 acts, 28 green, 0 inv, 0 known, 0 red, 0 todo, 0 unchecked
+known act 2 is green: drop known (Click Start: I3: ca-3 construct and xp each say they hold the focus on a four-output session)
+RED act 7 Super+Alt+3 gives the window to mc: ["expected the focus with mc, holders ['tiling']"]
+RED act 8 Super+Alt+4 gives the window to the construct: ['s1 is owned by mc, expected construct']
+AUDIT [('s1', 'xp')]
+chapter handover: 11 acts, 9 green, 0 inv, 0 known, 2 red, 0 todo, 0 unchecked
+  RED act 7: Super+Alt+3 gives the window to mc: expected the focus with mc, holders ['tiling']
+  RED act 8: Super+Alt+4 gives the window to the construct: s1 is owned by mc, expected construct
+joined 01:52 red rows: 2
+tour: record: 2 red, 0 broken
+EXIT 1

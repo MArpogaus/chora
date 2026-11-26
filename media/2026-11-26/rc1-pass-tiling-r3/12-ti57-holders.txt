@@ -1,0 +1,29 @@
+ti-57 recheck, rc1-pass-tiling r3, binaries of 7822a66c (round.sh snapshot), tiling+xp 1280x800 per output, fresh compositor, PERSONA_CHECK=1.
+Path (P2 r12 L3, tag clicks): Super+Return; click Looks (128,24); Return (give to xp); click Looks; Escape; check.py begin; click tag 2 (223,24), tag 1 (198,24); check.py end L3; type strayR (no window); Super+Return; echo TYPED-R3T57; Super+F1; Escape.
+Each line: tiling state.get focus | xp state.get focus | the scene's focused surface and group nodes.
+
+1-SuperReturn      tiling={"holder":"tiling","surface":"s1"} | xp={"holder":null} | focused=["s1 surface tiling"]
+2-LooksClick       tiling={"holder":"tiling","surface":"s1"} | xp={"holder":null} | focused=["s1 surface tiling"]
+/tmp/persona.mXoFjD/shots/001.png capture=1280x800 screen=1280x800 scale=1.0
+3-Return-give      tiling={"holder":"tiling"} | xp={"holder":null} | focused=["tiling group tiling"]
+/tmp/persona.mXoFjD/shots/002.png capture=1280x800 screen=1280x800 scale=1.0
+4-LooksAgain       tiling={"holder":"tiling"} | xp={"holder":null} | focused=["tiling group tiling"]
+5-Escape           tiling={"holder":"tiling"} | xp={"holder":null} | focused=["tiling group tiling"]
+6-tag2click        tiling={"holder":"tiling"} | xp={"holder":null} | focused=["tiling group tiling"]
+7-tag1click        tiling={"holder":"tiling"} | xp={"holder":null} | focused=["tiling group tiling"]
+task L3 pass
+breaches 4
+8-type-noWindow    tiling={"holder":"tiling"} | xp={"holder":null} | focused=["tiling group tiling"]
+/tmp/persona.mXoFjD/shots/003.png capture=1280x800 screen=1280x800 scale=1.0
+9-SuperReturn      tiling={"holder":"tiling","surface":"s2"} | xp={"holder":null} | focused=["s2 surface tiling"]
+10-typed           tiling={"holder":"tiling","surface":"s2"} | xp={"holder":null} | focused=["s2 surface tiling"]
+/tmp/persona.mXoFjD/shots/004.png capture=1280x800 screen=1280x800 scale=1.0
+11-keylist         tiling={"holder":"tiling","surface":"s2"} | xp={"holder":null} | focused=["s2 surface tiling","tiling-keys group tiling"]
+12-Escape          tiling={"holder":"tiling","surface":"s2"} | xp={"holder":null} | focused=["s2 surface tiling"]
+/tmp/persona.mXoFjD/shots/005.png capture=1280x800 screen=1280x800 scale=1.0
+29
+     29 I6
+
+breaches by invariant:
+     29 I6
+      1 check
