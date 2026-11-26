@@ -3,7 +3,8 @@
 # a foot that keeps what it is typed as the window of a look, Super+Alt+9,
 # Super+Alt+x, Super+Ctrl+Shift+x, Super+Alt+Shift+x and Super+Ctrl+Alt+x
 # type nothing into it, a plain text still does, and a chord that the look
-# binds still acts. One cell for each look that swallows with a window:
+# binds still acts, also one of the newly swallowed class (rksr1-2). One
+# cell for each look that swallows with a window:
 #
 #   tiling  the foot is a tile; Super+2 views tag 2
 #   xp      the foot is a window of xp; Super+d shows the desktop and back
@@ -77,6 +78,10 @@ cell_tiling() {
     start_stray tiling
     until_ok stray_focused 40 || fail "tiling: the typing foot does not hold the keyboard"
     no_stray tiling
+    key Super+Ctrl+Shift+2
+    until_ok "ctl state tiling | jq -e '[.windows[] | select(.desks | index(2))] | length == 1' >/dev/null" 40 ||
+        fail "tiling: Super+Ctrl+Shift+2 gives the tile no tag 2: $(ctl state tiling | jq -c '[.windows[] | .desks]')"
+    ok "tiling: Super+Ctrl+Shift+2, a bound chord of a swallowed class, gives the tile tag 2"
     key Super+2
     until_ok "ctl state tiling | jq -e '[.desks[] | .shown] == [[2]]' >/dev/null" 40 ||
         fail "tiling: Super+2 does not view tag 2: $(ctl state tiling | jq -c .desks)"
