@@ -267,19 +267,95 @@ impl Construct {
             self.effects.release(&moving.name);
         }
         let at = point.map(|v| v.round() as i32);
+        let placed = self.place_on(&surface, &to, &output, Some(at));
+        self.given_from_a_pane(&surface, &to, &output, placed.err().as_deref())?;
+        Ok(true)
+    }
+
+    /// Asks the window manager `to`, which got `surface`, to put it on
+    /// `output`, with the middle of its title bar at `at`, else at the
+    /// same place there. When it cannot, the window stays where that
+    /// manager put it, the construct logs why, and the answer is the
+    /// reason.
+    fn place_on(
+        &mut self,
+        surface: &str,
+        to: &str,
+        output: &str,
+        at: Option<[i32; 2]>,
+    ) -> Result<(), String> {
         let place = MethodCall {
-            client: to.clone(),
+            client: to.to_owned(),
             method: "window.move".into(),
             params: json!({"surface": surface, "output": output, "at": at}),
         };
         let placed: Result<Value, _> =
             (self.rt.conn).call_within("methods.call", place, PLACE_WAIT);
-        if let Err(err) = placed {
+        placed.map(drop).map_err(|err| {
             crate::log::log_warn!(
-                "chora-construct: {surface} is a window of {to}, not at the drop point: {err}"
+                "chora-construct: {surface} is a window of {to}, not on {output}: {err}"
             );
+            err.to_string()
+        })
+    }
+
+    /// Where the keyboard goes once the window of a pane went to the face
+    /// manager `to`, by a drop or the give key (rcr5-1, rcr5-2): a window
+    /// that `to` could not place on `output`, for the reason `unplaced`,
+    /// is told. Stood back, a window
+    /// placed on the face at the front gets the keyboard there as the
+    /// person steps in (co-79); on another face, or not placed, the cube
+    /// stays stood back and the construct keeps the keyboard, so no key
+    /// goes into a window on a face that the person does not see, and the
+    /// step in gives it none. Stepped in, the keyboard stays where it is.
+    fn given_from_a_pane(
+        &mut self,
+        surface: &str,
+        to: &str,
+        output: &str,
+        unplaced: Option<&str>,
+    ) -> Result<(), ClientError> {
+        if let Some(err) = unplaced {
+            let language = chora_kit::words::Language::of_session();
+            let reason = crate::names::reason(err, language);
+            self.tell(&crate::names::not_placed(language, to, &reason));
         }
-        Ok(true)
+        let Some(host) = self.cube.as_mut() else {
+            return Ok(());
+        };
+        if host.view().mode() != chora_kit::modes::Mode::Navigate {
+            return Ok(());
+        }
+        if unplaced.is_none() && host.front_output() == output {
+            host.note_focus(Some(surface.to_owned()));
+            return self.mode_act(chora_kit::modes::Act::StepIn, crate::modes::By::Person);
+        }
+        if host.noted_focus().as_deref() == Some(surface) {
+            host.note_focus(None);
+        }
+        self.walk_keys = true;
+        self.rt.conn.apply(crate::modes::the_keyboard_to_the_look())
+    }
+
+    /// The give key of the face manager, stood back with the window of a
+    /// pane (co-79): the window goes to the face at the front, the
+    /// person steps into that face, and the window has the keyboard
+    /// there. A refusal is a notice, and the pane stays; a window that
+    /// the face manager could not place is told, and the cube stays
+    /// stood back with the keyboard (rcr5-1).
+    pub(crate) fn put_in_face(&mut self, surface: &str, to: &str) -> Result<(), ClientError> {
+        let Some(output) = self.cube.as_ref().map(cube::Host::front_output) else {
+            return Ok(());
+        };
+        if let Err(err) = self.give(surface, to) {
+            crate::log::log_warn!("chora-construct: {surface} stays a pane: {err}");
+            let language = chora_kit::words::Language::of_session();
+            let words = crate::input::refusal(language, to, &err.to_string());
+            self.tell(&words);
+            return Ok(());
+        }
+        let placed = self.place_on(surface, to, &output, None);
+        self.given_from_a_pane(surface, to, &output, placed.err().as_deref())
     }
 
     /// The moves and the release of the drag of a window pulled from a

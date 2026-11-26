@@ -1330,7 +1330,12 @@ mod tests {
         press_key_from(mc, key, modifiers, false);
     }
 
-    fn press_key_from(mc: &mut super::Mc, key: &str, modifiers: &[&str], injected: bool) {
+    pub(crate) fn press_key_from(
+        mc: &mut super::Mc,
+        key: &str,
+        modifiers: &[&str],
+        injected: bool,
+    ) {
         use chora_kit::runtime::Plugin as _;
         mc.event(chora_scene::Event::NodeKey {
             node: super::page_id("agenda"),
@@ -2835,6 +2840,25 @@ mod tests {
         (mc, core)
     }
 
+    /// A card that mc shows itself is a room of the page in the same round,
+    /// not at the next tick of the rooms (rpe-2).
+    #[test]
+    fn a_card_that_mc_pushes_takes_its_room_at_once() {
+        use chora_kit::runtime::Plugin as _;
+        let core = chora_kit::testing::FakeCore::start().selecting();
+        core.answer_with("state.get", serde_json::json!({"shown": []}));
+        core.answer_with("notify.show", serde_json::json!({"id": 3}));
+        let mut mc = crate::testing::mc_on(&core, "rooms-push", [1280, 720]);
+        assert_eq!(mc.card_room(), mc.foot_room());
+        core.answer_with(
+            "state.get",
+            serde_json::json!({"shown": [{"rect": [160, 500, 291, 79]}]}),
+        );
+        mc.method("notify.push", serde_json::json!({"title": "Timer"}))
+            .unwrap();
+        assert_eq!(mc.card_room(), 220.0, "the card takes its room in the push");
+    }
+
     /// A card at the top or in the middle of the output is not under the
     /// page: the page stays whole (rmm2-1).
     #[test]
@@ -2844,7 +2868,7 @@ mod tests {
             mc.learn_rooms().unwrap();
             assert_eq!(
                 mc.card_room(),
-                135.0,
+                mc.foot_room(),
                 "a {name} card takes no room at the foot"
             );
         }
@@ -2857,16 +2881,17 @@ mod tests {
         mc.learn_rooms().unwrap();
         assert_eq!(
             mc.card_room(),
-            135.0,
+            mc.foot_room(),
             "below the output is not under the page"
         );
     }
 
-    /// A card of another height never reflows the pages, and a tall one
-    /// does not leave the page short after it closes (rmm2-2).
+    /// A card that fits the room of the footer never reflows the pages,
+    /// and a tall one does not leave the page short after it closes
+    /// (rmm2-2).
     #[test]
     fn a_card_of_another_height_leaves_the_pages_alone() {
-        let (mut mc, core) = with_card("rooms-height", &serde_json::json!([160, 620, 291, 100]));
+        let (mut mc, core) = with_card("rooms-height", &serde_json::json!([160, 670, 291, 50]));
         let log = core.record(|method, params| {
             (method == "scene.apply"
                 && params
@@ -2877,8 +2902,8 @@ mod tests {
         mc.learn_rooms().unwrap();
         assert_eq!(
             mc.card_room(),
-            135.0,
-            "a short card (room 100) keeps the room"
+            mc.foot_room(),
+            "a short card (room 50) keeps the room"
         );
         assert!(
             log.lock().unwrap().is_empty(),
@@ -2889,12 +2914,12 @@ mod tests {
             serde_json::json!({"shown": [{"rect": [160, 500, 291, 220]}]}),
         );
         mc.learn_rooms().unwrap();
-        assert!(mc.card_room() > 135.0, "a tall card takes more");
+        assert!(mc.card_room() > mc.foot_room(), "a tall card takes more");
         core.answer_with("state.get", serde_json::json!({"shown": []}));
         mc.learn_rooms().unwrap();
         assert_eq!(
             mc.card_room(),
-            135.0,
+            mc.foot_room(),
             "the page is whole after the tall card closed"
         );
     }

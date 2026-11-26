@@ -86,10 +86,13 @@ change it there, not here.
     edge case. A page shows only as many columns as fit at `min_panel`;
     the other panels wrap into new rows in reading order. A row is never
     lower than `min_panel`, except a row of only empty panels with their
-    words: it is as high as the words, so that each message shows. When the page is longer than the output, it
-    scrolls with the wheel, and a small arrow in `muted` beside the foot
-    of the text block says that more follows below; it hides when the
-    page is at its end.
+    words: it is as high as the words, so that each message shows. The
+    page ends over the footer line, and over a card of the notice
+    server only while one shows at the foot: once the card closes the
+    page takes that room back. When the page is longer than its room, it
+    scrolls with the wheel and with Down, Up, Page Down and Page Up, and
+    a small arrow in `muted` beside the foot of the text block says that
+    more follows below; it hides when the page is at its end.
 14. **Columns follow the content.** The agents scene has as many
     columns as agents: one agent takes the whole width, two take half
     each. A new scene with a varying number of items does the same.

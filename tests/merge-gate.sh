@@ -7,7 +7,7 @@
 # of tests/gate-lock.sh, and a second one prints a line and waits.
 #
 # Steps: red-first, identity, ratchets, pre-commit, gate-lib, ci-check, build, test, clippy, 2d-guard, package-deps, package-lists, xp, matrix, virtual, xp-faces, xp-paperclip, xp-fields, xp-question, hud,
-# layout, tiling-audit, tiling-look, tiling-empty, chat-keys, doors, acts, last-words, cube, pull, placed, construct-hud, construct-extra, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, mc-column, mc-handover, launcher-click, voice-acp, voice-events, agent, e2e. `layout` audits
+# layout, tiling-audit, tiling-look, tiling-empty, chat-keys, doors, acts, last-words, cube, pull, placed, construct-hud, construct-extra, out, winit, wm-pane, pane-keys, walk, keys, pixels, mc-paths, mc-sofa, mc-column, mc-handover, launcher-click, launcher-mc, voice-acp, voice-events, agent, e2e. `layout` audits
 # the layout of the construct HUD in each state. `tiling-empty` shows that an output and a pane of tiling with no window have the bar and the wallpaper. `chat-keys` opens the
 # chat in tiling with Super+a and types into its field. `doors` asks every
 # look for the shared keys and one visible door per action. `acts` runs the act contracts of
@@ -21,7 +21,7 @@
 # construct and reads the pose of the camera at exact times; `keys` types text
 # into the space, starts the terminal and the launcher, closes panes and
 # checks the grabs after a flight into a pane.  `pixels` reads the labels, a pane
-# beside a cube and the 2x step-in from captures. `mc-paths` runs the cells of the main paths of chora-mc. `mc-sofa` runs the cells of the sofa and kitchen scenarios of chora-mc. `mc-column` runs the margin column of chora-mc at 1280x720 and 1920x1080. `mc-handover` runs the cells of a window that goes to mc. `launcher-click` clicks a row of the Apps launcher of tiling and of the Programs launcher of the construct with the hands of a persona (act.py) and asks for the program of that row. `construct-extra` runs the construct gates K1 (a pane at 1:1), mcpane, nested, k2a, windows, 3d (K5, direct input on the 3D base), i3 (one focus holder after a click in the xp face of the cube), focus and close (co-75, co-76: Super+x in a face closes only the focused face window; a pane keeps its way out). `e2e` runs the scripts of the e2e job of
+# beside a cube and the 2x step-in from captures. `mc-paths` runs the cells of the main paths of chora-mc. `mc-sofa` runs the cells of the sofa and kitchen scenarios of chora-mc. `mc-column` runs the margin column of chora-mc at 1280x720 and 1920x1080. `mc-handover` runs the cells of a window that goes to mc. `launcher-click` clicks a row of the Apps launcher of tiling and of the Programs launcher of the construct with the hands of a persona (act.py) and asks for the program of that row. `launcher-mc` opens the launcher of mc by a click on Programs and by Super+Space, light and dark, with the fuzzel of the machine and with one that is 1.9.2 to the config of mc (rtr1-3). `construct-extra` runs the construct gates K1 (a pane at 1:1), mcpane, nested, k2a, windows, 3d (K5, direct input on the 3D base), i3 (one focus holder after a click in the xp face of the cube), focus and close (co-75, co-76: Super+x in a face closes only the focused face window; a pane keeps its way out). `e2e` runs the scripts of the e2e job of
 # .github/workflows/ci.yaml in its order (tests/e2e-sequence.sh); a skip fails the step unless tests/e2e-skips.txt lists it.
 # `tiling-bar`, `tiling-keys-more`, `tiling-windows` and `tiling-system` run the tiling gates that the other tiling steps do not (bar look, spacing, screenshot and launch notices; key list, keycaps, bar Keys, chip, programs; focus, follow, doors, swallow, gaps, motion; reload, system), `tiling-theme` the theme gate (Ink, Paper, accent of the focus border); `handover` the handover between window managers (D55) and the keyboard after "Move window to the xp desktop" in tiling+xp (D119), `mc-scale` the 300-panel scene of mc, `watchdog-starved` the frame watchdog on a starved host, `leak` one core through rounds of look switches and window churn, with the RSS slope, fds, windows and clients per round (sh-33), `xp-run` the Run box of xp, `demo` the demo scenes. A step `known-red-NAME` is a gate script whose red is filed in findings/: --list shows it, a full run leaves it out, `--only known-red-NAME` runs it.
 # `voice-acp` runs the ACP sub-agent smoke test (a question that edits a file is answered by a HUD button, not by a spoken yes), `voice-events` the voice.state events, and `agent` the agent interface in a headless sway (tests/agent.sh).
@@ -303,6 +303,7 @@ mc-sofa|BIN=$repo/target/debug tests/gate-mc-sofa.sh
 mc-column|BIN=$repo/target/debug tests/gate-mc-column.sh
 mc-handover|BIN=$repo/target/debug tests/gate-mc-handover.sh
 launcher-click|BIN=$repo/target/debug tests/gate-launcher-click.sh
+launcher-mc|BIN=$repo/target/debug tests/gate-launcher-mc.sh
 voice-acp|BIN=$repo/target/debug tests/voice-acp.sh
 voice-events|BIN=$repo/target/debug tests/voice-events.sh
 agent|out=\$(mktemp -d /tmp/chora-agent-gate.XXXXXX) && tests/agent.sh "$repo/target/debug" "\$out" && rm -rf "\$out"
@@ -420,7 +421,7 @@ check_full_history() {
 
 tool_minimums() {
     cat <<TOOLS
-fuzzel|1.11|launcher-click,keys|findings/mc.md mc-47 (1.9.2 ignores clicks, 1.11.1 works), tests/gate-package-deps.sh (fuzzel >= 1.11)
+fuzzel|1.11|launcher-click,launcher-mc,keys|findings/mc.md mc-47 (1.9.2 ignores clicks, 1.11.1 works), tests/gate-package-deps.sh (fuzzel >= 1.11)
 TOOLS
 }
 

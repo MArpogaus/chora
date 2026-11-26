@@ -147,7 +147,9 @@ impl Construct {
     }
 
     /// A give key: gives the focused window, else the window of the pane
-    /// ahead, to the window manager `to`. A refusal is a notice.
+    /// ahead, to the window manager `to`. Stood back with the window of a
+    /// pane, the key of the face manager puts it into the face at the
+    /// front (`put_window`, co-79). A refusal is a notice.
     pub(crate) fn give_key(&mut self, to: &str) -> Result<(), ClientError> {
         if let Some(sel) = self
             .list
@@ -167,6 +169,9 @@ impl Construct {
                 return Ok(());
             }
             return Ok(());
+        }
+        if let Some(surface) = self.put_window().filter(|_| to == self.face_manager()) {
+            return self.put_in_face(&surface, to);
         }
         let focused = self.rt.conn.focused_surface().map_err(ClientError::Rpc)?;
         let before = (self.cube.as_ref()).and_then(crate::cube::Host::noted_focus);

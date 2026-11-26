@@ -178,10 +178,10 @@ impl Frame {
     #[must_use]
     pub fn tail(&self) -> Option<i32> {
         let [tip_x, _] = self.balloon_tip()?;
-        let [x, _, w, _] = self.rect();
+        let x = self.rect()[0];
         let style = Style::default();
         let lowest = BALLOON_RADIUS + style.tail_base;
-        Some((tip_x - x).clamp(lowest, (w - BALLOON_RADIUS).max(lowest)))
+        Some((tip_x - x).max(lowest))
     }
 
     /// The part of a slot box inside the work area, no wider than a chat
@@ -1278,6 +1278,31 @@ mod tests {
             658,
             "the tail ends at the head"
         );
+    }
+
+    /// rv9kb-2: with the edge column kept free, the tail of the chat
+    /// balloon still ends over the head of the paperclip (x 1213..1256),
+    /// not at the corner of the balloon.
+    #[test]
+    fn the_tail_of_the_chat_balloon_ends_over_the_paperclip_head() {
+        for height in [770, 690] {
+            let look = Look {
+                style: chora_kit::hud::ChatStyle::Bubble,
+                anchor: Some(Anchor::BottomRight),
+                width: Some(340),
+                margin: 96,
+                ..Look::default()
+            };
+            let mut balloon = frame(look);
+            balloon.area = [0, 0, 1280, height];
+            balloon.tip = Some([1234, height - 112]);
+            let x = balloon.rect()[0];
+            let tip = x + balloon.tail().expect("a tail");
+            assert!(
+                (1213..=1256).contains(&tip),
+                "{height}: the tail tip {tip} is not over the paperclip head"
+            );
+        }
     }
 
     #[test]
