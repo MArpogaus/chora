@@ -40,7 +40,9 @@
 # its output: `leak` asks that the dragged window has its pane, and
 # `panes` gives the construct three more windows with panes, drags the
 # window from mc three times and asks each time that all four windows
-# are there and that none of the construct is without a pane. Its
+# are there and that none of the construct is without a pane. The window
+# goes to mc before the fillers: once they and the walk of the construct
+# hold the keyboard, a window given to mc comes without it (D119). Its
 # capture is $SHOTS/matrix-panes.png.
 #
 # The gate fails on every cell that differs from the table EXPECTED, in
@@ -581,6 +583,7 @@ panes_cell() {
     local want result=pass i first names lost t0=$SECONDS
     want=$(expected_of mc construct panes)
     [ -n "$want" ] || fail "no EXPECTED line for mc construct panes"
+    place mc
     for i in 1 2 3; do
         foot -f "DejaVu Sans Mono:size=10" -a "filler$i" sh -c 'sleep 900' >>"$shots/foot.log" 2>&1 &
         run_pid $!
