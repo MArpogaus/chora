@@ -60,7 +60,7 @@ row_h=37
 mkdir -p "$work/fake"
 cat >"$work/fake/fuzzel" <<FAKE
 #!/bin/sh
-case " \$* " in *" --dmenu "*) cat >"$work/fake/rows" ;; esac
+case " \$* " in *" --dmenu "*) sed 's/\\x00icon\\x1f.*\$//' >"$work/fake/rows" ;; esac
 FAKE
 chmod +x "$work/fake/fuzzel"
 PATH=$work/fake:$PATH timeout 20 "$bin/chora-tiling" --launch fuzzel >/dev/null 2>&1

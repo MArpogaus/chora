@@ -196,7 +196,7 @@ case " \$* " in
 *" --dmenu "*)
     # the last row has no newline: end it, or a line of another stand-in
     # (waybar polls wpctl) joins it and the row does not match
-    sed 's/^/row /; \$a\\' >>"$marks"
+    sed 's/\\x00icon\\x1f.*\$//; s/^/row /; \$a\\' >>"$marks"
     cat "$fakes/choice" 2>/dev/null
     ;;
 esac
