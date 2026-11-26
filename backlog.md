@@ -455,3 +455,5 @@ rr9-1 | MINOR | review-record-v9 r4 (reports/record-v9.md "## Review r4") | open
 
 ## HANDOVER-DRAG-FOCUS (rpm2-6, after the rc)
 After Super+Alt+3 into mc, a Super+drag onto xp leaves the keyboard on tiling's empty desktop (D119: a drag gives without stay). Shared focus handover, needs core; findings/shared.md rpm2-6.
+- rtr4r-2, rtr4r-4 (MINOR, tour rows): m8b..m10 row causes miscite 675ebd55; v8 replay compares the Agents page with the v9 agenda (reports/tour-rows.md "## Review r4"). After tour take r3.
+- lanes.py rule 9: count only docs(state) commits of the PM, not lane reports (20/h on 11-26 14:16 were mostly lane pushes).
