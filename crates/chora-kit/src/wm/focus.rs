@@ -78,6 +78,9 @@ pub struct Focus {
     /// unless it is the own node of `node`: the focused surface stays, but
     /// no window has the keys meanwhile.
     away: Option<String>,
+    /// The node of `away` is the desktop of its look, its root node,
+    /// which holds the keyboard in place of a window (D119).
+    away_desk: bool,
 }
 
 impl Focus {
@@ -88,6 +91,7 @@ impl Focus {
             self.away = (node.as_ref())
                 .filter(|n| Some(n.as_str()) != self.node.as_deref())
                 .and(owner.clone());
+            self.away_desk = self.away.is_some() && node == owner;
             return None;
         }
         let surface = changed(event)?;
@@ -247,6 +251,33 @@ impl Focus {
             Holder::Foreign | Holder::Nobody => (None, None),
         };
         state::Focus { holder, surface }
+    }
+
+    /// The command that keeps the keyboard with the look when its focused
+    /// window goes to a look on another output (D119): the look's `next`
+    /// window takes it, or without one its desktop `desk`, its root node
+    /// named as the look, so that the look holds it with its desktop. The look sends it in a transaction
+    /// before the give, so that the receiver sees the holder when the
+    /// window comes and leaves the keyboard where it is.
+    pub fn keep(&mut self, next: Option<String>, desk: &str) -> Command {
+        if next.is_some() {
+            return self.to(next);
+        }
+        self.lost = false;
+        self.sent(None);
+        self.to_node(Some(desk.into()))
+    }
+
+    /// Whether a window given in to the look `name` takes the keyboard
+    /// (D119): not while another look holds it, with a window that the
+    /// core focuses or with its desktop, as the giver that kept it on the
+    /// output of the person ([`Focus::keep`]); `own` tells the windows of
+    /// the look. Another node, such as a menu or the walk of a look, holds
+    /// the keyboard only for a moment and does not keep it.
+    #[must_use]
+    pub fn takes_given(&self, name: &str, own: impl Fn(&str) -> bool) -> bool {
+        let desk = self.away_desk && self.taken_by_other(name);
+        !desk && self.core.as_deref().is_none_or(own)
     }
 
     /// The focus after the window `gone` went for `why`: `None` when the

@@ -5,9 +5,12 @@
 
 use chora_kit::{
     testing::{FakeCore, created, has, owner, surface},
-    wm::{Book, Change, Origin, Phase, Why, give::pass_on},
+    wm::{
+        Book, Change, Origin, Phase, Why,
+        give::{claims_over, pass_on},
+    },
 };
-use chora_scene::{Command, ROOT};
+use chora_scene::{Command, Event, Node, NodeKind, Props, ROOT};
 
 const NAME: &str = "look";
 
@@ -193,4 +196,77 @@ fn a_new_window_gets_no_raise_from_the_book() {
         opened.iter().all(|c| !matches!(c, Change::Apply(_))),
         "{opened:?}"
     );
+}
+
+/// A group of `owner` with the claim `claim`.
+fn claim(owner: &str, claim: [f64; 4]) -> Node {
+    Node {
+        id: owner.into(),
+        kind: NodeKind::Group,
+        owner: Some(owner.into()),
+        parent: Some(ROOT.into()),
+        children: Vec::new(),
+        props: Props {
+            claim: Some(claim),
+            ..Props::default()
+        },
+        surface: None,
+        to: None,
+    }
+}
+
+/// D119: the receiver shows where the window was when one of its claims
+/// overlaps the output of the window; an output beside it, which only
+/// touches the edge, does not.
+#[test]
+fn a_claim_on_another_output_does_not_cover_the_window() {
+    let left = [0.0, 0.0, 1280.0, 800.0];
+    let nodes = [
+        claim("tiling", [0.0, 0.0, 2560.0, 800.0]),
+        claim("xp", [1280.0, 0.0, 1280.0, 800.0]),
+    ];
+    assert!(
+        !claims_over(&nodes, "xp", left),
+        "xp is on the right output"
+    );
+    assert!(claims_over(&nodes, "xp", [1000.0, 0.0, 400.0, 800.0]));
+    assert!(claims_over(&nodes, "tiling", left));
+    assert!(!claims_over(&nodes, "mc", left), "no claim of mc");
+    let pane = [claim("xp", [200.0, 100.0, 600.0, 400.0])];
+    assert!(
+        claims_over(&pane, "xp", left),
+        "a smaller claim on the output"
+    );
+}
+
+/// D119: a window given in that the look confirms without the keyboard
+/// comes to the top of the look and takes no focus; with it, as before.
+#[test]
+fn a_window_given_in_without_the_keyboard_takes_no_focus() {
+    for keys in [false, true] {
+        let mut book = Book::new(NAME, false);
+        let changes = book.apply(&Event::SurfaceDetached {
+            surface: "s1".into(),
+        });
+        assert!(
+            matches!(
+                &changes[..],
+                [Change::Adopt {
+                    origin: Origin::Given,
+                    ..
+                }]
+            ),
+            "{changes:?}"
+        );
+        let applied: Vec<Command> = (book.confirm_keys("s1", keys).into_iter())
+            .filter_map(|c| match c {
+                Change::Apply(commands) => Some(commands),
+                _ => None,
+            })
+            .flatten()
+            .collect();
+        let focused = applied.iter().any(|c| matches!(c, Command::Focus { .. }));
+        assert_eq!(focused, keys, "{applied:?}");
+        assert!(applied.iter().any(|c| matches!(c, Command::Move { .. })));
+    }
 }

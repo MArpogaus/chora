@@ -88,6 +88,20 @@ sep=$(for x in $(seq 60 170); do [ "$(pixel "$shot" "$x" 24)" = "46 51 68 255" ]
 [ "$(pixel "$shot" "$sep" 32)" != "46 51 68 255" ] || fail "the separator is higher than 16"
 ok "the separator is 16 px high and clear of the island hairline"
 
+chip=$(sed -n 's/^@define-color surface-2 #\(..\)\(..\)\(..\);.*/\1 \2 \3/p' "$flavor/waybar/colors.css")
+# shellcheck disable=SC2207
+chip=($(for h in $chip; do printf '%d ' "0x$h"; done))
+chipw=""
+chip_centred() {
+    read -r gl gr gw < <(python3 -I "$repo/tests/chip-gaps.py" "$shot" "${chip[@]}")
+    [ -n "$gw" ] || fail "no layout chip of colour ${chip[*]} in the capture of $1"
+    echo "chip $1: left gap $gl, right gap $gr, width $gw"
+    d=$((gl - gr))
+    [ "${d#-}" -le 2 ] || fail "the word of $1 sits off centre in its chip: gaps $gl and $gr"
+    [ -z "$chipw" ] && chipw=$gw
+    [ "$gw" = "$chipw" ] || fail "the layout chip is $gw wide with $1, $chipw with tile"
+}
+chip_centred tile
 isend=$(for x in $(seq 160 600); do [ "$(pixel "$shot" "$x" 24)" = "$bg" ] && { echo "$x"; break; }; done)
 for layout in tile_left fair spiral max; do
     ctl call tiling set_layout "{\"layout\": \"$layout\"}" >/dev/null || fail "set_layout $layout"
@@ -95,5 +109,7 @@ for layout in tile_left fair spiral max; do
     ctl capture --output HEADLESS-1 "$shot" >/dev/null || fail "the capture"
     now=$(for x in $(seq 160 600); do [ "$(pixel "$shot" "$x" 24)" = "$bg" ] && { echo "$x"; break; }; done)
     [ "$now" = "$isend" ] || fail "the left island ends at $now with $layout, at $isend with tile"
+    chip_centred "$layout"
 done
 ok "the left island keeps its width through four layout words"
+ok "the layout word sits in the middle of its chip, which keeps its width"

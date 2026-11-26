@@ -116,6 +116,10 @@ enum Cmd {
         /// The surface id; the focused window without it.
         #[arg(long)]
         surface: Option<String>,
+        /// The keyboard stays with the giver when the receiver is on
+        /// another output (D119), as for a move from a menu of the giver.
+        #[arg(long)]
+        stay: bool,
     },
     /// Grant a client name capabilities until the session ends or a
     /// revoke. Goes through the admin socket.
@@ -409,7 +413,9 @@ fn run(args: Args) -> Result<(), String> {
         Cmd::State { plugin } => {
             return call(&mut client, plugin, "state.get".to_owned(), None);
         }
-        Cmd::Give { to, surface } => return give(&mut client, &to, surface.as_deref()),
+        Cmd::Give { to, surface, stay } => {
+            return give(&mut client, &to, surface.as_deref(), stay);
+        }
         Cmd::Asset { action } => return asset(&mut client, action),
         Cmd::View { .. } | Cmd::Mcp | Cmd::Restart { .. } => {
             unreachable!("handled before the connection")
@@ -1139,8 +1145,9 @@ fn call(
 }
 
 /// `give`: calls `window.give` of the owner of the window, the focused
-/// one by default.
-fn give(client: &mut Client, to: &str, surface: Option<&str>) -> Result<(), String> {
+/// one by default; with `stay` the keyboard stays with the owner when
+/// `to` is on another output (D119).
+fn give(client: &mut Client, to: &str, surface: Option<&str>, stay: bool) -> Result<(), String> {
     let query = match surface {
         Some(id) => serde_json::json!({"selector": format!("id:{id}")}),
         None => serde_json::json!({"selector": "kind:surface", "filter": {"focused": true}}),
@@ -1155,7 +1162,11 @@ fn give(client: &mut Client, to: &str, surface: Option<&str>) -> Result<(), Stri
     let owner = node["owner"]
         .as_str()
         .ok_or_else(|| format!("{} has no window manager", node["id"]))?;
-    let params = serde_json::json!({"surface": node["id"], "to": to}).to_string();
+    let mut params = serde_json::json!({"surface": node["id"], "to": to});
+    if stay {
+        params["stay"] = Value::Bool(true);
+    }
+    let params = params.to_string();
     call(client, owner.into(), "window.give".into(), Some(&params))
 }
 

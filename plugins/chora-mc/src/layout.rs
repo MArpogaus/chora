@@ -356,6 +356,45 @@ impl Mc {
         (top + ((h - top) / line).floor() * line).clamp(0.0, h)
     }
 
+    /// The height of the clip of a panel at `y` with the height `h`: whole
+    /// lines. The lines of a panel start a lift below its top, and the page
+    /// clips what lies under its edge, so a panel with lines counts its
+    /// lines from where they start, from the room that the page leaves
+    /// it: the edge never shows a part of a line (rv9ka-1, rtr3-1).
+    pub(crate) fn clip_height(&self, name: &str, panel: &Panel, [y, h]: [f64; 2]) -> f64 {
+        let (Some(geo), false) = (self.geometry(name), panel.lines.is_empty()) else {
+            return self.whole_lines(panel, h);
+        };
+        let scroll = self.scroll.get(name).copied().unwrap_or_default();
+        let room = h.min(geo.text[1] + geo.text[3] - (y - scroll));
+        let body = self.ty("body", panel.style.as_ref());
+        let top = self.lift(y, self.lines_top(panel), &body);
+        (top + ((room - top) / body.line).floor() * body.line).clamp(0.0, h)
+    }
+
+    /// Sets the clip of every panel of the current page again: the page
+    /// edge lies elsewhere for them once the page scrolled.
+    fn clip_panels(&self, name: &str) -> Vec<Command> {
+        let (Some(scene), Some(geo)) = (self.scenes.get(name), self.geometry(name)) else {
+            return Vec::new();
+        };
+        let indent = geo.note + geo.gap;
+        (scene.panels.iter())
+            .filter_map(|p| {
+                let [_, y, w, h] = self.place(name, p)?;
+                let size = [w + indent, self.clip_height(name, p, [y, h])];
+                let props = PropsUpdate {
+                    size: Some(size),
+                    ..PropsUpdate::default()
+                };
+                Some(Command::Update {
+                    id: panel_id(name, &p.id),
+                    props,
+                })
+            })
+            .collect()
+    }
+
     /// Creates one panel: a group with a clip, its title and its lines,
     /// and the notes in the margin left of it.
     /// One node per row, so that a row wraps and its note stays on
@@ -379,7 +418,7 @@ impl Mc {
             &panels_id(name),
             PropsUpdate {
                 transform: Some(translate(x - at.indent, y)),
-                size: Some([w + at.indent, self.whole_lines(panel, h)]),
+                size: Some([w + at.indent, self.clip_height(name, panel, [y, h])]),
                 clip: Some(Some(chora_scene::Clip { radius: 0.0 })),
                 opacity: panel.opacity,
                 effects: self.blur_effect(panel).map(|e| vec![e]),
@@ -595,7 +634,9 @@ impl Mc {
         }
         self.scroll.insert(name.clone(), new);
         let b = self.settings.value.scale.baseline;
-        self.apply(vec![move_to(panels_id(&name), 0.0, -2.0 * b - new)])?;
+        let mut commands = vec![move_to(panels_id(&name), 0.0, -2.0 * b - new)];
+        commands.extend(self.clip_panels(&name));
+        self.apply(commands)?;
         self.update_more(&name)
     }
 

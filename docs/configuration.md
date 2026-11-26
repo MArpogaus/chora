@@ -1674,8 +1674,9 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   door gets a 1 px ring of `accent`. The tooltips that remain, of the clock, the
   network and the volume, have the same edge.
   Separators are 1 x 16 px bars of `line` that leave the edge clear. The
-  layout word is left aligned, 12 px after the separator, in a least width
-  of 80 px, so the left island keeps its width through the layouts.
+  layout word is centred in its chip, which starts 6 px after the separator and
+  keeps a least width of 100 px, so the left island keeps its width through the
+  layouts.
   The icons of **Apps**, **Keys** and the power sign are pictures in `waybar/icons/`, drawn as backgrounds, in the
   colours of the theme; **Apps** and **Keys** are drawn alike, in the colour
   of the text. The doors (**Apps**, **Looks**, the helper word, **Keys** and the power

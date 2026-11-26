@@ -8,6 +8,17 @@
 #   pass  the window is owned by the second window manager, every surface
 #         is attached, visible and of nonzero size, and the window has the
 #         keyboard focus
+#   kept  as pass, but the keyboard stays with the first window manager
+#         (a window or a node of it has the focus, not the window): a give
+#         key is a give of the person, who looks at the first output, so
+#         the giver keeps the keyboard there (D119, tiling-focus r2 and
+#         r3); tiling, xp and mc keep it, and as receivers they leave it
+#         with the giver; the construct does neither yet (CO-DROP); as a
+#         window given without the keyboard stays without it while another
+#         look holds it, the next cell places the window through the holder,
+#         which takes it with the keyboard, and on from there;
+#         kept_by measures it: a window or a node of the first has the
+#         focus, the window has not, and so it is a second later
 #   gap   anything else; the window must still have an owner and no
 #         surface may be lost
 #
@@ -29,7 +40,9 @@
 # its output: `leak` asks that the dragged window has its pane, and
 # `panes` gives the construct three more windows with panes, drags the
 # window from mc three times and asks each time that all four windows
-# are there and that none of the construct is without a pane. Its
+# are there and that none of the construct is without a pane. The window
+# goes to mc before the fillers: once they and the walk of the construct
+# hold the keyboard, a window given to mc comes without it (D119). Its
 # capture is $SHOTS/matrix-panes.png.
 #
 # The gate fails on every cell that differs from the table EXPECTED, in
@@ -66,14 +79,14 @@
 set -uo pipefail
 
 EXPECTED='
-tiling xp key pass
+tiling xp key kept
 tiling xp drag pass
 tiling xp give pass
 tiling xp cgive pass
 tiling xp cgive-s pass
 tiling xp mcp pass
 tiling xp voice pass
-tiling mc key pass
+tiling mc key kept
 tiling mc drag pass
 tiling mc give pass
 tiling mc cgive pass
@@ -87,14 +100,14 @@ tiling construct cgive pass
 tiling construct cgive-s pass
 tiling construct mcp pass
 tiling construct voice pass
-xp tiling key pass
+xp tiling key kept
 xp tiling drag pass
 xp tiling give pass
 xp tiling cgive pass
 xp tiling cgive-s pass
 xp tiling mcp pass
 xp tiling voice pass
-xp mc key pass
+xp mc key kept
 xp mc drag pass
 xp mc give pass
 xp mc cgive pass
@@ -108,14 +121,14 @@ xp construct cgive pass
 xp construct cgive-s pass
 xp construct mcp pass
 xp construct voice pass
-mc tiling key pass
+mc tiling key kept
 mc tiling drag pass
 mc tiling give pass
 mc tiling cgive pass
 mc tiling cgive-s pass
 mc tiling mcp pass
 mc tiling voice pass
-mc xp key pass
+mc xp key kept
 mc xp drag pass
 mc xp give pass
 mc xp cgive pass
@@ -271,6 +284,22 @@ arrived() {
     return 1
 }
 
+kept_now() {
+    local all nodes
+    all=$(ctl query kind:surface 2>/dev/null) || all='[]'
+    last_all=$all
+    nodes=$(ctl query '*' 2>/dev/null) || nodes='[]'
+    echo "$all" | jq -e --arg w "$w" --arg o "$1" "
+        $surfaces_clean and any(.[]; .id == \$w and .owner == \$o and .focused != true)" >/dev/null &&
+        echo "$nodes" | jq -e --arg g "$2" 'any(.[]; .focused == true and .owner == $g)' >/dev/null &&
+        on_top "$all" "$1"
+}
+
+kept_by() {
+    until_ok "kept_now $1 $2" "$(awk -v a="$3" -v b="$4" 'BEGIN {print int((a + b) * 2)}')" &&
+        holds "kept_now $1 $2" 1
+}
+
 construct_pane() {
     ctl call construct window.list 2>/dev/null | jq -r '.windows[] | select(.name == "probe") | .pane'
 }
@@ -308,10 +337,21 @@ has_focus() {
 }
 
 place() {
-    local o
+    local o h
     o=$(owner_of)
     [ "$o" != "$1" ] || return 0
     case $o in none | null | "") fail "the window is lost before a cell: owner ${o:-nobody}" ;; esac
+    h=$(ctl query '*' | jq -r 'first(.[] | select(.focused == true) | .owner) // "none"')
+    if ! ctl query "id:$w" | jq -e '.[0].focused == true' >/dev/null && [ "$h" != "$o" ] && [ "$h" != "$1" ]; then
+        case $h in tiling | xp | mc)
+            repair "give $o to $h, which holds the keyboard (D119)"
+            ctl call "$o" window.give "{\"surface\": \"$w\", \"to\": \"$h\"}" >/dev/null 2>&1
+            until_ok '[ "$(owner_of)" = "$h" ]' 20
+            has_focus || fail "the window has no focus with the holder $h: $(ctl query "id:$w" | jq -c '.[0] | {owner, focused}')"
+            o=$h
+            ;;
+        esac
+    fi
     if ! ctl call "$o" window.give "{\"surface\": \"$w\", \"to\": \"$1\"}" >/dev/null 2>&1; then
         repair "give $o to $1 through tiling"
         ctl call "$o" window.give "{\"surface\": \"$w\", \"to\": \"tiling\"}" >/dev/null 2>&1
@@ -495,7 +535,7 @@ cell() {
         want=gap
     fi
     case $path in drag | key) owner_s=1.5 ;; voice) owner_s=12 ;; *) owner_s=0.8 ;; esac
-    if [ "$want" = pass ]; then
+    if [ "$want" = pass ] || [ "$want" = kept ]; then
         settle_s=10
         [ "$path" = voice ] || owner_s=5
     fi
@@ -506,7 +546,9 @@ cell() {
     fi
     place "$src"
     path_run "$path" "$src" "$dst"
-    if arrived "$dst" "$owner_s" "$settle_s"; then result=pass; else result=gap; fi
+    if [ "$want" = kept ] && kept_by "$dst" "$src" "$owner_s" "$settle_s"; then
+        result=kept
+    elif arrived "$dst" "$owner_s" "$settle_s"; then result=pass; else result=gap; fi
     for _ in $(seq 25); do
         echo "$last_all" | jq -e --arg w "$w" "$surfaces_clean" >/dev/null && break
         sleep 0.2
@@ -541,6 +583,7 @@ panes_cell() {
     local want result=pass i first names lost t0=$SECONDS
     want=$(expected_of mc construct panes)
     [ -n "$want" ] || fail "no EXPECTED line for mc construct panes"
+    place mc
     for i in 1 2 3; do
         foot -f "DejaVu Sans Mono:size=10" -a "filler$i" sh -c 'sleep 900' >>"$shots/foot.log" 2>&1 &
         run_pid $!

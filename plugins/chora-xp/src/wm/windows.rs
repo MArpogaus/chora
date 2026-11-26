@@ -18,15 +18,17 @@ impl Wm {
     }
 
     /// Takes a surface that the book proposes into a hidden group with
-    /// its decoration and focuses it; the menus shut, so that the Start
-    /// menu does not cover a window that came (sd-h2). It shows once it
-    /// has a size. True when the window is xp's now; false when the core
-    /// refused it.
+    /// its decoration and, with `keys`, focuses it (D119: not a window
+    /// given in while another look holds the keyboard); the menus shut,
+    /// so that the Start menu does not cover a window that came (sd-h2).
+    /// It shows once it has a size. True when the window is xp's now;
+    /// false when the core refused it.
     pub(super) fn adopt(
         &mut self,
         surface: &str,
         app_id: Option<String>,
         title: Option<&str>,
+        keys: bool,
     ) -> Result<bool, ClientError> {
         let previous = self.focused.clone();
         let mut window = Window::new(surface, app_id, title);
@@ -48,7 +50,9 @@ impl Wm {
                 props: look,
             });
         }
-        commands.extend(self.focus(Some(surface)));
+        if keys {
+            commands.extend(self.focus(Some(surface)));
+        }
         if let Some(err) = self.try_apply(commands)? {
             error_adopt(surface, &err);
             self.windows.retain(|w| w.surface != surface);

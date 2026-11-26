@@ -34,6 +34,7 @@ impl Mc {
                 surface: surface.clone(),
                 to,
                 grab: None,
+                stay: false,
             }),
             Ok(None) => return,
             Err(err) => Err(err),
@@ -103,17 +104,18 @@ impl Mc {
     /// (rmm2-3): a wheel makes one per notch (`discrete`), a finger or a
     /// roll adds its `dy` up to one per [`NOTCH`] pixels, so that a swipe
     /// of a touchpad never goes from the middle to the end in one gesture.
+    /// `now` is the time of the event.
     pub(crate) fn wheel_steps(
         &mut self,
         dy: f64,
         discrete: [f64; 2],
         source: chora_scene::ScrollSource,
+        now: std::time::Instant,
     ) -> i32 {
         let notches = match source {
             chora_scene::ScrollSource::Wheel if discrete[1] != 0.0 => discrete[1],
             _ => dy / NOTCH,
         };
-        let now = std::time::Instant::now();
         let fresh = self.wheel_at.is_none_or(|at| now - at > GESTURE_GAP);
         self.wheel_at = Some(now);
         if fresh || notches * self.wheel_acc < 0.0 {
@@ -143,7 +145,7 @@ impl Mc {
         if !node.ends_with("-doors-volume-hit") {
             return self.scroll_page(node, dy);
         }
-        let steps = self.wheel_steps(dy, discrete, source);
+        let steps = self.wheel_steps(dy, discrete, source, std::time::Instant::now());
         let change = if steps < 0 {
             chora_kit::volume::Change::Up
         } else {

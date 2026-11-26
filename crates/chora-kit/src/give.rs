@@ -29,6 +29,11 @@ pub struct Give {
     /// button: the receiver goes on with it (`give_grab`).
     #[serde(default)]
     pub grab: Option<GivenGrab>,
+    /// The person gave the window with a give key or a row of a menu of
+    /// the giver and still looks there: a receiver on another output gets
+    /// the window without the keyboard, which stays with the giver (D119).
+    #[serde(default)]
+    pub stay: bool,
 }
 
 /// The export of `window.give`, with its description and schema. It is
@@ -45,6 +50,10 @@ pub fn method() -> ExportMethod {
             "grab": {"type": "object", "description":
                 "Gives the drag too, while the user holds its button: point [x, y] of the \
                  window under the pointer, velocity [x, y] and wobble, the state of the effect."},
+            "stay": {"type": "boolean", "description":
+                "The person gave the window with a give key or a menu row of the giver: a \
+                 receiver on another output gets it without the keyboard, which stays with \
+                 the giver (D119)."},
         }),
         &["surface", "to"],
     ))
@@ -66,6 +75,19 @@ pub trait Windows {
     ///
     /// The core refuses, or the relayout fails.
     fn hand(&mut self, surface: &str, to: &str) -> Result<Value, RpcError>;
+
+    /// As [`Windows::hand`], for a give that the person makes, a give key
+    /// or a row of a menu: when `to` is on another output, the keyboard
+    /// stays with the window manager where the person looks, on its next
+    /// window or else on its desktop, and is back on the window when the
+    /// give fails (D119). The default hands as [`Windows::hand`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Windows::hand`].
+    fn hand_kept(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
+        self.hand(surface, to)
+    }
 }
 
 /// What the key action does with the focused window.
@@ -172,9 +194,11 @@ pub fn move_words(to: &str, language: Language) -> String {
 pub const FORWARD_WAIT: Duration = Duration::from_secs(2);
 
 /// The key action `give: to`: gives the focused window to the window
-/// manager `to`. A window of the plugin goes through [`Windows::hand`],
-/// the window of another window manager through its `window.give`, since
-/// a key has one holder, whoever owns the window. Answers the surface id.
+/// manager `to`. A window of the plugin goes through [`Windows::hand_kept`],
+/// the window of another window manager through its `window.give` with
+/// `stay`, since a key has one holder, whoever owns the window: a give of
+/// the person keeps the keyboard with the giver (D119). Answers the
+/// surface id.
 ///
 /// # Errors
 ///
@@ -219,12 +243,12 @@ fn given(
 ) -> Result<Value, RpcError> {
     let me = windows.conn().name().to_owned();
     let answer = match plan(node, &me, to, windows)? {
-        Step::Hand(surface) => windows.hand(&surface, to)?,
+        Step::Hand(surface) => windows.hand_kept(&surface, to)?,
         Step::Forward { owner, surface } => {
             let call = MethodCall {
                 client: owner,
                 method: METHOD.into(),
-                params: json!({"surface": surface, "to": to}),
+                params: json!({"surface": surface, "to": to, "stay": true}),
             };
             windows
                 .conn()
@@ -273,6 +297,17 @@ impl Conn {
         let nodes = self.query("*").map_err(rejected)?;
         let me = self.name();
         Ok(claimant_at(&nodes, point, |o| o != me).map(String::from))
+    }
+
+    /// Whether a claim of the window manager `to` overlaps `area` in scene
+    /// coordinates, as [`crate::wm::give::claims_over`] (D119).
+    ///
+    /// # Errors
+    ///
+    /// The query fails.
+    pub fn claims_over(&mut self, to: &str, area: [f64; 4]) -> Result<bool, RpcError> {
+        let nodes = self.query("*").map_err(rejected)?;
+        Ok(crate::wm::give::claims_over(&nodes, to, area))
     }
 
     /// Hands a surface of the plugin to the window manager `to` with a
@@ -512,12 +547,15 @@ mod tests {
         (wm, core)
     }
 
+    /// A give key is a give of the person: the owner of the window keeps
+    /// the keyboard where the person looks (D119, rtf1-1).
     #[test]
     fn a_window_of_another_manager_is_given_by_its_owner() {
         let (mut wm, core) = wm_on("tiling", |params| {
             assert_eq!(params["client"], "tiling");
             assert_eq!(params["method"], "window.give");
-            assert_eq!(params["params"], json!({"surface": "s1", "to": "mc"}));
+            let stay = json!({"surface": "s1", "to": "mc", "stay": true});
+            assert_eq!(params["params"], stay, "a give key of the person (D119)");
             Answer::Result(json!("s1"))
         });
         assert_eq!(focused_within(&mut wm, "mc", WAIT).unwrap(), json!("s1"));

@@ -138,6 +138,7 @@ run_theme() {
     pids+=($!)
     ctl wait owner:mc --timeout 20 >/dev/null || fail "mc does not start"
     "$bin/chora-assistant" >"$work/assistant.log" 2>&1 &
+    host=$!
     pids+=($!)
     ctl wait owner:assistant --timeout 20 >/dev/null || fail "the host does not start: $(tail -n 3 "$work/assistant.log")"
     "$bin/choractl" --name agent events mc.chat.slot >"$work/slots.jsonl" 2>/dev/null &
@@ -275,6 +276,28 @@ run_theme() {
     until_ok '! node_exists hud-chat-stop' 20 || fail "$theme: Stop stays while the helper is idle"
     ok "$theme: Stop shows only while the helper runs a prompt"
     key Escape
+    until_ok '! node_exists hud-chat' 20 || fail "$theme: Esc does not close the chat before the restart"
+
+    ids=$(ctl query owner:assistant | jq -r '[.[].id | select(. != "hud-top")] | sort | join(" ")')
+    figure=$(node_rect hud-figure)
+    word=$(node_rect hud-word)
+    kill "$host"
+    wait "$host" 2>/dev/null
+    sed -i 's/margin: \[56, 34\]/margin: [56, 134]/' "$XDG_DATA_HOME/chora/huds/mc/hud.yaml"
+    "$bin/chora-assistant" >"$work/assistant2.log" 2>&1 &
+    host=$!
+    pids+=($!)
+    moved() {
+        node_exists hud-figure && node_exists hud-word &&
+            [ "$(node_rect hud-figure 2>/dev/null)" != "$figure" ] && [ "$(node_rect hud-word 2>/dev/null)" != "$word" ]
+    }
+    until_ok moved 20 || fail "$theme: the host that started again shows the old config: figure $(node_rect hud-figure), was $figure ($(tail -n 1 "$work/assistant2.log"))"
+    settle hud-figure
+    jq -ne --argjson a "$figure" --argjson b "$(node_rect hud-figure)" '$b[1] - $a[1] == 100 and $b[0] == $a[0]' >/dev/null ||
+        fail "$theme: the figure $(node_rect hud-figure) is not 100 below $figure"
+    again=$(ctl query owner:assistant | jq -r '[.[].id | select(. != "hud-top")] | sort | join(" ")')
+    [ "$again" = "$ids" ] || fail "$theme: the host that started again has the nodes: $again, not $ids"
+    ok "$theme: a host that starts again within the grace time shows its new config on the nodes it got back"
 }
 
 for theme in ${GATE_THEMES:-light dark}; do

@@ -141,23 +141,13 @@ impl Tiling {
     /// it again after: the islands never float over the content.
     pub(super) fn hide_bar_for_fullscreen(&mut self) {
         let want = self.wm.fullscreen_shown();
-        if self.bar_hidden.is_some_and(|(_, hidden)| hidden == want)
-            || (!want && self.bar_hidden.is_none())
-        {
-            return;
-        }
-        let Some(pid) = theme::companion("waybar", "waybar") else {
-            self.bar_hidden = None;
-            return;
-        };
-        let hidden = self
-            .bar_hidden
-            .filter(|(old, _)| *old == pid)
-            .is_some_and(|(_, hidden)| hidden);
-        if hidden != want {
+        let (record, toggle) = bar_step(self.bar_hidden, want, || {
+            theme::companion("waybar", "waybar")
+        });
+        self.bar_hidden = record;
+        if let Some(pid) = toggle {
             theme::signal(pid, "USR1");
         }
-        self.bar_hidden = Some((pid, want));
     }
 
     /// Whether the layout or the tags differ from what the panel was last
@@ -352,17 +342,46 @@ impl Tiling {
         Ok(())
     }
 
-    /// Hides the key list and gives the keyboard back.
+    /// Hides the key list and gives the keyboard back: to the focused
+    /// window, or to the desktop of tiling when it held the keyboard
+    /// before (D119).
     pub(super) fn hide_keys(&mut self) -> Result<(), ClientError> {
         self.open.shut(keys::KEYS);
+        let back = (self.focus.node())
+            .filter(|n| *n == crate::NAME)
+            .map(String::from);
         self.apply(vec![
-            Command::FocusNode { node: None },
+            Command::FocusNode { node: back },
             Command::Remove {
                 id: keys::KEYS.into(),
                 to: None,
             },
         ])
     }
+}
+
+/// What the bar needs after an event: the new record of the panel that was
+/// told to hide (its pid; none while it shows) and the pid that gets
+/// `SIGUSR1`, which toggles the panel, when its state is not the wanted
+/// one. `panel` names the running panel. It is asked at each event while a
+/// window is fullscreen or the record names a hidden panel, and the pid is
+/// compared each time: a panel that started again under a fullscreen
+/// window shows, whatever the record says, and is told anew.
+pub(super) fn bar_step(
+    record: Option<(u32, bool)>,
+    want: bool,
+    panel: impl FnOnce() -> Option<u32>,
+) -> (Option<(u32, bool)>, Option<u32>) {
+    if !want && record.is_none() {
+        return (None, None);
+    }
+    let Some(pid) = panel() else {
+        return (None, None);
+    };
+    let hidden = record
+        .filter(|(old, _)| *old == pid)
+        .is_some_and(|(_, hidden)| hidden);
+    (want.then_some((pid, true)), (hidden != want).then_some(pid))
 }
 
 #[cfg(test)]

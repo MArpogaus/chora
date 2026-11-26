@@ -137,7 +137,9 @@ impl Plugin for Construct {
                 Ok(json!({"pane": pane}))
             }
             give::METHOD => {
-                let Give { surface, to, grab } = runtime::params(params)?;
+                let Give {
+                    surface, to, grab, ..
+                } = runtime::params(params)?;
                 self.give_dragged(&surface, &to, grab).map_err(rejected)
             }
             "help.toggle" => {
