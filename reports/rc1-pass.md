@@ -713,3 +713,121 @@ mc-16 (running head "1 AGENDA" above "1 | AGENDA"), mc-50 (yellow square in the 
   is the gate's (gate-mc-sofa answer). The stills read as a stuck state.
 - `run.py --help` still runs every chapter.
 - Context used about 190 k; `pgrep -fa 'chora --headless'` empty at the end.
+
+## r2 tiling
+
+Lane rc1-pass-tiling-r2, opus high, cloud, head f484a92d (claude/rc1-pass-tiling-r2: session head 4d8bbe36 with
+tiling-focus r4 7ef97ab8). Run and read only, no product, test or design change. Step 0 green: `git fetch --unshallow`,
+`cargo check --workspace`, `cargo build --workspace`. One binary set for every run (`round.sh snapshot`, sha f484a92d).
+
+Runs, each from a fresh compositor (`ROUND_DIR=<scratch> tests/persona/round.sh start NAME FLAVOR SIZE`, `stop`):
+- ti-57: four tiling+xp sessions at 1280x800 per output (r1..r4), driven by a script of `act.py` actions with
+  `choractl state tiling|xp` and the scene's focused nodes dumped after each step (52-ti57-holders.txt).
+- tour: `TOUR_OUT=<scratch> python3 demo/tour/run.py tiling` (28 acts, 28 green, 0 red) and `run.py handover`
+  (11 acts, 9 green, 2 red: acts 7, 8, the known D119 row item, backlog.md:453; window kept, see below) (51).
+- persona walk: p1 tiling 1280x720 with `choractl run -- chora-notify`, p2 tiling 1280x800, p3 tiling 1280x720.
+  Host calls go to the stand-ins (calls.log); no host power call.
+
+Captures: media/2026-11-26/rc1-pass-tiling-r2/ on claude/session-log, 52 files, each under 600 KB. A number below is
+the file prefix in that folder.
+
+### Verdict
+
+- **tiling: does not confirm: rpt2-1** (one MAJOR, reproduced 3 of 3 from a fresh compositor; it was already present
+  on d40142e4: the r1 capture media/rc1-pass/tiling-03-stray-20-chords.png shows 28 bars for 20 chords, Alt+9 taken by
+  bash as a digit argument; r1 missed it). ti-57 is fixed (4 of 4).
+
+### ti-57 (keyboard holder after the Looks picker): fixed, 4 of 4
+
+| Run | L3 path | Holders at every step | Typed text | Capture |
+|---|---|---|---|---|
+| r1 | Super+2, Super+1 | tiling (s1, then the desktop node after the give) | TYPED-R1 in the tiling foot; nothing in xp's foot | 01-06 |
+| r2 | clicks on tag 2, tag 1 (the persona's r12 path) | tiling | TYPED-R2 | 07 |
+| r3 | Super+2, Super+1; `check.py begin` after T7, `end L3` | tiling; `task L3 pass` | TYPED-R3 | 08 |
+| r4 | Looks opened again, clicks on tag 2 and 1 into the open picker, Escape | tiling; `task L3 pass` | TYPED-R4 | 09-11 |
+
+No I3 in any run (breaches only the known xp I6 tray and task contrast). Escape closes the key list after the path
+(06). The second Looks click and its Escape keep the desktop node, as review r4 read it. rtf4-1..4 not re-reported.
+
+### Ledger ids asked
+
+| id | Result | Capture |
+|---|---|---|
+| ti-57 | gone (above) | 01-11, 52 |
+| ti-55 | gone: the bar names the other look ("Looks: xp"), the picker row says "Move window to the xp desktop", the give lands on xp's output (P2 r11/r12 T7 4 of 4) | 01, 03 |
+| ti-56 | gone: Super+q gives the chip "Super+Q does nothing here. Super+F1 shows all keys." at 1 s and still at 6 s; "Chat with a helper" is the first Apps row. Super+q itself stays unbound (ti-28) | 27, 28, 24 |
+| rp9-1 | gone: `verify_reloaded` compares the value of gap_inner on disk with the begin (tests/persona/check.py:703-718), a changed file with the same value is red; `pytest tests/persona/test_check.py -k "L2 or reload or gap"` 3 passed; P2 r12 L2 red 2 of 2 on an unchanged value | read, test run |
+
+### tiling: shared RC bar and main paths
+
+| Item | Result | Capture |
+|---|---|---|
+| Start a program (mouse) | pass with rpt1-5: Apps, click Foot starts a terminal with the focus; rpt1-6 gone (first row "Chat with a helper (atlas)") | 24, 25 |
+| Start a program (keys) | pass: Super+Return (themed foot, focus); tour t8 Super+r/Space | 26, 39 |
+| Key list (mouse) | pass with rpt1-3: Keys opens it, Mouse line; Escape closes, keys back to foot | 32 |
+| Key list (keys) | pass with rpt1-3: Super+F1, Super+/ toggles (state open, then closed); fits at 1280x800 | 14, 15, 48 |
+| Helper (mouse) | pass: the bar word opens the chat with the keys; "echo LEAKED-H" reached the helper, not foot (ti-52 fixed) | 29 |
+| Helper (keys) | pass: Super+a, the question reaches the helper ("Hello" answer shown), Escape gives the keys back to foot | 30, 31 |
+| No stray keys into clients | **rpt2-1 MAJOR**: Super, Super+Shift, Super+Ctrl chords swallowed (20 of 21), but every Super+Alt chord and Super+Ctrl+Shift+key reach the client | 26, 50, 45, 49 |
+| Lock | pass with rpt1-10: power > Lock runs `swaylock -C <theme> -f` (stand-in window); Super+Shift+Escape runs `loginctl lock-session` | 33, 34, 44 |
+| Power | pass: power > Shut down runs `systemctl poweroff` (stand-in) | 33, 44 |
+| Volume | pass: wheel on the word gives 55 % (`wpctl set-volume 5%+`), click shows "Muted", a second click toggles back | 35, 44 |
+| Screenshot | pass with rpt1-4: Super+Print runs grim and the notice "Screenshot saved" with the path (tour; in the persona session the stand-in notify-send has no notice daemon, 36, 44) | 16, 36 |
+| Clock | pass: "Thu 26 Nov 14:29" centred in its island | 23 |
+| Honest failure states | pass for a broken yaml line (chip "Settings not applied: chora-tiling.yaml: simple key expected ':' at line 24, column 3", ti-53 fixed), a wrong action (chip "... unknown variant", rth-6), Apps "frobnicate" (Nothing found), Looks alone ("No other look is running"); still silent: rpt1-7 (Super+Alt+2 without xp), rpt1-8 (missing run program); rpt2-2 | 37, 38, 17, 42, 41, 40, 12 |
+| Handover to and from tiling | pass: xp > tiling by Send To with the lines kept and typing on tiling; tiling > mc by Super+Alt+3 with the lines kept; AUDIT kept the window. Acts 7, 8 red = the known D119 rows (backlog.md:453), not product | 21, 22, 51 |
+| Power user (keys) | pass: tour 28 green (layouts with the chip, master, tags, float, Super+drag, key list, chat); the Super+Alt leak (rpt2-1) is on this user's path | 20, 14 |
+| Ricer: edit and reload | pass: Super+s opens the yaml in vi, `:%s` gap_inner 12 > 32 and a new `MOD+y: {run: foot}`, `:wq`, Super+Ctrl+r: get_layout gap_inner 32, the gap shows 32 px, "Super+Y Run foot" in the key list | 46, 47, 48 |
+| Ricer: a broken line | pass (ti-53 fixed, chip with line and column); old settings stay | 37, 39 |
+| Beginner, mouse only | pass: Apps > Foot, Keys, power menu, volume, helper word all by mouse; not stranded (Escape and the bar always back out); rpt1-5 on the way | 24, 25, 32, 33, 35, 29 |
+| Style (tiling-v2) | pass with rpt1-3, rpt1-4, rpt1-5, rpt1-9 and sh-13 (below); bar, tags, chip, gaps, radius, focus glow, picker as designed | 23, 20, 01 |
+
+### Findings
+
+| id | severity | text |
+|---|---|---|
+| rpt2-1 | MAJOR | Super+Alt+any key and Super+Ctrl+Shift+key are not swallowed: the client gets Alt+key or Ctrl+key (`^[9 ^[5 ^[x ^[q ^[d ^X ^[X` in `cat -v`) |
+| rpt2-2 | MINOR | the Looks picker on a tag with no window offers "Move window to the xp desktop"; choosing it says "Window not moved" with the body "choractl: no focused window" (a tool name, English only) |
+
+**rpt2-1 (MAJOR; bar: no stray keys into clients; design/looks/shared.md "an unbound Super key never types into a
+window", tiling-v2 "tiling swallows every MOD+key it does not bind").** In a focused foot running `cat -v`:
+Super+Alt+9, Super+Alt+5, Super+Alt+x, Super+Alt+q, Super+Alt+d, Super+Ctrl+Shift+x, Super+Shift+Alt+x each print
+their Alt or Ctrl sequence (`start:^[9|^[5|^[x|^[q|^[d|^X|^[X|...`), while Super+q, Super+Shift+x, Super+Ctrl+x in the
+same line print nothing (49). In a shell Alt+d deletes a word, Alt+. inserts the last argument, Alt+9 repeats the next
+key nine times (r1 capture); in vi Escape+key runs a command; Ctrl+X is the exit of nano. A keyboard-first user who
+tries Super+Alt+5 after Super+Alt+2-4 in the key list sends Alt+5 into the window. Workaround: do not press them.
+Cause (read): crates/chora-kit/src/swallow.rs:97 `const WITH: [&str; 3] = ["", "Shift+", "Ctrl+"]`, so `chords()`
+grabs no Super+Alt and no Super+Ctrl+Shift chord; the kit list is shared, so the other looks that swallow with it
+likely leak the same (not run). The gate tests/gate-tiling-swallow.sh:24 tries Super+q, z, F5, Shift+x only.
+Repro: fresh `round.sh start NAME tiling 1280x720`; `key Super+Return`, type `clear; echo -n 'start:'; cat -v`,
+Return, then `key Super+Alt+9`, `type |`, `key Super+Ctrl+Shift+x`, `type |`, `look`. R1 p1 (26, zoom 50: Super+Alt+9
+as `^[9`, the other 19 chords clean), R2 p2 (45), R3 p3 (49). Not new on this head: on d40142e4 too (r1 tiling-03).
+
+**rpt2-2 (MINOR; honest failure states, words).** After T7 the tag is empty; Looks still lists "Move window to the xp
+desktop" (09); Super+2 on an empty tag, Looks, Return: flavors/tiling/give.sh:19-20 sends `notify-send -a Desktop
+"Window not moved" "choractl: no focused window"` (13), the stderr of `choractl give` as the body (shared.md: no
+internal terms; read: with a German locale the title is German and this body stays English). No notice showed in the persona session (no daemon on its bus,
+12); the words are from calls.log. Not stranded: Super+1 gives the keys back to the foot (52, e2). Repro: fresh
+tiling+xp session, Super+2, click Looks, Return.
+
+### Known ids seen again (not new)
+
+rpt1-3 (key list at 1280x720: the keycap of "Super+Shift+S" runs 4 px past the panel border at y 667, 14, 15, 32),
+rpt1-4 and rv9j-3 (white notice card on Ink, 16), rpt1-5 (Apps > Foot unthemed, 25), rpt1-7 (41), rpt1-8 (40),
+rpt1-9 (the tile keeps the glow while the chat field has the keys, 29), rpt1-10 (44), rth-6 (wrong action: "unknown
+variant" with no name or line, 38), sh-13 (bar and panel say "atlas" in lower case in the persona session, "Atlas" in
+the tour; a "Listening" pill and dot float over the bottom right tile while the bar says idle or working, 23, 29),
+ti-9 ("Window that asks", 32), ti-15 (the right island shrinks from "Volume 55%" to "Muted", 35), ti-25 (raw launcher
+rows Foot Client, Foot Server, ImageMagick, 24; the floated window runs past the right edge, 18; vi drew a torn wrap
+after the re-tile, 43), ti-28 (Super+q unbound, now with the chip, 27). The key list lists "Other desktops: xp, media
+center, construct" and Super+Alt+2-4 also when no other look runs (32; with rpt1-7). Gone since r1: rpt1-1 (ti-52),
+rpt1-2 (ti-53), rpt1-6.
+
+### Notes for the PM
+
+- rpt2-1 is in the shared kit list (chora_kit::swallow); a fix there touches every look that swallows with it; a gate
+  row with one Super+Alt and one Super+Ctrl+Shift chord would hold it.
+- The handover acts 7, 8 stay red on this head as on 3be27e32 (rows predate D119, backlog.md:453).
+- A lock stand-in window (`timeout 8 chora-probe`) closes by itself; a close key pressed after it closes the window
+  under it (my p1 action, not a product fault).
+- Context used about 170 k; `pgrep -fa 'chora --headless'` empty at the end.
