@@ -84,3 +84,27 @@ Seeded review of claude/tour-rows-r1, base 62a04be03, head 1ac365f1f (reviewer: 
 - rtr1-3 MAJOR (product, for the PM; not this diff, no fix here) mc dark act 4 (scene m8): a click on Programs in the column opens no launcher on 62a04be0/1ac365f1 (3 of 3 takes: the lane's 2, mine 1), green 22/22 on e39448ad. Evidence: v9 m8.Q.png shows no launcher, the pointer mark is on `mc-r0-right-doors-programs` (888, 644, 65 x 28); candidates in e39448ad..62a04be0 on that path: cd277ee40 (rpx1-10: the launcher is now `chora-mc --launch fuzzel --config FILE`, a file rewritten when the settings change; this is the only Programs act and it runs in the dark theme) and 761c0b29/798fdc33 (column rects). The written config passes `fuzzel --check-config` (1.11.1). The gate is blind to it: `launcher-click` covers tiling and construct only (tests/merge-gate.sh:24). Fix: a lane bisects e39448ad..62a04be0 with `run.py mc` and a light/dark launcher cell.
 - rtr1-4 MINOR tests/tour-diff.py:105 `cut_of` misses three kinds of cut: a text without `line_height` in the json (the field is skipped when None, crates/chora-scene/src/node.rs:632; the core default 1.2, crates/chora/src/text.rs:36; 200 of 5152 text nodes in my take), a text that wraps by `max_width` (lines are counted by `\n` only), and a text cut in both builds that v9 cuts more (`not cut_of(ka[k])`). None changes this take (a 1.2 default adds no cut). Fix: default `line_height` to 1.2 and report a cut when v9 is shorter than v8 by a line even if both are cut.
 - rtr1-5 NIT tests/tour-diff.py:72 the eye box is in fixed pixels of an 80 x 104 figure; a scaled figure gets a misplaced mask (a false regression, nothing hidden). Fix: scale the box by the rect's width/80 and height/104.
+
+## r2
+
+Base 1ac365f1f, head f992fe6ac (claude/tour-rows-r2). Commits: f5a4d670a red (test(tour): cut_of default line height, a text cut twice, rtr1-4), 1c6e66e72 fix (cut_of), f992fe6ac rows (m8 box, mc KEYS and page rows). Diffstat: demo/tour/intended.toml +290 -2, tests/tour-diff.py and tests/test_tour_diff.py (cut_of, cut_more; 2 tests). rtr1-5 (eye mask) not done (optional).
+
+- rtr1-1: m8 box is [500, 225, 270, 290]; m8 counts a regression in all 3 takes (the launcher, rtr1-3 / MC-LAUNCHER).
+- rtr1-2: the KEYS nodes (mc-r0/r1-right-keys-N-key, -key-hit, -key-mark, -words, -keys-title, -title-rule, as rect) and the two hairline boxes [888,378,336,1], [937,406,287,1] are named in all 22 mc acts; m6 (region slot flip, take 2) and m9b (agent bands, take 1) and the t7 notice card box [896,560,368,104] added from the takes.
+- rtr1-4: cut_of defaults line_height to 1.2 and a text cut in both builds that v9 cuts by a line more is a cut; a wrapped text (lines by max_width) is still not seen.
+
+### Takes (rows of the head; v9 on the head, v8 = this harness against the 733967aa binaries, TOUR_BASELINE=1, each chapter its own TOUR_OUT; the 733967aa tree has no demo/tour, so run.py is the head's with TOUR_REPO on the worktree)
+
+| take | change | same | none | regression | regressions |
+|---|---|---|---|---|---|
+| 1 | 83 | 1 | 11 | 15 | m1 m1b m1c m2 m2b m3 m4 m4b m8, t3b t3c t3d t3e t3f t3g |
+| 2 | 89 | 1 | 11 | 9 | m1 m1b m1c m2 m2b m3 m4 m4b m8 |
+| 3 | 88 | 1 | 11 | 10 | m1 m1b m1c m2 m2b m3 m4 m4b m8, t3c |
+
+The mc acts now reproduce in all three takes (m3b, m7c, m8b hold, m6 and m9b no longer flip). The counts are NOT equal: the take differs in the tiling acts t3b..t3g, a take-timing diff of the tiling left tile (v9 types the "chora" text into it, v8 shows an empty tile at the still; take 1 six acts, take 3 one act, take 2 none): the typed content is a pixel blob in the tile, no row names it, and I did not mask the tile (it would hide a real change there). Finding rtr2-1 (harness, for the PM): the tiling still waits for the typed text, or a row boxes the tile for t3b..t3g.
+
+Finding rtr2-2 (product, new): m1 m1b m1c m2 m2b m3 m4 m4b regress in every take with a : when the card of chora-notify stands, the page ends 105 px higher (608 to 503, db20c304 / 3e355bb2) and the list panel of the recipe page is 29 px high for 4 lines (mc-s-ingredients-panels-list-lines 112 -> 29; mc-s-sauce-panels-side-lines 56 -> 29). Left unnamed on purpose (a real cut); the review take did not have the card up there.
+
+Diff jsons: media/2026-11-25/tour-rows-r2/take1-diff.json, take2-diff.json, take3-diff.json.
+
+Gate: CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2 (no --push), all 50-odd cells PASS, last lines: "e2e PASS 263s ... all steps passed; no --push, nothing is pushed". pytest tests/test_tour_diff.py tests/test_tour.py: 198 passed. pgrep -fa 'chora --headless' empty.
