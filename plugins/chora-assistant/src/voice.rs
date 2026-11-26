@@ -215,7 +215,7 @@ impl Agent {
         self.voice = Some((VOICE.to_owned(), assistant::context_state(name)));
         self.muted = state["muted"]["mic"].as_bool().unwrap_or(false);
         self.machine.seed(&state);
-        let now = Instant::now();
+        let now = chora_kit::clock::now();
         let mut commands = self.sync_assistant(now)?;
         commands.extend(self.sync_badge()?);
         commands.extend(self.greeting_follows_helper(now));
@@ -276,7 +276,7 @@ impl Agent {
         }
         self.claim_indicator(true);
         let kind = event.strip_prefix(client).and_then(|e| e.strip_prefix('.'));
-        let now = Instant::now();
+        let now = chora_kit::clock::now();
         if let Some(helper) = helper_of(kind, data, client) {
             if kind == Some("state") {
                 self.helper_state(helper, data, now);
@@ -741,7 +741,7 @@ impl Agent {
         if name == VOICE {
             self.claim_due = true;
             self.claim_indicator(false);
-            self.state_ask = Some((Instant::now(), ASK_TRIES));
+            self.state_ask = Some((chora_kit::clock::now(), ASK_TRIES));
         }
     }
 
@@ -769,8 +769,8 @@ impl Agent {
         }
         self.voice = None;
         self.helpers.clear();
-        self.switcher.set_agents("none", Instant::now());
-        let mut commands = self.sync_assistant(Instant::now())?;
+        self.switcher.set_agents("none", chora_kit::clock::now());
+        let mut commands = self.sync_assistant(chora_kit::clock::now())?;
         commands.extend(self.sync_row()?);
         Ok(commands)
     }
@@ -867,7 +867,7 @@ impl Agent {
     /// settings. A card stays in its place on its output; on another output
     /// it appears anew, and its buttons take no click for a moment.
     pub fn replace_assistant(&mut self) -> Result<Vec<Command>, ClientError> {
-        let now = Instant::now();
+        let now = chora_kit::clock::now();
         let had_figure = self.assistant.take().is_some();
         let card = self.card.take();
         let mut commands = if had_figure {
@@ -973,7 +973,7 @@ impl Agent {
         }
         if injected {
             let text = Word::Injected.text(self.language);
-            return self.say(text, Duration::ZERO, Instant::now());
+            return self.say(text, Duration::ZERO, chora_kit::clock::now());
         }
         let muted = self.voice_call("mute", &json!({"mic": true})).map(|_| true);
         self.mic_says(muted.as_ref().ok().copied(), &muted)
@@ -984,7 +984,7 @@ impl Agent {
     pub fn press_badge(&mut self, injected: bool) -> Vec<Command> {
         if injected {
             let text = Word::Injected.text(self.language);
-            return self.say(text, Duration::ZERO, Instant::now());
+            return self.say(text, Duration::ZERO, chora_kit::clock::now());
         }
         let result = self
             .voice_call("mute", &json!({"mic": false}))
@@ -1011,7 +1011,7 @@ impl Agent {
             self.muted = muted;
         }
         let text = word.text(self.language);
-        let mut commands = self.say(text, Duration::ZERO, Instant::now());
+        let mut commands = self.say(text, Duration::ZERO, chora_kit::clock::now());
         commands.extend(self.sync_badge().unwrap_or_default());
         commands
     }
@@ -1028,7 +1028,7 @@ impl Agent {
         let Some(shown) = self.card.as_mut() else {
             return Ok((false, Vec::new()));
         };
-        let Some(outcome) = card::press(shown, node, injected, Instant::now()) else {
+        let Some(outcome) = card::press(shown, node, injected, chora_kit::clock::now()) else {
             return Ok((false, Vec::new()));
         };
         match outcome {
@@ -1042,7 +1042,7 @@ impl Agent {
             }
             Outcome::TooSoon => {
                 eprintln!("chora-assistant: a press on {node} came too soon after the card");
-                self.flash = Some((node.to_owned(), Instant::now() + card::FLASH));
+                self.flash = Some((node.to_owned(), chora_kit::clock::now() + card::FLASH));
                 Ok((true, vec![card::pressed(node, true)]))
             }
             Outcome::Notice => {
