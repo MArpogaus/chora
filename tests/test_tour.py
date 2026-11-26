@@ -1270,5 +1270,28 @@ class LauncherSupported(unittest.TestCase):
         self.assertIn("chora-notify", str(ctx.exception))
 
 
+class LauncherRepoRoot(unittest.TestCase):
+    def test_repo_defaults_to_the_repository_holding_launch_py(self):
+        env = {k: v for k, v in __import__("os").environ.items() if k != "TOUR_REPO"}
+        out = subprocess.run(
+            [sys.executable, "-I", "-c", "import runpy;print(runpy.run_path(%r)['REPO'])" % str(ROOT / "demo" / "tour" / "launch.py")],
+            env=env, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        self.assertEqual(out, str(ROOT))
+
+    def test_no_fixed_checkout_literal_in_demo_or_tests(self):
+        needle = "/home/user/" + "chora"
+        hits = []
+        for d in ("demo", "tests"):
+            for f in (ROOT / d).rglob("*"):
+                if f.suffix not in (".py", ".sh", ".toml") or not f.is_file():
+                    continue
+                for n, line in enumerate(f.read_text(errors="replace").splitlines(), 1):
+                    code = line.split("#", 1)[0]
+                    if needle in code:
+                        hits.append(f"{f.relative_to(ROOT)}:{n}")
+        self.assertEqual(hits, [])
+
+
 if __name__ == "__main__":
     unittest.main()
