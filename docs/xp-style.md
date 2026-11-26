@@ -99,8 +99,8 @@ honest state words.
     paperclip on the same centre line. The balloon of the paperclip (the
     greeting and the chat) and the notices stand left of that column, 96 px
     from the right edge, so none covers the bin; the tail of a balloon
-    ends over the paperclip, left of its head. The border of every balloon
-    is black.
+    ends on the paperclip's head, leaning out of the balloon to reach it.
+    The border of every balloon is black.
 
 ## The helper's balloon
 

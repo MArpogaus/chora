@@ -644,8 +644,40 @@ impl Construct {
                 chip: false,
             });
         }
+        hints.extend(self.put_in_hint(language));
         hints.extend(self.pull_out_hint(language));
         hints
+    }
+
+    /// The hint `Super Alt 2 Into face` stood back, while the give key of
+    /// the face manager puts the window of a pane into the face at the
+    /// front (`put_window`, co-79): the way into a face out of a pane.
+    fn put_in_hint(&self, language: chora_kit::words::Language) -> Option<crate::hints::Item> {
+        use crate::hints::{HINT, Item, give_key_of, put_word};
+        self.put_window()?;
+        let key = give_key_of(&self.face_manager())?;
+        Some(Item {
+            keys: crate::glass::chord(key),
+            word: put_word(language).into(),
+            keys_last: false,
+            hit: format!("{HINT}put-in"),
+            chip: false,
+        })
+    }
+
+    /// The window that the give key of the face manager puts into the
+    /// face at the front: stood back, with every face up, the window with
+    /// the keyboard, else the one noted at the step back, when it is the
+    /// window of a pane, which the pull key cannot give (co-68). The hint
+    /// and the key ask the same (co-79).
+    pub(crate) fn put_window(&self) -> Option<String> {
+        let host = self.cube.as_ref()?;
+        let stood_back = host.view().mode() == chora_kit::modes::Mode::Navigate;
+        if !stood_back || !host.works() {
+            return None;
+        }
+        let noted = host.noted_focus();
+        (self.core_focus.clone().or(noted)).filter(|window| self.own_window(window))
     }
 
     /// The hint `Super Alt 4 Pull out`, in every set where the key acts
@@ -706,8 +738,10 @@ impl Construct {
                 self.panes.len().min(2) * 2 + usize::from(self.pane_ahead().is_some())
             }
             _ => {
-                (self.cube_stamp() * 2 + usize::from(self.pane_beside())) * 2
-                    + usize::from(self.pull_acts())
+                ((self.cube_stamp() * 2 + usize::from(self.pane_beside())) * 2
+                    + usize::from(self.pull_acts()))
+                    * 2
+                    + usize::from(self.put_window().is_some())
             }
         }
     }
@@ -1104,6 +1138,7 @@ impl Construct {
             "cube" => self.cube_key(),
             "click-pane" => self.fly_in_beside()?,
             "pull-out" => self.give_key("construct")?,
+            "put-in" => self.give_key(&self.face_manager())?,
             _ => {}
         }
         Ok(true)

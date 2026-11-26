@@ -82,6 +82,9 @@
 #               where Left turns the page, and XF86HomePage goes to the
 #               first page, which holds the keyboard (mc-46)
 #
+#   rooms-pill-status  rooms-pill right after status, on a fresh default
+#               host: the order that was red in the full run (flake-sofa r2)
+#
 # Usage: tests/gate-mc-sofa.sh   BIN: directory with the binaries
 #   THEME  light or dark (default dark)
 #   CELLS  a regular expression of the cells that run (default all)
@@ -587,6 +590,10 @@ cell_volume_wheel() {
     key Super+Home
     until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
     until_ok 'has_text "Volume 50%"' 60 || fail "the volume door does not show the level 50%: $(texts | tr '\n' '|')"
+    hit_rect() { ctl query "owner:mc kind:rect" | jq -c "[.[] | $shown | select(.id | endswith(\"-doors-volume-hit\")) | .rects | to_entries[0].value][0]"; }
+    # shellcheck disable=SC2329 # until_ok evaluates its first argument
+    door_placed() { [ "$(text_rect "Volume 50%")" = "$(hit_rect)" ] && jq -e ".[0] > 0 and .[1] > 0" <<<"$(hit_rect)" >/dev/null; }
+    until_ok 'door_placed' 60 || fail "the volume door is not placed: text $(text_rect "Volume 50%") hit $(hit_rect)"
     door=$(text_rect "Volume 50%")
     move_to "$(jq -n --argjson r "$door" '$r[0] + 20 | floor')" "$(jq -n --argjson r "$door" '$r[1] + $r[3] / 2 | floor')"
     echo '[{"scroll": {"dy": -60}}]' | ctl inject >/dev/null || fail "inject scroll"
@@ -607,11 +614,13 @@ cell_page_end() {
     ctl call mc notify.clear '{}' >/dev/null
     ctl call mc notify.push '{"title": "Timer: spaghetti, 9 minutes", "body": "Started by voice"}' >/dev/null || fail "notify.push"
     until_ok '[ "$(ctl call notify state.get "{}" | jq "[.shown[].summary] | length")" -ge 1 ]' 20 || fail "no card"
-    shot page-end
     card=$(ctl call notify state.get '{}' | jq -c '.shown[0].rect')
+    clear_of_card() { jq -ne --argjson c "$card" --argjson p "$(node_rect mc-s-morning-page)" '$p[1] + $p[3] <= $c[1]' >/dev/null; }
+    until_ok clear_of_card 40
+    shot page-end
     page=$(node_rect mc-s-morning-page)
     foot=$(text_rect "→ 3  Helpers")
-    jq -ne --argjson c "$card" --argjson p "$page" '$p[1] + $p[3] <= $c[1]' >/dev/null ||
+    clear_of_card ||
         fail "the page $page reaches under the timer card $card (rpx1-11): the page does not reserve its height"
     jq -ne --argjson f "$foot" --argjson p "$page" '$p[1] + $p[3] <= $f[1]' >/dev/null ||
         fail "the page $page reaches under the footer line $foot (rpx1-12)"
@@ -623,6 +632,10 @@ cell_page_end() {
             $(jq -r '"160 \(.[1] + .[3] - 2 | floor) 664 2"' <<<"$page")
     }
     until_ok '[ -z "$(ctl call notify state.get "{}" | jq -r ".shown[].summary")" ]' 20 || fail "notify.clear leaves the card"
+    until_ok '! clear_of_card' 40 || fail "the page $(node_rect mc-s-morning-page) keeps the band of the closed card (rv9ka-1)"
+    page=$(node_rect mc-s-morning-page)
+    jq -ne --argjson f "$foot" --argjson p "$page" '$p[1] + $p[3] <= $f[1]' >/dev/null ||
+        fail "the page $page reaches under the footer line $foot with no card (rpx1-12)"
     until_ok '[ -z "$(page_cut)" ]' 8
     cut=$(page_cut)
     [ -z "$cut" ] || fail "a line of the page is cut at the edge of the page $page: ink $cut in its last two rows (rpx1-12)"
@@ -709,6 +722,7 @@ cell_rooms_pill() {
     sed -i 's/margin: \[56, 34\]/margin: [470, 34]/' "$work/data/chora/huds/mc/hud.yaml"
     printf 'enabled: true\nposition: null\nhud: mc\n' >"$work/chora/chora-assistant.yaml"
     kill_of chora-assistant
+    until_ok '[ "$(ctl query owner:assistant | jq length)" = 0 ]' 80 || fail "the nodes of the old host stay after its grace time"
     "$bin/chora-assistant" >"$work/assistant-moved.log" 2>&1 &
     pids+=($!)
     ctl wait owner:assistant --timeout 20 >/dev/null || fail "the host does not start: $(tail -n 3 "$work/assistant-moved.log")"
@@ -731,6 +745,17 @@ cell_rooms_pill() {
     kill_of chora-assistant
 }
 
+cell_rooms_pill_status() {
+    rm -rf "$work/data/chora/huds" "$work/chora/chora-assistant.yaml"
+    kill_of chora-assistant
+    until_ok '[ "$(ctl query owner:assistant | jq length)" = 0 ]' 80 || fail "the nodes of the old host stay after its grace time"
+    "$bin/chora-assistant" >"$work/assistant-default.log" 2>&1 &
+    pids+=($!)
+    ctl wait owner:assistant --timeout 20 >/dev/null || fail "the host does not start: $(tail -n 3 "$work/assistant-default.log")"
+    cell_status
+    cell_rooms_pill
+}
+
 failed=()
 skipped=()
 ran=0
@@ -749,7 +774,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist keylist-click more launcher-theme volume-wheel page-end page-edges pill-clock helpers-empty remote-back launcher-click-row rooms-card rooms-pill)
+cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist keylist-click more launcher-theme volume-wheel page-end page-edges pill-clock helpers-empty remote-back launcher-click-row rooms-card rooms-pill rooms-pill-status)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done

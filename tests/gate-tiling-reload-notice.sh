@@ -64,5 +64,5 @@ broken line '  gap_inner 20' 'line [0-9]+'
 broken action 'MOD+Shift+y: frobnicate' 'frobnicate|unknown'
 
 key Super+Ctrl+r
-until_ok no_notice 16 || fail "a good reload after a failed one leaves the card up: $(shown_notices)"
+until_ok no_notice 4 || fail "a good reload after a failed one leaves the card up: $(shown_notices)"
 ok "a good reload after a failed one takes the card down"

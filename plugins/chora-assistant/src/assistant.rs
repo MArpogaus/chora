@@ -30,6 +30,8 @@ const BODY: &str = "hud-body";
 pub const CLIP: &str = "hud-figure";
 /// The balloon of the spoken sentence.
 const SPEECH: &str = "hud-line";
+/// The tail of the balloon of the sentence where it leans out of its box.
+const SPEECH_TAIL: &str = "hud-line-tail";
 /// The node that names the state in words, for readers of the scene.
 const STATE: &str = "hud-state";
 /// The state word beside the figure, if the folder shows one.
@@ -309,6 +311,8 @@ pub struct Assistant {
     blinks_at: Instant,
     /// The balloon exists.
     speech: bool,
+    /// The leaning tail of the balloon exists.
+    leans: bool,
     /// When the balloon fades out.
     fades_at: Option<Instant>,
     /// The size of the state word, none without one.
@@ -321,6 +325,9 @@ pub struct Assistant {
     /// then stays a still picture.
     ring_shader: Option<String>,
 }
+
+/// The leaning tail of a balloon and its top-left corner, if it has one.
+type Leaning = Option<(Picture, [i32; 2])>;
 
 /// Where a balloon goes: its top-left corner, the x of its tail tip in it
 /// and whether it hangs below the figure without a tail. A balloon sits
@@ -340,7 +347,7 @@ fn place(
         let right = (tip_x + style.tail_inset).min(ax + aw - 2);
         (right - w).max(ax)
     };
-    let tail = (tip_x - left).clamp(style.radius + style.tail_base, w - style.radius);
+    let tail = (tip_x - left).max(style.radius + style.tail_base);
     let above = tip_y - style.tail - h;
     if above >= ay {
         ([left, above], tail, false)
@@ -356,7 +363,7 @@ fn speech(
     (style, tail_left): (&Style, bool),
     text: &str,
     (tip, anchor): ([i32; 2], ([i32; 4], i32)),
-) -> (Picture, [i32; 2], i32) {
+) -> (Picture, [i32; 2], i32, Leaning) {
     let width = |s: &str| theme.text_width(s, Font::Ui);
     let lines = wrap(text, MAX_SPEECH, width);
     let text_width = lines.iter().map(|l| width(l)).fold(0.0, f64::max);
@@ -377,7 +384,11 @@ fn speech(
             [PAD, y, w - 2 * PAD, LINE],
         ));
     }
-    (picture, origin, style.tail)
+    let lean = style.lean([w, h], tail).map(|lean| {
+        let tail = Picture::new(lean.size[0], lean.size[1]).svg(lean.svg);
+        (tail, [origin[0] + lean.at[0], origin[1] + lean.at[1]])
+    });
+    (picture, origin, style.tail, lean)
 }
 
 impl Assistant {
@@ -426,6 +437,7 @@ impl Assistant {
             step: 0,
             blinks: 0,
             speech: false,
+            leans: false,
             fades_at: None,
             word: [0, 0],
             island_size,
@@ -954,13 +966,17 @@ impl Assistant {
         if !self.speech {
             return Vec::new();
         }
-        vec![Command::Update {
-            id: SPEECH.into(),
-            props: PropsUpdate {
-                visible: Some(false),
-                ..PropsUpdate::default()
-            },
-        }]
+        [SPEECH, SPEECH_TAIL]
+            .into_iter()
+            .filter(|id| self.leans || *id == SPEECH)
+            .map(|id| Command::Update {
+                id: id.into(),
+                props: PropsUpdate {
+                    visible: Some(false),
+                    ..PropsUpdate::default()
+                },
+            })
+            .collect()
     }
 
     /// Whether a node is the balloon of the sentence.
@@ -1055,7 +1071,7 @@ impl Assistant {
         };
         self.speech_node(
             theme,
-            &picture,
+            (&picture, &None),
             text,
             [bx - self.origin[0], by - self.origin[1]],
         )
@@ -1077,18 +1093,51 @@ impl Assistant {
         };
         let anchor = (area, y + self.values.figure.size()[1]);
         let style = (&self.values.speech, self.values.line.tail_left);
-        let (picture, [bx, by], _) = speech(theme, style, text, (tip, anchor));
-        self.speech_node(theme, &picture, text, [bx - x, by - y])
+        let (picture, [bx, by], _, lean) = speech(theme, style, text, (tip, anchor));
+        let lean = lean.map(|(picture, [lx, ly])| (picture, [lx - x, ly - y]));
+        self.speech_node(theme, (&picture, &lean), text, [bx - x, by - y])
     }
 
     /// The node of the balloon picture at `at` in the group.
     fn speech_node(
         &mut self,
         theme: &mut Theme,
-        picture: &Picture,
+        (picture, lean): (&Picture, &Leaning),
         text: &str,
         [bx, by]: [i32; 2],
     ) -> Vec<Command> {
+        let mut leaning = Vec::new();
+        if let Some((tail, [lx, ly])) = lean {
+            let props = PropsUpdate {
+                image: Some(theme.render(tail)),
+                transform: Some(Transform::translate(f64::from(*lx), f64::from(*ly), 0.0)),
+                opacity: Some(1.0),
+                visible: Some(true),
+                input: Some(InputMode::Pass),
+                ..PropsUpdate::default()
+            };
+            leaning.push(if std::mem::replace(&mut self.leans, true) {
+                Command::Update {
+                    id: SPEECH_TAIL.into(),
+                    props,
+                }
+            } else {
+                Command::Create {
+                    id: SPEECH_TAIL.into(),
+                    kind: NodeKind::Image,
+                    parent: GROUP.into(),
+                    props,
+                }
+            });
+        } else if self.leans {
+            leaning.push(Command::Update {
+                id: SPEECH_TAIL.into(),
+                props: PropsUpdate {
+                    visible: Some(false),
+                    ..PropsUpdate::default()
+                },
+            });
+        }
         let props = PropsUpdate {
             image: Some(theme.render(picture)),
             meta: Some([("text".to_owned(), text.to_owned())].into()),
@@ -1102,18 +1151,20 @@ impl Assistant {
             }),
             ..PropsUpdate::default()
         };
-        if std::mem::replace(&mut self.speech, true) {
-            return vec![Command::Update {
+        let balloon = if std::mem::replace(&mut self.speech, true) {
+            Command::Update {
                 id: SPEECH.into(),
                 props,
-            }];
-        }
-        vec![Command::Create {
-            id: SPEECH.into(),
-            kind: NodeKind::Image,
-            parent: GROUP.into(),
-            props,
-        }]
+            }
+        } else {
+            Command::Create {
+                id: SPEECH.into(),
+                kind: NodeKind::Image,
+                parent: GROUP.into(),
+                props,
+            }
+        };
+        [vec![balloon], leaning].concat()
     }
 
     /// When the next move, blink or fade is due.
@@ -1160,16 +1211,21 @@ impl Assistant {
         }
         if self.fades_at.is_some_and(|at| at <= now) {
             self.fades_at = None;
-            commands.push(Command::Animate {
-                id: SPEECH.into(),
-                props: PropsUpdate {
-                    opacity: Some(0.0),
-                    visible: Some(false),
-                    ..PropsUpdate::default()
-                },
-                duration: FADE,
-                easing: Easing::EaseIn,
-            });
+            commands.extend(
+                [SPEECH, SPEECH_TAIL]
+                    .into_iter()
+                    .filter(|id| self.leans || *id == SPEECH)
+                    .map(|id| Command::Animate {
+                        id: id.into(),
+                        props: PropsUpdate {
+                            opacity: Some(0.0),
+                            visible: Some(false),
+                            ..PropsUpdate::default()
+                        },
+                        duration: FADE,
+                        easing: Easing::EaseIn,
+                    }),
+            );
         }
         commands
     }
@@ -1261,6 +1317,7 @@ mod tests {
             moves_at: None,
             blinks_at: now,
             speech: false,
+            leans: false,
             fades_at: None,
             word: [0, 0],
             island: None,
@@ -1658,7 +1715,8 @@ mod tests {
         let tip = [a.origin[0] + hx, a.origin[1] + hy];
         let style = (&values.speech, values.line.tail_left);
         let anchor = (a.area, a.origin[1] + values.figure.size()[1]);
-        let (_, [wide, _], _) = speech(&mut theme, style, "Hello there, I am here.", (tip, anchor));
+        let (_, [wide, _], ..) =
+            speech(&mut theme, style, "Hello there, I am here.", (tip, anchor));
         let _ = std::fs::remove_dir_all(cache);
         (x + f64::from(a.origin[0]), f64::from(wide))
     }
@@ -1687,6 +1745,110 @@ mod tests {
         assert!(
             small - large >= 50.0,
             "the sentence starts at {small} small and {large} at 19 px"
+        );
+    }
+
+    /// rv9kb-2: the tail of the greeting ends over the paperclip head
+    /// (x 1213..1256) although the balloon stops 96 px short of the edge.
+    #[test]
+    fn the_tail_of_the_greeting_ends_over_the_paperclip_head() {
+        let style = Style {
+            tail: 18,
+            ..Style::default()
+        };
+        for height in [770, 690] {
+            let area = ([0, 0, 1184, height], height - 40);
+            let (origin, tail, _) = place((&style, false), [300, 40], [1234, height - 112], area);
+            let tip = origin[0] + tail;
+            assert!(
+                (1213..=1256).contains(&tip),
+                "{height}: the tail tip {tip} is not over the paperclip head"
+            );
+        }
+    }
+
+    /// The xp folder at the work area of a laptop, with its figure at the
+    /// right edge: the greeting balloon leans its tail out of the corner.
+    fn xp_leaning(test: &str) -> (Theme, Assistant, chora_kit::testing::TempDir) {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let folder = root.join("../../flavors/xp/assets/assistant");
+        let cache = crate::tests::cache(test);
+        let (theme, values) =
+            crate::load_folder(&folder, &chora_kit::hud::Context::default(), &cache)
+                .expect("the folder loads");
+        let mut a = assistant(&values, "speaking", Instant::now());
+        a.area = [0, 0, 1280, 770];
+        a.origin = origin_of(&values, a.area);
+        a.home = a.origin;
+        (theme, a, cache)
+    }
+
+    fn index_of(commands: &[Command], id: &str) -> Option<usize> {
+        commands.iter().position(|c| match c {
+            Command::Create { id: i, .. } | Command::Update { id: i, .. } => i == id,
+            _ => false,
+        })
+    }
+
+    /// rxt-1: the tail is drawn after the balloon, so that no black seam of
+    /// the box edge shows where they meet, whatever came before.
+    #[test]
+    fn the_leaning_tail_is_drawn_after_the_balloon() {
+        let (mut theme, mut a, _cache) = xp_leaning("tail-order");
+        let now = Instant::now();
+        for text in ["Hello there, I am here.", "A second sentence follows."] {
+            let commands = a.say(&mut theme, text, Duration::ZERO, now);
+            let balloon = index_of(&commands, SPEECH).expect("the balloon");
+            let tail = index_of(&commands, SPEECH_TAIL).expect("a leaning tail");
+            assert!(tail > balloon, "tail {tail} under balloon {balloon}");
+        }
+    }
+
+    /// rxt-2: the life of the tail node.
+    #[test]
+    fn the_leaning_tail_follows_the_balloon_through_its_life() {
+        let (mut theme, mut a, _cache) = xp_leaning("tail-life");
+        let now = Instant::now();
+        let props_of = |commands: &[Command]| {
+            commands.iter().find_map(|c| match c {
+                Command::Create { id, props, .. } | Command::Update { id, props }
+                    if id == SPEECH_TAIL =>
+                {
+                    Some(props.clone())
+                }
+                _ => None,
+            })
+        };
+        let commands = a.say(&mut theme, "Hello there, I am here.", Duration::ZERO, now);
+        let tail = props_of(&commands).expect("a tail");
+        assert_eq!(tail.input, Some(InputMode::Pass), "input passes through");
+        let ly = tail.transform.expect("placed").translation_2d().1;
+        let [_, head_y] = a.values.figure.head();
+        assert_eq!(
+            f64::from(a.values.speech.tail + 1) + ly,
+            f64::from(head_y),
+            "the tip stands at the head"
+        );
+        let hushed = a.hush();
+        assert_eq!(
+            props_of(&hushed).and_then(|p| p.visible),
+            Some(false),
+            "hush"
+        );
+        a.say(&mut theme, "Hello again.", Duration::ZERO, now);
+        a.fades_at = Some(now);
+        let faded = a.step(&mut theme, now);
+        let fade = faded.iter().any(|c| {
+            matches!(c, Command::Animate { id, props, .. }
+                if id == SPEECH_TAIL && props.opacity == Some(0.0))
+        });
+        assert!(fade, "the tail fades with the balloon: {faded:?}");
+        a.values.line.plain = true;
+        let plain = a.say(&mut theme, "Plain.", Duration::ZERO, now);
+        assert_eq!(
+            props_of(&plain).and_then(|p| p.visible),
+            Some(false),
+            "a plain balloon hides the tail"
         );
     }
 

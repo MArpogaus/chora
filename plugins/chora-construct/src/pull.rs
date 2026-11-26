@@ -267,8 +267,17 @@ impl Construct {
             self.effects.release(&moving.name);
         }
         let at = point.map(|v| v.round() as i32);
+        self.place_on(&surface, &to, &output, Some(at));
+        Ok(true)
+    }
+
+    /// Asks the window manager `to`, which got `surface`, to put it on
+    /// `output`, with the middle of its title bar at `at`, else at the
+    /// same place there. When it cannot, the window stays where that
+    /// manager put it, and the construct logs why.
+    fn place_on(&mut self, surface: &str, to: &str, output: &str, at: Option<[i32; 2]>) {
         let place = MethodCall {
-            client: to.clone(),
+            client: to.to_owned(),
             method: "window.move".into(),
             params: json!({"surface": surface, "output": output, "at": at}),
         };
@@ -276,10 +285,31 @@ impl Construct {
             (self.rt.conn).call_within("methods.call", place, PLACE_WAIT);
         if let Err(err) = placed {
             crate::log::log_warn!(
-                "chora-construct: {surface} is a window of {to}, not at the drop point: {err}"
+                "chora-construct: {surface} is a window of {to}, not on {output}: {err}"
             );
         }
-        Ok(true)
+    }
+
+    /// The give key of the face manager, stood back with the window of a
+    /// pane (co-79): the window goes to the face at the front, the
+    /// person steps into that face, and the window has the keyboard
+    /// there. A refusal is a notice, and the pane stays.
+    pub(crate) fn put_in_face(&mut self, surface: &str, to: &str) -> Result<(), ClientError> {
+        let Some(output) = self.cube.as_ref().map(cube::Host::front_output) else {
+            return Ok(());
+        };
+        if let Err(err) = self.give(surface, to) {
+            crate::log::log_warn!("chora-construct: {surface} stays a pane: {err}");
+            let language = chora_kit::words::Language::of_session();
+            let words = crate::input::refusal(language, to, &err.to_string());
+            self.tell(&words);
+            return Ok(());
+        }
+        self.place_on(surface, to, &output, None);
+        if let Some(host) = &mut self.cube {
+            host.note_focus(Some(surface.to_owned()));
+        }
+        self.mode_act(chora_kit::modes::Act::StepIn, crate::modes::By::Person)
     }
 
     /// The moves and the release of the drag of a window pulled from a

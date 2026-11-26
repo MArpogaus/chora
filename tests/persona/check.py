@@ -41,6 +41,7 @@ L is the look the task runs on (default: the first flavor); FILE is the
 
 import contextlib
 import dataclasses
+import fcntl
 import json
 import os
 import pathlib
@@ -844,7 +845,7 @@ def scene_line(snap, look):
 
 TILING_CONFIG = pathlib.Path("config") / "chora" / "chora-tiling.yaml"
 GAP_DEFAULT = "12"
-GAP_LINE = re.compile(r"""^\s*gap_inner:\s*["']?(\d+)["']?\s*(?:#.*)?$""", re.MULTILINE)
+GAP_LINE = re.compile(r"""^\s*gap_inner:\s*(?P<q>["']?)(?P<n>\d+)(?P=q)\s*(?:#.*)?$""", re.MULTILINE)
 
 
 def config_value(folder):
@@ -852,7 +853,7 @@ def config_value(folder):
     as text; the default 12 while the file does not exist or does not say."""
     path = pathlib.Path(folder) / TILING_CONFIG
     found = GAP_LINE.search(path.read_text()) if path.is_file() else None
-    return found.group(1) if found else GAP_DEFAULT
+    return found.group('n') if found else GAP_DEFAULT
 
 
 def has_config(run):
@@ -932,6 +933,12 @@ def end(run, args):
     return 1 if bad or breaches else 0
 
 
+def wait_for_checks(folder):
+    """Return when the checks that act.py started in the background are done."""
+    with open(folder / "checks.pending", "a", encoding="utf-8") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+
+
 def main():
     """Dispatch the command."""
     path = os.environ.get("PERSONA_ENV")
@@ -940,6 +947,8 @@ def main():
     command, args = sys.argv[1], sys.argv[2:]
     run = Run(path)
     try:
+        if command != "after":
+            wait_for_checks(run.dir)
         if command in ("start", "begin"):
             now = run.snapshot()
             run.save(command, now, run.marks())

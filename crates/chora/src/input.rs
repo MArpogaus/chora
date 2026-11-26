@@ -3112,7 +3112,9 @@ pub(crate) mod tests {
         assert_eq!(act_conns(&core), None);
     }
 
-    /// rth-3: a press in a locked session is no act.
+    /// rth-3: a press in a locked session is no act. This pins the hit test
+    /// only (the lock hides the bar from `surface_under`); the guard of
+    /// `State::note_act` is pinned by `state::tests::a_press_while_locked_is_no_act`.
     #[test]
     fn a_press_on_a_bar_while_locked_is_no_act() {
         let (mut core, mut wayland, _look) = bar_core();
