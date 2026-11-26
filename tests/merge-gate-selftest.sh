@@ -868,8 +868,9 @@ check "stray: an interrupted gate leaves no chora process of its steps" "$(leaky
 leaky_end
 
 check "docs: the gate has a docs step" "$("$gate" --list | grep -cx docs)" 1
-check "docs: the step builds the site strict and says NOT RUN without mkdocs" \
-    "$(grep '^docs|' "$gate" | grep -c 'NOT RUN: mkdocs.*mkdocs build --strict')" 1
+check "docs: the step builds the site strict, says SKIP with the reason without mkdocs, and fails when docs changed" \
+    "$(grep '^docs|' "$gate" | grep -c 'SKIP: mkdocs is not installed.*FAIL: mkdocs is not installed.*mkdocs build --strict')" 1
+check "docs: no step passes as NOT RUN" "$(grep -c 'NOT RUN' "$gate")" 0
 
 [ "$failures" = 0 ] || {
     echo "FAIL: $failures checks of merge-gate-selftest"
