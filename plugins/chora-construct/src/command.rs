@@ -887,6 +887,75 @@ mod tests {
         help(&look, &model, ("help", "root"), [1280.0, 720.0])
     }
 
+    /// rv9kb-3: the key sheet of the default settings, at 1280x720 (and the
+    /// outputs of 800 and 1080), lies inside the output with a margin of
+    /// 32 at the top and the bottom, and its foot row (the divider and the
+    /// Close) is on the screen.
+    #[test]
+    fn the_key_sheet_fits_an_output_of_720() {
+        let settings: crate::config::Config =
+            serde_saphyr::from_str(crate::config::DEFAULT).unwrap();
+        let metrics = crate::Metrics::default();
+        let look = Look {
+            style: &settings.style,
+            colors: &settings.style.themes.light,
+            plain: false,
+            shader: "/glass.frag",
+            shadow: "/shadow.frag",
+            glass: chora_kit::glass::Material::of(false),
+            metrics: &metrics,
+        };
+        let groups = settings.help_groups(true);
+        let model = HelpModel {
+            groups: &groups,
+            query: "",
+            sel: 0,
+            scope: String::new(),
+            placeholder: String::new(),
+            every_look: String::new(),
+            or: String::new(),
+            note: String::new(),
+            footer: vec![(vec!["Esc".to_owned()], "Close".to_owned())],
+        };
+        for out in [[1280.0, 720.0], [1280.0, 800.0], [1920.0, 1080.0]] {
+            let commands = help(&look, &model, ("help", "root"), out);
+            let find = |id: &str| {
+                commands
+                    .iter()
+                    .find_map(|c| match c {
+                        Command::Create {
+                            id: made, props, ..
+                        } if made == id => Some(props),
+                        _ => None,
+                    })
+                    .unwrap_or_else(|| panic!("no node {id}"))
+            };
+            let y = find("help-body")
+                .transform
+                .as_ref()
+                .unwrap()
+                .translation_2d()
+                .1;
+            let h = find("help-body-glass").size.unwrap()[1];
+            assert!(
+                y >= 32.0,
+                "{out:?}: the sheet starts at {y}, 32 from the top"
+            );
+            assert!(
+                y + h <= out[1] - 32.0,
+                "{out:?}: the sheet ends at {}, 32 from the bottom {}",
+                y + h,
+                out[1]
+            );
+            let foot = find("help-body-divider-foot");
+            let foot_y = y + foot.transform.as_ref().unwrap().translation_2d().1;
+            assert!(
+                foot_y + 48.0 <= out[1],
+                "{out:?}: the foot row is on the screen"
+            );
+        }
+    }
+
     /// Polish 4: nothing of the space reads through a command surface.
     #[test]
     fn the_help_tints_092_over_a_scrim_of_048_light_and_056_dark() {
