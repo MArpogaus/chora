@@ -198,9 +198,22 @@ case $found in
 "$dir"/fake/*) ;;
 *) fail "mousepad in the PATH of the session is '$found', not a stand-in" ;;
 esac
+lag_file=$dir/row-lag
+echo "${PERSONA_ROW_LAG:-3}" >"$lag_file"
+row_lag() {
+    local n
+    n=$(cat "$lag_file")
+    case $1 in xp-start-*) n=0 ;; esac
+    if [ "$n" -gt 0 ]; then
+        echo $((n - 1)) >"$lag_file"
+        jq -c 'map(del(.rects))'
+    else
+        cat
+    fi
+}
 click_node() {
     local at cx cy
-    at=$(admin query "id:$1" | jq -er '.[0].rects | to_entries[0].value | "\(.[0] + .[2] / 2 | floor) \(.[1] + .[3] / 2 | floor)"') || return 1
+    at=$(admin query "id:$1" | row_lag "$1" | jq -er '.[0].rects | to_entries[0].value | "\(.[0] + .[2] / 2 | floor) \(.[1] + .[3] / 2 | floor)"') || return 1
     read -r cx cy <<<"$at"
     PERSONA_ENV=$dir/session.env python3 -I "$repo/tests/persona/act.py" click "$cx" "$cy" >/dev/null
 }
