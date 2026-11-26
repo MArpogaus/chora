@@ -46,7 +46,10 @@
 #    construct (rcr1-1); Escape closes the sheet and that window has the
 #    keyboard again (co-78). A program of the launcher in a face that
 #    holds a window is a window of xp, shown on that face, and takes
-#    keys, in 5 of 5 runs (co-77).
+#    keys, in 5 of 5 runs (co-77). After the windows of the programs end, a
+#    click on the first window gives it the keyboard, also when xp answers
+#    1.5 s late (rfs2-2): a key typed before the focus comes is lost, so the
+#    gate waits for the focus.
 # 3. A slow cube.turn forwards nothing while it runs; at a third of it
 #    the screen shows two faces; the gate prints the frame time of the
 #    turn; then the next face
@@ -193,6 +196,7 @@ ok "a second cube.open is refused"
 
 inject '[{"pointer_move": {"position": [640, 400]}}]'
 "$bin/chora-probe" window 40 120 200 --report >"$work/probe.log" 2>&1 &
+first_probe=$!
 pids+=($!)
 until_ok 'probe | grep -q " xp VIRTUAL"' 80 || fail "the probe window came to no xp face: $(probe)"
 read -r surface _ out x y <<<"$(probe)"
@@ -322,8 +326,16 @@ for n in json.load(sys.stdin):
         r = next(iter(n["rects"].values()), [0, 0, 0, 0])
         print(n["id"], n.get("owner"), next(iter(n["rects"]), "-"), round(r[0]), round(r[1]), round(r[2]), round(r[3]))' "$surface"
 }
+core_focus() { ctl query '*' | python3 -I -c 'import json, sys; print(",".join(n["id"] for n in json.load(sys.stdin) if n.get("focused")) or "none")'; }
 end_others() {
-    python3 -I - "$CHORA_SOCKET" "$(pid_of chora-probe)" <<'PY'
+    local xp_pid
+    if [ "${1:-}" = stalled ]; then
+        xp_pid=$(pid_of chora-xp)
+        kill -STOP "$xp_pid"
+        (until_ok false 6; kill -CONT "$xp_pid") &
+        pids+=($!)
+    fi
+    python3 -I - "$CHORA_SOCKET" "$first_probe" <<'PY'
 import os, signal, sys
 for pid in sorted(filter(str.isdigit, os.listdir("/proc")), key=int):
     try:
@@ -336,9 +348,10 @@ for pid in sorted(filter(str.isdigit, os.listdir("/proc")), key=int):
 PY
     until_ok 'test -z "$(others)"' 40 || fail "a probe window of a program of the face stays after its end: $(others)"
     inject "[{\"pointer_move\": {\"position\": [$((x + 3)), $((y + 2))]}}, {\"click\": {}}]"
+    until_ok 'test "$(prop "$surface" focused)" = True' 40 || fail "after the end of a program of the face the click gave the first probe window no focus: focused $(core_focus)"
     before=$(keys_got 30)
     plain a
-    until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "after the end of a program of the face the first probe window has no keyboard"
+    until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "after the end of a program of the face the first probe window has no keyboard: focused $(core_focus), surfaces $(probe | tr '\n' ';')"
 }
 xp_shows() { ctl state xp | python3 -I -c 'import json, sys; w = [w for w in json.load(sys.stdin)["windows"] if w["surface"] == sys.argv[1]]; sys.exit(0 if w and w[0]["shown"] else 1)' "$1"; }
 keys_in() { grep -c '^key 30$' "$1"; }
@@ -363,7 +376,7 @@ before=$(keys_in "$work/term.log")
 plain a
 until_ok 'test "$(keys_in "$work/term.log")" -gt "$before"' 20 || fail "co-78: after Escape the window that Super+t started has no keyboard"
 ok "co-78: Escape closes the key sheet after Super+t opened a window of the face, and that window has the keyboard"
-end_others
+end_others stalled
 
 for run in 1 2 3 4 5; do
     key Super+space

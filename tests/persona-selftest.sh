@@ -15,6 +15,9 @@ need_bins chora choractl chora-mc chora-tiling chora-assistant chora-xp chora-no
 out=$(python3 -I "$repo/tests/persona/test_check.py" 2>&1) || fail "the selftest of check.py is red: $out"
 ok "check.py: its contracts and reads on planted snapshots"
 
+out=$(python3 -I "$repo/tests/persona/test_act_wait.py" 2>&1) || fail "the selftest of the wait of act.py is red: $out"
+ok "act.py: a slow check does not hold the persona, every check runs, an input waits for the checks before it"
+
 dir=$(mktemp -d /tmp/persona-selftest.XXXXXX)
 tmp_dirs+=("$dir")
 spid=
@@ -135,6 +138,15 @@ until_ok "client_names | grep -qw xp && client_names | grep -qw tiling" 80 ||
     fail "tiling+xp: the clients are $(client_names)"
 until_ok "admin state tiling >/dev/null 2>&1 && admin state xp >/dev/null 2>&1" 80 ||
     fail "tiling+xp: a look does not answer state.get"
+claims=$(admin query '*' | jq -c '[.[] | select(.claim) | {owner, claim}]')
+jq -e '
+    (map(select(.owner == "tiling")) | first | .claim) as $a
+    | (map(select(.owner == "xp")) | first | .claim) as $b
+    | ($a != null and $b != null)
+      and ($a[0] + $a[2] <= $b[0] or $b[0] + $b[2] <= $a[0]
+           or $a[1] + $a[3] <= $b[1] or $b[1] + $b[3] <= $a[1])' <<<"$claims" >/dev/null ||
+    fail "tiling+xp: the claims of the two looks overlap, so the second look draws over the tags of the first: $claims"
+ok "tiling+xp: each look has its own claim (xp does not draw over tag 1 of tiling)"
 sleep 3
 PERSONA_ENV=$dir/session.env python3 -I "$repo/tests/persona/act.py" key Super+Return >/dev/null || fail "tiling+xp: Super+Return failed"
 until_ok "admin query kind:surface | jq -e 'length > 0' >/dev/null" 80 || fail "tiling+xp: Super+Return opened no window"

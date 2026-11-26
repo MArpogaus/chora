@@ -110,8 +110,41 @@ impl Style {
         )
     }
 
+    /// Whether the tip of the tail stands over the box, so that the
+    /// outline of the box carries the tail itself.
+    fn tail_inside(&self, width: i32, tail_x: i32) -> bool {
+        tail_x <= width - self.radius
+    }
+
+    /// The tail of a tip right of the box, which leans out of the corner
+    /// to reach it: a picture of its own, so that the box keeps its size.
+    #[must_use]
+    pub fn lean(&self, [width, height]: [i32; 2], tail_x: i32) -> Option<Lean> {
+        if self.tail <= 0 || self.tail_inside(width, tail_x) {
+            return None;
+        }
+        let base_right = width - 1 - self.radius / 2;
+        let reach = tail_x - base_right;
+        let base = self
+            .tail_base
+            .max(2 * reach)
+            .min(base_right - self.radius)
+            .max(1);
+        let at = [base_right - base, height - 1];
+        let size = [tail_x - at[0] + 1, self.tail + 1];
+        let (left, right) = (0.5, f64::from(base) + 0.5);
+        let (tip_x, tip_y) = (f64::from(tail_x - at[0]) - 0.5, f64::from(self.tail) + 0.5);
+        let [fill_r, fill_g, fill_b] = self.fill;
+        let [line_r, line_g, line_b] = self.border;
+        let svg = format!(
+            r#"<path d="M{left},0 H{right} L{tip_x},{tip_y} Z" fill="rgb({fill_r},{fill_g},{fill_b})"/><path d="M{right},0.5 L{tip_x},{tip_y} L{left},0.5" fill="none" stroke="rgb({line_r},{line_g},{line_b})" stroke-width="1"/>"#
+        );
+        Some(Lean { at, size, svg })
+    }
+
     /// The rounded rectangle of a size with the tail at the x of its tip
-    /// as one outline, so that the border runs around both; SVG elements
+    /// as one outline, so that the border runs around both; a tip right of
+    /// the box has no tail here but in [`Style::lean`]; SVG elements
     /// for [`crate::theme::Picture::svg`].
     #[must_use]
     pub fn shape(&self, [width, height]: [i32; 2], tail_x: i32) -> String {
@@ -123,7 +156,7 @@ impl Style {
         let mut path = format!(
             "M{near},0.5 H{inner_x} {arc} {right},{near} V{inner_y} {arc} {inner_x},{bottom} "
         );
-        if self.tail > 0 {
+        if self.tail > 0 && self.tail_inside(width, tail_x) {
             let tip_x = f64::from(tail_x) - 0.5;
             let tip_y = bottom + f64::from(self.tail);
             let base_x = tip_x - f64::from(self.tail_base);
@@ -139,6 +172,16 @@ impl Style {
             r#"<path d="{path}" fill="rgb({fill_r},{fill_g},{fill_b})" stroke="rgb({line_r},{line_g},{line_b})" stroke-width="1"/>"#
         )
     }
+}
+
+/// A tail that leans out of its box, as a picture below the box.
+pub struct Lean {
+    /// Its top-left corner from the top-left corner of the box.
+    pub at: [i32; 2],
+    /// Its size.
+    pub size: [i32; 2],
+    /// Its SVG elements for [`crate::theme::Picture::svg`].
+    pub svg: String,
 }
 
 #[cfg(test)]
@@ -176,6 +219,62 @@ mod tests {
         assert!(
             !plain.contains('L') && tailed.contains("V57.5 L43.5,39.5"),
             "{tailed}"
+        );
+    }
+
+    /// rxt-3: the leaning tail is a wedge with a body, not a sliver: its
+    /// thickness at the widest column is at least 12 px.
+    #[test]
+    fn the_leaning_tail_is_a_wedge_and_not_a_sliver() {
+        let style = Style {
+            tail: 18,
+            ..Style::default()
+        };
+        for tip in [110_u32, 120, 130] {
+            let lean = style
+                .lean([100, 40], tip.cast_signed())
+                .expect("a leaning tail");
+            let path = lean.svg.split('"').nth(1).expect("the fill path");
+            let n: Vec<f64> = path
+                .split(|c: char| !(c.is_ascii_digit() || c == '.'))
+                .filter_map(|t| t.parse().ok())
+                .collect();
+            let (left, right, tx, ty) = (n[0], n[2], n[3], n[4]);
+            let widest = (0..=tip + 1)
+                .map(|x| {
+                    let x = f64::from(x) + 0.5;
+                    if x < left || x > tx {
+                        return 0.0;
+                    }
+                    let lower = ty * (x - left) / (tx - left);
+                    let upper = if x <= right {
+                        0.0
+                    } else {
+                        ty * (x - right) / (tx - right)
+                    };
+                    lower - upper
+                })
+                .fold(0.0, f64::max);
+            assert!(widest >= 12.0, "tip {tip}: widest {widest} px");
+        }
+    }
+
+    #[test]
+    fn a_tip_right_of_the_box_leans_out_in_a_picture_of_its_own() {
+        let style = Style {
+            tail: 18,
+            ..Style::default()
+        };
+        assert!(
+            !style.shape([100, 40], 150).contains('L'),
+            "no tail in the box"
+        );
+        let lean = style.lean([100, 40], 150).expect("a leaning tail");
+        assert_eq!(lean.at[1], 39, "it starts on the bottom edge");
+        assert_eq!(lean.at[0] + lean.size[0], 151, "it reaches the tip");
+        assert!(
+            style.lean([100, 40], 60).is_none(),
+            "a tip over the box stays in it"
         );
     }
 }

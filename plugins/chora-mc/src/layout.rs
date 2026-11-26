@@ -20,6 +20,10 @@ impl Mc {
         let names: Vec<String> = self.scenes.keys().cloned().collect();
         let mut commands = Vec::new();
         for name in &names {
+            let most = self.scroll_most(name);
+            if let Some(scroll) = self.scroll.get_mut(name) {
+                *scroll = scroll.min(most);
+            }
             commands.push(Command::Remove {
                 id: page_id(name),
                 to: None,
@@ -33,10 +37,10 @@ impl Mc {
         self.take_free_keyboard()
     }
 
-    /// Where the page ends: over the card of the notice server with its margin
-    /// and the footer line, on the line of the grid whose letters keep
-    /// their descenders, so that the edge never cuts through a line
-    /// (rpx1-11, rpx1-12).
+    /// Where the page ends: over the footer line, or over the card of the
+    /// notice server with its margin while one shows at the foot, on the
+    /// line of the grid whose letters keep their descenders, so that the
+    /// edge never cuts through a line (rpx1-11, rpx1-12, rv9ka-1).
     fn page_bottom(&self, h: f64) -> f64 {
         let (b, phase) = (self.settings.value.scale.baseline, self.phase());
         let room = h - self.card_room() - DESCENT;
@@ -313,6 +317,26 @@ impl Mc {
         short.into_iter().map(|s| s.unwrap_or(share)).collect()
     }
 
+    /// The height that the title and the lines of a panel take at the
+    /// width `w`, each wrapped as the core wraps them.
+    pub(crate) fn text_height(&self, panel: &Panel, w: f64) -> f64 {
+        let body = self.ty("body", panel.style.as_ref());
+        let mut top = self.lines_top(panel);
+        if !panel.title.is_empty() {
+            let local = (panel.title_style.as_ref()).filter(|_| !panel.lines.is_empty());
+            let title = self.ty("heading", local);
+            let more = title.lines_at(&panel.title, w).saturating_sub(1);
+            top += f64::from(u32::try_from(more).unwrap_or(u32::MAX)) * title.line;
+        }
+        let lines: usize = match panel.columns() {
+            Some(rows) => rows.iter().map(|(_, line)| body.lines_at(line, w)).sum(),
+            None if !panel.lines.is_empty() => body.lines_at(&panel.text(), w),
+            None if !panel.empty.is_empty() => body.lines_at(&panel.empty, w),
+            None => 0,
+        };
+        top + f64::from(u32::try_from(lines).unwrap_or(u32::MAX)) * body.line
+    }
+
     /// The top of the lines of a panel, below its title.
     pub(crate) fn lines_top(&self, panel: &Panel) -> f64 {
         if panel.title.is_empty() {
@@ -575,14 +599,27 @@ impl Mc {
         self.update_more(&name)
     }
 
-    /// How far the page of a scene can scroll: from its top to the bottom of
-    /// its last panel at the foot of the text block; none when it fits.
+    /// Scrolls the page that shows by `dy`, as the keys of a remote and of
+    /// a keyboard do on a page that is longer than its room (rv9ka-1).
+    pub(crate) fn scroll_current(&mut self, dy: f64) -> Result<(), ClientError> {
+        let Some(name) = self.current.clone() else {
+            return Ok(());
+        };
+        self.scroll_page(&wheel_id(&name), dy)
+    }
+
+    /// How far the page of a scene can scroll: from its top to the end of
+    /// the lines of its last panel at the foot of the text block; none when
+    /// its lines fit, so a page that fits again shows whole (rv9ka-1).
     pub(crate) fn scroll_most(&self, name: &str) -> f64 {
         let (Some(scene), Some(geo)) = (self.scenes.get(name), self.geometry(name)) else {
             return 0.0;
         };
         let bottom = (scene.panels.iter())
-            .filter_map(|p| self.place(name, p).map(|[_, y, _, h]| y + h))
+            .filter_map(|p| {
+                let [_, y, w, h] = self.place(name, p)?;
+                Some(y + h.min(self.text_height(p, w)))
+            })
             .fold(0.0, f64::max);
         (bottom - geo.text[1] - geo.text[3]).max(0.0)
     }
@@ -612,9 +649,8 @@ impl Mc {
 
     /// Shows the mark of the page when a text of its panels reaches under
     /// the edge of the page, so that a page that does not fit never
-    /// looks as if it ended. A text that is wholly under the edge has no
-    /// rect, since the page clips it; it counts when its panel starts
-    /// its lines at or under the edge.
+    /// looks as if it ended. The page clips its texts, so a text counts by
+    /// where the lines of its panel end (rv9ka-1), and by its rect.
     pub(crate) fn more_update(
         &self,
         name: &str,
@@ -625,15 +661,11 @@ impl Mc {
         let scroll = self.scroll.get(name).copied().unwrap_or_default();
         let below = scene.panels.iter().filter(|p| !p.is_empty()).any(|panel| {
             let prefix = format!("{}-", panel_id(name, &panel.id));
-            let mut known = rects
-                .iter()
-                .filter(|(id, _)| id.starts_with(&prefix))
-                .peekable();
-            if known.peek().is_some() {
-                return known.any(|(_, [_, y, _, h])| y + h > edge + 1.0);
-            }
-            self.place(name, panel)
-                .is_some_and(|[_, y, _, _]| y - scroll + self.lines_top(panel) >= edge)
+            let mut known = rects.iter().filter(|(id, _)| id.starts_with(&prefix));
+            let lines_end = self.place(name, panel).is_some_and(|[_, y, w, h]| {
+                y - scroll + h.min(self.text_height(panel, w)) > edge + 1.0
+            });
+            lines_end || known.any(|(_, [_, y, _, h])| y + h > edge + 1.0)
         });
         Some(Command::Update {
             id: more_id(name),

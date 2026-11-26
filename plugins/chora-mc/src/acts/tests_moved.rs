@@ -282,3 +282,36 @@ fn a_release_on_another_claim_hands_the_dragged_window_over() {
         "reserved for the other manager"
     );
 }
+
+/// The wheel steps one notch per discrete step; a finger or a continuous
+/// scroll adds its dy up to one step per notch (rmm2-3).
+#[test]
+fn the_wheel_steps_one_notch_per_discrete_step() {
+    use chora_scene::ScrollSource::{Continuous, Finger, Wheel};
+    let (mut mc, _) = testing::mc("acts-wheel-steps", [1280, 800]);
+    assert_eq!(mc.wheel_steps(15.0, [0.0, 1.0], Wheel), 1, "one notch down");
+    assert_eq!(
+        mc.wheel_steps(-15.0, [0.0, -1.0], Wheel),
+        -1,
+        "one notch up"
+    );
+    let swipe: i32 = (0..40)
+        .map(|_| mc.wheel_steps(3.0, [0.0, 0.0], Finger))
+        .sum();
+    assert!(
+        (1..=4).contains(&swipe),
+        "a swipe of 120 px is a few steps, not 40: {swipe}"
+    );
+    let roll: i32 = (0..40)
+        .map(|_| mc.wheel_steps(-3.0, [0.0, 0.0], Continuous))
+        .sum();
+    assert!(
+        (-4..=-1).contains(&roll),
+        "a roll of 120 px is a few steps: {roll}"
+    );
+    assert_eq!(
+        mc.wheel_steps(1.0, [0.0, 0.0], Finger),
+        0,
+        "a tiny move is no step"
+    );
+}

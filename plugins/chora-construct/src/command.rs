@@ -135,7 +135,9 @@ fn search(
             m.accent,
         ));
     }
-    let label = face(Type::Label, 500);
+    let label = face(Type::Small, 500);
+    let scope = scope.to_uppercase();
+    let scope = scope.as_str();
     let scope_w = look.size(label, scope, None)[0];
     commands.push(text(
         look,
@@ -675,23 +677,25 @@ fn head(
     [x, y]: [f64; 2],
 ) -> Vec<Command> {
     let m = &look.glass;
-    let label = face(Type::Label, 500);
+    let label = face(Type::Small, 500);
     let id = format!("{body}-head-{index}");
+    let heading = group.head.to_uppercase();
+    let every_text = format!("· {}", every.to_uppercase());
     let mut commands = vec![text(
         look,
         &id,
         body,
-        (label, &group.head),
+        (label, &heading),
         [x + 12.0, y + 8.0],
         m.muted,
     )];
     if group.shared {
-        let w = look.size(label, &group.head, None)[0];
+        let w = look.size(label, &heading, None)[0];
         commands.push(text(
             look,
             &format!("{id}-every"),
             body,
-            (label, &format!("· {every}")),
+            (label, &every_text),
             [x + 12.0 + w + 8.0, y + 8.0],
             m.muted,
         ));
