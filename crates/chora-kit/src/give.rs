@@ -531,12 +531,15 @@ mod tests {
         (wm, core)
     }
 
+    /// A give key is a give of the person: the owner of the window keeps
+    /// the keyboard where the person looks (D119, rtf1-1).
     #[test]
     fn a_window_of_another_manager_is_given_by_its_owner() {
         let (mut wm, core) = wm_on("tiling", |params| {
             assert_eq!(params["client"], "tiling");
             assert_eq!(params["method"], "window.give");
-            assert_eq!(params["params"], json!({"surface": "s1", "to": "mc"}));
+            let stay = json!({"surface": "s1", "to": "mc", "stay": true});
+            assert_eq!(params["params"], stay, "a give key of the person (D119)");
             Answer::Result(json!("s1"))
         });
         assert_eq!(focused_within(&mut wm, "mc", WAIT).unwrap(), json!("s1"));

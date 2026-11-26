@@ -214,6 +214,99 @@ mod tests {
         assert_eq!(focused.as_deref(), Some("s2"));
     }
 
+    /// xp on output X (0..1280) beside tiling, whose claim lies on the
+    /// output to the right; xp has the windows s1 and s2, s2 focused. The
+    /// connection of tiling must stay open for the gives.
+    fn beside_tiling(core: &FakeCore, tag: &str) -> (Wm, chora_kit::conn::Conn) {
+        let output = chora_scene::OutputInfo {
+            name: "X".into(),
+            position: [0, 0],
+            size: [1280, 800],
+            scale: 1.0,
+            camera: chora_scene::Transform::default(),
+            work_area: [0, 0, 1280, 800],
+            default_work_area: [0, 0, 1280, 800],
+            is_virtual: None,
+            owner: None,
+        };
+        core.outputs(serde_json::json!([output]));
+        let mut tiling = core.connect("tiling");
+        let claim = PropsUpdate {
+            claim: Some(Some([1280.0, 0.0, 1280.0, 800.0])),
+            ..PropsUpdate::default()
+        };
+        let group = Command::Create {
+            id: "tiling".into(),
+            kind: NodeKind::Group,
+            parent: ROOT.into(),
+            props: claim,
+        };
+        tiling.apply(vec![group]).unwrap();
+        let mut xp = wm_on_kit_core(core, tag);
+        for id in ["s1", "s2"] {
+            mapped(&core.model(), id);
+            xp.event(created(id, None)).unwrap();
+            let i = xp.index(id).unwrap();
+            xp.windows[i].shown = true;
+        }
+        (xp, tiling)
+    }
+
+    /// rtf1-2: the Control Panel row "Super+Alt+1: window to tiling" is a
+    /// give of the person, who looks at xp: the window goes to tiling on
+    /// another output and the keyboard stays with xp, on the window below
+    /// it, and after the last window on the desktop of xp (its root node),
+    /// each before the window goes.
+    #[test]
+    fn the_row_window_to_tiling_leaves_the_keyboard_with_xp() {
+        let core = FakeCore::start().selecting();
+        let model = core.model();
+        let (mut xp, _tiling) = beside_tiling(&core, "row-keep");
+        let focused = || {
+            model
+                .lock()
+                .unwrap()
+                .scene
+                .focused_surface()
+                .map(String::from)
+        };
+        assert_eq!(
+            focused().as_deref(),
+            Some("s2"),
+            "s2 has the keyboard first"
+        );
+        let row = crate::control::Setting::Give("tiling");
+        for (window, kept) in [("s2", "focus"), ("s1", "focus_node")] {
+            let sent = core.record(|method, params| {
+                (method == "scene.apply").then(|| params["commands"].to_string())
+            });
+            xp.set(&row, None);
+            let to = |id: &str| {
+                model
+                    .lock()
+                    .unwrap()
+                    .scene
+                    .node(id)
+                    .and_then(|n| n.to.clone())
+            };
+            assert_eq!(to(window).as_deref(), Some("tiling"), "{window} went");
+            let sent = sent.lock().unwrap().join("\n");
+            let give = sent.find(&format!(r#"{{"remove":{{"id":"{window}","to":"tiling"}}"#));
+            let keep = sent.find(&format!(r#"{{"{kept}":"#));
+            assert!(
+                give.is_some() && keep.is_some_and(|k| Some(k) < give),
+                "xp keeps the keyboard with {kept} before {window} goes: {sent}"
+            );
+            let state = xp.state().unwrap();
+            assert_eq!(state["focus"]["holder"], NAME, "{}", state["focus"]);
+        }
+        assert_eq!(
+            focused(),
+            None,
+            "the last window went, the desktop of xp holds"
+        );
+    }
+
     /// A surface of the core with a size, as a client that mapped it.
     fn mapped(model: &Model, id: &str) {
         let info = SurfaceInfo {

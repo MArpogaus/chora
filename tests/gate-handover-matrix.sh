@@ -8,6 +8,13 @@
 #   pass  the window is owned by the second window manager, every surface
 #         is attached, visible and of nonzero size, and the window has the
 #         keyboard focus
+#   kept  as pass, but the keyboard stays with the first window manager
+#         (a window or a node of it has the focus, not the window): a give
+#         key is a give of the person, who looks at the first output, so
+#         the giver keeps the keyboard there (D119, tiling-focus r2); tiling
+#         and xp keep it, and as receivers they leave it with the giver;
+#         kept_by measures it: a window or a node of the first has the
+#         focus, the window has not, and so it is a second later
 #   gap   anything else; the window must still have an owner and no
 #         surface may be lost
 #
@@ -66,7 +73,7 @@
 set -uo pipefail
 
 EXPECTED='
-tiling xp key pass
+tiling xp key kept
 tiling xp drag pass
 tiling xp give pass
 tiling xp cgive pass
@@ -87,7 +94,7 @@ tiling construct cgive pass
 tiling construct cgive-s pass
 tiling construct mcp pass
 tiling construct voice pass
-xp tiling key pass
+xp tiling key kept
 xp tiling drag pass
 xp tiling give pass
 xp tiling cgive pass
@@ -266,6 +273,33 @@ arrived() {
         echo "$all" | jq -e --arg w "$w" --arg o "$1" "
             $surfaces_clean and any(.[]; .id == \$w and .owner == \$o and .focused == true)" >/dev/null &&
             on_top "$all" "$1" && return 0
+        sleep 0.2
+    done
+    return 1
+}
+
+kept_by() {
+    local all nodes held=0
+    for _ in $(seq "$(awk -v s="$3" 'BEGIN {print s * 5}')"); do
+        all=$(ctl query kind:surface 2>/dev/null) || all='[]'
+        last_all=$all
+        echo "$all" | jq -e --arg w "$w" --arg o "$1" 'any(.[]; .id == $w and .owner == $o)' >/dev/null && break
+        sleep 0.2
+    done
+    for _ in $(seq "$(awk -v s="$4" 'BEGIN {print s * 5}')"); do
+        all=$(ctl query kind:surface 2>/dev/null) || all='[]'
+        last_all=$all
+        nodes=$(ctl query '*' 2>/dev/null) || nodes='[]'
+        if echo "$all" | jq -e --arg w "$w" --arg o "$1" "
+            $surfaces_clean and any(.[]; .id == \$w and .owner == \$o and .focused != true)" >/dev/null &&
+            echo "$nodes" | jq -e --arg g "$2" 'any(.[]; .focused == true and .owner == $g)' >/dev/null &&
+            on_top "$all" "$1"; then
+            [ "$held" = 1 ] && return 0
+            held=1
+            sleep 1
+            continue
+        fi
+        held=0
         sleep 0.2
     done
     return 1
@@ -495,7 +529,7 @@ cell() {
         want=gap
     fi
     case $path in drag | key) owner_s=1.5 ;; voice) owner_s=12 ;; *) owner_s=0.8 ;; esac
-    if [ "$want" = pass ]; then
+    if [ "$want" = pass ] || [ "$want" = kept ]; then
         settle_s=10
         [ "$path" = voice ] || owner_s=5
     fi
@@ -506,7 +540,9 @@ cell() {
     fi
     place "$src"
     path_run "$path" "$src" "$dst"
-    if arrived "$dst" "$owner_s" "$settle_s"; then result=pass; else result=gap; fi
+    if [ "$want" = kept ] && kept_by "$dst" "$src" "$owner_s" "$settle_s"; then
+        result=kept
+    elif arrived "$dst" "$owner_s" "$settle_s"; then result=pass; else result=gap; fi
     for _ in $(seq 25); do
         echo "$last_all" | jq -e --arg w "$w" "$surfaces_clean" >/dev/null && break
         sleep 0.2

@@ -6,6 +6,9 @@
 # with the Looks door of the bar and the row of its picker, with the hands
 # of a persona (act.py), as the ricer of the rounds does it (T7).
 #
+# 0. The give key Super+Alt+2 sends a third terminal to xp: a give of the
+#    person as the row (tiling-focus r2, rtf1-1), so tiling holds the
+#    keyboard on the terminal focused before it, and xp holds none.
 # 1. The first move: tiling holds the keyboard on the terminal left on
 #    HEADLESS-1; xp holds none, though it got a window.
 # 2. The second move takes the last window of tiling: tiling holds the
@@ -63,13 +66,24 @@ until_ok "grep -q '^PERSONA_ENV=' '$dir.out'" 240 || fail "the tiling+xp session
 admin grant choractl screen.capture >/dev/null || fail "grant of the capture"
 check start >/dev/null || fail "check.py start"
 
-for n in 1 2; do
+for n in 1 2 3; do
     act key Super+Return >/dev/null || fail "Super+Return"
     until_ok "[ \$(owned tiling | wc -w) = $n ]" 80 || fail "terminal $n did not open on tiling: $(owned tiling)"
 done
-read -r first second <<<"$(owned tiling)"
-until_ok "[ \"\$(holder tiling)\" = '{\"holder\":\"tiling\",\"surface\":\"$second\"}' ]" 40 ||
-    fail "the second terminal has no keyboard before the move: $(holders)"
+read -r first second third <<<"$(owned tiling)"
+until_ok "[ \"\$(holder tiling)\" = '{\"holder\":\"tiling\",\"surface\":\"$third\"}' ]" 40 ||
+    fail "the third terminal has no keyboard before the give key: $(holders)"
+steady_holders() { settled holders 10; }
+
+shot before-key
+act key Super+Alt+2 >/dev/null || fail "Super+Alt+2"
+until_ok "owned xp | grep -qw $third" 40 || fail "Super+Alt+2 did not move $third to xp: tiling [$(owned tiling)], xp [$(owned xp)]"
+steady_holders
+shot after-key
+[ "$(holder xp)" = '{"holder":null}' ] || fail "the give key: xp took the keyboard: $(holders)"
+[ "$(holder tiling)" = "{\"holder\":\"tiling\",\"surface\":\"$second\"}" ] ||
+    fail "the give key: the keyboard is not with $second of tiling: $(holders)"
+ok "the give key: $third went to xp on HEADLESS-2, the keyboard stays with $second on tiling ($(holders))"
 
 move() {
     local window=$1
@@ -83,8 +97,6 @@ move() {
     done
     owned xp | grep -qw "$window" || fail "$window did not move to xp in $try tries: tiling [$(owned tiling)], xp [$(owned xp)]"
 }
-steady_holders() { settled holders 10; }
-
 shot before-move
 move "$second"
 steady_holders
