@@ -42,6 +42,10 @@ needs_test() {
     grep -Eq '^(fix|feat)(\([^)]*\))?!?:' <<<"$1"
 }
 
+is_test_commit() {
+    grep -Eq '^test(\([^)]*\))?!?:' <<<"$1"
+}
+
 is_fix() {
     grep -Eq '^fix(\([^)]*\))?!?:' <<<"$1"
 }
@@ -287,17 +291,20 @@ red_first_range() {
             [ -z "$ids" ] || shares_id "$ids" "$(fix_ids "${shas[j]}")" || continue
             prev=$j
         done
+        edits=0
         for ((j = prev + 1; j < i; j++)); do
             c=${shas[j]}
-            commit_changes_test "$c" || continue
             git merge-base --is-ancestor "$c" "$sha^" || continue
             [ -z "$ids" ] || shares_id "$ids" "$(commit_ids "$c")" || continue
+            commit_changes_test "$c" || {
+                is_test_commit "$(git log -1 --format=%s "$c")" && git show --format= --name-only "$c" | grep -q '\.rs$' && edits=1
+                continue
+            }
             paired+=("$c")
         done
         names=()
         files=()
         gate=0
-        edits=0
         for c in "${paired[@]}"; do
             if has_shell_test "$c"; then
                 gate=1
