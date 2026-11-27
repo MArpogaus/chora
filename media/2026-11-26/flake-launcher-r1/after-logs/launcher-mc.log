@@ -1,0 +1,74 @@
+gate-launcher-mc.sh: waits for /tmp/chora-gate.lock
+ok: mc light, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.89bpQH.out: No such file or directory
+ok: mc light, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.d24Agu.out: No such file or directory
+ok: mc dark, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+gate-launcher-mc.sh: waits for /tmp/chora-gate.lock
+ok: mc light, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.DRnIg3.out: No such file or directory
+ok: mc light, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.G3mmoe.out: No such file or directory
+ok: mc dark, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.W9RfNq.out: No such file or directory
+ok: mc dark, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+gate-launcher-mc.sh: waits for /tmp/chora-gate.lock
+ok: mc light, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.0tz1m1.out: No such file or directory
+ok: mc light, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.rqIg8C.out: No such file or directory
+ok: mc dark, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+gate-launcher-mc.sh: waits for /tmp/chora-gate.lock
+grep: /tmp/launcher-mc.cwH6qX.out: No such file or directory
+ok: mc light, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc light, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.yySg3G.out: No such file or directory
+ok: mc dark, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.G74pdf.out: No such file or directory
+ok: mc dark, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+gate-launcher-mc.sh: waits for /tmp/chora-gate.lock
+grep: /tmp/launcher-mc.B8vVJ8.out: No such file or directory
+ok: mc light, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.p4KUKK.out: No such file or directory
+ok: mc light, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+gate-launcher-mc.sh: waits for /tmp/chora-gate.lock
+ok: mc light, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.NvoC7j.out: No such file or directory
+ok: mc light, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.4agmxR.out: No such file or directory
+ok: mc dark, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.AkkIwz.out: No such file or directory
+ok: mc dark, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+gate-launcher-mc.sh: waits for /tmp/chora-gate.lock
+ok: mc light, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc light, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.Jrfu6E.out: No such file or directory
+ok: mc dark, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+gate-launcher-mc.sh: waits for /tmp/chora-gate.lock
+ok: mc light, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.LkSBUP.out: No such file or directory
+ok: mc light, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.WobYkZ.out: No such file or directory
+ok: mc dark, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+gate-launcher-mc.sh: waits for /tmp/chora-gate.lock
+grep: /tmp/launcher-mc.rqKI85.out: No such file or directory
+ok: mc light, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.jokxiL.out: No such file or directory
+ok: mc light, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.LdUl7z.out: No such file or directory
+ok: mc dark, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+gate-launcher-mc.sh: waits for /tmp/chora-gate.lock
+ok: mc light, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.dcNfjU.out: No such file or directory
+ok: mc light, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.robFEt.out: No such file or directory
+ok: mc dark, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.4RNn16.out: No such file or directory
+ok: mc dark, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape

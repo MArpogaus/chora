@@ -1,0 +1,66 @@
+2026-11-26T21:07:17.814404Z  INFO input_seat{name="seat0"}:add_keyboard_with_context_flags{xkb_config=XkbConfig { rules: "", model: "", layout: "", variant: "", options: None } repeat_delay=200 repeat_rate=25 context_flags=0}:input_keyboard: smithay::input::keyboard: Initializing a xkbcommon handler with keymap query
+2026-11-26T21:07:17.816748Z  INFO input_seat{name="seat0"}:add_keyboard_with_context_flags{xkb_config=XkbConfig { rules: "", model: "", layout: "", variant: "", options: None } repeat_delay=200 repeat_rate=25 context_flags=0}:input_keyboard: smithay::input::keyboard: Loaded Keymap name="English (US)"
+2026-11-26T21:07:17.821245Z  WARN cosmic_text::font::system: failed to get system locale, falling back to en-US
+2026-11-26T21:07:17.829359Z  WARN chora: --test-injected-press-is-real: an injected key or button press counts as one of the user and as the act of a token; for tests only
+2026-11-26T21:07:17.872652Z  WARN smithay::backend::egl::error: Erroneous EGL call didn't set EGLError
+2026-11-26T21:07:17.872751Z  INFO smithay::backend::egl::display: Successfully selected EGL platform: PLATFORM_DEVICE_EXT
+2026-11-26T21:07:17.874683Z  INFO smithay::backend::egl::display: EGL Initialized
+2026-11-26T21:07:17.874725Z  INFO smithay::backend::egl::display: EGL Version: (1, 5)
+2026-11-26T21:07:17.874814Z  INFO smithay::backend::egl::display: Supported EGL display extensions: EGLExtensions { extensions: ["EGL_ANDROID_blob_cache", "EGL_EXT_config_select_group", "EGL_EXT_create_context_robustness", "EGL_EXT_image_dma_buf_import", "EGL_EXT_image_dma_buf_import_modifiers", "EGL_EXT_query_reset_notification_strategy", "EGL_EXT_surface_compression", "EGL_KHR_cl_event2", "EGL_KHR_config_attribs", "EGL_KHR_context_flush_control", "EGL_KHR_create_context", "EGL_KHR_create_context_no_error", "EGL_KHR_fence_sync", "EGL_KHR_get_all_proc_addresses", "EGL_KHR_gl_colorspace", "EGL_KHR_gl_renderbuffer_image", "EGL_KHR_gl_texture_2D_image", "EGL_KHR_gl_texture_3D_image", "EGL_KHR_gl_texture_cubemap_image", "EGL_KHR_image_base", "EGL_KHR_no_config_context", "EGL_KHR_reusable_sync", "EGL_KHR_surfaceless_context", "EGL_EXT_pixel_format_float", "EGL_KHR_wait_sync", "EGL_MESA_configless_context", "EGL_MESA_gl_interop", "EGL_MESA_query_driver", "EGL_MESA_x11_native_visual_id", ""], has_fences: true, has_native_fences: false, has_image_base: true, has_import_dmabuf: true, has_import_dmabuf_modifiers: true, has_export_dmabuf: false }
+2026-11-26T21:07:17.913466Z  INFO egl{platform="PLATFORM_DEVICE_EXT" platform="PLATFORM_DEVICE_EXT" version=(1, 5) version=(1, 5)}:egl_context{ptr=94157400653648 ptr=94157400653648}: smithay::backend::egl::context: EGL context created priority=None
+2026-11-26T21:07:17.914967Z  INFO egl{platform="PLATFORM_DEVICE_EXT" platform="PLATFORM_DEVICE_EXT" version=(1, 5) version=(1, 5)}:egl_context{ptr=94157400653648 ptr=94157400653648}:renderer_gles2: smithay::backend::renderer::gles: Initializing OpenGL ES Renderer
+2026-11-26T21:07:17.915014Z  INFO egl{platform="PLATFORM_DEVICE_EXT" platform="PLATFORM_DEVICE_EXT" version=(1, 5) version=(1, 5)}:egl_context{ptr=94157400653648 ptr=94157400653648}:renderer_gles2: smithay::backend::renderer::gles: GL Version: "OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.5"
+2026-11-26T21:07:17.915035Z  INFO egl{platform="PLATFORM_DEVICE_EXT" platform="PLATFORM_DEVICE_EXT" version=(1, 5) version=(1, 5)}:egl_context{ptr=94157400653648 ptr=94157400653648}:renderer_gles2: smithay::backend::renderer::gles: GL Vendor: "Mesa"
+2026-11-26T21:07:17.915050Z  INFO egl{platform="PLATFORM_DEVICE_EXT" platform="PLATFORM_DEVICE_EXT" version=(1, 5) version=(1, 5)}:egl_context{ptr=94157400653648 ptr=94157400653648}:renderer_gles2: smithay::backend::renderer::gles: GL Renderer: "llvmpipe (LLVM 20.1.2, 256 bits)"
+2026-11-26T21:07:17.915067Z  INFO egl{platform="PLATFORM_DEVICE_EXT" platform="PLATFORM_DEVICE_EXT" version=(1, 5) version=(1, 5)}:egl_context{ptr=94157400653648 ptr=94157400653648}:renderer_gles2: smithay::backend::renderer::gles: Supported GL Extensions: ["GL_EXT_blend_minmax", "GL_EXT_multi_draw_arrays", "GL_EXT_texture_filter_anisotropic", "GL_EXT_texture_compression_s3tc", "GL_EXT_texture_compression_dxt1", "GL_EXT_texture_compression_rgtc", "GL_EXT_texture_format_BGRA8888", "GL_OES_compressed_ETC1_RGB8_texture", "GL_OES_depth24", "GL_OES_element_index_uint", "GL_OES_fbo_render_mipmap", "GL_OES_mapbuffer", "GL_OES_rgb8_rgba8", "GL_OES_standard_derivatives", "GL_OES_stencil8", "GL_OES_texture_3D", "GL_OES_texture_float", "GL_OES_texture_float_linear", "GL_OES_texture_half_float", "GL_OES_texture_half_float_linear", "GL_OES_texture_npot", "GL_OES_vertex_half_float", "GL_EXT_draw_instanced", "GL_EXT_texture_sRGB_decode", "GL_OES_EGL_image", "GL_OES_depth_texture", "GL_OES_packed_depth_stencil", "GL_EXT_texture_type_2_10_10_10_REV", "GL_NV_conditional_render", "GL_OES_get_program_binary", "GL_APPLE_texture_max_level", "GL_EXT_discard_framebuffer", "GL_EXT_read_format_bgra", "GL_EXT_texture_storage", "GL_NV_pack_subimage", "GL_NV_texture_barrier", "GL_EXT_frag_depth", "GL_NV_fbo_color_attachments", "GL_OES_EGL_image_external", "GL_OES_EGL_sync", "GL_OES_vertex_array_object", "GL_OES_viewport_array", "GL_ANGLE_pack_reverse_row_order", "GL_ANGLE_texture_compression_dxt3", "GL_ANGLE_texture_compression_dxt5", "GL_EXT_occlusion_query_boolean", "GL_EXT_robustness", "GL_EXT_texture_rg", "GL_EXT_unpack_subimage", "GL_NV_draw_buffers", "GL_NV_read_buffer", "GL_NV_read_depth", "GL_NV_read_depth_stencil", "GL_NV_read_stencil", "GL_APPLE_sync", "GL_EXT_draw_buffers", "GL_EXT_instanced_arrays", "GL_EXT_map_buffer_range", "GL_EXT_shadow_samplers", "GL_KHR_debug", "GL_KHR_robustness", "GL_KHR_texture_compression_astc_ldr", "GL_NV_generate_mipmap_sRGB", "GL_NV_pixel_buffer_object", "GL_OES_depth_texture_cube_map", "GL_OES_required_internalformat", "GL_OES_surfaceless_context", "GL_EXT_color_buffer_float", "GL_EXT_debug_label", "GL_EXT_sRGB_write_control", "GL_EXT_separate_shader_objects", "GL_EXT_shader_framebuffer_fetch", "GL_EXT_shader_group_vote", "GL_EXT_shader_implicit_conversions", "GL_EXT_shader_integer_mix", "GL_EXT_tessellation_point_size", "GL_EXT_tessellation_shader", "GL_ANDROID_extension_pack_es31a", "GL_ARM_shader_framebuffer_fetch_depth_stencil", "GL_EXT_base_instance", "GL_EXT_compressed_ETC1_RGB8_sub_texture", "GL_EXT_copy_image", "GL_EXT_draw_buffers_indexed", "GL_EXT_draw_elements_base_vertex", "GL_EXT_gpu_shader5", "GL_EXT_multi_draw_indirect", "GL_EXT_polygon_offset_clamp", "GL_EXT_primitive_bounding_box", "GL_EXT_render_snorm", "GL_EXT_shader_io_blocks", "GL_EXT_texture_border_clamp", "GL_EXT_texture_buffer", "GL_EXT_texture_cube_map_array", "GL_EXT_texture_norm16", "GL_EXT_texture_view", "GL_KHR_blend_equation_advanced", "GL_KHR_blend_equation_advanced_coherent", "GL_KHR_context_flush_control", "GL_KHR_robust_buffer_access_behavior", "GL_NV_image_formats", "GL_NV_shader_noperspective_interpolation", "GL_OES_copy_image", "GL_OES_draw_buffers_indexed", "GL_OES_draw_elements_base_vertex", "GL_OES_gpu_shader5", "GL_OES_primitive_bounding_box", "GL_OES_sample_shading", "GL_OES_sample_variables", "GL_OES_shader_io_blocks", "GL_OES_shader_multisample_interpolation", "GL_OES_tessellation_point_size", "GL_OES_tessellation_shader", "GL_OES_texture_border_clamp", "GL_OES_texture_buffer", "GL_OES_texture_cube_map_array", "GL_OES_texture_stencil8", "GL_OES_texture_storage_multisample_2d_array", "GL_OES_texture_view", "GL_EXT_blend_func_extended", "GL_EXT_buffer_storage", "GL_EXT_float_blend", "GL_EXT_geometry_point_size", "GL_EXT_geometry_shader", "GL_EXT_texture_filter_minmax", "GL_EXT_texture_sRGB_R8", "GL_EXT_texture_sRGB_RG8", "GL_KHR_no_error", "GL_KHR_texture_compression_astc_sliced_3d", "GL_OES_EGL_image_external_essl3", "GL_OES_geometry_point_size", "GL_OES_geometry_shader", "GL_OES_shader_image_atomic", "GL_EXT_clear_texture", "GL_EXT_clip_cull_distance", "GL_EXT_conservative_depth", "GL_EXT_disjoint_timer_query", "GL_EXT_texture_compression_s3tc_srgb", "GL_MESA_shader_integer_functions", "GL_EXT_clip_control", "GL_EXT_color_buffer_half_float", "GL_EXT_memory_object", "GL_EXT_memory_object_fd", "GL_EXT_texture_compression_bptc", "GL_EXT_texture_mirror_clamp_to_edge", "GL_KHR_parallel_shader_compile", "GL_NV_alpha_to_coverage_dither_control", "GL_EXT_EGL_image_storage", "GL_EXT_shader_framebuffer_fetch_non_coherent", "GL_EXT_texture_shadow_lod", "GL_MESA_framebuffer_flip_y", "GL_OVR_multiview", "GL_OVR_multiview2", "GL_EXT_depth_clamp", "GL_EXT_texture_query_lod", "GL_MESA_sampler_objects", "GL_EXT_EGL_image_storage_compression", "GL_EXT_texture_storage_compression", "GL_MESA_bgra", "GL_EXT_shader_clock", ""]
+2026-11-26T21:07:17.938061Z  INFO new{name="HEADLESS-1" physical=PhysicalProperties { size: Size<smithay::utils::geometry::Raw> { w: 0, h: 0 }, subpixel: Unknown, make: "chora", model: "headless", serial_number: "" }}: smithay::output: Creating new Output name="HEADLESS-1"
+2026-11-26T21:07:17.938150Z  INFO smithay::wayland::output: Creating new wl_output output="HEADLESS-1"
+2026-11-26T21:07:17.938663Z  INFO chora::input: the keyboard layouts; XKB_DEFAULT_LAYOUT sets others layouts="English (US)"
+2026-11-26T21:07:17.938686Z  INFO chora: chora runs wayland="wayland-1" ipc=/tmp/chora-hl.4Gbv3u/chora/wayland-1.sock
+2026-11-26T21:07:17.990407Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:18.008163Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:18.049397Z  INFO chora::grants: method="grants.set" client="persona" capabilities=[ScreenCapture, InputInject]
+2026-11-26T21:07:18.064987Z  INFO chora::grants: method="grants.set" client="persona-check" capabilities=[ScreenCapture, MethodsCall]
+2026-11-26T21:07:18.535667Z  INFO chora::grants: method="grants.set" client="choractl" capabilities=[ScreenCapture]
+2026-11-26T21:07:18.646336Z  WARN chora::safety: frames are slow; the host is busy and the core waited for a CPU; no client is to blame took_ms=19 waited_ms=10
+2026-11-26T21:07:19.216265Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:20.487572Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:21.502972Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:22.522103Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:23.528077Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:24.535941Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:25.567152Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:26.580356Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:27.603658Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:28.616694Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:29.617684Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:30.627601Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:31.642013Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:32.659919Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:33.676598Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:34.697485Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:35.712387Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:36.731592Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:37.754159Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:38.764437Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:39.775214Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:40.787191Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:41.808524Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:42.827624Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:43.849315Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:44.849723Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:45.879600Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:46.892904Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:47.900394Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:48.923798Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:49.945077Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:50.971668Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:52.004023Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:53.012304Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:54.036948Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:55.048147Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:56.062435Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:57.084366Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:58.102328Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+2026-11-26T21:07:59.134867Z  INFO chora::ipc: refused conn=0 client="mc" code=1
+chora: SIGTERM from pid 27809 ends chora

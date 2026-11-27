@@ -1,0 +1,4 @@
+gate-launcher-mc.sh: waits for /tmp/chora-gate.lock
+ok: mc light, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.CeGAWV.out: No such file or directory
+FAIL: mc light, old fuzzel: no launcher after mouse (a fuzzel process; the log of the session says: )

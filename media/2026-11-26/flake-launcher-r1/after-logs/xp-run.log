@@ -1,0 +1,38 @@
+ok: the Run box lists the installed programs, sorted by name
+ok: text that finds nothing shows the list again under the row Nothing found
+ok: after text that finds nothing the Run box shows again, and Escape closes it
+gate-xp-run.sh: waits for /tmp/chora-gate.lock
+ok: the Run box lists the installed programs, sorted by name
+ok: text that finds nothing shows the list again under the row Nothing found
+ok: after text that finds nothing the Run box shows again, and Escape closes it
+ok: the Run box lists the installed programs, sorted by name
+ok: text that finds nothing shows the list again under the row Nothing found
+ok: after text that finds nothing the Run box shows again, and Escape closes it
+gate-xp-run.sh: waits for /tmp/chora-gate.lock
+ok: the Run box lists the installed programs, sorted by name
+ok: text that finds nothing shows the list again under the row Nothing found
+ok: after text that finds nothing the Run box shows again, and Escape closes it
+gate-xp-run.sh: waits for /tmp/chora-gate.lock
+ok: the Run box lists the installed programs, sorted by name
+ok: text that finds nothing shows the list again under the row Nothing found
+ok: after text that finds nothing the Run box shows again, and Escape closes it
+gate-xp-run.sh: waits for /tmp/chora-gate.lock
+ok: the Run box lists the installed programs, sorted by name
+ok: text that finds nothing shows the list again under the row Nothing found
+ok: after text that finds nothing the Run box shows again, and Escape closes it
+gate-xp-run.sh: waits for /tmp/chora-gate.lock
+ok: the Run box lists the installed programs, sorted by name
+ok: text that finds nothing shows the list again under the row Nothing found
+ok: after text that finds nothing the Run box shows again, and Escape closes it
+gate-xp-run.sh: waits for /tmp/chora-gate.lock
+ok: the Run box lists the installed programs, sorted by name
+ok: text that finds nothing shows the list again under the row Nothing found
+ok: after text that finds nothing the Run box shows again, and Escape closes it
+gate-xp-run.sh: waits for /tmp/chora-gate.lock
+ok: the Run box lists the installed programs, sorted by name
+ok: text that finds nothing shows the list again under the row Nothing found
+ok: after text that finds nothing the Run box shows again, and Escape closes it
+gate-xp-run.sh: waits for /tmp/chora-gate.lock
+ok: the Run box lists the installed programs, sorted by name
+ok: text that finds nothing shows the list again under the row Nothing found
+ok: after text that finds nothing the Run box shows again, and Escape closes it

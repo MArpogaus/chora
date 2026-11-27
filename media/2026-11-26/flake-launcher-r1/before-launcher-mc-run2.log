@@ -1,0 +1,2 @@
+gate-launcher-mc.sh: waits for /tmp/chora-gate.lock
+FAIL: mc light, new fuzzel: no launcher after mouse (a fuzzel process; the log of the session says: )

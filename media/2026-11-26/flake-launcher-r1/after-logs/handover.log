@@ -1,0 +1,219 @@
+gate-handover.sh: waits for /tmp/chora-gate.lock
+ok: foot s1 starts in xp
+ok: 1. a drag from xp to the tiling output: tiling owns s1
+ok: 2. window.give of tiling to xp: xp owns s1
+ok: 3. choractl give mc: mc owns s1
+ok: 4. mc to tiling by window.give, tiling to xp by a Super drag: xp owns s1
+ok: 5. a give to a client that does not exist is refused; xp keeps s1
+ok: 6. Super and the left button on the xp output turn the cube of xp
+ok: 7. a Super drag moves s1 in tiling ({"HEADLESS-2":[285.8374445560805,168.250520175744,700.0,500.0]} to {"HEADLESS-2":[211.20163720600385,143.733879068668,700.0,500.0]}), a drop on xp gives it to xp
+ok: 8. the title bar of a csd foot moves s2 in tiling ({"HEADLESS-2":[290.0,170.0,700.0,500.0]} to {"HEADLESS-2":[329.5509619372806,247.7835584766517,700.0,500.0]}) and gives it to xp
+ok: 8b. title bar menu, Send To > Media center: mc owns s1, xp has no task button
+ok: 8b. Alt+Space, Send To > Tiling desktop: tiling owns s1
+ok: 9. tiling ended after the give: xp adopted s1
+ok: gate-handover; captures in /tmp/gate-config.bslxKl
+gate-looks-move.sh: waits for /tmp/chora-gate.lock
+ok: the give key: s3 went to xp on HEADLESS-2, the keyboard stays with s2 on tiling (tiling {"holder":"tiling","surface":"s2"}, xp {"holder":null})
+ok: the first move: s2 went to xp on HEADLESS-2, the keyboard stays with s1 on tiling (tiling {"holder":"tiling","surface":"s1"}, xp {"holder":null})
+ok: the second move: the last window went to xp, tiling holds the keyboard with its desktop (tiling {"holder":"tiling"}, xp {"holder":null})
+holders with the picker open: tiling {"holder":"tiling"}, xp {"holder":null}
+ok: the picker on the empty desktop closed with Escape, tiling holds the keyboard with its desktop (tiling {"holder":"tiling"}, xp {"holder":null})
+ok: L3 after the moves: task L3 pass
+ok: Super+F1 opens the key list, Escape closes it, and the keyboard goes back to the desktop of tiling (tiling {"holder":"tiling"}, xp {"holder":null})
+gate-handover.sh: waits for /tmp/chora-gate.lock
+ok: foot s1 starts in xp
+ok: 1. a drag from xp to the tiling output: tiling owns s1
+ok: 2. window.give of tiling to xp: xp owns s1
+ok: 3. choractl give mc: mc owns s1
+ok: 4. mc to tiling by window.give, tiling to xp by a Super drag: xp owns s1
+ok: 5. a give to a client that does not exist is refused; xp keeps s1
+ok: 6. Super and the left button on the xp output turn the cube of xp
+ok: 7. a Super drag moves s1 in tiling ({"HEADLESS-2":[280.23709346726355,165.89674942827014,700.0,500.0]} to {"HEADLESS-2":[223.1926136390705,147.47078740289845,700.0,499.99999999999994]}), a drop on xp gives it to xp
+ok: 8. the title bar of a csd foot moves s2 in tiling ({"HEADLESS-2":[290.0,170.0,700.0,500.0]} to {"HEADLESS-2":[302.5002978851826,194.58391917419257,700.0,500.0]}) and gives it to xp
+ok: 8b. title bar menu, Send To > Media center: mc owns s1, xp has no task button
+ok: 8b. Alt+Space, Send To > Tiling desktop: tiling owns s1
+ok: 9. tiling ended after the give: xp adopted s1
+ok: gate-handover; captures in /tmp/gate-config.rdi6RL
+gate-looks-move.sh: waits for /tmp/chora-gate.lock
+ok: the give key: s3 went to xp on HEADLESS-2, the keyboard stays with s2 on tiling (tiling {"holder":"tiling","surface":"s2"}, xp {"holder":null})
+ok: the first move: s2 went to xp on HEADLESS-2, the keyboard stays with s1 on tiling (tiling {"holder":"tiling","surface":"s1"}, xp {"holder":null})
+ok: the second move: the last window went to xp, tiling holds the keyboard with its desktop (tiling {"holder":"tiling"}, xp {"holder":null})
+holders with the picker open: tiling {"holder":"tiling"}, xp {"holder":null}
+ok: the picker on the empty desktop closed with Escape, tiling holds the keyboard with its desktop (tiling {"holder":"tiling"}, xp {"holder":null})
+ok: L3 after the moves: task L3 pass
+ok: Super+F1 opens the key list, Escape closes it, and the keyboard goes back to the desktop of tiling (tiling {"holder":"tiling"}, xp {"holder":null})
+gate-handover.sh: waits for /tmp/chora-gate.lock
+ok: foot s1 starts in xp
+ok: 1. a drag from xp to the tiling output: tiling owns s1
+ok: 2. window.give of tiling to xp: xp owns s1
+ok: 3. choractl give mc: mc owns s1
+ok: 4. mc to tiling by window.give, tiling to xp by a Super drag: xp owns s1
+ok: 5. a give to a client that does not exist is refused; xp keeps s1
+ok: 6. Super and the left button on the xp output turn the cube of xp
+ok: 7. a Super drag moves s1 in tiling ({"HEADLESS-2":[284.0380166031043,167.4942388621743,700.0,500.00000000000006]} to {"HEADLESS-2":[219.4426635486152,146.47992670708243,700.0,500.0]}), a drop on xp gives it to xp
+ok: 8. the title bar of a csd foot moves s2 in tiling ({"HEADLESS-2":[290.0,170.0,700.0,500.0]} to {"HEADLESS-2":[330.6725051418498,249.9892601123045,700.0,500.0]}) and gives it to xp
+ok: 8b. title bar menu, Send To > Media center: mc owns s1, xp has no task button
+ok: 8b. Alt+Space, Send To > Tiling desktop: tiling owns s1
+ok: 9. tiling ended after the give: xp adopted s1
+ok: gate-handover; captures in /tmp/gate-config.3hyUuN
+gate-looks-move.sh: waits for /tmp/chora-gate.lock
+ok: the give key: s3 went to xp on HEADLESS-2, the keyboard stays with s2 on tiling (tiling {"holder":"tiling","surface":"s2"}, xp {"holder":null})
+ok: the first move: s2 went to xp on HEADLESS-2, the keyboard stays with s1 on tiling (tiling {"holder":"tiling","surface":"s1"}, xp {"holder":null})
+ok: the second move: the last window went to xp, tiling holds the keyboard with its desktop (tiling {"holder":"tiling"}, xp {"holder":null})
+holders with the picker open: tiling {"holder":"tiling"}, xp {"holder":null}
+ok: the picker on the empty desktop closed with Escape, tiling holds the keyboard with its desktop (tiling {"holder":"tiling"}, xp {"holder":null})
+ok: L3 after the moves: task L3 pass
+ok: Super+F1 opens the key list, Escape closes it, and the keyboard goes back to the desktop of tiling (tiling {"holder":"tiling"}, xp {"holder":null})
+gate-handover.sh: waits for /tmp/chora-gate.lock
+ok: foot s1 starts in xp
+ok: 1. a drag from xp to the tiling output: tiling owns s1
+ok: 2. window.give of tiling to xp: xp owns s1
+ok: 3. choractl give mc: mc owns s1
+ok: 4. mc to tiling by window.give, tiling to xp by a Super drag: xp owns s1
+ok: 5. a give to a client that does not exist is refused; xp keeps s1
+ok: 6. Super and the left button on the xp output turn the cube of xp
+ok: 7. a Super drag moves s1 in tiling ({"HEADLESS-2":[249.46500972557715,152.96355481219905,700.0,500.0]} to {"HEADLESS-2":[236.15292566084872,153.29040059894146,700.0,500.0]}), a drop on xp gives it to xp
+ok: 8. the title bar of a csd foot moves s2 in tiling ({"HEADLESS-2":[290.0,170.0,700.0,500.0]} to {"HEADLESS-2":[327.37542615831535,243.50500477802035,700.0,499.99999999999994]}) and gives it to xp
+ok: 8b. title bar menu, Send To > Media center: mc owns s1, xp has no task button
+ok: 8b. Alt+Space, Send To > Tiling desktop: tiling owns s1
+ok: 9. tiling ended after the give: xp adopted s1
+ok: gate-handover; captures in /tmp/gate-config.lOyzEo
+gate-looks-move.sh: waits for /tmp/chora-gate.lock
+ok: the give key: s3 went to xp on HEADLESS-2, the keyboard stays with s2 on tiling (tiling {"holder":"tiling","surface":"s2"}, xp {"holder":null})
+ok: the first move: s2 went to xp on HEADLESS-2, the keyboard stays with s1 on tiling (tiling {"holder":"tiling","surface":"s1"}, xp {"holder":null})
+ok: the second move: the last window went to xp, tiling holds the keyboard with its desktop (tiling {"holder":"tiling"}, xp {"holder":null})
+holders with the picker open: tiling {"holder":"tiling"}, xp {"holder":null}
+ok: the picker on the empty desktop closed with Escape, tiling holds the keyboard with its desktop (tiling {"holder":"tiling"}, xp {"holder":null})
+ok: L3 after the moves: task L3 pass
+ok: Super+F1 opens the key list, Escape closes it, and the keyboard goes back to the desktop of tiling (tiling {"holder":"tiling"}, xp {"holder":null})
+ok: foot s1 starts in xp
+ok: 1. a drag from xp to the tiling output: tiling owns s1
+ok: 2. window.give of tiling to xp: xp owns s1
+ok: 3. choractl give mc: mc owns s1
+ok: 4. mc to tiling by window.give, tiling to xp by a Super drag: xp owns s1
+ok: 5. a give to a client that does not exist is refused; xp keeps s1
+ok: 6. Super and the left button on the xp output turn the cube of xp
+ok: 7. a Super drag moves s1 in tiling ({"HEADLESS-2":[276.79770879450666,164.45121094261876,700.0,500.0]} to {"HEADLESS-2":[221.08406126974455,146.7646158367911,700.0,500.0]}), a drop on xp gives it to xp
+ok: 8. the title bar of a csd foot moves s2 in tiling ({"HEADLESS-2":[290.0,170.0,700.0,500.0]} to {"HEADLESS-2":[322.38121347001515,233.6830531576965,700.0,500.0]}) and gives it to xp
+ok: 8b. title bar menu, Send To > Media center: mc owns s1, xp has no task button
+ok: 8b. Alt+Space, Send To > Tiling desktop: tiling owns s1
+ok: 9. tiling ended after the give: xp adopted s1
+ok: gate-handover; captures in /tmp/gate-config.SUiGz4
+gate-looks-move.sh: waits for /tmp/chora-gate.lock
+ok: the give key: s3 went to xp on HEADLESS-2, the keyboard stays with s2 on tiling (tiling {"holder":"tiling","surface":"s2"}, xp {"holder":null})
+ok: the first move: s2 went to xp on HEADLESS-2, the keyboard stays with s1 on tiling (tiling {"holder":"tiling","surface":"s1"}, xp {"holder":null})
+ok: the second move: the last window went to xp, tiling holds the keyboard with its desktop (tiling {"holder":"tiling"}, xp {"holder":null})
+holders with the picker open: tiling {"holder":"tiling"}, xp {"holder":null}
+ok: the picker on the empty desktop closed with Escape, tiling holds the keyboard with its desktop (tiling {"holder":"tiling"}, xp {"holder":null})
+ok: L3 after the moves: task L3 pass
+ok: Super+F1 opens the key list, Escape closes it, and the keyboard goes back to the desktop of tiling (tiling {"holder":"tiling"}, xp {"holder":null})
+gate-handover.sh: waits for /tmp/chora-gate.lock
+ok: foot s1 starts in xp
+ok: 1. a drag from xp to the tiling output: tiling owns s1
+ok: 2. window.give of tiling to xp: xp owns s1
+ok: 3. choractl give mc: mc owns s1
+ok: 4. mc to tiling by window.give, tiling to xp by a Super drag: xp owns s1
+ok: 5. a give to a client that does not exist is refused; xp keeps s1
+ok: 6. Super and the left button on the xp output turn the cube of xp
+ok: 7. a Super drag moves s1 in tiling ({"HEADLESS-2":[284.501896896124,167.68920304329853,700.0,500.0]} to {"HEADLESS-2":[212.4586764227713,144.1525111328022,700.0,499.99999999999994]}), a drop on xp gives it to xp
+ok: 8. the title bar of a csd foot moves s2 in tiling ({"HEADLESS-2":[290.0,170.0,700.0,500.0]} to {"HEADLESS-2":[326.1492309889245,241.0934876115516,700.0,500.0]}) and gives it to xp
+ok: 8b. title bar menu, Send To > Media center: mc owns s1, xp has no task button
+ok: 8b. Alt+Space, Send To > Tiling desktop: tiling owns s1
+ok: 9. tiling ended after the give: xp adopted s1
+ok: gate-handover; captures in /tmp/gate-config.HD4d9k
+gate-looks-move.sh: waits for /tmp/chora-gate.lock
+ok: the give key: s3 went to xp on HEADLESS-2, the keyboard stays with s2 on tiling (tiling {"holder":"tiling","surface":"s2"}, xp {"holder":null})
+ok: the first move: s2 went to xp on HEADLESS-2, the keyboard stays with s1 on tiling (tiling {"holder":"tiling","surface":"s1"}, xp {"holder":null})
+ok: the second move: the last window went to xp, tiling holds the keyboard with its desktop (tiling {"holder":"tiling"}, xp {"holder":null})
+holders with the picker open: tiling {"holder":"tiling"}, xp {"holder":null}
+ok: the picker on the empty desktop closed with Escape, tiling holds the keyboard with its desktop (tiling {"holder":"tiling"}, xp {"holder":null})
+ok: L3 after the moves: task L3 pass
+ok: Super+F1 opens the key list, Escape closes it, and the keyboard goes back to the desktop of tiling (tiling {"holder":"tiling"}, xp {"holder":null})
+gate-handover.sh: waits for /tmp/chora-gate.lock
+ok: foot s1 starts in xp
+ok: 1. a drag from xp to the tiling output: tiling owns s1
+ok: 2. window.give of tiling to xp: xp owns s1
+ok: 3. choractl give mc: mc owns s1
+ok: 4. mc to tiling by window.give, tiling to xp by a Super drag: xp owns s1
+ok: 5. a give to a client that does not exist is refused; xp keeps s1
+ok: 6. Super and the left button on the xp output turn the cube of xp
+ok: 7. a Super drag moves s1 in tiling ({"HEADLESS-2":[287.7251337385676,169.04389678867335,700.0,500.0]} to {"HEADLESS-2":[245.82554832982896,155.10973539207714,700.0,500.0]}), a drop on xp gives it to xp
+ok: 8. the title bar of a csd foot moves s2 in tiling ({"HEADLESS-2":[290.0,170.0,700.0,500.0]} to {"HEADLESS-2":[298.43610240358066,186.5910013937085,700.0,499.99999999999994]}) and gives it to xp
+ok: 8b. title bar menu, Send To > Media center: mc owns s1, xp has no task button
+ok: 8b. Alt+Space, Send To > Tiling desktop: tiling owns s1
+ok: 9. tiling ended after the give: xp adopted s1
+ok: gate-handover; captures in /tmp/gate-config.wNBvmq
+gate-looks-move.sh: waits for /tmp/chora-gate.lock
+ok: the give key: s3 went to xp on HEADLESS-2, the keyboard stays with s2 on tiling (tiling {"holder":"tiling","surface":"s2"}, xp {"holder":null})
+ok: the first move: s2 went to xp on HEADLESS-2, the keyboard stays with s1 on tiling (tiling {"holder":"tiling","surface":"s1"}, xp {"holder":null})
+ok: the second move: the last window went to xp, tiling holds the keyboard with its desktop (tiling {"holder":"tiling"}, xp {"holder":null})
+holders with the picker open: tiling {"holder":"tiling"}, xp {"holder":null}
+ok: the picker on the empty desktop closed with Escape, tiling holds the keyboard with its desktop (tiling {"holder":"tiling"}, xp {"holder":null})
+ok: L3 after the moves: task L3 pass
+ok: Super+F1 opens the key list, Escape closes it, and the keyboard goes back to the desktop of tiling (tiling {"holder":"tiling"}, xp {"holder":null})
+gate-handover.sh: waits for /tmp/chora-gate.lock
+ok: foot s1 starts in xp
+ok: 1. a drag from xp to the tiling output: tiling owns s1
+ok: 2. window.give of tiling to xp: xp owns s1
+ok: 3. choractl give mc: mc owns s1
+ok: 4. mc to tiling by window.give, tiling to xp by a Super drag: xp owns s1
+ok: 5. a give to a client that does not exist is refused; xp keeps s1
+ok: 6. Super and the left button on the xp output turn the cube of xp
+ok: 7. a Super drag moves s1 in tiling ({"HEADLESS-2":[284.26472311089265,167.58952130747667,700.0,499.99999999999994]} to {"HEADLESS-2":[216.0761710542404,145.35790894133544,700.0,499.99999999999994]}), a drop on xp gives it to xp
+ok: 8. the title bar of a csd foot moves s2 in tiling ({"HEADLESS-2":[290.0,170.0,700.0,500.0]} to {"HEADLESS-2":[322.47143758546326,233.8604939180778,700.0,499.99999999999994]}) and gives it to xp
+ok: 8b. title bar menu, Send To > Media center: mc owns s1, xp has no task button
+ok: 8b. Alt+Space, Send To > Tiling desktop: tiling owns s1
+ok: 9. tiling ended after the give: xp adopted s1
+ok: gate-handover; captures in /tmp/gate-config.3QlspM
+gate-looks-move.sh: waits for /tmp/chora-gate.lock
+ok: the give key: s3 went to xp on HEADLESS-2, the keyboard stays with s2 on tiling (tiling {"holder":"tiling","surface":"s2"}, xp {"holder":null})
+ok: the first move: s2 went to xp on HEADLESS-2, the keyboard stays with s1 on tiling (tiling {"holder":"tiling","surface":"s1"}, xp {"holder":null})
+ok: the second move: the last window went to xp, tiling holds the keyboard with its desktop (tiling {"holder":"tiling"}, xp {"holder":null})
+holders with the picker open: tiling {"holder":"tiling"}, xp {"holder":null}
+ok: the picker on the empty desktop closed with Escape, tiling holds the keyboard with its desktop (tiling {"holder":"tiling"}, xp {"holder":null})
+ok: L3 after the moves: task L3 pass
+ok: Super+F1 opens the key list, Escape closes it, and the keyboard goes back to the desktop of tiling (tiling {"holder":"tiling"}, xp {"holder":null})
+gate-handover.sh: waits for /tmp/chora-gate.lock
+ok: foot s1 starts in xp
+ok: 1. a drag from xp to the tiling output: tiling owns s1
+ok: 2. window.give of tiling to xp: xp owns s1
+ok: 3. choractl give mc: mc owns s1
+ok: 4. mc to tiling by window.give, tiling to xp by a Super drag: xp owns s1
+ok: 5. a give to a client that does not exist is refused; xp keeps s1
+ok: 6. Super and the left button on the xp output turn the cube of xp
+ok: 7. a Super drag moves s1 in tiling ({"HEADLESS-2":[255.02369640030565,155.299814429114,700.0,500.0]} to {"HEADLESS-2":[219.32111049311288,146.38805370378248,700.0,500.0]}), a drop on xp gives it to xp
+ok: 8. the title bar of a csd foot moves s2 in tiling ({"HEADLESS-2":[290.0,170.0,700.0,500.0]} to {"HEADLESS-2":[334.3431052071444,257.20810690738415,700.0,500.0]}) and gives it to xp
+ok: 8b. title bar menu, Send To > Media center: mc owns s1, xp has no task button
+ok: 8b. Alt+Space, Send To > Tiling desktop: tiling owns s1
+ok: 9. tiling ended after the give: xp adopted s1
+ok: gate-handover; captures in /tmp/gate-config.jO9RmD
+gate-looks-move.sh: waits for /tmp/chora-gate.lock
+ok: the give key: s3 went to xp on HEADLESS-2, the keyboard stays with s2 on tiling (tiling {"holder":"tiling","surface":"s2"}, xp {"holder":null})
+ok: the first move: s2 went to xp on HEADLESS-2, the keyboard stays with s1 on tiling (tiling {"holder":"tiling","surface":"s1"}, xp {"holder":null})
+ok: the second move: the last window went to xp, tiling holds the keyboard with its desktop (tiling {"holder":"tiling"}, xp {"holder":null})
+holders with the picker open: tiling {"holder":"tiling"}, xp {"holder":null}
+ok: the picker on the empty desktop closed with Escape, tiling holds the keyboard with its desktop (tiling {"holder":"tiling"}, xp {"holder":null})
+ok: L3 after the moves: task L3 pass
+ok: Super+F1 opens the key list, Escape closes it, and the keyboard goes back to the desktop of tiling (tiling {"holder":"tiling"}, xp {"holder":null})
+gate-handover.sh: waits for /tmp/chora-gate.lock
+ok: foot s1 starts in xp
+ok: 1. a drag from xp to the tiling output: tiling owns s1
+ok: 2. window.give of tiling to xp: xp owns s1
+ok: 3. choractl give mc: mc owns s1
+ok: 4. mc to tiling by window.give, tiling to xp by a Super drag: xp owns s1
+ok: 5. a give to a client that does not exist is refused; xp keeps s1
+ok: 6. Super and the left button on the xp output turn the cube of xp
+ok: 7. a Super drag moves s1 in tiling ({"HEADLESS-2":[288.5698240018737,169.39891153701944,700.0,500.0]} to {"HEADLESS-2":[215.71072774534449,145.23690924844811,700.0,500.0]}), a drop on xp gives it to xp
+ok: 8. the title bar of a csd foot moves s2 in tiling ({"HEADLESS-2":[290.0,170.0,700.0,500.0]} to {"HEADLESS-2":[328.35930117053044,245.43995896870996,700.0,500.00000000000006]}) and gives it to xp
+ok: 8b. title bar menu, Send To > Media center: mc owns s1, xp has no task button
+ok: 8b. Alt+Space, Send To > Tiling desktop: tiling owns s1
+ok: 9. tiling ended after the give: xp adopted s1
+ok: gate-handover; captures in /tmp/gate-config.jKI4CM
+gate-looks-move.sh: waits for /tmp/chora-gate.lock
+ok: the give key: s3 went to xp on HEADLESS-2, the keyboard stays with s2 on tiling (tiling {"holder":"tiling","surface":"s2"}, xp {"holder":null})
+ok: the first move: s2 went to xp on HEADLESS-2, the keyboard stays with s1 on tiling (tiling {"holder":"tiling","surface":"s1"}, xp {"holder":null})
+ok: the second move: the last window went to xp, tiling holds the keyboard with its desktop (tiling {"holder":"tiling"}, xp {"holder":null})
+holders with the picker open: tiling {"holder":"tiling"}, xp {"holder":null}
+ok: the picker on the empty desktop closed with Escape, tiling holds the keyboard with its desktop (tiling {"holder":"tiling"}, xp {"holder":null})
+ok: L3 after the moves: task L3 pass
+ok: Super+F1 opens the key list, Escape closes it, and the keyboard goes back to the desktop of tiling (tiling {"holder":"tiling"}, xp {"holder":null})
