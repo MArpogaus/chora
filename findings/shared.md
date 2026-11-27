@@ -67,3 +67,4 @@ rtr4-4 | MAJOR (F7, tour harness) | tour-rows r4 take | open; tour take r3 | lau
 rtr4-5 | MINOR (tour harness) | tour-rows r4 take | open; after rtr4-4 | launch.py:46 reads tool-version.sh from TOUR_REPO | reports/tour-rows.md "## r4"
 rpt2-1 | MAJOR (rc 1, all looks) | rc1 pass tiling r2 | open; KIT-SWALLOW r1 | chora-kit swallow.rs WITH lacks Alt and Ctrl+Shift: Super+Alt+key and Super+Ctrl+Shift+key reach the client (3/3) | media/2026-11-26/rc1-pass-tiling-r2/
 rpt2-2 | MINOR (tiling) | rc1 pass tiling r2 | backlog | Looks picker on an empty tag offers a move, then "choractl: no focused window" | reports/rc1-pass.md "## r2 tiling"
+sh-48 | MINOR (harness; F5) | rc1-pass-tiling r3 (reports/rc1-pass.md "## r3 tiling") | open; backlog | a chord plus text in one inject drops the text after a swallowed chord about 1 in 3; with 0.15 s between them 26 of 26 arrive | rc1-pass-tiling-r3 media

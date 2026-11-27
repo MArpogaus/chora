@@ -1,0 +1,20 @@
+voice-acp  PASS    13s /tmp/merge-gate.pfXrg2/voice-acp.log
+voice-events PASS     2s /tmp/merge-gate.pfXrg2/voice-events.log
+launcher-mc PASS    38s /tmp/merge-gate.pfXrg2/launcher-mc.log
+agent      PASS    39s /tmp/merge-gate.pfXrg2/agent.log
+tiling-keys-more PASS    42s /tmp/merge-gate.pfXrg2/tiling-keys-more.log
+tiling-system PASS    15s /tmp/merge-gate.pfXrg2/tiling-system.log
+handover   PASS    92s /tmp/merge-gate.pfXrg2/handover.log
+mc-scale   PASS    13s /tmp/merge-gate.pfXrg2/mc-scale.log
+tiling-windows PASS   191s /tmp/merge-gate.pfXrg2/tiling-windows.log
+watchdog-starved PASS    52s /tmp/merge-gate.pfXrg2/watchdog-starved.log
+xp-run     PASS    14s /tmp/merge-gate.pfXrg2/xp-run.log
+demo       PASS   240s /tmp/merge-gate.pfXrg2/demo.log
+tiling-bar PASS   182s /tmp/merge-gate.pfXrg2/tiling-bar.log
+tiling-theme PASS    19s /tmp/merge-gate.pfXrg2/tiling-theme.log
+leak       PASS   476s /tmp/merge-gate.pfXrg2/leak.log
+mc-host    PASS    21s /tmp/merge-gate.pfXrg2/mc-host.log
+tiling-disc PASS    73s /tmp/merge-gate.pfXrg2/tiling-disc.log
+e2e        PASS   282s /tmp/merge-gate.pfXrg2/e2e.log
+skipped: docs (mkdocs is not installed (docs unchanged))
+all steps passed; no --push, nothing is pushed

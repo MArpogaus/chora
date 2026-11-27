@@ -951,3 +951,127 @@ chat head, "LISTENING" on the pill: 25), D119 tour rows (tour2 acts 7, 8). rpc1-
   the glass pill until the window comes back (m1); the assistant follows the focused look. Not filed: a design question
   for shared.
 - Context used about 215 k; no `chora --headless` left.
+
+## r3 tiling
+
+Lane rc1-pass-tiling-r3, opus high, cloud, head 7822a66c (claude/rc1-pass-tiling-r3: train 158 head fb0f9dec with
+kit-swallow r1 02e745c3 and r2 bbfcf1c0). Run and read only, no product, test or design change. Step 0 green:
+`git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`. One binary set for every run
+(`round.sh snapshot`, sha 7822a66c).
+
+Runs, each from a fresh compositor (`ROUND_DIR=<scratch> tests/persona/round.sh start NAME FLAVOR SIZE`, `stop`):
+- rpt2-1: three tiling sessions at 1280x720 (swr1..swr3); Super+Return, then in the foot
+  `clear; stty raw -echo; tee BYTES | cat -v`, Return; every chord of the kit list that tiling does not bind (488:
+  75 keys x 8 modifier sets, minus the 30 safety chords with Ctrl+Alt, minus the 82 bound ones, 06), each as its own
+  `choractl --name persona inject` with the text `|` after it, 0.1 s apart; then the bound give key Super+Alt+1; then 8
+  plain keys; the bytes file is cut at the `|` and each piece mapped to its chord (04).
+- ti-57: one tiling+xp session at 1280x800 per output, the P2 r12 L3 path (tag clicks), holders dumped (12).
+- tour: `TOUR_OUT=<scratch> python3 demo/tour/run.py tiling handover` (45).
+- persona walk: p1 tiling 1280x720, keyboard, ricer and mouse-only paths in one session. Host calls go to the
+  stand-ins (37); no host power call.
+
+Captures: media/2026-11-26/rc1-pass-tiling-r3/ on claude/session-log, 45 files, each under 600 KB. A number below is the
+file prefix in that folder.
+
+### Verdict
+
+- **tiling: confirms rc 1.** rpt2-1 is fixed (3 of 3, 0 of 488 chords per run), ti-57 stays fixed (1 of 1); no open
+  BLOCK or MAJOR. New: rpt3-1, rpt3-2 MINOR, rpt3-3, rpt3-4 COSMETIC (known issues).
+
+### rpt2-1 (Super chords into clients): fixed, 3 of 3
+
+| Run | Unbound chords that reached the client | Bound Super+Alt+1 | Plain keys (Alt+x, Ctrl+x, Alt+9, Alt+d, Ctrl+a, Alt+., q, Shift+x) | Bound chords act | Capture |
+|---|---|---|---|---|---|
+| r1 | 0 of 488 (Super, +Shift, +Ctrl, +Alt, +Ctrl+Shift, +Alt+Shift, +Ctrl+Alt, +Ctrl+Alt+Shift) | nothing typed | 8 of 8 as sent: `^[x ^X ^[9 ^[d ^A ^[. q X` | Super+Ctrl+Shift+2: desks [[1,2]]; Super+3 shows [[3]], Super+1 [[1]] | 01, 04 |
+| r2 | 0 of 488 | nothing | 8 of 8 | same | 02, 04 |
+| r3 | 0 of 488 | nothing | 8 of 8 | same; Super+Alt+x after the bound checks types nothing (`:end<after>`) | 03, 05, 04 |
+
+The r2 rows (Super+Alt+9, 5, x, q, d, Super+Ctrl+Shift+x, Super+Shift+Alt+x) are in the 488. Super+Ctrl+Shift+space
+(previous layout) is bound and acts (key list 20). The swallow eats no plain key and no bound chord.
+
+Harness note, not a finding: with a chord and the text after it in **one** inject, the text after a swallowed chord is
+lost about 1 in 3 times (26 Super+Alt chords: 17 of 26 `|` arrived; 26 plain Super chords, an older class: 12 of 26;
+26 Alt chords: 26 of 26); with 0.15 s between them 26 of 26. No person types a key inside the same millisecond as the
+release of a chord; a gate that sends chord and text in one inject should keep them apart (gate-swallow-chords.sh sends
+`start:`, the chords, `:end` and passes, as the chords type nothing).
+
+### ti-57 (keyboard holder after the Looks picker): fixed, 1 of 1
+
+| Run | L3 path | Holders at every step | Typed text | Capture |
+|---|---|---|---|---|
+| r1 | Super+Return, Looks, Return (give to xp), Looks, Escape, click tag 2, tag 1 | tiling at every step (s1, then the desktop group after the give, then s2); xp holder null; `check.py end L3`: "task L3 pass" | TYPED-R3T57 in the tiling foot; Super+F1, Escape: keys back to s2 | 07-12 |
+
+Breaches: I6 x29 only (xp tray clock contrast 3.27:1, known), no I3.
+
+### tiling: shared RC bar and main paths
+
+| Item | Result | Capture |
+|---|---|---|
+| Start a program (mouse) | pass with rpt1-5: Apps, click Foot starts a terminal with the keys (FROM-APPS typed); first row "Chat with a helper (atlas)"; ti-25 raw rows | 14, 15 |
+| Start a program (keys) | pass: Super+Return (themed foot, keys), Super+y after the ricer's edit; tour t8 Super+r/Space | 01, 33, 45 |
+| Key list (mouse) | pass with rpt1-3: Keys opens it (state open tiling-keys), Mouse line; Escape closes, keys back to s1 | 20 |
+| Key list (keys) | pass with rpt1-3: Super+/ opens and closes it; Super+F1 in ti-57 | 11, 31 |
+| Helper (mouse) | pass with rpt1-9, sh-13: the bar word opens the chat with the keys; "echo LEAKED-H" lands in the chat field, not foot | 21 |
+| Helper (keys) | pass with rpt3-2: Super+a, the question reaches the helper ("Hello" answer shown), Escape gives the keys back (BACK typed in foot) | 22, 24 |
+| No stray keys into clients | pass: rpt2-1 fixed (above); unbound chords give the chip (rpt3-1 words) | 01-06, 16-19 |
+| Lock | pass with rpt1-10: power > Lock runs `swaylock -C <theme> -f` (stand-in window); Super+Shift+Escape runs `loginctl lock-session` | 25, 26, 37 |
+| Power | pass: power > Shut down runs `systemctl poweroff` (stand-in) | 25, 37 |
+| Volume | pass with ti-15: wheel on the word gives 55 % (`wpctl set-volume 5%+`), click "Muted", a second click back | 27, 37 |
+| Screenshot | pass with rpt1-4: Super+Print runs grim and `notify-send "Screenshot saved" <path>`; the tour notice shows the path (white card, rpt1-4/rv9j-3) | 28, 37, 39 |
+| Clock | pass: "Thu 26 Nov 21:07" centred in its island | 13 |
+| Honest failure states | pass with rth-6, rpt1-7, rpt2-2: a broken line gives the chip "Settings not applied: chora-tiling.yaml: unknown variant" (no line: rth-6, also for a missing colon), the old settings and Super+y stay; Looks alone says "No other look is running" (rpt3-4); Super+Alt+2 without xp silent (rpt1-7) | 32, 33, 34, 35 |
+| Handover to and from tiling | pass: xp > tiling by Send To with the lines kept and typing on tiling; tiling > mc by Super+Alt+3 with the lines kept; AUDIT kept the window (s1 on xp at the end). Acts 7, 8 red = the known D119 rows (backlog.md:459), not product | 42, 43, 44, 45 |
+| Power user (keys) | pass: tour 28 of 28 green (layouts with the chip, master, tags, float, Super+drag, key list, chat); every Super+Alt and Super+Ctrl+Shift chord now silent | 41, 38, 40, 01 |
+| Ricer: edit and reload | pass: Super+s opens the yaml in vi, `:%s` gap_inner 12 > 32 and a new `MOD+y: {run: foot}`, `:wq`, Super+Ctrl+r: get_layout gap_inner 32, tiles 32 apart, "Super+Y Run foot" in the key list, Super+y opens foot | 29, 30, 31, 36 |
+| Ricer: a broken line | pass with rth-6: chip names the file, old settings stay | 32, 33 |
+| Beginner, mouse only | pass: Apps > Foot, Keys, power menu, volume, helper word, layout word (chip "Tile left"), tag 2 and tag 1 by mouse; not stranded (Escape and the bar always back out; tag 1 gives the keys back) | 14, 15, 20, 21, 25, 27, 36 |
+| Style (tiling-v2) | pass with rpt1-3, rpt1-4, rpt1-5, rpt1-9, sh-13, ti-10, ti-25 and rpt3-1..4: bar islands, tags, chip, gaps, radius, focus glow, picker, launcher as designed | 13, 14, 36, 41 |
+
+### Findings
+
+| id | severity | text |
+|---|---|---|
+| rpt3-1 | MINOR | the unbound-chord chip spells the chord in the core's order and keysym names: "Alt+Super+X", "Ctrl+Shift+Super+Next", "Ctrl+Alt+Shift+Super+Prior", "Super+Bracketleft does nothing here."; the key list and the chip's own second half say "Super+..." |
+| rpt3-2 | MINOR | the bar helper word and the chat header disagree for about 1 to 2 s on each change: header "working" with Stop while the bar says "idle", then the bar "working" while the header says "idle" and the answer shows |
+| rpt3-3 | COSMETIC | waybar's tooltip "Volume 55%" stays under a resting pointer and draws over the key list panel and over the tile text |
+| rpt3-4 | COSMETIC | the Looks picker with one row ("No other look is running") opens a box for nine rows (fuzzel.ini lines=9; the power menu passes --lines 5) |
+
+**rpt3-1 (MINOR; words, shared.md "key names" may not vary, review checklist 6 "no internal terms").** The chip that
+ti-56 added builds the chord from the swallowed binding with `keysheet::chord` (plugins/chora-tiling/src/overlay.rs:192),
+which keeps the modifier order of the binding the core sends (Ctrl, Alt, Shift, Super) and caps only Escape, arrows,
+period, slash, space (crates/chora-kit/src/glass.rs:343): "Prior", "Next", "Bracketleft", "Apostrophe", "Grave",
+"Minus", "Equal", "Backslash" stay keysym names. With rpt2-1 fixed, every multi-modifier chord now shows the chip, so
+the odd order is new on this head. A person who pressed Super+Alt+X reads "Alt+Super+X". Repro: fresh tiling session,
+Super+Return, Super+Alt+x (16), wait 10 s, Super+bracketleft (17), wait 10 s, Super+Ctrl+Shift+Next (18); crop 19; also
+swr1 (01, "Ctrl+Alt+Shift+Super+Prior").
+
+**rpt3-2 (MINOR; honest states, review checklist 7 "nothing lags one capture behind").** p1: Super+a, "Second
+question", Return, captures at about +0.3, 1.8, 3.8, 6.8, 10.8 s (23): bar "idle" / header "working" with Stop; both
+"working"; both "idle"; earlier (22) bar "working" while the header says "idle" and the reply "Hello" shows. Both settle
+within 2 s. Not stranded; sh-13 (the Listening pill) is the same family.
+
+**rpt3-3 (COSMETIC; review checklist 3 "no two surfaces overlap").** After clicking the volume word the pointer rests
+on it; the tooltip "Volume 55%" draws at x 965-1075, y 50-84 over the key list panel (31) and over the right tile's
+text (32, 33). Same kind as ti-34 (tooltip of the layout word); ti-6 set tooltip false on Apps, Keys, power, helper only.
+
+**rpt3-4 (COSMETIC).** Looks with no other look running: the picker box is 370 px high for one row (34); fuzzel
+call `--dmenu --prompt "Move this window to "` with no `--lines` (37). The Looks picker does not close by itself.
+
+### Known ids seen again (not new)
+
+rpt1-3 (key list at 1280x720: the last row of each column touches the panel edge at y 662-667, 20, 31), rpt1-4 and
+rv9j-3 (white notice card on Ink, 39), rpt1-5 (Apps > Foot unthemed, grey and small, 15), rpt1-7 (Super+Alt+2 without
+xp silent, 35; the key list still lists "Other desktops: xp, media center, construct", 20), rpt1-9 (the tile keeps the
+glow while the chat field has the keys, 21), rpt1-10 (lock stand-in window, 26), rth-6 (no line number, also for a line
+without its colon, 32), rpt2-2 (not rerun), sh-13 ("atlas" lower case in the persona session, "Atlas" in the tour; the
+Listening pill over the tile, 13, 21), ti-10 (layout chip on the seam, 36), ti-15 (the right island shrinks to "Muted",
+27), ti-25 (raw launcher rows, 14; the floated window past the right edge in the tour, 39). Not re-reported: rpt1-8,
+rtf4-1..4, rpm2-6, rksr1-1..4, sh-37..sh-46.
+
+### Notes for the PM
+
+- rpt2-1 holds for the whole kit list in tiling, not only the five gate chords; the other looks were not run here.
+- The handover acts 7, 8 stay red as on f484a92d (D119 rows, backlog.md:459). The tiling desktop in the handover
+  chapter is flat slate without the Ink wallpaper glows (42, 43); the tour starts the companions, not checked further.
+- The foot in persona sessions prints "warning: 'C' is not a UTF-8 locale" (container locale, not product).
+- Context used about 160 k; `pgrep -fa 'chora --headless'` empty at the end.

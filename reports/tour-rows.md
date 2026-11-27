@@ -395,3 +395,93 @@ Findings:
 - rtf1r-3 NIT tests/test_tour_diff.py:977-983: `test_c5d_looks_at_the_stepped_in_face...` finds lines by the strings `"04-13-back-on-face"` and `t.key("Ctrl+Alt+Right")` and checks for `step_out(t, ` in between; a reorder of the chapter breaks it, and it proves no behaviour; fix: leave it, the act's own `cube=` expectation is the real test.
 - rtf1r-4 NIT demo/tour/chapters/construct.py:55-57: the missing-method fallback of `stepped_in` is not limited to TOUR_BASELINE; fix: `if not (NO_METHOD.search(str(err)) and os.environ.get("TOUR_BASELINE")): raise`.
 Verdict (computed): no open BLOCK or MAJOR: MERGE-OK (counts reproduce: 1 / 71 / 0 / 29 / 9).
+
+## fix r2
+
+Base 84e31324c (claude/tour-fix-r1 head, review MERGE-OK); head b16c888fa (claude/tour-fix-r2). Step 0 green (`git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`).
+Commits: 4a1d83572 **red** (test(tour): handover act 7 expects no mc focus, a click comes first; fails on 84e31324: `focus="mc"` in the act-7 row, no pointer move or click between the two keys), 46e5ac617 (the chapter fix), 4bc210b1d **red** (test: m2 m2b m3 name the boil page panels; fails until the rows), b16c888fa (the rows).
+Diffstat 84e31324..b16c888fa: demo/tour/chapters/handover.py +2 -1, demo/tour/intended.toml +36, tests/test_tour.py +23, tests/test_tour_diff.py +16 -1 (4 files, +77 -2). No product code.
+
+**rtf1-2 fixed.** Act 7 (Super+Alt+3) no longer expects `focus="mc"` (41ddd4ba2, rtf2-1: a window given to mc while another look holds the keyboard arrives without it). `goto(640, 360, MC); t.click(); t.wait(0.5)` comes before act 8's Super+Alt+4, so the key reaches mc. Handover on the head build: 11 acts, 11 green, 0 red in three runs alone (acts 7, 8 green each time). One further run was red at acts 6 and 10 (`letter.txt` lost its first line): I had started a second tour (the v9 xp take) at the same time, which shares that file; it was killed, and the two runs after it are green. Not a product or chapter defect.
+**rtr4-1 fixed (rows).** `rect` of `mc-s-boil-panels-lead`, `-lead-lines`, `-side`, `-side-lines` and `cut` of `mc-s-boil-panels-side-lines` for m2, m2b, m3, cause c3925fc5 (the 8-digit form of c3925fc55, so the cause check reads it): 3 acts x 2 rows, each by node, none open, no `*`, no whole-frame box. `tests/test_tour_diff.py` lets a row of kind `cut` carry `nodes` (it listed the scene kinds without it) and holds the three acts' rows.
+
+### Takes (head b16c888fa; each chapter its own TOUR_OUT, the five chapters one after the other)
+
+v9 (head build): xp 31 acts 0 red (1 known), tiling 28/0, mc 22/0, construct 18 acts 6 green 12 red (I2 co-44 only, as in fix r1), handover 11 acts 11 green 0 red.
+v8 (733967aa in a worktree, TOUR_BASELINE=1, the head's harness): as in fix r1: mc both halves, handover h1..h1d, construct c1..c2b and the c3 stop (4 captures `baseline: none`, `baseline-none.json` copied beside the folder of the diff).
+
+### Counts (tests/tour-diff.py, all chapters, 110 captures)
+
+| rows | same | change | open | regression | none |
+|---|---|---|---|---|---|
+| 84e31324 (fix r1 head) | 1 | 71 | 0 | 29 | 9 |
+| b16c888fa (head) | 1 | 74 | 0 | 24 | 11 |
+
+h3b, h4 leave the regression column (their acts are green now; they stay `baseline: none`, 9 -> 11 none), m2 m2b m3 are change (71 -> 74). Regressions left, each with its filed id: c2b c3b c3c c3d c4 c4b (rtf1-7), c5d c5e (rtf1-1), m1 m1b m1c m4 m4b (rtf1-4), m8 (rtr4-2), t3f t5 t6 t6b t6c t6d t7 t10c (rtf1-3), x1 (rtf1-6), x5b (rtf1-5): 6 + 2 + 5 + 1 + 8 + 1 + 1 = 24.
+Stills: media/2026-11-26/tour-fix-r2/m2.Q-v8-v9.jpg, m2b.Q+1-v8-v9.jpg, m3.Q-v8-v9.jpg (v8 above v9, the four panel nodes boxed in red on v9), h3b.Q-v9.jpg, h4.Q-v9.jpg, take-diff.json, take-diff.txt, gate-last.txt.
+`python3 -m pytest tests/test_tour_diff.py tests/test_tour.py -q`: 223 passed, 19 subtests passed.
+
+### Findings left (backlog, unchanged)
+
+rtr4-2 MINOR (m8); rtf1-1 MINOR (c5d, c5e); rtf1-3 MINOR (tiling); rtf1-4 MINOR (m1 m1b m1c m4 m4b); rtf1-5 MINOR (x5b); rtf1-6 MINOR (x1); rtf1-7 MINOR (construct hint bar and key sheet); rtf1r-1..4 MINOR/NIT. No MAJOR left.
+
+### Gate
+
+`CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2 --allow-skip docs` (no --push, no step filter) on b16c888fa, run detached: 67 steps PASS (acts 1518 s, pull 512 s, leak 458 s, e2e 268 s), docs SKIP (allowed: mkdocs is not installed). It ends "all steps passed; no --push, nothing is pushed", printed just before `exit 0`, so **EXIT 0**; no foreign red. Last 20 lines: media/2026-11-26/tour-fix-r2/gate-last.txt.
+`pgrep -fa 'chora --headless'` empty.
+
+## Review fix r2 (PM, 2026-11-26, 84e31324c..b16c888fa, 4 files +77 -2)
+- Red first: 4a1d8357 and 4bc210b1 precede fixes 46e5ac61 and b16c888f; the lane's full gate is green.
+- handover act 7 clicks mc before act 8 (rtf1-2 h3b h4 closed); m2 m2b m3 get rect and cut rows with c3925fc5 (rtr4-1 rows owed: closed).
+- rtf2r-1 MINOR (mc m2 m2b m3; findings/mc.md mc-63): the rows whitelist a cut side panel (one 28 px line of 2) as intended. Under the 11-17 perfectionist order cut text is a look defect, not an intended change; the panel must show whole content or drop it.
+- The text-grep tests are weak but red-first. No MAJOR. Verdict (computed): MERGE-OK b16c888fa, train 159.
+
+## r5 (F7, rc 11): the 24 MINOR regressions of take r2 judged before take r3
+
+Base b16c888fa (claude/tour-fix-r2 head, review MERGE-OK); head 729767a81 (claude/tour-rows-r5). Step 0 green (`git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`).
+Commits: c24ed22a7 **red** (test(tour): the 21 judged minor regressions get rows; 5 of its 6 tests fail on b16c888f, the sixth holds m8 and c5d c5e as regressions and passes by design), 729767a81 (the 21 rows). Diffstat b16c888f..729767a8: demo/tour/intended.toml +138, tests/test_tour_diff.py +63, tests/tour-diff-take-r5.json (new, 2.8 KB: per act the diffs of this take that no row of b16c888f named); 3 files, +202 -0. No product code, no chapter change.
+
+**Method.** Both builds taken again (v9 = head b16c888f build, v8 = 733967aa in a worktree, `TOUR_BASELINE=1`, the head's harness; five chapters each in its own TOUR_OUT, one after the other). `tests/tour-diff.py` gave 1 same, 74 change, 0 open, 24 regression, 11 none: the brief's 24, the same acts. For each, the diffs no row named (`verdict()` per node and per blob) were judged on the v8 and v9 full-size captures (not only the half-size stills): the commit that makes them, then the looks (whole text, nothing under 12 px, aligned gaps). Mechanical part: every visible text node of v9 in the 24 captures is at least 12 px and none is cut (`cut_of`: none).
+
+### The 24
+
+| act | now | row (cause) or finding | still (media/2026-11-26/tour-rows-r5/) |
+|---|---|---|---|
+| c2b | row | hint bar: 7f519bc8 (a face names the pull key), f5bdc61f (hint All keys), cfc805d4 (Keys as a chip); box [179, 647, 922, 42] = the bar pill | c2b.Q-v8-v9.jpg |
+| c3b | row | f5bdc61f, cfc805d4; box [280, 647, 720, 42] (this bar has no pull hint) | c3b.Q-v8-v9.jpg |
+| c3c | row | as c3b | c3c.Q-v8-v9.jpg |
+| c3d | rows | bar as c2b; sunset window [446, 355, 182, 144]: 83033ed6 (co-46, a cube frees the keys of a window it covers: s1 `focused` true in v8, false in v9) and f1693fb3 (xp-41, inactive title with shadow) | c3d.Q-v8-v9.jpg |
+| c4 | row | key sheet over the cube: f5bdc61f (F1 opens the list), d590aae6 (1200 wide, three columns, co-71), 822d5be4, 369cf96f, 142260b9; box [27, 58, 1226, 632] = the sheet panel [31, 58, 1218, 604] and its shadow fringe (no whole-frame box) | c4.Q-v8-v9.jpg |
+| c4b | rows | bar and window as c3d | c4b.Q-v8-v9.jpg |
+| c5d | **regression, rtf1-1** | no row possible: v9 steps into face 0, v8 stays stood back, every pixel differs (blob [0, 0, 1280, 720]); a row may not name the frame (rtr4r-1). Comparability of the replay, not a look defect: no look finding. Needs the chapter or a declared "no comparable baseline" (TOUR lane, outside this lane's area) | c5d.Q-v8-v9.jpg |
+| c5e | **regression, rtf1-1** | as c5d (Return steps in, f5bdc61f) | c5e.Q-v8-v9.jpg |
+| m1 | row | rect `mc-s-ingredients-panels-lead`: c3925fc5 (a panel takes whole lines at the page edge: 287 px for 10 whole lines of 28, v8 280 with the last line cut at 273) | m1.Q-v8-v9.jpg |
+| m1b | row | as m1 | m1b.Q-v8-v9.jpg |
+| m1c | row | rect `mc-s-boil-panels-lead` and `-lead-lines`, c3925fc5 | m1c.Q-v8-v9.jpg |
+| m4 | row | rect `mc-s-sauce-panels-lead` and `-lead-lines`, c3925fc5 (the six right-column blobs the r2 take showed are not in this take) | m4.Q-v8-v9.jpg |
+| m4b | row | as m1c | m4b.Q-v8-v9.jpg |
+| m8 | **regression, rtr4-2** (MINOR, open) | launcher without icons and on a dark ground, blob [463, 198, 354, 324]; stays, no row (brief) | m8.Q-v8-v9.jpg |
+| t3f | row | e6afbf97 (tiling-chip-r1: the layout word centred in a chip of its own); box [12, 8, 526, 32] = the left island of the bar (x 13..538 on the pixels) | t3f.Q-v8-v9.jpg |
+| t5 t6 t6b t6c t6d | rows | as t3f | t5.Q, t6.Q, t6b.Q, t6c.Q, t6d.Q (-v8-v9.jpg) |
+| t7 t10c | rows | as t3f | t7.Q+0.5, t10c.Q+0.5 (-v8-v9.jpg) |
+| x1 | row | rtf1-6 traced: the blob [1182, 560, 50, 18] lies in the rect of the new node `hud-line-tail` [1067, 559, 166, 19]: the greeting of 4fec75c3 has a wedge tail of its own (e4157dbd, d3d28cfa); the balloon body is masked as a text node, the tail is not, and v8 has no `hud-line*` node at all. Box = the tail rect | x1.Q-v8-v9.jpg |
+| x5b | row | meta `hud-chat`: 88951ae4 (a send shows Working and Stop at once; 'Atlas, Idle' -> 'Atlas, Working') | x5b.Q-v8-v9.jpg |
+
+21 rows, 3 regressions left. Looks check of the 21: the hint bar, the key sheet, the whole-line lead panels (the v8 panel cut its last line, so v9 is the better frame), the chip in the tiling island, the balloon with its wedge and the Working header read clean at 1x (whole text, 12 px and up, no overlap). The 9 px gap of two hint chips (I2) is **co-44**, open, COSMETIC, unchanged by the commits above; its check rows are untouched, so the 12 stood-back construct acts stay red on I2 and the rows do not hide it. No new finding was needed: nothing judged was an unintended change or unclean beyond co-44, and c5d c5e m8 are filed (rtf1-1, rtr4-2). mc-63 (m2 m2b m3, one cut line) is still open in findings/mc.md; its acts have rows since b16c888f and I added none.
+
+### Takes and counts
+
+v9 (head build): xp 31 acts 0 red (1 known), tiling 28/0, mc 22/0, construct 18 acts 6 green 12 red (I2 of co-44 only), handover 11/11 green. v8 (733967aa, `TOUR_BASELINE=1`): xp 31 red as before (no state.get on the old build), tiling, mc, construct c1..c2b and the c3 stop (4 captures `baseline: none`), handover h1..h1d and the Send To TypeError (h2.. `baseline_none`): as in fix r2.
+
+| rows | same | change | open | regression | none |
+|---|---|---|---|---|---|
+| b16c888fa (base) | 1 | 74 | 0 | 24 | 11 |
+| 729767a81 (head) | 1 | 95 | 0 | 3 | 11 |
+
+Regressions left, each with its finding: c5d c5e (rtf1-1), m8 (rtr4-2). Stills: media/2026-11-26/tour-rows-r5/<act>.<capture>-v8-v9.jpg (v8 above v9, the new boxes in red on v9; each under 200 KB), take-diff.json and take-diff.txt (head), take-diff-b16c888f.txt (the base, the 24).
+`python3 -m pytest tests/test_tour_diff.py tests/test_tour.py -q`: 229 passed, 19 subtests passed.
+
+### Gate
+
+`CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2 --allow-skip docs` (no --push, no step filter) on 729767a81, run detached: 67 steps PASS (matrix 350 s, pull 519 s, acts 1689 s, leak 476 s, e2e 282 s), docs SKIP (allowed: mkdocs is not installed). It ends "all steps passed; no --push, nothing is pushed", which tests/merge-gate.sh:622-623 prints just before `exit 0`, so **EXIT 0**; no red cell, no foreign flake. Last 20 lines: media/2026-11-26/tour-rows-r5/gate-last.txt.
+`pgrep -fa 'chora --headless'` empty.
