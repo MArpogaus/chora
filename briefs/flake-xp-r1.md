@@ -1,0 +1,15 @@
+# flake-xp r1 (rc 3, F5: sh-44 xp-run and sh-47 handover picker, the key-grab gap)
+
+Model: sonnet, effort high (a routine race fix in a plugin start path and its gate readiness)
+Red on head: no deterministic red yet. Sightings: sh-44 (xp-run "Super+Space did not run the launcher", t154, t155), sh-47 (flake-series r10 run 4, handover: "the picker of the Looks door did not start", tests/gate-looks-move.sh:92). flake-launcher r1 did not reproduce them in 10 runs each and left a lead (reports/flake-launcher.md "## r1"): `Wm::start_on` of chora-xp creates its scene, then announces and grabs its keys; the gates' `session_start` is ready when the owner's nodes exist, so a chord injected in that gap has no holder and is lost. Step 1 makes it red.
+Lane: cloud, branch claude/flake-xp-r1 at 8b6f35dc (session head, t159). Area: the key-grab readiness of a look at start and after a handover (chora-xp start path, the same order in the other looks' start, and the gates' readiness wait in tests/lib). One area. Stop at 250 k context. Cost at most 0.7 %.
+Why: RC 3 needs 3 greens with no flake; findings/shared.md sh-44, sh-47.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`. A failure: send_message the PM "flake-xp-r1 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1) Make it red deterministically: a unit or gate test that injects the chord in the gap (a test-only delay between scene and grab, or an assertion that a look's nodes never exist before its keys are held). Check the same gap in tiling, mc, construct and in a handover (sh-47: the Looks door picker).
+2) Root cause fix, not a longer wait: grab before the scene shows, or a readiness signal the gates wait on (held bindings visible to a query). Never a bigger timeout number alone.
+3) Red test commit first, then the fix. Never skip or quarantine a cell.
+4) After: xp-run, handover, launcher-click, launcher-mc 10 times each beside a `cargo build --workspace` load: 0 misses; then the full gate once (`tests/merge-gate.sh --jobs 2`, no --only).
+Never end a turn to wait; poll any long command in the same turn. Before ending: `pgrep -fa 'chora --headless'` empty.
+Done when: red commit before the fix, the gap closed in every look that has it (or a line why not), miss counts after, full gate green.
+Report: reports/flake-xp.md "## r1" on claude/session-log (logs under media/2026-11-27/flake-xp-r1/, each under 500 KB); send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 5 lines with the head sha.
+Rules: push claude/flake-xp-r1 and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report and media folder); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).

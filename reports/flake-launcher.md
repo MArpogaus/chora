@@ -54,3 +54,13 @@ Fix commit (d06b9be2): `hit_token` reads a node of the set before the current on
 ### Rules kept
 
 Pushed claude/flake-launcher-r1 and claude/session-log only; author and committer Marcel Arpogaus; no attribution lines; no --no-verify; no system packages; no bare git stash. The diagnostic copy of the gate and the diagnostic mc builds were never committed.
+
+## Review r1 (PM, 2026-11-27, 0e18f14c..d06b9be2, 2 files +43 -1)
+
+PM review (under 200 lines, procedures). Checks:
+1) Red first: 2a90b905 adds `a_click_on_a_hit_of_the_set_that_fades_out_still_acts` before the fix d06b9be2 (lane: red on 0e18f14c). Pass.
+2) Root cause, not timeout: the fix maps a hit of the fading set `mc-r{set^1}-` to the same item of the current set in `hit_token`; no wait changed. Pass.
+3) POLS: an old-set hit whose item no longer exists in the current set still finds no item, so the press does nothing (no wrong action). The two-set swap is the existing design (`self.set ^ 1`). Pass.
+4) Evidence: launcher-mc 9/10 red before, 0/10 after; four cells 40/40; full gate 67 PASS on d06b9be2. Pass.
+Findings: none. sh-44 and sh-47 stay open (not reproduced), lead to the next flake round.
+Verdict (computed): MERGE-OK, joins the next train.
