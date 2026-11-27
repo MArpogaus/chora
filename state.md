@@ -1,11 +1,11 @@
 # State
 
-## Now (2026-11-27 00:11 UTC)
+## Now (2026-11-27 00:12 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 00:11 PM 5.7 % (11-26 BKK); week est. 51 % (unmeasured, owner reads) vs 76 % time; need (100-51-5)/40 h = 1.1 %/h; lanes 6 build
+budget: week 11-21 04:00 to 11-28 03:59 UTC, no day cap; tokens.py 00:12 PM 5.7 % (11-26 BKK); week est. 51 % (unmeasured, owner reads) vs 76 % time; need (100-51-5)/40 h = 1.1 %/h; lanes 6 build
 session branch: 8b6f35dc (t159 23:17); 103 greens. t160 runs (co-minor-r1)
 
-lanes: 5 of 6 (co-reach-r7, tiling-minor-r1, flake-launcher-r1, tour-rows-r5, flake-gate-r1)
+lanes: 5 of 6 (co-reach-r7, tiling-minor-r1, flake-launcher-r1, review-tour-rows-r5, flake-gate-r1)
 burn-down: F1-4, F6, F8 met; F5 open (r10 4/5), flake-launcher runs; F7 open (24 MINOR regr, 0 open)
 
 ## RC
@@ -27,7 +27,7 @@ burn-down: F1-4, F6, F8 met; F5 open (r10 4/5), flake-launcher runs; F7 open (24
 | co-reach-r7.md (Q 2, 1 %) | opus high, dc532d60 | s..Lt3YWo6KSF9sma4g1 |
 | tiling-minor-r1.md (Q 3, 0.6 %) | sonnet high, 7822a66c | s..QmMaErkPWcpnxGvnE |
 | flake-launcher-r1.md (Q 5, 0.7 %) | sonnet high, 0e18f14c | s..LmRg8qngXai5j1EAo |
-| review-tour-rows-r5.md (Q 4, 0.4 %) | sonnet high, 729767a8 | starting |
+| review-tour-rows-r5.md (Q 4, 0.4 %) | sonnet high, 729767a8 | s..MFbpwq7g2FyTSA41A |
 | flake-gate-r1.md (Q 5, 0.7 %) | sonnet high, 0e18f14c | s..MMKNmwqH9bxjYCpFv |
 ## Queue (% week; 5 % reserve)
 1. (rc 3) t159 green 23:17 (kit-swallow-r2, mc-minor-r3, tour-fix-r2); t160 runs: co-minor-r1.
