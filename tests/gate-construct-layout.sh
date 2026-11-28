@@ -396,6 +396,9 @@ more_panes() {
     until_ok '! any_front' || { echo "FAIL: $tag: Alt+Escape after the hint did not step back"; failed=1; return; }
     ctl query 'kind:surface' | jq -e 'length == 4' >/dev/null ||
         { echo "FAIL: $tag: a window is lost: $(ctl query 'kind:surface' | jq -c '[.[].surface.app_id]')"; failed=1; }
+    echo '[{"pointer_move": {"position": [24, 700]}}, {"click": {}}]' | ctl inject >/dev/null
+    until_ok '! hints_are "fly-in keys put-in terminal walk windows"' ||
+        { echo "FAIL: $tag: a press on the floor left the keyboard in the window of the pane: $(hint_ids)"; failed=1; }
     key Super+Alt+2
     until_ok 'notice_is "XP did not take the window: it is not running."' ||
         { echo "FAIL: $tag: the notice of a refused give reads '$(notices)'"; failed=1; }
