@@ -805,20 +805,27 @@ impl Tiling {
     /// Grabs every binding of the configuration. A binding that another
     /// client holds only logs.
     fn grab_all(&mut self) -> Result<(), ClientError> {
-        self.grab_bindings(|_| true)
+        self.grab_bindings(|_| true, true)
     }
 
     /// Grabs the bindings that need no claim, as [`Self::grab_all`], before
     /// the first node exists. The pointer buttons and the media keys wait
-    /// for the claim, which the relayout sets and grabs for.
+    /// for the claim, which the relayout sets and grabs for, and so does the
+    /// swallow: a window manager that starts beside tiling says that it
+    /// swallows before tiling hears it, and tiling would keep its chords.
     fn grab_without_claim(&mut self) -> Result<(), ClientError> {
-        self.grab_bindings(|key| !chora_kit::runtime::needs_claim(key))
+        self.grab_bindings(|key| !chora_kit::runtime::needs_claim(key), false)
     }
 
     /// Grabs the bindings of the configuration that `wanted` accepts, the
-    /// give keys, the drag of the title bars and the swallowed chords.
+    /// give keys, the drag of the title bars and, with `swallow`, the
+    /// swallowed chords.
     #[allow(clippy::expect_used, reason = "the configuration checks its bindings")]
-    fn grab_bindings(&mut self, wanted: impl Fn(&str) -> bool) -> Result<(), ClientError> {
+    fn grab_bindings(
+        &mut self,
+        wanted: impl Fn(&str) -> bool,
+        swallow: bool,
+    ) -> Result<(), ClientError> {
         let bindings = self.wm.config.common.bindings.clone();
         self.rt
             .give_keys(Some(|to| Action::System(System::Give(to.into()))));
@@ -835,8 +842,10 @@ impl Tiling {
         self.rt.grab_give_keys()?;
         let moves = MOVE.parse().expect("move is a binding");
         self.rt.grab(moves, Action::System(System::Drag))?;
-        self.rt
-            .grab_swallowed(&self.wm.config.modifier, &Action::Look(Own::Swallow))?;
+        if swallow {
+            self.rt
+                .grab_swallowed(&self.wm.config.modifier, &Action::Look(Own::Swallow))?;
+        }
         Ok(())
     }
 

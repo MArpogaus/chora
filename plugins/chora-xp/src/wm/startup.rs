@@ -338,7 +338,9 @@ impl Wm {
     /// Grabs the keys that need no claim, before the scene exists: a chord
     /// that comes while the nodes stand and no key is held has no holder,
     /// and the core drops it (sh-44). The pointer buttons and the media
-    /// keys wait for the claim of the scene, which [`Self::grab`] grabs. The cube keys
+    /// keys wait for the claim of the scene, which [`Self::grab`] grabs, and
+    /// so does the swallow: a window manager that starts beside xp says that
+    /// it swallows before xp hears it, and xp would keep its chords. The cube keys
     /// follow the outputs, as they do once the bars stand (`wanted_keys`).
     pub(super) fn grab_without_claim(&mut self) -> Result<(), ClientError> {
         let outputs = self.rt.outputs()?;
@@ -353,6 +355,7 @@ impl Wm {
             &self.settings.value.common.bindings,
             cube,
             |key| !chora_kit::runtime::needs_claim(key),
+            false,
         )?;
         self.rt
             .accept_injected(self.settings.value.common.test_accept_injected_keys);

@@ -854,16 +854,18 @@ fn grab_keys(
     bindings: &BTreeMap<String, KeyAction>,
     cube: CubeKeys,
 ) -> Result<(), ClientError> {
-    grab_keys_of(rt, bindings, cube, |_| true)
+    grab_keys_of(rt, bindings, cube, |_| true, true)
 }
 
-/// As [`grab_keys`], for the bindings that `wanted` accepts.
+/// As [`grab_keys`], for the bindings that `wanted` accepts; with `swallow`
+/// the chords that no binding uses are swallowed too.
 #[allow(clippy::expect_used, reason = "the settings check their bindings")]
 fn grab_keys_of(
     rt: &mut Runtime<KeyAction>,
     bindings: &BTreeMap<String, KeyAction>,
     cube: CubeKeys,
     wanted: impl Fn(&str) -> bool,
+    swallow: bool,
 ) -> Result<(), ClientError> {
     let held = |action: &KeyAction| {
         !matches!(cube, CubeKeys::Flat | CubeKeys::Hosted) || !of_the_cube(action)
@@ -877,7 +879,10 @@ fn grab_keys_of(
             }
         }
     }
-    rt.grab_swallowed("Super", &KeyAction::Look(Look::Swallow))
+    if swallow {
+        rt.grab_swallowed("Super", &KeyAction::Look(Look::Swallow))?;
+    }
+    Ok(())
 }
 
 /// Changes the grabs to the keys with or without those of the cube. A
