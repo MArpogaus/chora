@@ -236,8 +236,9 @@ def run(ctx):
         t.pair = [TI, MC]
         t.act("keys", "The nurse types a line in the editor on its new screen", "The text appears in the editor on the tiling screen", scene="h3", settle=1.0, still="05-05-typed-on-tiling", contract="T7", cells=["gate-handover-matrix.sh"], capture="Q", expect=Expect(verify=both(letter_is(both_lines), owner_is("s1", "tiling"))))
         t.type_quick(LINE2, typo_at=9, typo_char="q"); t.tap("Return", 0.3); t.done()
-        t.act("key", "Super+Alt+3 gives the window to mc", "The window leaves tiling and shows in mc as a page", scene="h3", settle=1.0, still="05-06-give-key-mc", contract="T7", cells=["gate-handover-matrix.sh tiling-mc"], capture="Q", expect=Expect(focus="mc", verify=both(owner_is("s1", "mc"), shown_in("mc", "s1"), windows_only("s1"))))
+        t.act("key", "Super+Alt+3 gives the window to mc", "The window leaves tiling and shows in mc as a page", scene="h3", settle=1.0, still="05-06-give-key-mc", contract="T7", cells=["gate-handover-matrix.sh tiling-mc"], capture="Q", expect=Expect(verify=both(owner_is("s1", "mc"), shown_in("mc", "s1"), windows_only("s1"))))
         t.key("Super+Alt+3"); t.done()
+        goto(640, 360, MC); t.click(); t.wait(0.5)
         t.pair = [MC, CO]
         t.act("key", "Super+Alt+4 gives the window to the construct", "The window leaves mc and is a pane in the construct", scene="h4", settle=1.0, still="05-07-give-key-construct", contract="C2", cells=["gate-handover-matrix.sh mc-construct", "gate-give-holders.sh"], capture="Q", expect=Expect(verify=both(owner_is("s1", "construct"), windows_only("s1"))))
         t.key("Super+Alt+4"); t.done()

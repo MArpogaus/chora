@@ -160,8 +160,10 @@ impl Mc {
     /// `assistant.chat` of the HUD host: while it shows the chat on the
     /// output of mc, the margin column holds it: the notifications fold,
     /// the key list goes, and mc emits the box under the head `Chat` as
-    /// `mc.chat.slot {output, rect}`; `rect` is `null` when it closes.
-    fn chat_drawer(&mut self, data: &Value) -> Result<(), ClientError> {
+    /// `mc.chat.slot {output, rect}`; `rect` is `null` when it closes. As it
+    /// closes mc reads the pill again, which may have changed its width
+    /// meanwhile (rmmr2-3).
+    pub(crate) fn chat_drawer(&mut self, data: &Value) -> Result<(), ClientError> {
         let Some(output) = self.output.as_ref().map(|o| o.name.clone()) else {
             return Ok(());
         };
@@ -171,6 +173,9 @@ impl Mc {
             return Ok(());
         }
         self.chat = if open { Chat::Open } else { Chat::Closed };
+        if !open {
+            self.learn_rooms()?;
+        }
         self.render()?;
         let still_open = data.get("open").and_then(Value::as_bool) == Some(true);
         let mut ours = self.windows.values().chain(self.docks.values());

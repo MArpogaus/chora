@@ -127,6 +127,15 @@ impl Tiling {
         }
     }
 
+    /// Tells the panel at once when the word of the helper door changed,
+    /// with `SIGRTMIN+2` to waybar, which the helper module answers by
+    /// asking again; without a panel nothing happens.
+    pub(super) fn push_helper() {
+        if let Some(pid) = theme::companion("waybar", "waybar") {
+            theme::signal(pid, "RTMIN+2");
+        }
+    }
+
     /// Names the theme to the HUD host, which colours its panels, chat and
     /// question card by it.
     pub(super) fn name_theme(&mut self) -> Result<(), ClientError> {

@@ -89,6 +89,15 @@
 #   rooms-pill-status  rooms-pill right after status, on a fresh default
 #               host: the order that was red in the full run (flake-sofa r2)
 #
+#   pill-chat   with the column hidden and the chat open (Super+a), the state
+#               pill that the host moves clear of the chat panel never
+#               covers a text of the header: not the date, not the clock,
+#               with the mic on and muted (rmmr2-1)
+#
+#   clock-chat  with the column hidden and the mic muted, the clock of the
+#               header keeps its place as the chat opens (Super+a) and
+#               closes again (rmmr1-1, rmmr2-2)
+#
 # Usage: tests/gate-mc-sofa.sh   BIN: directory with the binaries
 #   THEME  light or dark (default dark)
 #   CELLS  a regular expression of the cells that run (default all)
@@ -697,6 +706,58 @@ cell_pill_clock() {
         fail "the state pill $word lies over the clock $clock when the column is hidden (rpx1-13)"
 }
 
+cell_pill_chat() {
+    local mic pill over
+    for mic in false true; do
+        key Super+Home
+        until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+        emit voice.state '{"state": "listening", "task": "", "said": "", "muted": {"mic": '"$mic"', "speaker": false}}'
+        until_ok 'ctl query id:hud-figure | jq -e "length > 0" >/dev/null' 20 || fail "the host draws no pill"
+        key Super+n
+        until_ok '! has_text "Back one step"' 20 || fail "Super+n does not hide the column"
+        key Super+a
+        until_ok 'ctl query id:hud-chat | jq -e "length > 0" >/dev/null' 20 || fail "Super+a opens no chat"
+        # shellcheck disable=SC2329 # until_ok evaluates its first argument
+        pill_over_header() {
+            pill=$(ctl query "owner:assistant" | jq -c "[.[] | select(.id == \"hud-word\" or .id == \"hud-figure\") | $shown | .rects | to_entries[0].value]")
+            over=$(ctl query "owner:mc kind:text" | jq -c --argjson p "$pill" \
+                "[.[] | $shown | select(.id | test(\"header\")) | .rects | to_entries[0].value | . as \$t |
+                 select(any(\$p[]; . as \$q | \$q[0] < \$t[0] + \$t[2] and \$t[0] < \$q[0] + \$q[2] and \$q[1] < \$t[1] + \$t[3] and \$t[1] < \$q[1] + \$q[3]))]")
+            [ "$over" = "[]" ]
+        }
+        until_ok 'pill_over_header' 20 || fail "the pill $pill lies over the header text $over with the chat open, mic muted $mic (rmmr2-1)"
+        shot "pill-chat-$mic"
+        key Escape
+        until_ok '! ctl query id:hud-chat | jq -e "length > 0" >/dev/null' 20 || fail "Escape does not close the chat"
+        key Super+n
+        until_ok 'has_text "Back one step"' 20 || fail "Super+n does not bring the column back"
+    done
+}
+
+cell_clock_chat() {
+    local at
+    key Super+Home
+    until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda: $(current)"
+    emit voice.state '{"state": "listening", "task": "", "said": "", "muted": {"mic": true, "speaker": false}}'
+    until_ok 'ctl query id:hud-badge | jq -e "length > 0" >/dev/null' 20 || fail "the host draws no badge of the muted mic"
+    key Super+n
+    until_ok '! has_text "Back one step"' 20 || fail "Super+n does not hide the column"
+    clock_x() {
+        ctl query "owner:mc kind:text" | jq -r "[.[] | $shown | select(.text | test(\"^[A-Z]+ [0-9]+ [A-Z]+ +[0-9]+:[0-9]+\$\"))][0].rects | to_entries[0].value[0]"
+    }
+    until_ok '[ "$(clock_x)" != null ]' 20 || fail "no clock in the header"
+    settled clock_x
+    at=$(clock_x)
+    key Super+a
+    until_ok 'ctl query id:hud-chat | jq -e "length > 0" >/dev/null' 20 || fail "Super+a opens no chat"
+    holds '[ "$(clock_x)" = "$at" ]' 2 || fail "the clock moves from $at to $(clock_x) as the chat opens, column hidden, mic muted (rmmr1-1)"
+    key Escape
+    until_ok '! ctl query id:hud-chat | jq -e "length > 0" >/dev/null' 20 || fail "Escape does not close the chat"
+    holds '[ "$(clock_x)" = "$at" ]' 2 || fail "the clock moves from $at to $(clock_x) as the chat closes (rmmr1-1)"
+    key Super+n
+    until_ok 'has_text "Back one step"' 20 || fail "Super+n does not bring the column back"
+}
+
 cell_helpers_empty() {
     local name words
     for name in $(ctl call mc agent.list '{}' | jq -r '.agents[].name'); do
@@ -809,7 +870,7 @@ run_cell() {
         failed+=("$name")
     fi
 }
-cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist keylist-click more launcher-theme volume-wheel page-end boil-lines page-edges pill-clock helpers-empty remote-back launcher-click-row rooms-card rooms-pill rooms-pill-status)
+cells=(remote wide door status empty-head answer answer-long pill alarm card-size launcher-none keylist keylist-click more launcher-theme volume-wheel page-end boil-lines page-edges pill-clock pill-chat clock-chat helpers-empty remote-back launcher-click-row rooms-card rooms-pill rooms-pill-status)
 for name in "${cells[@]}"; do
     run_cell "$name"
 done

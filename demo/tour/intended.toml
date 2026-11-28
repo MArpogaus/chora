@@ -10,27 +10,27 @@
 # --intended; a diff with no row is a regression.
 
 # 733967aa cannot run these: the replay of the handover chapter stops at handover.py:190, where
-# the row `xp-ctx-1-0` (the Send To row of the xp context menu, xp-give 22fead94) does not exist,
+# the row `xp-ctx-1-0` (the Send To row of the xp window menu, xp-give 4278d4cd) does not exist,
 # so no capture from the Send To act on was taken there (record-v9 r1).
 baseline_none = ["h2.Q", "h3.Q", "h3b.Q", "h4.Q", "h5.H50", "h6.Q", "h7.Q"]
 
 [[change]]
 act = "h2"
-cause = "xp-give Send To row (22fead94) (the Send To row `xp-ctx-1-0`, handover.py:190; r7 take, captures/h2.Q.png has no baseline, so no diff of it); open: the cited capture does not show the node as moved, so the row proves nothing yet (rtb7-3)"
+cause = "xp-give Send To row (4278d4cd: Send To in the window menu hands a window to a look) (the Send To row `xp-ctx-1-0`, handover.py:190; r7 take, captures/h2.Q.png has no baseline, so no diff of it); open: the cited capture does not show the node as moved, so the row proves nothing yet (rtb7-3)"
 kind = "meta"
 nodes = ["xp-ctx-1-0"]
 open = true
 
 [[change]]
 act = "h2"
-cause = "xp-give Send To row (22fead94) (the Send To row `xp-ctx-1-0`, handover.py:190; r7 take, captures/h2.Q.png has no baseline, so no diff of it); open: the cited capture does not show the node as moved, so the row proves nothing yet (rtb7-3)"
+cause = "xp-give Send To row (4278d4cd: Send To in the window menu hands a window to a look) (the Send To row `xp-ctx-1-0`, handover.py:190; r7 take, captures/h2.Q.png has no baseline, so no diff of it); open: the cited capture does not show the node as moved, so the row proves nothing yet (rtb7-3)"
 kind = "rect"
 nodes = ["xp-ctx-1-0"]
 open = true
 
 [[change]]
 act = "h2"
-cause = "xp-give Send To row (22fead94); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
+cause = "xp-give Send To row (4278d4cd: Send To in the window menu hands a window to a look); open: the row lists no nodes or boxes, so it proves nothing (rtb5-1)"
 kind = "added"
 # record-v9 r2: causes found by git log between 733967aa and the head (reports/record-v9.md r2).
 open = true
@@ -3625,7 +3625,7 @@ kind = "pixel"
 
 [[change]]
 act = "c5e"
-boxes = [[0, 0, 1280, 720], [759, 245, 37, 3], [808, 270, 33, 20], [809, 337, 21, 8], [817, 350, 13, 9], [817, 360, 12, 17]]
+boxes = [[759, 245, 37, 3], [808, 270, 33, 20], [809, 337, 21, 8], [817, 350, 13, 9], [817, 360, 12, 17]]
 cause = "8ca85eab, d78fc4bb the pager (rv9j-1); 62708d35 the bin; cfc805d4 Keys rests as a chip (co-42); f5bdc61f co-40 the start card (r1 take, captures/c5e.Q.png)"
 kind = "pixel"
 
@@ -4336,3 +4336,597 @@ act = "t7"
 boxes = [[896, 560, 368, 104]]
 cause = "c9ed1cfd the notice card (ti-22): the card of the tiling screenshot notice stands 896 to 1264 x 560 to 664 at Q+0.5, its slide-in differs by take (r2 takes 1 and 2, captures/t7.Q+0.5.png)"
 kind = "pixel"
+
+[[change]]
+act = "c2"
+cause = "5025dc47 stood back from a pane the bar tells Super Alt 2 Into face (co-79): the hint put-in and its separator, the bar grows by it (tour-rows r4 take, captures/c2.Q.png)"
+kind = "added"
+nodes = ["construct-hint-put-in", "construct-hints-put-in-keys-0", "construct-hints-put-in-keys-0-low", "construct-hints-put-in-keys-0-text", "construct-hints-put-in-keys-1", "construct-hints-put-in-keys-1-low", "construct-hints-put-in-keys-1-text", "construct-hints-put-in-keys-2", "construct-hints-put-in-keys-2-low", "construct-hints-put-in-keys-2-text", "construct-hints-put-in-word", "construct-hints-sep-4"]
+
+[[change]]
+act = "c2"
+boxes = [[118, 647, 1045, 42]]
+cause = "5025dc47 stood back from a pane the bar tells Super Alt 2 Into face (co-79): the hint put-in and its separator, the bar grows by it (tour-rows r4 take, captures/c2.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "c5c"
+cause = "75d4623e a pane dropped on the face at the front is placed there and the person steps in (rcr5-1, rcr5-2): stood-back chrome goes, the step-back hint comes (tour-rows r4 take, captures/c5c.H50.png)"
+kind = "visible"
+nodes = ["construct-cube-edge", "construct-cube-edge-glow", "construct-cube-face-1", "construct-cube-mirror-0", "construct-cube-mirror-1", "construct-mode-step-in", "construct-mode-step-in-text", "construct-mode-turn-left", "construct-mode-turn-left-text", "construct-mode-turn-right", "construct-mode-turn-right-text"]
+
+[[change]]
+act = "c5c"
+cause = "75d4623e a pane dropped on the face at the front is placed there and the person steps in (rcr5-1, rcr5-2): stood-back chrome goes, the step-back hint comes (tour-rows r4 take, captures/c5c.H50.png)"
+kind = "rect"
+nodes = ["construct-cube-edge", "construct-cube-edge-glow", "construct-cube-face-0", "construct-cube-face-1", "construct-cube-mirror-0", "construct-cube-mirror-1"]
+
+[[change]]
+act = "c5c"
+cause = "75d4623e a pane dropped on the face at the front is placed there and the person steps in (rcr5-1, rcr5-2): stood-back chrome goes, the step-back hint comes (tour-rows r4 take, captures/c5c.H50.png)"
+kind = "missing"
+nodes = ["construct-cube-float-0-s1", "construct-cube-float-0-s2", "construct-cube-float-1-s3", "construct-cube-float-1-s4", "construct-door-clock", "construct-door-clock-text", "construct-door-helper", "construct-door-helper-text", "construct-door-keys", "construct-door-keys-text", "construct-door-lock", "construct-door-lock-text", "construct-door-power", "construct-door-power-text", "construct-door-programs", "construct-door-programs-text", "construct-door-screenshot", "construct-door-screenshot-text", "construct-door-volume", "construct-door-volume-text", "construct-doors", "construct-doors-edge", "construct-doors-glass", "construct-doors-hi", "construct-doors-hit", "construct-doors-separator", "construct-doors-shadow", "construct-face-label", "construct-face-label-dot-0", "construct-face-label-dot-1", "construct-face-label-dot-2", "construct-face-label-dot-3", "construct-face-label-edge", "construct-face-label-glass", "construct-face-label-hi", "construct-face-label-name", "construct-face-label-shadow", "construct-face-label-words", "construct-hints-construct-mode-step-in-keys-0", "construct-hints-construct-mode-step-in-keys-0-low", "construct-hints-construct-mode-step-in-keys-0-text", "construct-hints-construct-mode-turn-left-keys-0", "construct-hints-construct-mode-turn-left-keys-0-low", "construct-hints-construct-mode-turn-left-keys-0-text", "construct-hints-construct-mode-turn-left-keys-1", "construct-hints-construct-mode-turn-left-keys-1-low", "construct-hints-construct-mode-turn-left-keys-1-text", "construct-hints-construct-mode-turn-left-keys-2", "construct-hints-construct-mode-turn-left-keys-2-low", "construct-hints-construct-mode-turn-left-keys-2-text", "construct-hints-construct-mode-turn-right-keys-0", "construct-hints-construct-mode-turn-right-keys-0-low", "construct-hints-construct-mode-turn-right-keys-0-text", "construct-hints-construct-mode-turn-right-keys-1", "construct-hints-construct-mode-turn-right-keys-1-low", "construct-hints-construct-mode-turn-right-keys-1-text", "construct-hints-construct-mode-turn-right-keys-2", "construct-hints-construct-mode-turn-right-keys-2-low", "construct-hints-construct-mode-turn-right-keys-2-text", "construct-hints-hi"]
+
+[[change]]
+act = "c5c"
+cause = "75d4623e a pane dropped on the face at the front is placed there and the person steps in (rcr5-1, rcr5-2): stood-back chrome goes, the step-back hint comes (tour-rows r4 take, captures/c5c.H50.png)"
+kind = "added"
+nodes = ["construct-hint-step-back", "construct-hints-step-back-keys-0", "construct-hints-step-back-keys-0-low", "construct-hints-step-back-keys-0-text", "construct-hints-step-back-keys-1", "construct-hints-step-back-keys-1-low", "construct-hints-step-back-keys-1-text", "construct-hints-step-back-word"]
+
+[[change]]
+act = "m1"
+cause = "859cf3fe page ends at the footer with no card, the more mark where the lines end (rv9ka-1): whole lines, the panel ends 21 px higher (tour-rows r4 take, captures/m1.Q.png)"
+kind = "rect"
+nodes = ["mc-s-ingredients-panels-list"]
+
+[[change]]
+act = "m10"
+cause = "675ebd55 the chat opens in the column (mc-v2 item 6) and its keys fold while it is open; the v8 replay opens no chat (tour-rows r4 take, captures/m10.Q+0.5.png)"
+kind = "missing"
+nodes = ["mc-r0-right-chat-door", "mc-r0-right-chat-door-hit", "mc-r0-right-chat-door-mark", "mc-r0-right-chat-key", "mc-r0-right-chat-state", "mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule"]
+
+[[change]]
+act = "m10"
+cause = "675ebd55 the chat opens in the column (mc-v2 item 6) and its keys fold while it is open; the v8 replay opens no chat (tour-rows r4 take, captures/m10.Q+0.5.png)"
+kind = "rect"
+nodes = ["mc-r1-right-chat-door", "mc-r1-right-chat-door-hit", "mc-r1-right-chat-door-mark", "mc-r1-right-chat-key", "mc-r1-right-chat-state"]
+
+[[change]]
+act = "m10"
+cause = "fa7faabd Home goes to the first page (mc-38); 80dbd0b4 the launcher opens, so its Escape turns no page: v9 stays on the agenda, the v8 replay on agents or the morning (tour-rows r4 take, captures/m10.Q+0.5.png)"
+kind = "rect"
+nodes = ["mc-s-agenda-chapter-bar", "mc-s-agenda-chapter-head-hit", "mc-s-agenda-chapter-head-mark", "mc-s-agenda-chapter-number", "mc-s-agenda-chapter-title", "mc-s-agenda-page", "mc-s-agenda-panels-today", "mc-s-agenda-panels-today-line-0", "mc-s-agenda-panels-today-line-1", "mc-s-agenda-panels-today-line-2", "mc-s-agenda-panels-today-line-3", "mc-s-agenda-panels-today-line-4", "mc-s-agenda-panels-today-note-0", "mc-s-agenda-panels-today-note-1", "mc-s-agenda-panels-today-note-2", "mc-s-agenda-panels-today-note-3", "mc-s-agenda-panels-today-note-4", "mc-s-agenda-panels-today-row-0-hit", "mc-s-agenda-panels-today-row-0-mark", "mc-s-agenda-panels-today-row-1-hit", "mc-s-agenda-panels-today-row-1-mark", "mc-s-agenda-panels-today-row-2-hit", "mc-s-agenda-panels-today-row-2-mark", "mc-s-agenda-panels-today-row-3-hit", "mc-s-agenda-panels-today-row-3-mark", "mc-s-agenda-panels-today-row-4-hit", "mc-s-agenda-panels-today-row-4-mark", "mc-s-agenda-panels-today-rule", "mc-s-agenda-wheel"]
+
+[[change]]
+act = "m10"
+cause = "fa7faabd Home goes to the first page (mc-38); 80dbd0b4 the launcher opens, so its Escape turns no page: v9 stays on the agenda, the v8 replay on agents or the morning (tour-rows r4 take, captures/m10.Q+0.5.png)"
+kind = "visible"
+nodes = ["mc-s-agenda"]
+
+[[change]]
+act = "m10"
+cause = "675ebd55 the chat opens in the column (mc-v2 item 6) and its keys fold while it is open; the v8 replay opens no chat (tour-rows r4 take, captures/m10.Q+0.5.png)"
+kind = "added"
+nodes = ["mc-r0-right-chat-close", "mc-r0-right-chat-close-hit", "mc-r0-right-chat-close-mark", "mc-r0-right-chat-slot"]
+
+[[change]]
+act = "m10"
+cause = "675ebd55 chora-notify shows the volume notice as a card, mc stacks none (tour-rows r4 take, captures/m10.Q+0.5.png)"
+kind = "added"
+nodes = ["notify-card", "notify-card-body", "notify-card-close"]
+
+[[change]]
+act = "m10"
+boxes = [[1144, 599, 120, 65]]
+cause = "675ebd55 chora-notify shows the volume notice as a card, mc stacks none (tour-rows r4 take, captures/m10.Q+0.5.png)"
+kind = "pixel"
+
+[[change]]
+act = "m1b"
+cause = "859cf3fe page ends at the footer with no card, the more mark where the lines end (rv9ka-1): whole lines, the panel ends 21 px higher (tour-rows r4 take, captures/m1b.Q.png)"
+kind = "rect"
+nodes = ["mc-s-ingredients-panels-list"]
+
+[[change]]
+act = "m1c"
+cause = "859cf3fe page ends at the footer with no card, the more mark where the lines end (rv9ka-1): whole lines, the panel ends 21 px higher (tour-rows r4 take, captures/m1c.Q.png)"
+kind = "rect"
+nodes = ["mc-s-boil-panels-side"]
+
+[[change]]
+act = "m4"
+cause = "859cf3fe page ends at the footer with no card, the more mark where the lines end (rv9ka-1): whole lines, the panel ends 21 px higher (tour-rows r4 take, captures/m4.Q.png)"
+kind = "rect"
+nodes = ["mc-s-sauce-panels-side", "mc-s-sauce-panels-side-lines"]
+
+[[change]]
+act = "m4b"
+cause = "859cf3fe page ends at the footer with no card, the more mark where the lines end (rv9ka-1): whole lines, the panel ends 21 px higher (tour-rows r4 take, captures/m4b.Q.png)"
+kind = "rect"
+nodes = ["mc-s-boil-panels-side"]
+
+[[change]]
+act = "m6"
+cause = "4363de11 the key list names the scroll keys beside Home (rpe-1): the row Up Down Scroll the page shifts the rows after it by one (tour-rows r4 take, captures/m6.Q.png)"
+kind = "missing"
+nodes = ["mc-r1-right-keys-13-key-hit", "mc-r1-right-keys-13-key-mark", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark"]
+
+[[change]]
+act = "m6"
+cause = "4363de11 the key list names the scroll keys beside Home (rpe-1): the row Up Down Scroll the page shifts the rows after it by one (tour-rows r4 take, captures/m6.Q.png)"
+kind = "rect"
+nodes = ["mc-r1-right-keys-6-key-mark"]
+
+[[change]]
+act = "m6"
+cause = "4363de11 the key list names the scroll keys beside Home (rpe-1): the row Up Down Scroll the page shifts the rows after it by one (tour-rows r4 take, captures/m6.Q.png)"
+kind = "added"
+nodes = ["mc-r1-right-keys-19-key-hit", "mc-r1-right-keys-19-key-mark", "mc-r1-right-keys-20-key", "mc-r1-right-keys-20-words"]
+
+[[change]]
+act = "m6b"
+cause = "4363de11 the key list names the scroll keys beside Home (rpe-1): the row Up Down Scroll the page shifts the rows after it by one (tour-rows r4 take, captures/m6b.Q.png)"
+kind = "missing"
+nodes = ["mc-r1-right-keys-13-key-hit", "mc-r1-right-keys-13-key-mark", "mc-r1-right-keys-3-key-hit", "mc-r1-right-keys-3-key-mark"]
+
+[[change]]
+act = "m6b"
+cause = "4363de11 the key list names the scroll keys beside Home (rpe-1): the row Up Down Scroll the page shifts the rows after it by one (tour-rows r4 take, captures/m6b.Q.png)"
+kind = "added"
+nodes = ["mc-r1-right-keys-19-key-hit", "mc-r1-right-keys-19-key-mark", "mc-r1-right-keys-20-key", "mc-r1-right-keys-20-words"]
+
+[[change]]
+act = "m8b"
+cause = "675ebd55 notices out of the column, the region slot of the column flips by take (rv9j-2, PM decision 11-24); bb3de644 the cross-fade double buffer (mc-48) (tour-rows r4 take, captures/m8b.Q.png)"
+kind = "rect"
+nodes = ["mc-r0-footer-next", "mc-r0-footer-next-hit", "mc-r0-footer-next-mark", "mc-r0-footer-prev", "mc-r0-footer-prev-hit", "mc-r0-footer-prev-mark", "mc-r0-header-clock", "mc-r0-header-head", "mc-r0-right-doors-lock", "mc-r0-right-doors-lock-hit", "mc-r0-right-doors-lock-mark", "mc-r0-right-doors-power", "mc-r0-right-doors-power-hit", "mc-r0-right-doors-power-mark", "mc-r0-right-doors-programs", "mc-r0-right-doors-programs-hit", "mc-r0-right-doors-programs-mark", "mc-r0-right-doors-screenshot", "mc-r0-right-doors-screenshot-hit", "mc-r0-right-doors-screenshot-mark", "mc-r0-right-doors-volume", "mc-r0-right-doors-volume-hit", "mc-r0-right-doors-volume-mark", "mc-r0-right-edge", "mc-r0-right-state", "mc-r1-footer-next", "mc-r1-footer-next-hit", "mc-r1-footer-next-mark", "mc-r1-footer-prev", "mc-r1-footer-prev-hit", "mc-r1-footer-prev-mark", "mc-r1-header-clock", "mc-r1-right-doors-lock", "mc-r1-right-doors-lock-hit", "mc-r1-right-doors-lock-mark", "mc-r1-right-doors-power", "mc-r1-right-doors-power-hit", "mc-r1-right-doors-power-mark", "mc-r1-right-doors-programs", "mc-r1-right-doors-programs-hit", "mc-r1-right-doors-programs-mark", "mc-r1-right-doors-screenshot", "mc-r1-right-doors-screenshot-hit", "mc-r1-right-doors-screenshot-mark", "mc-r1-right-doors-volume", "mc-r1-right-doors-volume-hit", "mc-r1-right-doors-volume-mark", "mc-r1-right-edge", "mc-r1-right-state"]
+
+[[change]]
+act = "m8b"
+cause = "675ebd55 the chat opens in the column (mc-v2 item 6) and its keys fold while it is open; the v8 replay opens no chat (tour-rows r4 take, captures/m8b.Q.png)"
+kind = "rect"
+nodes = ["mc-r0-right-chat-door", "mc-r0-right-chat-door-hit", "mc-r0-right-chat-door-mark", "mc-r0-right-chat-key", "mc-r0-right-chat-state", "mc-r0-right-chat-title"]
+
+[[change]]
+act = "m8b"
+cause = "fa7faabd Home goes to the first page (mc-38); 80dbd0b4 the launcher opens, so its Escape turns no page: v9 stays on the agenda, the v8 replay on agents or the morning (tour-rows r4 take, captures/m8b.Q.png)"
+kind = "rect"
+nodes = ["mc-s-agenda-chapter-bar", "mc-s-agenda-chapter-head-hit", "mc-s-agenda-chapter-head-mark", "mc-s-agenda-chapter-number", "mc-s-agenda-chapter-title", "mc-s-agenda-page", "mc-s-agenda-panels-today", "mc-s-agenda-panels-today-line-0", "mc-s-agenda-panels-today-line-1", "mc-s-agenda-panels-today-line-2", "mc-s-agenda-panels-today-line-3", "mc-s-agenda-panels-today-line-4", "mc-s-agenda-panels-today-note-0", "mc-s-agenda-panels-today-note-1", "mc-s-agenda-panels-today-note-2", "mc-s-agenda-panels-today-note-3", "mc-s-agenda-panels-today-note-4", "mc-s-agenda-panels-today-row-0-hit", "mc-s-agenda-panels-today-row-0-mark", "mc-s-agenda-panels-today-row-1-hit", "mc-s-agenda-panels-today-row-1-mark", "mc-s-agenda-panels-today-row-2-hit", "mc-s-agenda-panels-today-row-2-mark", "mc-s-agenda-panels-today-row-3-hit", "mc-s-agenda-panels-today-row-3-mark", "mc-s-agenda-panels-today-row-4-hit", "mc-s-agenda-panels-today-row-4-mark", "mc-s-agenda-panels-today-rule", "mc-s-agenda-wheel", "mc-s-agents-chapter-bar", "mc-s-agents-chapter-head-mark", "mc-s-agents-chapter-number"]
+
+[[change]]
+act = "m8b"
+cause = "675ebd55 notices out of the column, the region slot of the column flips by take (rv9j-2, PM decision 11-24); bb3de644 the cross-fade double buffer (mc-48) (tour-rows r4 take, captures/m8b.Q.png)"
+kind = "visible"
+nodes = ["mc-regions-0", "mc-regions-1"]
+
+[[change]]
+act = "m8b"
+cause = "fa7faabd Home goes to the first page (mc-38); 80dbd0b4 the launcher opens, so its Escape turns no page: v9 stays on the agenda, the v8 replay on agents or the morning (tour-rows r4 take, captures/m8b.Q.png)"
+kind = "visible"
+nodes = ["mc-s-agenda", "mc-s-agents"]
+
+[[change]]
+act = "m8b"
+boxes = [[201, 98, 4, 33]]
+cause = "fa7faabd Home goes to the first page (mc-38); 80dbd0b4 the launcher opens, so its Escape turns no page: v9 stays on the agenda, the v8 replay on agents or the morning (tour-rows r4 take, captures/m8b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "m9"
+cause = "675ebd55 the chat opens in the column (mc-v2 item 6) and its keys fold while it is open; the v8 replay opens no chat (tour-rows r4 take, captures/m9.Q.png)"
+kind = "missing"
+nodes = ["mc-r0-right-chat-door", "mc-r0-right-chat-door-hit", "mc-r0-right-chat-door-mark", "mc-r0-right-chat-key", "mc-r0-right-chat-state", "mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule"]
+
+[[change]]
+act = "m9"
+cause = "fa7faabd Home goes to the first page (mc-38); 80dbd0b4 the launcher opens, so its Escape turns no page: v9 stays on the agenda, the v8 replay on agents or the morning (tour-rows r4 take, captures/m9.Q.png)"
+kind = "visible"
+nodes = ["mc-s-agenda", "mc-s-agents"]
+
+[[change]]
+act = "m9"
+cause = "fa7faabd Home goes to the first page (mc-38); 80dbd0b4 the launcher opens, so its Escape turns no page: v9 stays on the agenda, the v8 replay on agents or the morning (tour-rows r4 take, captures/m9.Q.png)"
+kind = "rect"
+nodes = ["mc-s-agenda-chapter-bar", "mc-s-agenda-chapter-head-hit", "mc-s-agenda-chapter-head-mark", "mc-s-agenda-chapter-number", "mc-s-agenda-chapter-title", "mc-s-agenda-page", "mc-s-agenda-panels-today", "mc-s-agenda-panels-today-line-0", "mc-s-agenda-panels-today-line-1", "mc-s-agenda-panels-today-line-2", "mc-s-agenda-panels-today-line-3", "mc-s-agenda-panels-today-line-4", "mc-s-agenda-panels-today-note-0", "mc-s-agenda-panels-today-note-1", "mc-s-agenda-panels-today-note-2", "mc-s-agenda-panels-today-note-3", "mc-s-agenda-panels-today-note-4", "mc-s-agenda-panels-today-row-0-hit", "mc-s-agenda-panels-today-row-0-mark", "mc-s-agenda-panels-today-row-1-hit", "mc-s-agenda-panels-today-row-1-mark", "mc-s-agenda-panels-today-row-2-hit", "mc-s-agenda-panels-today-row-2-mark", "mc-s-agenda-panels-today-row-3-hit", "mc-s-agenda-panels-today-row-3-mark", "mc-s-agenda-panels-today-row-4-hit", "mc-s-agenda-panels-today-row-4-mark", "mc-s-agenda-panels-today-rule", "mc-s-agenda-wheel", "mc-s-agents-chapter-bar", "mc-s-agents-chapter-head-mark", "mc-s-agents-chapter-number", "mc-s-agents-panels-agent-1", "mc-s-agents-panels-agent-1-lines", "mc-s-agents-panels-agent-1-title", "mc-s-agents-panels-band-1-lines"]
+
+[[change]]
+act = "m9"
+cause = "675ebd55 the chat opens in the column (mc-v2 item 6) and its keys fold while it is open; the v8 replay opens no chat (tour-rows r4 take, captures/m9.Q.png)"
+kind = "added"
+nodes = ["mc-r0-right-chat-close", "mc-r0-right-chat-close-hit", "mc-r0-right-chat-close-mark", "mc-r0-right-chat-slot"]
+
+[[change]]
+act = "m9"
+boxes = [[201, 98, 4, 33]]
+cause = "fa7faabd Home goes to the first page (mc-38); 80dbd0b4 the launcher opens, so its Escape turns no page: v9 stays on the agenda, the v8 replay on agents or the morning (tour-rows r4 take, captures/m9.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "m9b"
+cause = "675ebd55 the chat opens in the column (mc-v2 item 6) and its keys fold while it is open; the v8 replay opens no chat (tour-rows r4 take, captures/m9b.Q.png)"
+kind = "missing"
+nodes = ["mc-r0-right-chat-door", "mc-r0-right-chat-door-hit", "mc-r0-right-chat-door-mark", "mc-r0-right-chat-key", "mc-r0-right-chat-state", "mc-r0-right-keys-0-key", "mc-r0-right-keys-0-key-hit", "mc-r0-right-keys-0-key-mark", "mc-r0-right-keys-0-words", "mc-r0-right-keys-1-key", "mc-r0-right-keys-1-key-hit", "mc-r0-right-keys-1-key-mark", "mc-r0-right-keys-1-words", "mc-r0-right-keys-2-key", "mc-r0-right-keys-2-key-hit", "mc-r0-right-keys-2-key-mark", "mc-r0-right-keys-2-words", "mc-r0-right-keys-3-key", "mc-r0-right-keys-3-key-hit", "mc-r0-right-keys-3-key-mark", "mc-r0-right-keys-3-words", "mc-r0-right-keys-4-key", "mc-r0-right-keys-4-key-hit", "mc-r0-right-keys-4-key-mark", "mc-r0-right-keys-4-words", "mc-r0-right-keys-5-key", "mc-r0-right-keys-5-words", "mc-r0-right-keys-title", "mc-r0-right-keys-title-rule"]
+
+[[change]]
+act = "m9b"
+cause = "675ebd55 the chat opens in the column (mc-v2 item 6) and its keys fold while it is open; the v8 replay opens no chat (tour-rows r4 take, captures/m9b.Q.png)"
+kind = "rect"
+nodes = ["mc-r1-right-chat-door", "mc-r1-right-chat-door-hit", "mc-r1-right-chat-door-mark", "mc-r1-right-chat-key", "mc-r1-right-chat-state"]
+
+[[change]]
+act = "m9b"
+cause = "fa7faabd Home goes to the first page (mc-38); 80dbd0b4 the launcher opens, so its Escape turns no page: v9 stays on the agenda, the v8 replay on agents or the morning (tour-rows r4 take, captures/m9b.Q.png)"
+kind = "rect"
+nodes = ["mc-s-agenda-chapter-bar", "mc-s-agenda-chapter-head-hit", "mc-s-agenda-chapter-head-mark", "mc-s-agenda-chapter-number", "mc-s-agenda-chapter-title", "mc-s-agenda-page", "mc-s-agenda-panels-today", "mc-s-agenda-panels-today-line-0", "mc-s-agenda-panels-today-line-1", "mc-s-agenda-panels-today-line-2", "mc-s-agenda-panels-today-line-3", "mc-s-agenda-panels-today-line-4", "mc-s-agenda-panels-today-note-0", "mc-s-agenda-panels-today-note-1", "mc-s-agenda-panels-today-note-2", "mc-s-agenda-panels-today-note-3", "mc-s-agenda-panels-today-note-4", "mc-s-agenda-panels-today-row-0-hit", "mc-s-agenda-panels-today-row-0-mark", "mc-s-agenda-panels-today-row-1-hit", "mc-s-agenda-panels-today-row-1-mark", "mc-s-agenda-panels-today-row-2-hit", "mc-s-agenda-panels-today-row-2-mark", "mc-s-agenda-panels-today-row-3-hit", "mc-s-agenda-panels-today-row-3-mark", "mc-s-agenda-panels-today-row-4-hit", "mc-s-agenda-panels-today-row-4-mark", "mc-s-agenda-panels-today-rule", "mc-s-agenda-wheel"]
+
+[[change]]
+act = "m9b"
+cause = "fa7faabd Home goes to the first page (mc-38); 80dbd0b4 the launcher opens, so its Escape turns no page: v9 stays on the agenda, the v8 replay on agents or the morning (tour-rows r4 take, captures/m9b.Q.png)"
+kind = "visible"
+nodes = ["mc-s-agenda"]
+
+[[change]]
+act = "m9b"
+cause = "675ebd55 the chat opens in the column (mc-v2 item 6) and its keys fold while it is open; the v8 replay opens no chat (tour-rows r4 take, captures/m9b.Q.png)"
+kind = "added"
+nodes = ["mc-r0-right-chat-close", "mc-r0-right-chat-close-hit", "mc-r0-right-chat-close-mark", "mc-r0-right-chat-slot"]
+
+[[change]]
+act = "x1"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x1.Q.png)"
+kind = "added"
+nodes = ["hud-line-tail"]
+
+[[change]]
+act = "x10"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x10.Q.png)"
+kind = "added"
+nodes = ["hud-line-tail"]
+
+[[change]]
+act = "x10b"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x10b.Q.png)"
+kind = "added"
+nodes = ["hud-line-tail"]
+
+[[change]]
+act = "x10c"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x10c.Q.png)"
+kind = "added"
+nodes = ["hud-line-tail"]
+
+[[change]]
+act = "x11"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x11.Q.png)"
+kind = "added"
+nodes = ["hud-line-tail"]
+
+[[change]]
+act = "x11b"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x11b.Q.png)"
+kind = "added"
+nodes = ["hud-line-tail"]
+
+[[change]]
+act = "x12"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x12.H50.png)"
+kind = "added"
+nodes = ["hud-line-tail"]
+
+[[change]]
+act = "x12b"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x12b.Q.png)"
+kind = "added"
+nodes = ["hud-line-tail"]
+
+[[change]]
+act = "x12c"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x12c.H50.png)"
+kind = "added"
+nodes = ["hud-line-tail"]
+
+[[change]]
+act = "x2"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x2.Q.png)"
+kind = "added"
+nodes = ["hud-line-tail"]
+
+[[change]]
+act = "x2b"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x2b.Q.png)"
+kind = "added"
+nodes = ["hud-line-tail"]
+
+[[change]]
+act = "x2c"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x2c.Q.png)"
+kind = "added"
+nodes = ["hud-line-tail"]
+
+[[change]]
+act = "x3"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x3.Q.png)"
+kind = "added"
+nodes = ["hud-line-tail"]
+
+[[change]]
+act = "x4"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x4.H50.png)"
+kind = "added"
+nodes = ["hud-line-tail"]
+
+[[change]]
+act = "x5"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x5.Q.png)"
+kind = "added"
+nodes = ["hud-chat-tail", "hud-line-tail"]
+
+[[change]]
+act = "x5b"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x5b.Q.png)"
+kind = "added"
+nodes = ["hud-chat-tail", "hud-line-tail"]
+
+[[change]]
+act = "x5c"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x5c.Q.png)"
+kind = "added"
+nodes = ["hud-chat-tail", "hud-line-tail"]
+
+[[change]]
+act = "x5d"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x5d.Q+1.png)"
+kind = "added"
+nodes = ["hud-chat-tail", "hud-line-tail"]
+
+[[change]]
+act = "x5e"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x5e.Q.png)"
+kind = "added"
+nodes = ["hud-line-tail"]
+
+[[change]]
+act = "x5f"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x5f.Q.png)"
+kind = "added"
+nodes = ["hud-chat-tail", "hud-line-tail"]
+
+[[change]]
+act = "x5g"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x5g.Q.png)"
+kind = "added"
+nodes = ["hud-line-tail"]
+
+[[change]]
+act = "x6"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x6.Q.png)"
+kind = "added"
+nodes = ["hud-chat-tail", "hud-line-tail"]
+
+[[change]]
+act = "x6b"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x6b.Q.png)"
+kind = "added"
+nodes = ["hud-chat-tail", "hud-line-tail"]
+
+[[change]]
+act = "x6c"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x6c.Q.png)"
+kind = "added"
+nodes = ["hud-chat-tail", "hud-line-tail"]
+
+[[change]]
+act = "x6d"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x6d.Q+1.png)"
+kind = "added"
+nodes = ["hud-chat-tail", "hud-line-tail"]
+
+[[change]]
+act = "x6e"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x6e.Q.png)"
+kind = "added"
+nodes = ["hud-line-tail"]
+
+[[change]]
+act = "x7"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x7.Q.png)"
+kind = "added"
+nodes = ["hud-line-tail"]
+
+[[change]]
+act = "x7b"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x7b.Q.png)"
+kind = "added"
+nodes = ["hud-line-tail"]
+
+[[change]]
+act = "x8"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x8.Q+0.5.png)"
+kind = "added"
+nodes = ["hud-line-tail"]
+
+[[change]]
+act = "x9"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x9.Q.png)"
+kind = "added"
+nodes = ["hud-line-tail"]
+
+[[change]]
+act = "x9b"
+cause = "e4157dbd leaning tail of the balloon is a node of its own, the tip ends over the paperclip head (rv9kb-2) (tour-rows r4 take, captures/x9b.Q.png)"
+kind = "added"
+nodes = ["hud-line-tail"]
+
+[[change]]
+act = "m2"
+cause = "c3925fc5 a panel takes whole lines at the page edge: the lead panel 280 -> 287 px, the side panel 136 -> 30 px (rtr4-1, fix r2 take, captures/m2.Q.png)"
+kind = "rect"
+nodes = ["mc-s-boil-panels-lead", "mc-s-boil-panels-lead-lines", "mc-s-boil-panels-side", "mc-s-boil-panels-side-lines"]
+
+[[change]]
+act = "m2"
+cause = "c3925fc5 the side panel ends at the page edge on whole lines: one line of 28 px of its 2 shows, the cut check still counts it (rtr4-1, fix r2 take, captures/m2.Q.png)"
+kind = "cut"
+nodes = ["mc-s-boil-panels-side-lines"]
+
+[[change]]
+act = "m2b"
+cause = "c3925fc5 a panel takes whole lines at the page edge: the lead panel 280 -> 287 px, the side panel 136 -> 30 px (rtr4-1, fix r2 take, captures/m2b.Q+1.png)"
+kind = "rect"
+nodes = ["mc-s-boil-panels-lead", "mc-s-boil-panels-lead-lines", "mc-s-boil-panels-side", "mc-s-boil-panels-side-lines"]
+
+[[change]]
+act = "m2b"
+cause = "c3925fc5 the side panel ends at the page edge on whole lines: one line of 28 px of its 2 shows, the cut check still counts it (rtr4-1, fix r2 take, captures/m2b.Q+1.png)"
+kind = "cut"
+nodes = ["mc-s-boil-panels-side-lines"]
+
+[[change]]
+act = "m3"
+cause = "c3925fc5 a panel takes whole lines at the page edge: the lead panel 280 -> 287 px, the side panel 136 -> 30 px (rtr4-1, fix r2 take, captures/m3.Q.png)"
+kind = "rect"
+nodes = ["mc-s-boil-panels-lead", "mc-s-boil-panels-lead-lines", "mc-s-boil-panels-side", "mc-s-boil-panels-side-lines"]
+
+[[change]]
+act = "m3"
+cause = "c3925fc5 the side panel ends at the page edge on whole lines: one line of 28 px of its 2 shows, the cut check still counts it (rtr4-1, fix r2 take, captures/m3.Q.png)"
+kind = "cut"
+nodes = ["mc-s-boil-panels-side-lines"]
+
+[[change]]
+act = "c2b"
+boxes = [[179, 647, 922, 42]]
+cause = "7f519bc8 a face names the pull key (Super Alt 4 Pull out); f5bdc61f the hint All keys (Super F1); cfc805d4 Keys rests as a chip: the bar of a face has two groups more than v8 and its pill is 922 px wide (r5 take, captures/c2b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "c3d"
+boxes = [[179, 647, 922, 42]]
+cause = "7f519bc8 a face names the pull key (Super Alt 4 Pull out); f5bdc61f the hint All keys (Super F1); cfc805d4 Keys rests as a chip: the bar of a face has two groups more than v8 and its pill is 922 px wide (r5 take, captures/c3d.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "c4b"
+boxes = [[179, 647, 922, 42]]
+cause = "7f519bc8 a face names the pull key (Super Alt 4 Pull out); f5bdc61f the hint All keys (Super F1); cfc805d4 Keys rests as a chip: the bar of a face has two groups more than v8 and its pill is 922 px wide (r5 take, captures/c4b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "c3b"
+boxes = [[280, 647, 720, 42]]
+cause = "f5bdc61f the hint All keys (Super F1); cfc805d4 Keys rests as a chip: the bar has one group more than v8 and its pill is 720 px wide (r5 take, captures/c3b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "c3c"
+boxes = [[280, 647, 720, 42]]
+cause = "f5bdc61f the hint All keys (Super F1); cfc805d4 Keys rests as a chip: the bar has one group more than v8 and its pill is 720 px wide (r5 take, captures/c3c.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "c3d"
+boxes = [[446, 355, 182, 144]]
+cause = "83033ed6 a cube frees the keys of a window it covers (co-46): the sunset window is not the focused window of the core in v9 (focused in v8); f1693fb3 an inactive title reads with the title shadow (xp-41), so its title bar is pale (r5 take, captures/c3d.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "c4b"
+boxes = [[446, 355, 182, 144]]
+cause = "83033ed6 a cube frees the keys of a window it covers (co-46): the sunset window is not the focused window of the core in v9 (focused in v8); f1693fb3 an inactive title reads with the title shadow (xp-41), so its title bar is pale (r5 take, captures/c4b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "c4"
+boxes = [[27, 58, 1226, 632]]
+cause = "f5bdc61f F1 opens the key list, stood back; d590aae6 the sheet is 1200 wide in three columns (co-71); 822d5be4, 369cf96f, 142260b9 its columns and rows: v8 shows no sheet, v9 stands the sheet over the cube (r5 take, captures/c4.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "m1"
+cause = "c3925fc5 a panel takes whole lines at the page edge: the lead panel is 287 px for 10 whole lines of 28 (v8: 280 px, the last line cut at 273) (r5 take, captures/m1.Q.png)"
+kind = "rect"
+nodes = ["mc-s-ingredients-panels-lead"]
+
+[[change]]
+act = "m1b"
+cause = "c3925fc5 a panel takes whole lines at the page edge: the lead panel is 287 px for 10 whole lines of 28 (v8: 280 px, the last line cut at 273) (r5 take, captures/m1b.Q.png)"
+kind = "rect"
+nodes = ["mc-s-ingredients-panels-lead"]
+
+[[change]]
+act = "m1c"
+cause = "c3925fc5 a panel takes whole lines at the page edge: the lead panel is 287 px for 10 whole lines of 28 (v8: 280 px, the last line cut at 273) (r5 take, captures/m1c.Q.png)"
+kind = "rect"
+nodes = ["mc-s-boil-panels-lead", "mc-s-boil-panels-lead-lines"]
+
+[[change]]
+act = "m4"
+cause = "c3925fc5 a panel takes whole lines at the page edge: the lead panel is 287 px for 10 whole lines of 28 (v8: 280 px, the last line cut at 273) (r5 take, captures/m4.Q.png)"
+kind = "rect"
+nodes = ["mc-s-sauce-panels-lead", "mc-s-sauce-panels-lead-lines"]
+
+[[change]]
+act = "m4b"
+cause = "c3925fc5 a panel takes whole lines at the page edge: the lead panel is 287 px for 10 whole lines of 28 (v8: 280 px, the last line cut at 273) (r5 take, captures/m4b.Q.png)"
+kind = "rect"
+nodes = ["mc-s-boil-panels-lead", "mc-s-boil-panels-lead-lines"]
+
+[[change]]
+act = "t3f"
+boxes = [[12, 8, 526, 32]]
+cause = "e6afbf97 the layout word has a chip of its own, centred in it (tiling-chip-r1): the left island of the bar changes its outline and widths (r5 take, captures/t3f.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "t5"
+boxes = [[12, 8, 526, 32]]
+cause = "e6afbf97 the layout word has a chip of its own, centred in it (tiling-chip-r1): the left island of the bar changes its outline and widths (r5 take, captures/t5.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "t6"
+boxes = [[12, 8, 526, 32]]
+cause = "e6afbf97 the layout word has a chip of its own, centred in it (tiling-chip-r1): the left island of the bar changes its outline and widths (r5 take, captures/t6.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "t6b"
+boxes = [[12, 8, 526, 32]]
+cause = "e6afbf97 the layout word has a chip of its own, centred in it (tiling-chip-r1): the left island of the bar changes its outline and widths (r5 take, captures/t6b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "t6c"
+boxes = [[12, 8, 526, 32]]
+cause = "e6afbf97 the layout word has a chip of its own, centred in it (tiling-chip-r1): the left island of the bar changes its outline and widths (r5 take, captures/t6c.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "t6d"
+boxes = [[12, 8, 526, 32]]
+cause = "e6afbf97 the layout word has a chip of its own, centred in it (tiling-chip-r1): the left island of the bar changes its outline and widths (r5 take, captures/t6d.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "t7"
+boxes = [[12, 8, 526, 32]]
+cause = "e6afbf97 the layout word has a chip of its own, centred in it (tiling-chip-r1): the left island of the bar changes its outline and widths (r5 take, captures/t7.Q+0.5.png)"
+kind = "pixel"
+
+[[change]]
+act = "t10c"
+boxes = [[12, 8, 526, 32]]
+cause = "e6afbf97 the layout word has a chip of its own, centred in it (tiling-chip-r1): the left island of the bar changes its outline and widths (r5 take, captures/t10c.Q+0.5.png)"
+kind = "pixel"
+
+[[change]]
+act = "x1"
+boxes = [[1067, 559, 166, 19]]
+cause = "4fec75c3 the paperclip greets once at the first start; e4157dbd, d3d28cfa its balloon has a wedge tail of its own (node hud-line-tail, 166 x 19 at 1067, 559): v8 has neither, so no node and no pixel (r5 take, captures/x1.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x5b"
+cause = "88951ae4 a send shows Working and Stop at once: the header of the chat reads Atlas, Working where v8 read Atlas, Idle (r5 take, captures/x5b.Q.png)"
+kind = "meta"
+nodes = ["hud-chat"]

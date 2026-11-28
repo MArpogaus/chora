@@ -28,7 +28,7 @@ mkdir -p "$home"
 session_start 1280x800 -- "$bin/chora-tiling" --no-companions
 grant screen.capture methods.call
 shot=$XDG_CONFIG_HOME/notice.png
-ctl capture --output HEADLESS-1 "$shot" >/dev/null || fail "the capture"
+ctl capture --output HEADLESS-1 "$shot" >/dev/null || fail "the capture: $(core_diag)"
 before=$(pixel "$shot" 1000 700)
 
 HOME=$home XDG_PICTURES_DIR=$home/Pictures LC_ALL=C setsid dbus-run-session -- sh -c '

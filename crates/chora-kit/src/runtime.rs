@@ -162,7 +162,7 @@ pub struct Runtime<A> {
     pub(crate) said: bool,
     /// Makes the action of a give key; none when the plugin has no give
     /// keys.
-    give_keys: Option<fn(&'static str) -> A>,
+    pub(crate) give_keys: Option<fn(&'static str) -> A>,
     /// The last try to grab give keys that another client held.
     give_tried: Option<Instant>,
     /// Whether a key of `input.inject` runs a binding (test sessions).
@@ -266,7 +266,9 @@ impl<A> Runtime<A> {
     }
 
     /// Grabs the give keys that the plugin does not hold; a key that
-    /// another client holds stays free for the next try.
+    /// another client holds stays free for the next try. A give key that
+    /// the plugin holds as a swallow, because it came before the give
+    /// keys were set, becomes a give key.
     ///
     /// # Errors
     ///
@@ -280,6 +282,10 @@ impl<A> Runtime<A> {
                 continue;
             };
             let text = binding.to_string();
+            if self.swallowed.contains(&text) {
+                self.grab(binding, make(to))?;
+                continue;
+            }
             if self.grabs.iter().any(|(b, _)| *b == text) {
                 continue;
             }

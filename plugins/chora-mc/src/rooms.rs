@@ -9,8 +9,11 @@ use serde_json::{Value, json};
 
 use crate::{ClientError, Mc, region::Region};
 
-/// The nodes of the pill of the HUD host: its word and its mark.
-const PILL: [&str; 2] = ["hud-word", "hud-figure"];
+/// The nodes of the pill of the HUD host: its word and its mark, and the
+/// badge of a muted mic, which is wider than the word.
+const PILL: [&str; 3] = ["hud-word", "hud-figure", BADGE];
+/// The badge of a muted mic in the pill.
+const BADGE: &str = "hud-badge";
 /// The most of the height of the output that a card at the foot may take;
 /// a card higher up stands in the middle or at the top, not at the foot.
 const MOST_OF_HEIGHT: f64 = 3.0;
@@ -26,6 +29,20 @@ pub(crate) struct Rooms {
     /// whole when it closed (rv9ka-1); a card that fits the footer room
     /// never moves the pages (rmm2-2).
     pub card: Option<f64>,
+}
+
+/// The left edge of the leftmost node of the HUD host in `PILL` that
+/// `rect` finds.
+fn leftmost(
+    mut rect: impl FnMut(&str) -> Result<Option<[f64; 4]>, ClientError>,
+) -> Result<Option<f64>, ClientError> {
+    let mut left: Option<f64> = None;
+    for id in PILL {
+        if let Some([x, ..]) = rect(id)? {
+            left = Some(left.map_or(x, |left| left.min(x)));
+        }
+    }
+    Ok(left)
 }
 
 impl Mc {
@@ -46,7 +63,7 @@ impl Mc {
     /// at the output width `width` when the host draws none.
     pub(crate) fn header_end(&self, width: f64) -> f64 {
         let baseline = self.settings.value.scale.baseline;
-        self.rooms.pill_left.map_or(width, |left| left - baseline)
+        (self.rooms.pill_left).map_or(width, |left| left - baseline)
     }
 
     /// The top of the pages in output coordinates: where the text block of
@@ -56,6 +73,19 @@ impl Mc {
         first
             .and_then(|name| self.geometry(name))
             .map_or(0.0, |geo| geo.text[1])
+    }
+
+    /// The left edge of the pill. While the chat is open the host moves
+    /// the word of the pill into it for a moment (Super+a): the edge read
+    /// before stays, and only the badge of a muted mic, which may appear
+    /// meanwhile, moves it to the left (rmmr1-1).
+    fn read_pill(&mut self) -> Result<Option<f64>, ClientError> {
+        if self.chat != crate::Chat::Open {
+            return leftmost(|id| self.rect(id));
+        }
+        let badge = leftmost(|id| if id == BADGE { self.rect(id) } else { Ok(None) })?;
+        let kept = self.rooms.pill_left;
+        Ok(kept.map_or(badge, |kept| Some(badge.map_or(kept, |b| b.min(kept)))))
     }
 
     /// What the pill and the card take now. A card counts only when it
@@ -70,12 +100,7 @@ impl Mc {
         };
         let [width, height] = output.size.map(f64::from);
         let page_top = self.page_top();
-        let mut pill_left: Option<f64> = None;
-        for id in PILL {
-            if let Some([x, ..]) = self.rect(id)? {
-                pill_left = Some(pill_left.map_or(x, |left| left.min(x)));
-            }
-        }
+        let pill_left = self.read_pill()?;
         let mut rooms = Rooms {
             pill_left: pill_left.map(f64::round),
             card: None,
@@ -130,6 +155,24 @@ impl Mc {
 #[cfg(test)]
 mod tests {
     use serde_json::json;
+
+    /// The badge of a muted mic is wider than the word of the state; it
+    /// takes room like the pill, so that the header ends before it
+    /// (rpm2-3).
+    #[test]
+    fn the_header_ends_before_the_badge_of_a_muted_mic() {
+        let nodes = [
+            ("hud-badge", [947.0, 27.0, 252.0, 32.0]),
+            ("hud-figure", [1204.0, 34.0, 16.0, 16.0]),
+        ];
+        let left = super::leftmost(|id| {
+            Ok(nodes
+                .iter()
+                .find(|(name, _)| *name == id)
+                .map(|(_, rect)| *rect))
+        });
+        assert_eq!(left.unwrap(), Some(947.0));
+    }
 
     use chora_kit::runtime::Plugin as _;
 

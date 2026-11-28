@@ -620,6 +620,19 @@ class NoRowKindAbsorbsWhatItDoesNotName(unittest.TestCase):
         loose = [(r["act"], r["kind"]) for r in rows if r["kind"] != "check" and not r.get("open") and not (r.get("boxes") if r["kind"] == "pixel" else r.get("nodes"))]
         self.assertEqual(loose, [])
 
+    FRAME = (1280, 720)
+    """The size of the outputs the tour captures (HEADLESS-1)."""
+
+    def test_no_pixel_row_box_covers_the_whole_frame(self):
+        """rtr4r-1: a pixel row of c5d had the box [0, 0, 1280, 720]: it names every blob of its act, so no pixel
+        regression of that act is ever seen again. A box names what one commit changes, never the whole frame."""
+        import tomllib
+
+        rows = tomllib.loads((HERE.parent / "demo/tour/intended.toml").read_text())["change"]
+        w, h = self.FRAME
+        whole = [(r["act"], b) for r in rows if r["kind"] == "pixel" for b in r.get("boxes", []) if b[0] <= 0 and b[1] <= 0 and b[0] + b[2] >= w and b[1] + b[3] >= h]
+        self.assertEqual(whole, [])
+
 
 class IntendedRows(unittest.TestCase):
     def test_h2_lists_kinds_and_no_wildcard(self):
@@ -664,7 +677,22 @@ class IntendedCauses(unittest.TestCase):
             if "nodes" in r:
                 self.assertIsInstance(r["nodes"], list, r)
                 self.assertTrue(r["nodes"] and all(isinstance(n, str) and n for n in r["nodes"]), r)
-                self.assertIn(r["kind"], ("meta", "rect", "missing", "added", "visible", "owner"), r)
+                self.assertIn(r["kind"], ("meta", "rect", "missing", "added", "visible", "owner", "cut"), r)
+
+    def test_the_boil_page_side_panel_of_m2_m2b_m3_has_its_rows(self):
+        """rtr4-1: c3925fc55 (a panel takes whole lines at the page edge) (c3925fc5 is its 8-digit form) makes `mc-s-boil-panels-side-lines` one whole line
+        of 28 px; the cut check still flags it and the panels change. Each act names the rect of lead and side and the cut
+        of side-lines with that commit, by node and no wider than the judged act."""
+        rows = self.rows()
+        for act in ("m2", "m2b", "m3"):
+            mine = [r for r in rows if r["act"] == act and "c3925fc5" in r["cause"]]
+            kinds = {r["kind"]: r for r in mine}
+            self.assertEqual(sorted(kinds), ["cut", "rect"], (act, mine))
+            self.assertEqual(kinds["cut"]["nodes"], ["mc-s-boil-panels-side-lines"], act)
+            self.assertTrue({"mc-s-boil-panels-lead", "mc-s-boil-panels-side"} <= set(kinds["rect"]["nodes"]), act)
+            for r in mine:
+                self.assertFalse(r.get("open"), r)
+                self.assertNotIn("*", r["nodes"], r)
 
     def test_a_row_with_boxes_is_a_pixel_row_of_x_y_w_h(self):
         """rtb5-1: `boxes` is a list of [x, y, w, h] in the coordinates of tour-diff (pixels of the capture)."""
@@ -788,6 +816,249 @@ class IntendedCauses(unittest.TestCase):
         marks = self.UNPROVEN + self.UNPROVEN_FINDINGS
         unproven = [(r["act"], r["kind"]) for r in self.rows() if any(m in r["cause"] for m in marks) and not r.get("open")]
         self.assertEqual(unproven, [])
+
+
+V8 = "733967aa"
+"""The build of the baseline replay (TOUR_BASELINE): a cause of a v9 diff is a commit after it."""
+
+
+def git(*args):
+    return subprocess.run(["git", "-C", str(HERE.parent), *args], capture_output=True, text=True)
+
+
+@unittest.skipUnless(git("cat-file", "-e", f"{V8}^{{commit}}").returncode == 0, "no history back to 733967aa (git fetch --unshallow)")
+class IntendedCommits(unittest.TestCase):
+    """tour-rows r4 (rtr3-2): a row says which commit made its change, and that commit is in the history the two
+    takes span: an ancestor of HEAD, not of the v8 build, and it changes what the binaries are built from. Both takes
+    run the head's harness, so a commit of tests/, demo/ or docs/ alone cannot change a capture."""
+
+    SHA = re.compile(r"\b(?=[0-9a-f]*\d)[0-9a-f]{7,40}\b")
+    PRODUCT = ("crates/", "plugins/", "flavors/", "services/", "dist/", "Cargo.toml", "Cargo.lock")
+
+    @classmethod
+    def setUpClass(cls):
+        import tomllib
+
+        cls.rows = tomllib.loads((HERE.parent / "demo/tour/intended.toml").read_text())["change"]
+        cls.shas = sorted({s for r in cls.rows for s in cls.SHA.findall(r["cause"])})
+
+    def test_every_row_names_a_commit_sha(self):
+        self.assertEqual([(r["act"], r["kind"]) for r in self.rows if not self.SHA.search(r["cause"])], [])
+
+    def test_every_named_sha_is_a_commit_between_v8_and_head(self):
+        wrong = []
+        for sha in self.shas:
+            if git("cat-file", "-e", f"{sha}^{{commit}}").returncode:
+                wrong.append((sha, "no such commit"))
+            elif git("merge-base", "--is-ancestor", sha, "HEAD").returncode:
+                wrong.append((sha, "not in the history of HEAD"))
+            elif not git("merge-base", "--is-ancestor", sha, V8).returncode:
+                wrong.append((sha, f"already in {V8} (v8)"))
+        self.assertEqual(wrong, [])
+
+    @classmethod
+    def files_of(cls, sha):
+        """The files a commit brings to its first parent (a merge too: `git show` lists nothing for a clean merge)."""
+        return git("diff", "--name-only", f"{sha}^1", sha).stdout.split()
+
+    @classmethod
+    def no_product_code(cls, sha):
+        """The files of a commit when none of them is product code (a commit that cannot change a capture), else []."""
+        files = cls.files_of(sha)
+        return [] if files and any(f.startswith(cls.PRODUCT) for f in files) else files or ["(no files)"]
+
+    def test_every_named_sha_changes_product_code(self):
+        wrong = [(sha, " ".join(self.no_product_code(sha)[:3])) for sha in self.shas if self.no_product_code(sha)]
+        self.assertEqual(wrong, [])
+
+    @unittest.skipUnless(git("cat-file", "-e", "19348b95^{commit}").returncode == 0, "no commit 19348b95")
+    def test_a_clean_merge_is_judged_by_what_it_brings_to_its_first_parent(self):
+        """rtr4r-3: `git show --name-only` lists nothing for a clean merge, so a row citing 19348b95 (chore: merge
+        session head a93bc75b; it brings tests/persona-selftest.sh only) passed. A merge counts what it brings to its
+        first parent: `git diff --name-only <sha>^1 <sha>`."""
+        self.assertEqual(self.no_product_code("19348b95"), ["tests/persona-selftest.sh"])
+
+
+class MinorRegressionsOfTakeR5(unittest.TestCase):
+    """tour-rows r5 (F7, rc 11): take r2 left 24 MINOR regressions on b16c888f. Each was judged on the v8 and v9 stills:
+    the change is the intended result of a named commit and the capture meets design/looks/ (whole text, nothing
+    under 12 px, aligned chips), or it stays a regression with its finding. `tour-diff-take-r5.json` holds, per act,
+    the diffs of the r5 take (v9 head, v8 733967aa, TOUR_BASELINE=1) that no row of b16c888f named."""
+
+    TAKE = json.loads((HERE / "tour-diff-take-r5.json").read_text())
+    ROWS = "c2b c3b c3c c3d c4 c4b m1 m1b m1c m4 m4b t3f t5 t6 t6b t6c t6d t7 t10c x1 x5b".split()
+    """The 21 acts that get rows; c5d and c5e (rtf1-1: v9 steps into the face, every pixel differs) and m8 (rtr4-2: the
+    launcher has no icons) stay regressions."""
+
+    @classmethod
+    def rows(cls):
+        import tomllib
+
+        return tomllib.loads((HERE.parent / "demo/tour/intended.toml").read_text())["change"]
+
+    def verdict(self, act):
+        u = self.TAKE[act]
+        scene = [{"kind": k, "id": i, "detail": ""} for k, i in u["scene"]]
+        return diff.verdict(act, scene, not u["blobs"], self.rows(), blobs=[tuple(b) for b in u["blobs"]])
+
+    def test_every_diff_the_take_shows_in_the_judged_acts_is_named(self):
+        wrong = {act: self.verdict(act) for act in self.ROWS if self.verdict(act)["verdict"] != "change"}
+        self.assertEqual(wrong, {})
+
+    def test_m8_keeps_its_launcher_diff_unnamed_and_the_c5_acts_have_no_box_of_the_frame(self):
+        """rtr4-2: no row may name the launcher of m8 (463, 198, 354, 324); rtf1-1: no box may name the whole frame of c5d, c5e."""
+        self.assertEqual(self.verdict("m8")["verdict"], "regression")
+        self.assertEqual(self.verdict("m8")["unnamed"], ["pixel"])
+        boxes = [b for r in self.rows() if r["act"] in ("c5d", "c5e", "m8") and r["kind"] == "pixel" for b in r.get("boxes", [])]
+        self.assertEqual([b for b in boxes if b[2] * b[3] > 1280 * 720 // 2], [])
+
+    def test_the_x1_row_boxes_the_tail_node_of_the_balloon_and_cites_its_commits(self):
+        """rtf1-6: the blob (1182, 560, 50, 18) lies in the rect of `hud-line-tail` (1067, 559, 166, 19) in the r5 take of x1: the
+        greeting (4fec75c3) has a tail node of its own (e4157dbd); the v8 build has neither."""
+        rows = [r for r in self.rows() if r["act"] == "x1" and r["kind"] == "pixel" and "e4157dbd" in r["cause"]]
+        self.assertEqual([r["boxes"] for r in rows], [[[1067, 559, 166, 19]]])
+        self.assertIn("4fec75c3", rows[0]["cause"])
+
+    def test_the_tiling_acts_box_the_left_island_of_the_bar_with_the_chip_commit(self):
+        """rtf1-3: the blob is the left island of the tiling bar, [12, 8, 438, 32] and the layout word in its chip; e6afbf97
+        gives the word its own chip. One box of the island, no wider than the island (x 12 to 538)."""
+        for act in "t3f t5 t6 t6b t6c t6d t7 t10c".split():
+            mine = [r for r in self.rows() if r["act"] == act and r["kind"] == "pixel" and "e6afbf97" in r["cause"]]
+            self.assertEqual([r["boxes"] for r in mine], [[[12, 8, 526, 32]]], act)
+
+    def test_the_mc_lead_panels_name_their_rects_with_the_whole_lines_commit(self):
+        """rtf1-4: c3925fc5 (a panel takes whole lines at the page edge): the lead panel is 287 px for 10 lines of 28 (was 280,
+        the last line cut at 273); a rect row per node, no pixel row."""
+        want = {"m1": ["mc-s-ingredients-panels-lead"], "m1b": ["mc-s-ingredients-panels-lead"], "m1c": ["mc-s-boil-panels-lead", "mc-s-boil-panels-lead-lines"],
+                "m4": ["mc-s-sauce-panels-lead", "mc-s-sauce-panels-lead-lines"], "m4b": ["mc-s-boil-panels-lead", "mc-s-boil-panels-lead-lines"]}
+        for act, nodes in want.items():
+            mine = [r for r in self.rows() if r["act"] == act and r["kind"] == "rect" and "c3925fc5" in r["cause"] and set(nodes) <= set(r["nodes"])]
+            self.assertEqual(len(mine), 1, act)
+            self.assertFalse(mine[0].get("open"), act)
+
+    def test_x5b_names_the_working_header_with_the_send_commit(self):
+        """rtf1-5: the header of the chat reads Working at once after a send (88951ae4), where v8 still read Idle."""
+        mine = [r for r in self.rows() if r["act"] == "x5b" and r["kind"] == "meta" and "hud-chat" in r.get("nodes", ())]
+        self.assertEqual([("88951ae4" in r["cause"]) for r in mine], [True])
+
+
+def load_launch(repo):
+    """demo/tour/launch.py as a take on the build in REPO loads it (TOUR_REPO; the v8 tree of the replay)."""
+    from unittest import mock
+
+    sys.path.insert(0, str(HERE.parent / "demo/tour"))
+    try:
+        with mock.patch.dict(os.environ, {"TOUR_REPO": str(repo)}):
+            spec = importlib.util.spec_from_file_location("launch_of_take", HERE.parent / "demo/tour/launch.py")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+    finally:
+        sys.path.remove(str(HERE.parent / "demo/tour"))
+    return module
+
+
+class LaunchOnTheBaseline(unittest.TestCase):
+    """The harness of the head runs the v8 replay (TOUR_REPO the 733967aa tree, TOUR_BASELINE=1): what it needs of
+    its own lives next to it, and what the old build cannot answer is not waited for."""
+
+    def tool(self, d, text):
+        path = pathlib.Path(d, "fuzzel")
+        path.write_text(f"#!/bin/sh\necho '{text}'\n")
+        path.chmod(0o755)
+        return str(path)
+
+    def test_the_tool_version_script_is_the_harness_own(self):
+        """rtr4-5: `fuzzel_version` ran `{TOUR_REPO}/tests/tool-version.sh`; the v8 tree has none, so every v8
+        chapter broke with FileNotFoundError."""
+        with tempfile.TemporaryDirectory() as old, tempfile.TemporaryDirectory() as bins:
+            launch = load_launch(old)
+            self.assertEqual(launch.fuzzel_version(self.tool(bins, "fuzzel version: 1.11.1 +cairo")), (1, 11, 1))
+
+    def test_the_baseline_neither_starts_nor_waits_for_a_notify_it_cannot_ask(self):
+        """rtr4-4: the 733967aa chora-notify has no method (no `state.get`), so `ensure_notify` stopped the v8
+        mc dark and handover chapters after 15 s with no capture. On the replay a look that does not list
+        chora-notify runs without it, as v8 did (the r3 replay)."""
+        from unittest import mock
+
+        with tempfile.TemporaryDirectory() as old:
+            launch = load_launch(old)
+            calls = []
+            fake = lambda argv, **kw: calls.append(argv) or subprocess.CompletedProcess(argv, 1, "", "")
+            with mock.patch.dict(os.environ, {"TOUR_BASELINE": "1"}), mock.patch.object(launch.subprocess, "run", fake), mock.patch.object(launch, "NOTIFY_WAIT", 0.3):
+                launch.Launcher.ensure_notify(object(), {})
+            self.assertEqual(calls, [])
+
+
+class ConstructAfterTheDrop(unittest.TestCase):
+    """rtr4-3: since 75d4623e the drop of c5c steps into the front face; the chapter steps out where an act needs the
+    cube, and the replay on 733967aa (which stays stood back) spends the same frame."""
+
+    @classmethod
+    def setUpClass(cls):
+        import ast
+
+        cls.source = (HERE.parent / "demo/tour/chapters/construct.py").read_text()
+        tree = ast.parse(cls.source)
+        cls.functions = {f.name: f for f in tree.body if isinstance(f, ast.FunctionDef)}
+
+    def step_out(self):
+        import ast
+
+        if "step_out" not in self.functions:
+            self.fail("construct.py has no step_out")
+        scope = {}
+        exec(compile(ast.Module([self.functions["step_out"]], []), "construct.py", "exec"), scope)
+        return scope["step_out"]
+
+    class Take:
+        def __init__(self):
+            self.frame, self.keys = 0, []
+
+        def key(self, combo):
+            self.keys.append(combo)
+            self.frame += 1
+
+    def test_the_step_out_presses_alt_escape_only_inside_a_face_and_spends_one_frame_either_way(self):
+        for inside, keys in ((True, ["Alt+Escape"]), (False, [])):
+            t = self.Take()
+            self.step_out()(t, inside)
+            self.assertEqual((t.keys, t.frame), (keys, 1), inside)
+
+    def stepped_in(self):
+        import ast
+        import re as regex
+
+        scope = {"NO_METHOD": regex.compile(r"no (?:exported )?method", regex.IGNORECASE)}
+        exec(compile(ast.Module([self.functions["stepped_in"]], []), "construct.py", "exec"), scope)
+        return scope["stepped_in"]
+
+    class Old:
+        """A session on 733967aa: construct exports no `cube.list`."""
+
+        def call(self, look, method):
+            raise RuntimeError(f"choractl call {look} {method} {{}}: choractl: {look}.{method} is no exported method (code 1)")
+
+    class New:
+        def __init__(self, mode):
+            self.mode = mode
+
+        def call(self, look, method):
+            return {"mode": self.mode, "front": 0}
+
+    def test_the_replay_without_cube_list_is_stood_back_and_does_not_stop(self):
+        """The v8 take of construct stopped at `stepped_in` with `construct.cube.list is no exported method`, so c3..c2b
+        were `baseline: none` (tour-fix r1 take)."""
+        self.assertFalse(self.stepped_in()(self.Old()))
+        self.assertTrue(self.stepped_in()(self.New("use")))
+        self.assertFalse(self.stepped_in()(self.New("navigate")))
+
+    def test_c5d_looks_at_the_stepped_in_face_and_c3_steps_out_before_it_turns(self):
+        lines = self.source.splitlines()
+        c5d = next(i for i, line in enumerate(lines) if '"04-13-back-on-face"' in line)
+        self.assertIn('"mode": "use"', lines[c5d])
+        self.assertNotIn("The cube with the window on the face", lines[c5d])
+        turn = next(i for i in range(c5d, len(lines)) if 't.key("Ctrl+Alt+Right")' in lines[i])
+        self.assertTrue(any("step_out(t, " in lines[i] for i in range(c5d, turn)), "no step out between c5d and the first turn")
 
 
 @unittest.skipUnless(shutil.which("ffmpeg"), "no ffmpeg")

@@ -6,9 +6,10 @@
 // chora-tiling for the tags and the layout (tag.sh, layout.sh) when
 // chora-tiling sends SIGRTMIN+1 to waybar after a change, at once, and every
 // 5 seconds in case a signal is lost; custom/volume asks wpctl for the
-// volume: a click mutes, the wheel changes it, and the tooltip says why
-// there is no sound; custom/helper shows the word of the helper door
-// (helper.sh) and a click opens the chat. waybar.sh starts waybar with this file on the
+// volume: a click mutes, the wheel changes it, and a tooltip says why
+// there is no sound (and only then); custom/helper shows the word of the helper door
+// (helper.sh), at once when the assistant tells that it changed (SIGRTMIN+2)
+// and every 2 seconds in case a signal is lost, and a click opens the chat. waybar.sh starts waybar with this file on the
 // outputs of chora-tiling only.
 {
   "layer": "top",
@@ -121,6 +122,7 @@
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/helper.sh\"",
     "return-type": "json",
     "interval": 2,
+    "signal": 2,
     "tooltip": false,
     "on-click": "choractl call tiling show_helper"
   },

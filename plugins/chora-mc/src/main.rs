@@ -1306,6 +1306,41 @@ mod tests {
         assert!(prev.slot < 0, "the previous page stands at the left");
     }
 
+    /// A render that changes the items puts a new set of regions in place
+    /// and fades the old one out; the old set takes the pointer until it
+    /// is gone, and a press on one of its hits does what the hit says
+    /// (flake-launcher r1: a press on Programs that came while the set
+    /// before it faded did nothing, and the launcher never started).
+    #[test]
+    fn a_click_on_a_hit_of_the_set_that_fades_out_still_acts() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("fading-hit", [1280, 800]);
+        mc.grab_all().unwrap();
+        mc.show("morning", false).unwrap();
+        let prev = |mc: &super::Mc| {
+            let items = mc
+                .items("morning")
+                .into_values()
+                .flat_map(|(items, _)| items);
+            let item = items.into_iter().find(|i| i.id.ends_with("-prev"));
+            format!("{}-hit", item.expect("a line to the previous page").id)
+        };
+        let old = prev(&mc);
+        assert!(
+            crate::testing::has(&model, &old),
+            "the hit takes the pointer"
+        );
+        mc.event(chat_event("assistant", true, "test")).unwrap();
+        let new = prev(&mc);
+        assert_ne!(old, new, "the render put a new set in place");
+        assert!(
+            crate::testing::has(&model, &old),
+            "the old set stays while it fades"
+        );
+        assert!(mc.click_hit(&old), "a hit of the old set is a hit");
+        assert_eq!(mc.current.as_deref(), Some("agenda"), "it turned the page");
+    }
+
     fn press_key(mc: &mut super::Mc, key: &str, modifiers: &[&str]) {
         press_key_from(mc, key, modifiers, false);
     }
@@ -2944,6 +2979,37 @@ mod tests {
         mc.learn_rooms().unwrap();
         assert_eq!(mc.rooms.pill_left, None, "the pill moved");
         assert!(log.lock().unwrap().is_empty(), "the pages stay");
+    }
+
+    /// A rebuild of the pages shows no frame of the head in another
+    /// place: the new title stands aligned in the transaction that
+    /// creates it, from what the old page measured (rpm2-5 b).
+    #[test]
+    fn a_rebuild_creates_the_head_where_it_stays() {
+        let core = chora_kit::testing::FakeCore::start().selecting();
+        let nodes = serde_json::json!([
+            {"id": "mc-s-agenda-chapter-number", "rects": {"HEADLESS-1": [160.0, 56.0, 34.0, 56.0]}},
+            {"id": "mc-s-agenda-chapter-title", "rects": {"HEADLESS-1": [214.0, 56.0, 300.0, 56.0]}},
+        ]);
+        core.respond(move |method, params| {
+            let text = params["selector"]
+                .as_str()
+                .is_some_and(|s| s.contains("kind:text"));
+            (method == "scene.query" && text).then(|| nodes.clone())
+        });
+        let mut mc = crate::testing::mc_on(&core, "rebuild-head", [1280, 720]);
+        let log = core.record(|method, params| {
+            let text = params.to_string();
+            (method == "scene.apply"
+                && text.contains(r#""create":{"id":"mc-s-agenda-chapter-title""#))
+            .then_some(text)
+        });
+        mc.rebuild_pages().unwrap();
+        let first = log.lock().unwrap().first().cloned().unwrap_or_default();
+        assert!(
+            first.contains(r#""update":{"id":"mc-s-agenda-chapter-title""#),
+            "the title is created at a guess and moves in the next transaction: {first}"
+        );
     }
 
     /// A page with a text of a panel that reaches under the edge of the

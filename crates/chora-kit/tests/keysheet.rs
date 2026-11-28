@@ -100,6 +100,40 @@ fn a_chord_joins_its_caps_and_keeps_an_arrow_off_the_plus() {
     assert_eq!(keysheet::chord("XF86AudioRaiseVolume"), "Vol+");
 }
 
+/// rpt3-1: a chord is spelled as the key list spells it, whatever order
+/// the core names its modifiers in and whatever the keysym is called.
+#[test]
+fn a_chord_has_one_order_of_modifiers_and_the_names_of_the_keys_on_the_keyboard() {
+    assert_eq!(keysheet::chord("Alt+Super+x"), "Super+Alt+X");
+    assert_eq!(
+        keysheet::chord("Ctrl+Shift+Super+Next"),
+        "Super+Ctrl+Shift+Page Down"
+    );
+    assert_eq!(
+        keysheet::chord("Ctrl+Alt+Shift+Super+Prior"),
+        "Super+Ctrl+Alt+Shift+Page Up"
+    );
+    assert_eq!(keysheet::chord("Super+bracketleft"), "Super+[");
+    assert_eq!(keysheet::chord("Super+bracketright"), "Super+]");
+    for (key, cap) in [
+        ("apostrophe", "'"),
+        ("grave", "`"),
+        ("minus", "-"),
+        ("equal", "="),
+        ("backslash", "\\"),
+        ("comma", ","),
+        ("semicolon", ";"),
+        ("BackSpace", "Backspace"),
+    ] {
+        assert_eq!(
+            keysheet::chord(&format!("Super+{key}")),
+            format!("Super+{cap}")
+        );
+    }
+    assert_eq!(keysheet::chord("Super+Shift+Escape"), "Super+Shift+Esc");
+    assert_eq!(keysheet::chord("super+SHIFT+Return"), "Super+Shift+Return");
+}
+
 #[derive(Clone, Debug, PartialEq)]
 enum Own {
     Page(u8),
