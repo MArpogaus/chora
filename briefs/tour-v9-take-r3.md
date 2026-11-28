@@ -1,6 +1,7 @@
 # tour-v9 take r3 (F7, RC 1b, 11): a fresh v9 take on the t162 head (tour-rows r5, tour-fix r1-r2 in since take r2)
 
 Model: sonnet, effort medium (a recording run with existing tools; no code change; routine)
+Red on head: none (recording run; it measures F7 regressions, it fixes none)
 Lane: cloud, claude/tour-v9-take-r3 at 3098926e (session head, t162 green). Cost at most 1 %; stop at 200 k context. No product code, no tool change, no intended.toml row: this round records and reports only.
 Why: RC 1b "owner sees v9" and F7: take r2 counted 88 open, 10 regressions; TOUR-FIX r1, r2 and TOUR-ROWS r5 (regr 3 left: c5d, c5e, m8) merged since. Owner 11-17 10:59 "Be perfectionist and very critical about the met targets."
 Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`; `command -v foot ffmpeg waybar swaybg dbus-daemon` and `python3 -c 'import PIL'`. A failure or a missing tool: send_message the PM "tour-v9-take-r3 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
