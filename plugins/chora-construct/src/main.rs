@@ -616,6 +616,10 @@ struct Construct {
     cube: Option<cube::Host>,
     /// The window managers of the panes (`wm.rs`).
     managed: Vec<wm::Managed>,
+    /// The names of the clients that are connected, from `clients.list` at
+    /// the start and the events since: a face manager among them runs
+    /// beside the construct (co-79 r8).
+    clients: std::collections::BTreeSet<String>,
     /// The surface with the keyboard as `focus.changed` last told: read by
     /// `state.get`, and by `regrab` for a pane whose window has it.
     core_focus: Option<String>,
@@ -729,6 +733,7 @@ impl Construct {
             effects: effects::Driver::default(),
             cube: None,
             managed: Vec::new(),
+            clients: std::collections::BTreeSet::new(),
             core_focus: None,
             kit_focus: chora_kit::wm::focus::Focus::default(),
             walk_keys: true,

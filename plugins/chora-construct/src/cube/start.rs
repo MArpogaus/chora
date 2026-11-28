@@ -205,14 +205,21 @@ impl Construct {
         self.frame()
     }
 
-    /// Whether a client of the name of the window manager is connected.
+    /// Whether a client of the name of the window manager is connected;
+    /// `clients` follows the answer.
     pub(super) fn manager_runs(&mut self) -> Result<bool, ClientError> {
+        self.clients = self.connected_clients()?;
+        Ok(self.clients.contains(&self.face_manager()))
+    }
+
+    /// The names of the connected clients, as `clients.list` answers.
+    pub(crate) fn connected_clients(
+        &mut self,
+    ) -> Result<std::collections::BTreeSet<String>, ClientError> {
         let clients: Value = self.rt.conn.call("clients.list", Value::Null)?;
-        let list = clients.as_array().cloned().unwrap_or_default();
-        let client = self.face_manager();
-        Ok(list
-            .iter()
-            .any(|c| c["name"].as_str() == Some(client.as_str())))
+        let names = (clients.as_array().into_iter().flatten())
+            .filter_map(|c| c["name"].as_str().map(str::to_owned));
+        Ok(names.collect())
     }
 
     /// The client name of the window manager of the cube: of the open

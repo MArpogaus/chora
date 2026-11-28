@@ -149,8 +149,9 @@ impl Construct {
     /// A give key: gives the focused window, else the window of the pane
     /// ahead, to the window manager `to`. With the window of a pane, stood
     /// back, in the pane or stepped out of it, the key of the face manager
-    /// puts it into the face at the front (`put_pane`, co-79). A refusal
-    /// is a notice.
+    /// puts it into the face at the front (`put_pane`, co-79), and gives
+    /// it to that manager while it runs beside with no cube
+    /// (`pane_to_manager`, r8). A refusal is a notice.
     pub(crate) fn give_key(&mut self, to: &str) -> Result<(), ClientError> {
         if let Some(sel) = self
             .list
@@ -174,7 +175,11 @@ impl Construct {
         if let Some(surface) = self.pane_to_face().filter(|_| to == self.face_manager()) {
             return self.put_pane(&surface);
         }
-        let focused = self.rt.conn.focused_surface().map_err(ClientError::Rpc)?;
+        let beside = self.pane_to_manager().filter(|_| to == self.face_manager());
+        let focused = match beside {
+            Some(surface) => self.rt.conn.query(&format!("id:{surface}"))?.pop(),
+            None => self.rt.conn.focused_surface().map_err(ClientError::Rpc)?,
+        };
         let before = (self.cube.as_ref()).and_then(crate::cube::Host::noted_focus);
         let ahead = (self.pane_ahead()).and_then(|i| self.panes[i].window().map(String::from));
         let ahead = before.or(ahead);
@@ -201,6 +206,7 @@ impl Construct {
 
     /// The events of the voice agent and of the watchdog, then the input.
     pub(crate) fn other(&mut self, event: Event) -> Result<(), ClientError> {
+        self.count_client(&event);
         match event {
             Event::Emitted {
                 event,
@@ -231,6 +237,19 @@ impl Construct {
                 self.float_dropped(&nodes)
             }
             event => self.input(event),
+        }
+    }
+
+    /// A client connected or went: `clients` follows (co-79 r8).
+    fn count_client(&mut self, event: &Event) {
+        match event {
+            Event::ClientConnected { name } => {
+                self.clients.insert(name.clone());
+            }
+            Event::ClientDisconnected { name } => {
+                self.clients.remove(name);
+            }
+            _ => {}
         }
     }
 

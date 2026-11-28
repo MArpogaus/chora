@@ -611,7 +611,10 @@ impl Construct {
                     Word::StepBack,
                     "step-back",
                 )];
-                hints.extend(self.put_in_hint(language));
+                hints.extend(
+                    self.put_in_hint(language)
+                        .or_else(|| self.give_hint(language)),
+                );
                 hints.extend(self.pull_out_hint(language));
                 hints.push(item(self.hint_keys_chord(), Word::AllKeys, "keys"));
                 hints
@@ -648,11 +651,14 @@ impl Construct {
             .collect();
         let ahead = self.pane_ahead().is_some();
         let cube = self.cube_window().is_some();
+        let beside = self.face_manager_elsewhere();
         crate::hints::walking(self.panes.len(), ahead, cube)
             .into_iter()
             .filter_map(|hint| {
                 Some(match hint {
+                    Walking::IntoFace if beside => return self.give_hint(language),
                     Walking::IntoFace => return self.put_in_hint(language),
+                    Walking::Cube if beside => return None,
                     Walking::Walk => item(walk.clone(), Word::Walk, "walk"),
                     Walking::FlyIn => item(key(Own::FlyIn), Word::FlyIn, "fly-in"),
                     Walking::Windows => item(key(Own::Windows), Word::WindowsHint, "windows"),
@@ -703,6 +709,23 @@ impl Construct {
         })
     }
 
+    /// The hint `Super Alt 2 To XP` while the face manager runs beside
+    /// the construct with no cube (`pane_to_manager`, co-79 r8): the give
+    /// key gives the window of the pane to it, where it runs.
+    fn give_hint(&self, language: chora_kit::words::Language) -> Option<crate::hints::Item> {
+        use crate::hints::{HINT, Item, give_key_of, give_word};
+        self.pane_to_manager()?;
+        let to = self.face_manager();
+        let key = give_key_of(&to)?;
+        Some(Item {
+            keys: crate::glass::chord(key),
+            word: give_word(language, &crate::names::manager_name(&to)),
+            keys_last: false,
+            hit: format!("{HINT}give-to"),
+            chip: false,
+        })
+    }
+
     /// The window that the give key of the face manager puts into the
     /// face at the front: stood back, with every face up, the window with
     /// the keyboard, else the one noted at the step back, when it is the
@@ -722,11 +745,39 @@ impl Construct {
     /// into the face at the front (co-79 r7): stood back the one of
     /// `put_window`; in a pane its window; stepped out of a pane with no
     /// cube open the one of `cube_window`, for which the key opens the
-    /// cube first. The hint and the key ask the same.
+    /// cube first. None while the face manager runs beside the construct
+    /// with no cube, as no cube can start then (`pane_to_manager`, r8).
+    /// The hint and the key ask the same.
     pub(crate) fn pane_to_face(&self) -> Option<String> {
+        if self.face_manager_elsewhere() {
+            return None;
+        }
+        (self.put_window()).or_else(|| self.pane_window())
+    }
+
+    /// The window of a pane that the give key of the face manager gives
+    /// to it while it runs beside the construct with no cube, as a client
+    /// of its own or in a manager pane (co-79 r8): the window of the pane
+    /// the camera is in, or the one with the keyboard after a step out.
+    /// The hint and the key ask the same.
+    pub(crate) fn pane_to_manager(&self) -> Option<String> {
+        self.face_manager_elsewhere().then(|| self.pane_window())?
+    }
+
+    /// The window of the pane the camera is in, else, with no cube open,
+    /// the one of `cube_window`.
+    fn pane_window(&self) -> Option<String> {
         let flown = (self.flown.as_ref()).map(|f| f.surface.clone());
         let flown = flown.filter(|window| self.own_window(window));
-        (self.put_window()).or(flown).or_else(|| self.cube_window())
+        flown.or_else(|| self.cube_window())
+    }
+
+    /// Whether the face manager runs with no cube open: in a manager pane
+    /// or as a client that the construct did not start (`clients`). A cube
+    /// cannot start beside it (`open_cube`), so the give key gives to it.
+    pub(crate) fn face_manager_elsewhere(&self) -> bool {
+        let manager = self.face_manager();
+        self.cube.is_none() && (self.has_manager(&manager) || self.clients.contains(&manager))
     }
 
     /// The window that the key of the cube, `Super C Cube` in the walk,
@@ -796,14 +847,18 @@ impl Construct {
     fn hint_stamp(&self, set: Option<crate::hints::Set>) -> usize {
         match set {
             Some(crate::hints::Set::Walk) => {
-                (self.panes.len().min(2) * 2 + usize::from(self.pane_ahead().is_some())) * 2
-                    + usize::from(self.cube_window().is_some())
+                ((self.panes.len().min(2) * 2 + usize::from(self.pane_ahead().is_some())) * 2
+                    + usize::from(self.cube_window().is_some()))
+                    * 2
+                    + usize::from(self.face_manager_elsewhere())
             }
             _ => {
-                ((self.cube_stamp() * 2 + usize::from(self.pane_beside())) * 2
+                (((self.cube_stamp() * 2 + usize::from(self.pane_beside())) * 2
                     + usize::from(self.pull_acts()))
                     * 2
-                    + usize::from(self.pane_to_face().is_some())
+                    + usize::from(self.pane_to_face().is_some()))
+                    * 2
+                    + usize::from(self.pane_to_manager().is_some())
             }
         }
     }

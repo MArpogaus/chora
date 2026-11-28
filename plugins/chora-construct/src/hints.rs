@@ -234,6 +234,17 @@ pub const fn put_word(language: chora_kit::words::Language) -> &'static str {
     }
 }
 
+/// The word of the hint of the give key that gives the window of a pane
+/// to the face manager where it runs beside the construct (co-79 r8):
+/// `To XP`.
+#[must_use]
+pub fn give_word(language: chora_kit::words::Language, name: &str) -> String {
+    match language {
+        chora_kit::words::Language::De => format!("Zu {name}"),
+        chora_kit::words::Language::En => format!("To {name}"),
+    }
+}
+
 /// The word of the hint of the pull key.
 #[must_use]
 pub const fn pull_word(language: chora_kit::words::Language) -> &'static str {

@@ -30,6 +30,7 @@ impl Construct {
         let mut methods = exported_methods();
         methods.extend(settings::File::<Config>::methods());
         self.rt.announce(&EVENTS, methods)?;
+        self.clients = self.connected_clients()?;
         if self.overlay {
             return self.reopen_left_cube();
         }
