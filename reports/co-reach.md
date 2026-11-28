@@ -617,3 +617,69 @@ Findings:
 - rcrr7-7 NIT docs/cube-modes.md:142: "the window goes as soon as the face manager can place it" leaves out the 20 s limit, the hint gone while the cube starts, and the refusal while xp runs. Fix: one sentence on how the wait ends and what is told then.
 
 Verdict: **FIX** (open MAJOR rcrr7-1).
+
+## r8 (co-79: review r7 FIX, rcrr7-1 MAJOR and the wait's MINORs, 2026-11-28)
+
+Lane: cloud, claude/co-reach-r8 from **base 008714ba** (co-reach r7 head, review r7 FIX). Step 0: unshallow, `cargo check --workspace`, `cargo build --workspace` green. Area: plugins/chora-construct (overlay, input, pull, hints, names, cube, a new put.rs, reach_tests), tests/gate-construct-cube.sh, docs/cube-modes.md; nothing outside it.
+
+**Head 830ab836**, pushed to claude/co-reach-r8 (14 commits: 6 red, 6 fix, docs, 2 test follow-ups). Diff 008714ba..830ab836: 15 files +721 -71 (reach_tests.rs +257 -1, put.rs +96 new, gate-construct-cube.sh +77, pull.rs +73 -45, overlay.rs +72 -7, names.rs +52, input.rs +22 -3, docs/cube-modes.md +13 -4, cube/start.rs +13 -6, hints.rs +11, main.rs +10, cube.rs +9 -3, cube/construct.rs +8 -1, tests_construct.rs +7 -1, scene.rs +1). chora-construct 312 unit tests pass (307 on 008714ba), clippy `--all-targets` clean.
+
+### Per id (red commit, then fix commit)
+| id | red | fix | what |
+|---|---|---|---|
+| rcrr7-1 MAJOR | ddaac07c `with_the_face_manager_running_the_key_from_a_pane_gives_to_it`: bar named Into face, key opened a refused cube | 92c000db | The construct keeps the names of connected clients (`clients.list` at start, `client.connected/disconnected` since). `face_manager_elsewhere()` = no cube and the face manager in a manager pane or connected; then `pane_to_face` is None and `pane_to_manager` names the pane window (flown, or `cube_window` after Alt+Escape): Super+Alt+2 gives it to that xp as on dc532d60, the bar tells `Super Alt 2 To XP` (De `Zu XP`) in the walk and in the pane, and `Super C Cube` (refused there) is not told. The `cube_window` branch stays only when no face manager runs. |
+| rcrr7-2 MINOR | a33bdffc `the_wait_ends_when_the_person_moves_on` (fly into another pane; another window noted) | 661d6985 | `put_pane` notes the put window at the cube; the wait ends when `in_pane()` or `noted_window()` (on whatever face, so a turn keeps the put) is another window. |
+| rcrr7-3 MINOR | e9b64b4a `a_second_key_while_the_cube_starts_keeps_the_same_put`: on 008714ba the second key gave to the starting xp and told "it is not running" | c5cb9290 | While a put waits, `pane_to_face` returns its window (out of the panes): `Into face` stays told while the cube starts, and `put_pane` keeps the waiting put. |
+| rcrr7-4 MINOR | d8621fe9 `every_end_of_the_wait_without_the_put_is_told` (7 ends; 830ab836: its failure reason names no program, for cut-check) | 68db8c60 | `unput()`: 20 s → "XP did not place the window in time."; else "XP did not place the window: <reason>." with the window closed / you flew into a pane / you stepped into a face / another window has the keyboard / the failed front face's reason; `close_cube` with a waiting put tells "the cube closed". German words beside. |
+| rcrr7-5 MINOR | 98fa47a9 `the_wait_never_waits_on_the_face_manager`: xp that answers after 1 s, key + 3 looks took 3.26 s on the red parent | 64bb9d88 | New `put::Put`: the `state.get` question goes out in a thread on a connection of its own (`construct-ask-N`, as voice's HUD thread has its own; the plugin lint allowed with a reason), and a later look reads the answer by `try_recv`; an unanswered question (2 s) is asked again. The frame loop asks only the core (`methods.list`), never xp. The test also checks that the put goes once the answer came. |
+| rcrr7-6 MINOR | b3fe5216 (+ bea4f2fb: the failing manager exits at once, sleep ratchet) cube gate step 11 | behaviour by 92c000db and 68db8c60 | Step 11, in a pane of the start card's Terminal row: (a) face manager that cannot start: Super+Alt+2 told (put-in keys), ends in `XP did not place the window: chora-xp stopped after 0 s: it needs a display it cannot have.`, the window stays a pane; (b) xp running in a manager pane: bar `To XP, All keys, Step back`, word `To XP`, no put-in keys; the key gives the window to that xp on its output, no other virtual output, no notice. On 008714ba: (a) `FAIL: ... told nothing (notices: ''), cube {"mode":"navigate","faces":["failed",...]}` (gate-cube-r8-cells-008714ba.log); (b), run with (a) cut out: `FAIL: ... the bar does not tell the give to it (give-to keys:   ; put-in keys: Super Alt 2; bar: All keys, Into face, Step back)` (gate-cube-r8-cellB-008714ba.log). Head: cube gate alone EXIT 0, 76 ok (gate-cube-r8-head.log). |
+| rcrr7-7 NIT | (none) | 6e77aa0d | docs/cube-modes.md: the bar keeps Into face while the cube starts, a second press keeps the put, the 20 s and the other ends with their notices; the give `Super Alt 2 To XP` while xp runs already with no cube; words table `To XP / Zu XP`. |
+
+Red evidence: each unit test failed on its red commit, and all five again on 008714ba itself (its sources with the test files of 98fa47a9, separate target dir: 9 passed, 5 failed, exactly these five; unit-red-on-008714ba.log); rcrr7-1 at reach_tests "with xp running beside, no cube can open", rcrr7-2 "moved on (fly)" and "(note)", rcrr7-3 a `"to":"xp"` give plus "XP did not take the window: it is not running.", rcrr7-4 "late: the end is told ... ''", rcrr7-5 "waited 3.262288543s on xp".
+
+### Paths by hand (fresh compositor per run, 1280x800, hand8.sh = r7's hand7.sh plus case xprun; told = the bar names the key's hint before the key; pass = told, Foot on xp VIRTUAL-1 shown, mode use, bar `Pull out`; xprun: told `Super Alt 2 To XP`, Foot on the manager pane's xp VIRTUAL-1, no other virtual output, no "did not" notice)
+| Path | state where the key is pressed | told | acts |
+|---|---|---|---|
+| start card Terminal row, Alt+Escape (no cube) | walk | 5/5 | **5/5** |
+| start card All programs row, foot, Alt+Escape (no cube) | walk | 5/5 | **5/5** |
+| launcher Super+space, foot, Alt+Escape (no cube) | walk | 5/5 | **5/5** |
+| Super+t in the space, Alt+Escape (no cube) | walk | 5/5 | **5/5** |
+| Super+t in a pane (2 panes), Alt+Escape (no cube) | walk, Tab Windows | 5/5 | **5/5** |
+| cube row, Programs, Foot, Alt+Escape (r5 path) | navigate | 5/5 | **5/5** |
+| demo 2: Terminal row, Alt+Escape, Return Fly in | in the pane, no cube | 5/5 | **5/5** |
+| pulled from a face by Super+Alt+4 | in the pane, cube in use | 5/5 | **5/5** |
+| **9th: xp running (manager pane), Terminal row, key in the pane** | in the pane, no cube, xp beside | 5/5 | **5/5** |
+
+### Gate
+Before run 1 the ratchets step caught the `sleep 1` of step 11's failing manager (`FAIL: sleep-ratchet: sleep is 779, the list holds 778`, caused here; bea4f2fb removes it). Run 1 (bea4f2fb) stopped at docs, **environment**: `FAIL: mkdocs is not installed and docs changed`; mkdocs installed as a user tool (`uv tool install mkdocs --with-requirements docs/requirements.txt`, no system package), `mkdocs build --strict` rc 0. Run 2 (bea4f2fb) stopped at ci-check, **caused here**: `FAIL: cut-check: names: chora-construct names chora-xp on 7 lines` (the rcrr7-4 test's failure string; 830ab836 rewords it, `tools/cut-check` ok). Run 3 on **830ab836**, `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2`, no step filter, detached: the 30 steps before doors PASS (build, test, clippy, layout 1364 s among them); doors stopped on the **foreign flake** the brief names: `helper-none      pass      missing   pass      pass` (tiling column), `FAIL: 1 cells or checks are not pass`, every construct cell pass (gate-doors-run3.log). `--only doors` alone: **PASS** 381 s (gate-doors-alone.log). The 37 steps after doors, `--only acts,...,e2e --jobs 2`: **all 37 PASS** (cube 155 s, 76 ok, the three co-79 r8 lines among them; acts 1493 s; keys 35 s; leak 466 s; e2e 270 s). Every step passed on 830ab836 except that one named flake, which passed when rerun. (A slip of mine afterwards started one more full run by accident, killed within two minutes, not counted.) `pgrep -fa 'chora --headless'` empty after. Last 20 lines (the steps after doors):
+```
+launcher-click PASS    17s /tmp/merge-gate.ryketS/launcher-click.log
+voice-acp  PASS    11s /tmp/merge-gate.ryketS/voice-acp.log
+voice-events PASS     2s /tmp/merge-gate.ryketS/voice-events.log
+launcher-mc PASS    32s /tmp/merge-gate.ryketS/launcher-mc.log
+agent      PASS    37s /tmp/merge-gate.ryketS/agent.log
+tiling-keys-more PASS    40s /tmp/merge-gate.ryketS/tiling-keys-more.log
+tiling-system PASS    14s /tmp/merge-gate.ryketS/tiling-system.log
+handover   PASS    85s /tmp/merge-gate.ryketS/handover.log
+mc-scale   PASS    10s /tmp/merge-gate.ryketS/mc-scale.log
+tiling-windows PASS   161s /tmp/merge-gate.ryketS/tiling-windows.log
+watchdog-starved PASS    49s /tmp/merge-gate.ryketS/watchdog-starved.log
+xp-run     PASS    13s /tmp/merge-gate.ryketS/xp-run.log
+demo       PASS   203s /tmp/merge-gate.ryketS/demo.log
+tiling-bar PASS   167s /tmp/merge-gate.ryketS/tiling-bar.log
+tiling-theme PASS    19s /tmp/merge-gate.ryketS/tiling-theme.log
+leak       PASS   466s /tmp/merge-gate.ryketS/leak.log
+tiling-disc PASS    71s /tmp/merge-gate.ryketS/tiling-disc.log
+mc-host    PASS    23s /tmp/merge-gate.ryketS/mc-host.log
+e2e        PASS   270s /tmp/merge-gate.ryketS/e2e.log
+partial run: nothing is pushed
+```
+
+### Captures (media/2026-11-28/co-reach-r8/, each under 500 KB, 4.6 MB in all)
+- `<path>-run1-in-pane.png`, `-stood-back.png`, `-after-key.png` for the 8 r7 paths (`flyin-run1-flown-in.png` too); `xprun-run1-in-pane.png` (bar `Alt Esc Step back | Super Alt 2 To XP | Super F1 All keys`), `xprun-run1-after-key.png`.
+- hand-<path>.log (5 runs each, 9 paths), hand8.sh, gate-cube-r8-cells-008714ba.log, gate-cube-r8-cellB-008714ba.log, gate-cube-r8-head.log, unit-red-on-008714ba.log, merge-gate-run3-full.log, gate-doors-run3.log, gate-doors-alone.log, merge-gate-after.log.
+
+### Open for the PM
+1. 9th path: after the give to the xp of a manager pane the camera is back on the floor and that pane may be out of view, while the given window keeps the keyboard (xprun-run1-after-key.png); this is dc532d60's plain give, kept as the brief says. Flying to the manager pane after the give would be a new decision.
+2. The question of the wait is a short-lived second connection `construct-ask-N` (one at a time, at most one per 2 s while a put waits): it shows in `clients.list` and emits client events for that time. The alternative, a non-blocking call on the runtime's connection, needs chora-kit (outside this lane).
+3. docs/configuration.md still lists the walk hints without `Super C Cube`, `Into face` and now `To XP` (rcrr6-1, outside this lane's area).

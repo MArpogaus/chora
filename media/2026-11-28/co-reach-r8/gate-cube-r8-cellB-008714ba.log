@@ -1,0 +1,75 @@
+ok: no chip OPEN CUBE, and the start card names the key of the cube
+ok: cube.open without params opens four faces, and no hint of the cube shows
+ok: the cube shows four xp taskbars on VIRTUAL-1 VIRTUAL-2 VIRTUAL-3 VIRTUAL-4
+ok: a second cube.open is refused
+ok: a click near the corner of the xp window on the front face came at (3, 2): 1:1
+ok: co-25: on the front face Super+q, Tab, 1, Shift+x and Ctrl+z reach no window, a plain a does
+ok: co-26: Super+F1 on the front face shows the key list of the construct, and a second one hides it
+ok: co-71: the key list opened from a face closes by its Close, by a click outside and by Escape
+ok: co-79: in a face with the keyboard in its window the hint bar names the pull key
+ok: rcr1-1: Super+t with the key sheet open over a face starts a window of the face (xp, VIRTUAL-1)
+ok: co-78: Escape closes the key sheet after Super+t opened a window of the face, and that window has the keyboard
+ok: co-77: a program of the launcher in a face that holds a window is shown on that face, held by the face manager xp, and takes keys, 5 of 5 runs
+ok: view.step_back: the cube stands back, the face forwards nothing, three chips show, the keyboard stays
+ok: co-25: stood back, Super+Tab reaches no window
+ok: stood back, the cube rests turned toward the next face, with its shadow and its mirror image in the floor
+ok: the cube stood back is centred on the view axis, and the face label hangs on the axis 8 px under its lowest corner
+ok: the face label follows the lowest corner of the cube while it turns and ends on the axis under it
+ok: the face label capsule takes the short shadow, 0 1 2 at 0.06 and 0 4 12 at 0.08, no grey smudge under it
+ok: the chips are the hints of the cube at the bottom centre, at least 24 px high
+ok: a still cube renders 0 passes and has no damage, by render.stats
+ok: in use mode no chip covers the face; the hint Alt Esc Step back shows at the bottom centre
+ok: in use mode Escape reaches the window on the face, and the view stays
+ok: the xp of the faces let its cube keys go and keeps its own: Super+d puts the window away and brings it back, with the keyboard
+ok: rv-1: a chord that the xp of the faces binds late is its own, the construct holds none on a face
+ok: the turn keys turn the cube in use mode, and a turn key during a turn queues one turn
+ok: Alt+Escape steps back, Return steps in, and typed text reaches the window of before
+ok: a step in by a method moves no keyboard
+ok: a step into another face does not give the keyboard to the window of the face of before
+ok: a click on a face and a click on the chip STEP IN step in
+ok: a click on a face during the step back steps in
+ok: the pointer on a face lights its edge at 2 px on the screen with a glow, and the hint Step in has its hover fill
+ok: the edge, its glow and the hover fill go out when the pointer leaves the face
+ok: no edge shows during a turn, and Return steps in after the hover
+ok: a drag of more than 45 degrees turns the cube by one face; a slow short drag returns and does not step in
+ok: a drag that begins beside the cube leaves it where it is
+ok: a slow drag turns the cube with the hand at every step, the label changes at 45 degrees and Step in dims
+ok: a release at 49 degrees goes on to the next face (not settled at 173 ms, settled by 289 ms with the calls)
+ok: a release at 30 degrees returns to the face of before
+ok: a flick of 21 degrees goes on to the next face
+ok: after the drags and a turn key, Return steps into the face that is at the front
+ok: window audit: no window lost or left by the drags
+ok: with input.grab-any and fly_out Escape, Escape alone steps back, Return steps in, and the hint names Escape
+ok: after the switcher of xp closed, Alt+Escape steps back again
+ok: stood back, the windows float off the face, the upper one farther (888 and 961 per mille of the flat width), and land pixel for pixel
+ok: a window that opens while the cube floats gets a plane, and loses it when it closes
+ok: a window keeps its plane while the window manager does not answer, the construct answers three calls (after 11 12 9 ms), and the window lands when it does
+frame time: 299 frames of the screen in 10308 ms of the turn, 34 ms a frame
+ok: a slow turn forwarded nothing, a turn during it was ignored, and face 1 is at the front
+ok: a window moved from the face of VIRTUAL-1 to the face of VIRTUAL-2, which is at the front
+ok: xp ended: the construct removed the outputs and the cube
+ok: the probe window is not lost: s1 construct HEADLESS-1 550 310
+ok: a window manager that never connected: the face says it did not start, with the reason, and the outputs stay
+ok: cube.close removed the cube and its outputs
+ok: a face whose manager starts shows Starting XP when cube.open answers, 82 ms more than construct.list
+ok: a manager that exits: the card says XP did not start, with the reason, and no frame is black
+ok: stood back, the label says did not start, its dot is hollow and the middle hint says Try again
+ok: Return tries again, and the second failure shows on the face again
+ok: a click on a failed face tries again, and the face works when the manager is up
+ok: after the retry the keys of the cube work again
+ok: window audit: no window lost or left by the failed faces
+ok: Super+C opens the cube
+ok: co-79: stood back out of a pane, the hint bar names Super Alt 2, the give key of the face manager
+ok: co-79: Super+Alt+2 puts the window of the pane on face 1 at the front, steps in, the window takes keys, and the bar names the pull key
+ok: a dying construct leaves a flat xp on the screen with every window
+ok: a restarted construct reopens the cube with the windows on its faces
+ok: stood back with a pane open, the pane goes beside the cube and shows, its label hides, the face label stays under the cube
+ok: co-79: stepped out of the pane of the Terminal row, the hint bar names Super C Cube
+ok: co-79: Terminal row, Alt+Escape, the told Super+C and the told Super+Alt+2: the window is in face 0 and takes keys
+ok: co-79: Alt+Escape out of a pane pulled from a face stands back, and the told Super+Alt+2 puts the window back
+ok: rpc2-1: the key list in a pane lists only the keys that work there
+ok: rpc2-2: after the key list in a pane the step back names Super Alt 2 as it does without it
+ok: co-79 r7: right after Alt+Escape out of the pane of the Terminal row the bar names Super Alt 2 Into face
+ok: co-79 r7: Terminal row, Alt+Escape, one told Super+Alt+2: the window is in face 0 and takes keys
+ok: co-79 r7: in a pane pulled out of a face the told Super+Alt+2 puts the window back
+FAIL: co-79 r8: in a pane with xp running the bar does not tell the give to it (give-to keys:   ; put-in keys: Super Alt 2; bar: All keys, Into face, Step back)

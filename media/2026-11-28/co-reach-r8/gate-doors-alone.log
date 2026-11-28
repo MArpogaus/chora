@@ -1,0 +1,23 @@
+
+cell             xp        tiling    mc        construct
+keys-key         pass      pass      pass      pass
+keys-alias       pass      pass      pass      pass
+keys-names       pass      pass      pass      pass
+keys-door        pass      pass      pass      pass
+f1-free          pass      pass      pass      pass
+launcher-key     pass      pass      pass      pass
+launcher-door    pass      pass      pass      pass
+launcher-chat    pass      pass      pass      pass
+helper-key       pass      pass      pass      pass
+helper-door      pass      pass      pass      pass
+helper-none      pass      pass      pass      pass
+lock-key         pass      pass      pass      pass
+lock-door        pass      pass      pass      pass
+power-key        pass      pass      pass      pass
+power-door       pass      pass      pass      pass
+screenshot-key   pass      pass      pass      pass
+screenshot-door  pass      pass      pass      pass
+volume-key       pass      pass      pass      pass
+volume-door      pass      pass      pass      pass
+clock-door       pass      pass      pass      pass
+ok: every look has every key and door

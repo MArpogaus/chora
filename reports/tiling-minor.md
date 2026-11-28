@@ -235,3 +235,107 @@ Findings:
 - rtmr1-3 NIT flavors/tiling/applications/chora-give-xp.desktop (and mc, construct): the Apps launcher still lists "Move window to ..." with no window (named in the report); the notice after the refusal is now honest, so it is a word of the menu only; fix: leave, or list the entries only with a window as the Looks picker does.
 
 Verdict: MERGE-OK (0 BLOCK, 0 MAJOR, 2 MINOR, 1 NIT).
+
+## r2 (rc 1b, F7: rtmr1-1..3 of the tiling-minor r1 review)
+
+Branch claude/tiling-minor-r2, base bd641acb (tiling-minor r1 head), head ad07ec70 (8 commits, 6 files, +367 -32).
+Step 0 (`git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`) green. Captures:
+media/2026-11-28/tiling-minor-r2/ (each under 500 KB; 1280x800 fresh persona sessions of `round.sh start`, before from the
+binaries and flavor of bd641acb, after from the head).
+
+| id | red | fix | test | capture |
+|----|-----|-----|------|---------|
+| rtmr1-1 | 433fc761 | ab985149 | kit `tests/give_notice.rs` `a_refused_look_change_names_no_tool_in_its_notice_rtmr1_1` (exact en notice, German words, no `choractl`, no `settings.set`) | rtmr1-1-before/after-look-notice.txt (the arguments of notify-send with a refusing stand-in of choractl, C and de_DE) |
+| rtmr1-2 | none: the code held; test by mutation (see below) | none | tiling `tests::the_assistant_door_signals_the_bar_rtmr1_2` (fb05f028, f5cc8bc2) | no capture asked |
+| rtmr1-3 | 3fce00cd | cda21a03 | tiling `tests/apps_launcher.rs` `the_apps_list_offers_no_move_without_a_window_rtmr1_3` (and `..._offers_the_moves_with_a_window`, green at once); kit `launcher::tests::the_rows_that_move_a_window_are_the_give_rows_only`; gate `tests/gate-tiling-apps.sh` (5e45a47a, ad07ec70) | rtmr1-3-before-apps-move-no-window.png, rtmr1-3-after-apps-move-no-window.png, rtmr1-3-after-apps-move-with-window.png (Super+Space, then the text "move") |
+
+### Per id
+
+- **rtmr1-1.** look.sh says "Theme not changed" and now the body "The look stayed as it was." / "Design nicht geändert",
+  "Das Design ist geblieben, wie es war."; the reason of choractl goes to stderr (`look.sh: ...`), as give.sh does since
+  rpt2-2. Red on bd641acb: the test failed with `C: -a Look Theme not changed choractl call tiling settings.set`. Every other
+  notice a person sees in flavors/tiling was grepped for `choractl`: give.sh (already clean) and look.sh were the only
+  `notify-send` in the flavor; the rest is a command in config.jsonc or a comment. Not in the scope, named: flavors/shared/power.sh:29
+  shows the locker command line ("swaylock -f") as the body of its notice when the lock fails; that is a tool name in a notice
+  of the shared folder, left for the PM.
+- **rtmr1-2.** The handler was right (main.rs `Event::Emitted assistant.door` from `assistant` calls `push_helper`), so the test
+  is the deliverable. A stand-in of waybar (a bash script named `waybar` with the pid file `waybar.pid` in a private runtime
+  directory) writes `door` to a fifo for each SIGRTMIN+2 and `end` for SIGRTMIN+3; a child process of the test binary is
+  tiling and hears `assistant.door` from `other` (the fifo says only `end`) and from `assistant` (`door`, `end`); the parent
+  ends each round with SIGRTMIN+3, which a pending SIGRTMIN+2 precedes, so no sleep and no timing. Red by mutation, run twice:
+  `Self::push_helper();` removed from the handler: `the door of the assistant did not signal the bar, left: ["end"] right:
+  ["door", "end"]`; the `client == "assistant"` test removed: `another client signalled the bar, left: ["door", "end"] right:
+  ["end"]`. Five runs green on head. The first version set `XDG_RUNTIME_DIR` and tripped `cut-check copies` (KIT1);
+  it names `chora_scene::paths::RUNTIME_ENV` now (f5cc8bc2).
+- **rtmr1-3.** One rule, one place: `window_has_focus` (main.rs) reads the focus for the Looks picker and the Apps list (a
+  failed read counts as a window, so the rows stay), and `chora_kit::launcher::without_moves` drops the `chora-tiling --launch
+  give ...` rows; `run_ordered` takes `Option<Tiling { helper, window }>` (a sixth argument tripped clippy's too_many_arguments).
+  Red on bd641acb: `the_apps_list_offers_no_move_without_a_window_rtmr1_3` failed with the three "Move window to ..." rows.
+  The capture: with no window, the text "move" in Apps shows three rows before and an empty list after; with a window (foot) after the
+  three rows are back. The Apps gate listed the move rows on an empty desktop (the e2e step failed there, `no launcher row "Move
+  window to the xp desktop"`, my change): it checks now that an empty desktop has none and, with a window, all three.
+
+### Gate
+
+`CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2 --allow-skip docs --base bd641acb` (no --push), detached, EXIT 0:
+all steps PASS, docs SKIP (mkdocs not installed, docs unchanged in the range). Why `--base bd641acb`: the default base
+(autonomous-dev-session-3w-i33pg7) has docs/decisions.md changed against the merge-base, so the docs step failed without mkdocs
+before any of my code; the range of r2 changes no doc.
+Earlier runs of this lane, in order, so that nothing is hidden:
+1. docs FAIL (the base above); cut-check copies XDG_RUNTIME_DIR (fixed, f5cc8bc2).
+2. doors FAIL twice in the gate and once alone: cell helper-none of tiling, `tiling: the chat does not say No helper whole: A
+   question is waiting.` (the chat of the cell before). Not reproduced on bd641acb (one run, pass), on head the same cell passed
+   in two later runs and in the final run; I cannot name the cause, it is intermittent and nothing in the range touches the chat
+   or the voice cells. Watch it in FLAKE-SERIES.
+3. pull FAIL once with `--jobs 2` (`one output: a title drag to the screen edge shows no pull hint`), pass alone and in the final run.
+4. e2e FAIL: `gate-tiling-apps` (my change, above); fixed in the gate script, then e2e PASS alone and in the final run.
+5. ratchets FAIL: my first gate edit added one `sleep 600`; the window is a `cat` now (ad07ec70).
+A note for the next lane: the red-first step builds the parents of the fix commits into the shared target/debug, so a gate script run by
+hand right after it sees the old binary; the gate's own build step rebuilds.
+
+Last lines of the final run:
+
+```
+tiling-bar PASS   189s
+leak       PASS   474s
+tiling-theme PASS    18s
+mc-host    PASS    23s
+tiling-disc PASS    73s
+e2e        PASS   286s
+skipped: docs (mkdocs is not installed (docs unchanged))
+all steps passed; no --push, nothing is pushed
+```
+
+## Review r2 (rc 1b tiling-minor r2; rtmr1-1..3)
+
+Reviewer lane, read-only on code: claude/tiling-minor-r2 head ad07ec70 on bd641acb (6 files, +367 -32, 8 commits).
+Step 0 green (`git fetch --unshallow`, `cargo check --workspace`). No merge gate (the lane ran it).
+
+Checks:
+1) Red first: PASS. 433fc761 (test on bd641acb code): `a_refused_look_change_names_no_tool_in_its_notice_rtmr1_1` FAILED
+   (`C: -a Look Theme not changed choractl call tiling settings.set`); 3fce00cd: `the_apps_list_offers_no_move_without_a_window_rtmr1_3`
+   FAILED (the three "Move window to ..." rows). Head: `cargo test -p chora-kit -p chora-tiling -p chora-assistant` 966 passed,
+   0 failed; clippy `--all-targets -D warnings` clean; `tests/gate-tiling-apps.sh` EXIT 0 (all ok lines, both rtmr1-3 cells).
+   rtmr1-2 by mutation: `Self::push_helper();` removed from the tiling handler (main.rs:895): `the_assistant_door_signals_the_bar_rtmr1_2`
+   FAILED (`left: ["end"] right: ["door", "end"]`); the assistant side (`"assistant.door"` renamed in chat/host.rs:539):
+   `the_door_word_is_told_once_for_each_change_rpt3_2` FAILED. Both ends of the push are pinned; the test has no sleep (RT signal order).
+2) rtmr1-1: PASS on tool names. The only `notify-send` of flavors/tiling are give.sh and look.sh; neither names choractl or a method;
+   the rest is config.jsonc commands and comments. Both languages. Word fault: rtmr2-1.
+3) rtmr1-3: PASS. One focus rule, `window_has_focus` (main.rs:401), used by the Apps list and `looks_seen`; a failed connection or
+   scene.query counts as a window in both (by code; untested, rtmr2-3). The kit change: `run_ordered` loses `ordered`/`helper` for
+   `Option<Tiling>`; its only caller is tiling; xp (launch.rs:43) and mc (main.rs:475) call `run`, which passes None as before (was
+   `false, None`): no change for xp, mc, construct. The connection is a temporary, closed before fuzzel opens.
+4) Nothing loosened: PASS. Removed lines under tests/ are only the generalised helper of give_notice.rs; no wait, timeout or cell removed.
+   The gate's new window is `foot -a mover cat`, no sleep; its waits are `ctl wait --timeout 15` and `until_ok ... 40` (polls).
+5) Report: PASS. docs SKIP with reason and `--base bd641acb` named; the flakes doors helper-none (log line pasted, not reproduced on base,
+   passed on head twice) and pull (one run, pass alone and in the final run) are named for FLAKE-SERIES; the lane's own e2e and
+   ratchet reds are listed. power.sh:29 is real: rtmr2-2. Captures under 500 KB (largest 128 KB).
+
+Findings:
+- rtmr2-1 MINOR flavors/tiling/look.sh:15: the new body "The look stayed as it was." (and the app name `-a Look`) says look for the colour theme, under the title "Theme not changed", while on screen a look is one of the four desktops (bar "Looks", ti-55; gate-tiling-apps fails a theme row that says look); fix: "The theme stayed as it was." and `-a Theme`, with the exact-notice assert of give_notice.rs changed to match.
+- rtmr2-2 MINOR flavors/shared/power.sh:29: a failed lock shows the locker command line ("swaylock -f") as the notice body in every look, the tool-name class of rpt2-2 and rtmr1-1; fix: a body in words ("The screen is not locked." / "Der Bildschirm ist nicht gesperrt.") with the command already on stderr (line 28), and a notice test like give_notice.rs.
+- rtmr2-3 NIT plugins/chora-tiling/src/main.rs:402: nothing pins "a failed read counts as a window": both `map_or(true` turned to `map_or(false` leave all chora-tiling tests green; fix: an apps_launcher.rs case whose FakeCore refuses scene.query and still sees the three move rows.
+- rtmr2-4 NIT crates/chora-kit/src/launcher.rs:104: the doc of `without_moves` calls it "the one rule for the Apps list and the Looks menu", but the Looks menu does not call it (it builds its own rows, with "No window to move"); fix: say it is the Apps half and that the focus rule is tiling's `window_has_focus`.
+- rtmr2-5 NIT plugins/chora-tiling/src/main.rs:340: with no window, the text "move" in Apps shows an empty list (capture rtmr1-3-after-apps-move-no-window.png) where the Looks menu says "No window to move"; fix: leave, or keep one row `NoWindowToMove` in the Apps list as the Looks menu does.
+
+Verdict: MERGE-OK (0 BLOCK, 0 MAJOR, 2 MINOR, 3 NIT).
