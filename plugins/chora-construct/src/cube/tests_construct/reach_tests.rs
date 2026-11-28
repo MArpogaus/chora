@@ -243,6 +243,59 @@ fn with_the_face_manager_running_the_key_from_a_pane_gives_to_it() {
     );
 }
 
+/// rcrr7-2 (review r7): the put that waits ends when the person moved
+/// on: flown into another pane, or another window noted at the cube
+/// (chosen there), so that no later put glides the camera out of where
+/// the person went.
+#[test]
+fn the_wait_ends_when_the_person_moves_on() {
+    for moves in ["fly", "note"] {
+        let (mut construct, _core, _lines) = super::with_hint_bar(&format!("reach-r8-on-{moves}"));
+        construct.cube.as_mut().unwrap().program = "xp".into();
+        let size = construct.panes[0].size;
+        construct.panes.push(crate::Pane {
+            name: "notes".into(),
+            source: "s2".into(),
+            content: crate::Content::Window { command: None },
+            at: [400.0, 700.0],
+            yaw: 0.0,
+            size,
+            taken: false,
+            attached: true,
+            placed: false,
+        });
+        construct.core_focus = Some("s1".into());
+        construct.put_pane("s1").unwrap();
+        assert!(
+            waits(&construct),
+            "no window.move is exported: the put waits"
+        );
+        if moves == "fly" {
+            construct.fly_in(1).unwrap();
+            construct.flown = crate::camera::take_flight(&mut construct.glide);
+            assert!(construct.in_pane(), "flown into the other pane");
+        } else {
+            let host = construct.cube.as_mut().unwrap();
+            host.note_focus(Some("s7".into()));
+        }
+        due(&mut construct);
+        construct.put_when_ready().unwrap();
+        assert!(!waits(&construct), "moved on ({moves}): the put ends");
+    }
+}
+
+/// Whether a put waits (`put_pane`).
+fn waits(construct: &crate::Construct) -> bool {
+    (construct.cube.as_ref()).is_some_and(|host| host.put_later.is_some())
+}
+
+/// The put that waits looks again now.
+fn due(construct: &mut crate::Construct) {
+    if let Some(put) = (construct.cube.as_mut()).and_then(|host| host.put_later.as_mut()) {
+        put.1 = std::time::Instant::now();
+    }
+}
+
 /// The window `s1` of the pane of `with_hint_bar`, which exists and sits in
 /// the panes, so that the core can focus it and answers the query for the
 /// window with the keyboard.
