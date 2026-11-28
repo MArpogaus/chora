@@ -24,7 +24,7 @@ burn-down: F1-4, F6, F8 met; F5 open (r10 4/5), flake-xp runs, flake-gate merged
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| review-co-reach-r7.md (Q 2, 0.5 %) | opus high, 008714ba | starting |
+| review-co-reach-r7.md (Q 2, 0.5 %) | opus high, 008714ba | s..MHpHXuKeU6YXD3g9m |
 | tiling-minor-r2.md (Q 3, 0.5 %) | sonnet high, bd641acb | s..e5m7T8bV2j2Lb7at |
 | flake-xp-r1.md (Q 5, 0.7 %) | sonnet high, 8b6f35dc | s..kL3XGUoheq6ZEp6h9E |
 | tour-v9-take-r3.md (Q 4, 1 %) | sonnet medium, 3098926e | s..NAX1Yb9SZ2QEw1qSK |
