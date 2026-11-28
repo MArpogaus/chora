@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-28 07:58 UTC)
+## Now (2026-11-28 08:00 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-28 04:00 to 12-05 03:59 UTC, no day cap; tokens.py 07:58 PM 0 % (reset); last week hit 100 % at 11-27 00:16, 28 h early; need 95 %/168 h = 0.57 %/h; lanes 5, opus only co-reach
+budget: week 11-28 04:00 to 12-05 03:59 UTC, no day cap; tokens.py 08:00 PM 0 % (reset); last week hit 100 % at 11-27 00:16, 28 h early; need 95 %/168 h = 0.57 %/h; lanes 5, opus only co-reach
 session branch: 3098926e (t162 green); 106 greens
 
 lanes: 4 of 6 (co-reach-r8, flake-xp-r1, tiling-minor-r2, take-r3); flake r11 after flake-xp
@@ -24,7 +24,7 @@ burn-down: F1-4, F6, F8 met; F5 open (r10 4/5), flake-xp runs, flake-gate merged
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| co-reach-r8.md (Q 2, 1 %) | opus high, 008714ba | starting |
+| co-reach-r8.md (Q 2, 1 %) | opus high, 008714ba | s..MTDatd81jxZtyoBvH |
 | tiling-minor-r2.md (Q 3, 0.5 %) | sonnet high, bd641acb | s..e5m7T8bV2j2Lb7at |
 | flake-xp-r1.md (Q 5, 0.7 %) | sonnet high, 8b6f35dc | s..kL3XGUoheq6ZEp6h9E |
 | tour-v9-take-r3.md (Q 4, 1 %) | sonnet medium, 3098926e | s..NAX1Yb9SZ2QEw1qSK |
