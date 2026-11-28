@@ -1,0 +1,20 @@
+voice-acp  PASS    12s /tmp/merge-gate.cu28RW/voice-acp.log
+voice-events PASS     2s /tmp/merge-gate.cu28RW/voice-events.log
+agent      PASS    41s /tmp/merge-gate.cu28RW/agent.log
+tiling-keys-more PASS    44s /tmp/merge-gate.cu28RW/tiling-keys-more.log
+acts       PASS  2320s /tmp/merge-gate.cu28RW/acts.log
+tiling-system PASS    17s /tmp/merge-gate.cu28RW/tiling-system.log
+handover   PASS   113s /tmp/merge-gate.cu28RW/handover.log
+mc-scale   PASS    16s /tmp/merge-gate.cu28RW/mc-scale.log
+watchdog-starved PASS    53s /tmp/merge-gate.cu28RW/watchdog-starved.log
+tiling-windows PASS   228s /tmp/merge-gate.cu28RW/tiling-windows.log
+xp-run     PASS    15s /tmp/merge-gate.cu28RW/xp-run.log
+demo       PASS   257s /tmp/merge-gate.cu28RW/demo.log
+leak       PASS   477s /tmp/merge-gate.cu28RW/leak.log
+tiling-bar PASS   198s /tmp/merge-gate.cu28RW/tiling-bar.log
+tiling-theme PASS    18s /tmp/merge-gate.cu28RW/tiling-theme.log
+mc-host    PASS    23s /tmp/merge-gate.cu28RW/mc-host.log
+tiling-disc PASS    75s /tmp/merge-gate.cu28RW/tiling-disc.log
+e2e        PASS   288s /tmp/merge-gate.cu28RW/e2e.log
+skipped: docs (mkdocs is not installed (docs unchanged))
+all steps passed; no --push, nothing is pushed
