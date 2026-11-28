@@ -1246,7 +1246,6 @@ mkdir -p "$work/never"
 cat >"$work/never/chora-xp" <<'SH'
 #!/bin/sh
 echo "it needs a display it cannot have." >&2
-sleep 1
 exit 1
 SH
 chmod +x "$work/never/chora-xp"
