@@ -305,6 +305,25 @@ class CompareDirs(unittest.TestCase):
         write_capture(self.cand, "x1.Q")
         self.assertEqual(self.verdicts(none=["x1.Q"]), [("x1", "Q", "none")])
 
+    def test_a_declared_baseline_none_is_none_though_the_base_has_a_capture(self):
+        """rtf1-1 (r6): v8 cannot step into a face, so its capture of c5d is another scene, not a baseline. The act is declared
+        `baseline_none`: `none`, not the `change` or `regression` of a comparison, whatever the two frames differ in, and a
+        row that names the diff does not turn it back into a `change`."""
+        write_capture(self.base, "x1.Q")
+        write_capture(self.cand, "x1.Q", box(50, 40, 120, 60), data='{"nodes": [{"id": "a", "kind": "node", "owner": "xp", "meta": {}, "rects": {"HEADLESS-1": [1, 2, 3, 4]}}]}')
+        self.assertEqual(self.verdicts(none=["x1.Q"]), [("x1", "Q", "none")])
+        row = {"act": "x1", "kind": "pixel", "cause": "N-1", "boxes": [[40, 30, 140, 80]]}
+        self.assertEqual(self.verdicts(intended=[row], none=["x1.Q"]), [("x1", "Q", "none")])
+        self.assertEqual(self.verdicts(intended=[row]), [("x1", "Q", "change")])
+
+    def test_a_declared_baseline_none_with_a_base_capture_still_runs_the_checks_of_cand(self):
+        """The v9 checks of a declared act still count: a red check of cand that no row absorbs is a regression."""
+        write_capture(self.base, "x1.Q", data='{"nodes": [], "checks": {"I1": "red"}}')
+        write_capture(self.cand, "x1.Q", data='{"nodes": [], "checks": {"I1": "green", "I9": "red"}}')
+        self.assertEqual(self.verdicts(none=["x1.Q"]), [("x1", "Q", "regression")])
+        write_capture(self.cand, "x1.Q", data='{"nodes": [], "checks": {"I1": "green", "I9": "green"}}')
+        self.assertEqual(self.verdicts(none=["x1.Q"]), [("x1", "Q", "none")])
+
     def test_an_undeclared_absence_in_base_is_a_regression(self):
         write_capture(self.cand, "x1.Q")
         self.assertEqual(self.verdicts(), [("x1", "Q", "regression")])
@@ -634,6 +653,42 @@ class NoRowKindAbsorbsWhatItDoesNotName(unittest.TestCase):
         self.assertEqual(whole, [])
 
 
+class WideBoxes(unittest.TestCase):
+    """rtr5r-4 (r6): a box that holds more than half of the frame names nearly every pixel of its act, so a row may have one
+    only when it says why (`wide = "..."`): the box is then a stated bound, e.g. a panel that stands over the whole page.
+    Without `wide` the row proves nothing and the act is `open`."""
+
+    BLOB = [(40, 20, 30, 30)]
+
+    def verdict(self, **row):
+        rows = [{"act": "x1", "kind": "pixel", "cause": "N-1", **row}]
+        return diff.verdict("x1", [], False, rows, blobs=self.BLOB)
+
+    def test_a_box_over_half_the_frame_without_wide_is_open(self):
+        v = self.verdict(boxes=[[0, 0, 1000, 600]])
+        self.assertEqual((v["verdict"], v.get("unproven")), ("open", ["pixel"]))
+
+    def test_a_box_over_half_the_frame_with_a_reason_is_a_change(self):
+        self.assertEqual(self.verdict(boxes=[[0, 0, 1000, 600]], wide="the sheet panel and its shadow")["verdict"], "change")
+
+    def test_a_small_box_needs_no_reason(self):
+        self.assertEqual(self.verdict(boxes=[[30, 10, 60, 50]])["verdict"], "change")
+
+    def test_a_small_box_of_the_row_holds_the_blob_before_a_wide_one(self):
+        self.assertEqual(self.verdict(boxes=[[0, 0, 1000, 600], [30, 10, 60, 50]])["verdict"], "change")
+
+    def test_every_wide_box_of_intended_toml_says_why_and_c4_stays_in_the_sheet(self):
+        """The data: c4 is the one act whose key sheet stands over the cube (panel [31, 58, 1218, 604], its shadow to y 690); its box
+        lies in the panel with its fringe, and c5d, c5e, m8 have no box that wide."""
+        import tomllib
+
+        rows = tomllib.loads((HERE.parent / "demo/tour/intended.toml").read_text())["change"]
+        wide = [(r["act"], b, bool(r.get("wide"))) for r in rows if r["kind"] == "pixel" for b in r.get("boxes", []) if b[2] * b[3] > 1280 * 720 // 2]
+        self.assertEqual(wide, [("c4", [27, 58, 1226, 632], True)])
+        row = next(r for r in rows if r["act"] == "c4" and r.get("wide"))
+        self.assertIn("construct-help-body-panel", row["wide"])
+
+
 class IntendedRows(unittest.TestCase):
     def test_h2_lists_kinds_and_no_wildcard(self):
         import tomllib
@@ -905,11 +960,9 @@ class MinorRegressionsOfTakeR5(unittest.TestCase):
         wrong = {act: self.verdict(act) for act in self.ROWS if self.verdict(act)["verdict"] != "change"}
         self.assertEqual(wrong, {})
 
-    def test_m8_keeps_its_launcher_diff_unnamed_and_the_c5_acts_have_no_box_of_the_frame(self):
-        """rtr4-2: no row may name the launcher of m8 (463, 198, 354, 324); rtf1-1: no box may name the whole frame of c5d, c5e."""
-        self.assertEqual(self.verdict("m8")["verdict"], "regression")
-        self.assertEqual(self.verdict("m8")["unnamed"], ["pixel"])
-        boxes = [b for r in self.rows() if r["act"] in ("c5d", "c5e", "m8") and r["kind"] == "pixel" for b in r.get("boxes", [])]
+    def test_the_c5_acts_have_no_box_of_the_frame(self):
+        """rtf1-1: no box may name the whole frame of c5d, c5e (they are declared baseline-none since r6, so they have no row)."""
+        boxes = [b for r in self.rows() if r["act"] in ("c5d", "c5e") and r["kind"] == "pixel" for b in r.get("boxes", [])]
         self.assertEqual([b for b in boxes if b[2] * b[3] > 1280 * 720 // 2], [])
 
     def test_the_x1_row_boxes_the_tail_node_of_the_balloon_and_cites_its_commits(self):
@@ -940,6 +993,56 @@ class MinorRegressionsOfTakeR5(unittest.TestCase):
         """rtf1-5: the header of the chat reads Working at once after a send (88951ae4), where v8 still read Idle."""
         mine = [r for r in self.rows() if r["act"] == "x5b" and r["kind"] == "meta" and "hud-chat" in r.get("nodes", ())]
         self.assertEqual([("88951ae4" in r["cause"]) for r in mine], [True])
+
+
+class RegressionsOfTakeR6(unittest.TestCase):
+    """tour-rows r6 (F7, rc 11): take r3 left 5 regressions on 3098926e. c5d c5e (rtf1-1) are declared baseline-none; m8
+    (rtr4-2) is the kit launcher in the theme of mc; m6 m6b name the key rows that have no hit. `tour-diff-take-r6.json`
+    holds, per act, the diffs of the r6 take (v9 head, v8 733967aa, TOUR_BASELINE=1) that no row of 3098926e named."""
+
+    TAKE = json.loads((HERE / "tour-diff-take-r6.json").read_text())
+
+    @classmethod
+    def table(cls):
+        import tomllib
+
+        return tomllib.loads((HERE.parent / "demo/tour/intended.toml").read_text())
+
+    def verdict(self, act):
+        u = self.TAKE[act]
+        scene = [{"kind": k, "id": i, "detail": ""} for k, i in u["scene"]]
+        return diff.verdict(act, scene, not u["blobs"], self.table()["change"], blobs=[tuple(b) for b in u["blobs"]])
+
+    def test_c5d_and_c5e_are_declared_baseline_none_with_a_reason_naming_rtf1_1(self):
+        table = self.table()
+        for name in ("c5d.Q", "c5e.Q"):
+            self.assertIn(name, table["baseline_none"])
+            self.assertIn("rtf1-1", table.get("baseline_none_why", {}).get(name, ""), name)
+
+    def test_every_declared_baseline_none_has_a_reason(self):
+        table = self.table()
+        self.assertEqual([n for n in table["baseline_none"] if not table.get("baseline_none_why", {}).get(n)], [])
+
+    def test_m6_and_m6b_name_the_rows_without_a_hit_with_the_commit_that_makes_them(self):
+        """4363de11 adds the row Up Down Scroll the page, which has no binding, so no `-key-hit` and `-key-mark` (region/items.rs:
+        `hit: row.binding...`); with fa7faabd's Home row it shifts the rows after it, so v9's row 2 has none where v8's row 2 had."""
+        for act in ("m6", "m6b"):
+            v = self.verdict(act)
+            self.assertEqual(v["verdict"], "change", (act, v))
+            self.assertIn("4363de11", v["cause"])
+            rows = [r for r in self.table()["change"] if r["act"] == act and "mc-r1-right-keys-2-key-hit" in r.get("nodes", ())]
+            self.assertEqual([sorted(r["nodes"]) for r in rows], [["mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark"]], act)
+
+    def test_m8_names_the_launcher_of_the_take_with_the_commits_that_make_it(self):
+        """cd277ee4 (the box takes the colours of mc), 12f97cd33 (mc's launcher is the kit's Apps list: installed programs only, so
+        the LibreOffice rows that v8's plain fuzzel listed are gone on the take's PATH) and df1a2d0f (the rows carry Icon=): the box
+        of the blob [463, 198, 354, 324] and no wider."""
+        v = self.verdict("m8")
+        self.assertEqual(v["verdict"], "change", v)
+        rows = [r for r in self.table()["change"] if r["act"] == "m8" and r["kind"] == "pixel" and "cd277ee4" in r["cause"]]
+        self.assertEqual([r["boxes"] for r in rows], [[[463, 198, 354, 324]]])
+        for sha in ("cd277ee4", "12f97cd33", "df1a2d0f"):
+            self.assertIn(sha, rows[0]["cause"])
 
 
 def load_launch(repo):

@@ -1,0 +1,42 @@
+{
+ "m6": {
+  "capture": "Q",
+  "scene": [
+   [
+    "missing",
+    "mc-r1-right-keys-2-key-hit"
+   ],
+   [
+    "missing",
+    "mc-r1-right-keys-2-key-mark"
+   ]
+  ],
+  "blobs": []
+ },
+ "m6b": {
+  "capture": "Q",
+  "scene": [
+   [
+    "missing",
+    "mc-r1-right-keys-2-key-hit"
+   ],
+   [
+    "missing",
+    "mc-r1-right-keys-2-key-mark"
+   ]
+  ],
+  "blobs": []
+ },
+ "m8": {
+  "capture": "Q",
+  "scene": [],
+  "blobs": [
+   [
+    463,
+    198,
+    354,
+    324
+   ]
+  ]
+ }
+}
