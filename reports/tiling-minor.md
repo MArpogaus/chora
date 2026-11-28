@@ -235,3 +235,73 @@ Findings:
 - rtmr1-3 NIT flavors/tiling/applications/chora-give-xp.desktop (and mc, construct): the Apps launcher still lists "Move window to ..." with no window (named in the report); the notice after the refusal is now honest, so it is a word of the menu only; fix: leave, or list the entries only with a window as the Looks picker does.
 
 Verdict: MERGE-OK (0 BLOCK, 0 MAJOR, 2 MINOR, 1 NIT).
+
+## r2 (rc 1b, F7: rtmr1-1..3 of the tiling-minor r1 review)
+
+Branch claude/tiling-minor-r2, base bd641acb (tiling-minor r1 head), head ad07ec70 (8 commits, 6 files, +367 -32).
+Step 0 (`git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`) green. Captures:
+media/2026-11-28/tiling-minor-r2/ (each under 500 KB; 1280x800 fresh persona sessions of `round.sh start`, before from the
+binaries and flavor of bd641acb, after from the head).
+
+| id | red | fix | test | capture |
+|----|-----|-----|------|---------|
+| rtmr1-1 | 433fc761 | ab985149 | kit `tests/give_notice.rs` `a_refused_look_change_names_no_tool_in_its_notice_rtmr1_1` (exact en notice, German words, no `choractl`, no `settings.set`) | rtmr1-1-before/after-look-notice.txt (the arguments of notify-send with a refusing stand-in of choractl, C and de_DE) |
+| rtmr1-2 | none: the code held; test by mutation (see below) | none | tiling `tests::the_assistant_door_signals_the_bar_rtmr1_2` (fb05f028, f5cc8bc2) | no capture asked |
+| rtmr1-3 | 3fce00cd | cda21a03 | tiling `tests/apps_launcher.rs` `the_apps_list_offers_no_move_without_a_window_rtmr1_3` (and `..._offers_the_moves_with_a_window`, green at once); kit `launcher::tests::the_rows_that_move_a_window_are_the_give_rows_only`; gate `tests/gate-tiling-apps.sh` (5e45a47a, ad07ec70) | rtmr1-3-before-apps-move-no-window.png, rtmr1-3-after-apps-move-no-window.png, rtmr1-3-after-apps-move-with-window.png (Super+Space, then the text "move") |
+
+### Per id
+
+- **rtmr1-1.** look.sh says "Theme not changed" and now the body "The look stayed as it was." / "Design nicht geändert",
+  "Das Design ist geblieben, wie es war."; the reason of choractl goes to stderr (`look.sh: ...`), as give.sh does since
+  rpt2-2. Red on bd641acb: the test failed with `C: -a Look Theme not changed choractl call tiling settings.set`. Every other
+  notice a person sees in flavors/tiling was grepped for `choractl`: give.sh (already clean) and look.sh were the only
+  `notify-send` in the flavor; the rest is a command in config.jsonc or a comment. Not in the scope, named: flavors/shared/power.sh:29
+  shows the locker command line ("swaylock -f") as the body of its notice when the lock fails; that is a tool name in a notice
+  of the shared folder, left for the PM.
+- **rtmr1-2.** The handler was right (main.rs `Event::Emitted assistant.door` from `assistant` calls `push_helper`), so the test
+  is the deliverable. A stand-in of waybar (a bash script named `waybar` with the pid file `waybar.pid` in a private runtime
+  directory) writes `door` to a fifo for each SIGRTMIN+2 and `end` for SIGRTMIN+3; a child process of the test binary is
+  tiling and hears `assistant.door` from `other` (the fifo says only `end`) and from `assistant` (`door`, `end`); the parent
+  ends each round with SIGRTMIN+3, which a pending SIGRTMIN+2 precedes, so no sleep and no timing. Red by mutation, run twice:
+  `Self::push_helper();` removed from the handler: `the door of the assistant did not signal the bar, left: ["end"] right:
+  ["door", "end"]`; the `client == "assistant"` test removed: `another client signalled the bar, left: ["door", "end"] right:
+  ["end"]`. Five runs green on head. The first version set `XDG_RUNTIME_DIR` and tripped `cut-check copies` (KIT1);
+  it names `chora_scene::paths::RUNTIME_ENV` now (f5cc8bc2).
+- **rtmr1-3.** One rule, one place: `window_has_focus` (main.rs) reads the focus for the Looks picker and the Apps list (a
+  failed read counts as a window, so the rows stay), and `chora_kit::launcher::without_moves` drops the `chora-tiling --launch
+  give ...` rows; `run_ordered` takes `Option<Tiling { helper, window }>` (a sixth argument tripped clippy's too_many_arguments).
+  Red on bd641acb: `the_apps_list_offers_no_move_without_a_window_rtmr1_3` failed with the three "Move window to ..." rows.
+  The capture: with no window, the text "move" in Apps shows three rows before and an empty list after; with a window (foot) after the
+  three rows are back. The Apps gate listed the move rows on an empty desktop (the e2e step failed there, `no launcher row "Move
+  window to the xp desktop"`, my change): it checks now that an empty desktop has none and, with a window, all three.
+
+### Gate
+
+`CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2 --allow-skip docs --base bd641acb` (no --push), detached, EXIT 0:
+all steps PASS, docs SKIP (mkdocs not installed, docs unchanged in the range). Why `--base bd641acb`: the default base
+(autonomous-dev-session-3w-i33pg7) has docs/decisions.md changed against the merge-base, so the docs step failed without mkdocs
+before any of my code; the range of r2 changes no doc.
+Earlier runs of this lane, in order, so that nothing is hidden:
+1. docs FAIL (the base above); cut-check copies XDG_RUNTIME_DIR (fixed, f5cc8bc2).
+2. doors FAIL twice in the gate and once alone: cell helper-none of tiling, `tiling: the chat does not say No helper whole: A
+   question is waiting.` (the chat of the cell before). Not reproduced on bd641acb (one run, pass), on head the same cell passed
+   in two later runs and in the final run; I cannot name the cause, it is intermittent and nothing in the range touches the chat
+   or the voice cells. Watch it in FLAKE-SERIES.
+3. pull FAIL once with `--jobs 2` (`one output: a title drag to the screen edge shows no pull hint`), pass alone and in the final run.
+4. e2e FAIL: `gate-tiling-apps` (my change, above); fixed in the gate script, then e2e PASS alone and in the final run.
+5. ratchets FAIL: my first gate edit added one `sleep 600`; the window is a `cat` now (ad07ec70).
+A note for the next lane: the red-first step builds the parents of the fix commits into the shared target/debug, so a gate script run by
+hand right after it sees the old binary; the gate's own build step rebuilds.
+
+Last lines of the final run:
+
+```
+tiling-bar PASS   189s
+leak       PASS   474s
+tiling-theme PASS    18s
+mc-host    PASS    23s
+tiling-disc PASS    73s
+e2e        PASS   286s
+skipped: docs (mkdocs is not installed (docs unchanged))
+all steps passed; no --push, nothing is pushed
+```

@@ -1,0 +1,8 @@
+# look.sh dark, LANG=C, choractl refuses
+notify-send [-a] [Look] [Theme not changed] [The look stayed as it was.]
+look.sh: choractl: settings.set: refused
+exit 1
+# look.sh dark, LANG=de_DE.UTF-8, choractl refuses
+notify-send [-a] [Look] [Design nicht geändert] [Das Design ist geblieben, wie es war.]
+look.sh: choractl: settings.set: refused
+exit 1
