@@ -554,6 +554,31 @@ mod tests {
         }
     }
 
+    /// The swallow of the chords that no binding uses waits for the scene:
+    /// a window manager that starts beside xp (the construct starts two
+    /// panes at once) says that it swallows, and xp, which has not heard it
+    /// yet, would keep every chord that the other binds (pane-keys: Super+Return
+    /// went to nobody).
+    #[test]
+    fn xp_swallows_after_its_scene_stands() {
+        let core = core_with_look(false);
+        let calls = core.record(|method, params| match method {
+            "input.grab" => Some(format!("grab {}", params["binding"].as_str().unwrap_or(""))),
+            "scene.apply" if params.to_string().contains("\"create\"") => Some("create".to_owned()),
+            _ => None,
+        });
+        let _wm = wm_on_kit_core(&core, "swallow-after-scene");
+        let calls = calls.lock().unwrap().clone();
+        let create = calls.iter().position(|m| m == "create").unwrap();
+        let at = |what: &str| calls.iter().position(|m| m == what);
+        assert!(at("grab Super+space") < Some(create), "{calls:?}");
+        assert!(
+            at("grab Alt+Shift+Super+q") > Some(create),
+            "a chord that no binding uses is swallowed before the first node: {:?}",
+            &calls[..calls.len().min(4)]
+        );
+    }
+
     /// rfxr1-3: outputs that turn into faces between the early grab and the
     /// late one leave no cube key held: the late grab lets go of what the
     /// early one took and the scene no longer asks for.

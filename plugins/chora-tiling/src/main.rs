@@ -1393,6 +1393,33 @@ mod tests {
         );
     }
 
+    /// The swallow of the chords that no binding uses waits for the claim of
+    /// tiling: a window manager that starts beside it says that it swallows
+    /// before the other has heard it, and keeps every chord that the other
+    /// binds (pane-keys: Super+Return went to nobody).
+    #[test]
+    fn tiling_swallows_after_its_group_stands() {
+        let dir = chora_kit::testing::TempDir::new("chora-tiling-swallow-late").keep();
+        std::fs::create_dir_all(&dir).unwrap();
+        let core = FakeCore::start().selecting();
+        let calls = core.record(|method, params| match method {
+            "input.grab" => Some(format!("grab {}", params["binding"].as_str().unwrap_or(""))),
+            "scene.apply" if params.to_string().contains("\"create\"") => Some("create".to_owned()),
+            _ => None,
+        });
+        let mut tiling = tiling_on(core.runtime(NAME), &dir, &[]);
+        tiling.start().unwrap();
+        let calls = calls.lock().unwrap().clone();
+        let create = calls.iter().position(|m| m == "create").unwrap();
+        let at = |what: &str| calls.iter().position(|m| m == what);
+        assert!(at("grab Super+space") < Some(create), "{calls:?}");
+        assert!(
+            at("grab Alt+Shift+Super+q") > Some(create),
+            "a chord that no binding uses is swallowed before the first node: {:?}",
+            &calls[..calls.len().min(4)]
+        );
+    }
+
     /// A tiling on the runtime `rt`, with its settings file in `dir`.
     pub(crate) fn tiling_on(
         rt: Runtime<Action>,
