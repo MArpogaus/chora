@@ -176,7 +176,7 @@ impl Construct {
             return self.put_pane(&surface);
         }
         let beside = self.pane_to_manager().filter(|_| to == self.face_manager());
-        let focused = match beside {
+        let focused = match &beside {
             Some(surface) => self.rt.conn.query(&format!("id:{surface}"))?.pop(),
             None => self.rt.conn.focused_surface().map_err(ClientError::Rpc)?,
         };
@@ -193,6 +193,7 @@ impl Construct {
             None => say(language, Word::NoWindowToGive, &[]),
             Some(node) if node.owner.as_deref() == Some(to) => return Ok(()),
             Some(node) => match give::window(self, Some(&node), to) {
+                Ok(_) if beside.is_some() => return self.fly_to_manager_pane(to),
                 Ok(_) => return Ok(()),
                 Err(err) => {
                     crate::log::log_warn!("chora-construct: give to {to}: {}", err.message);
@@ -202,6 +203,19 @@ impl Construct {
         };
         self.tell(&words);
         Ok(())
+    }
+
+    /// After a window went to the window manager `manager` of a pane, the
+    /// camera glides to that pane, as the put steps into the face: the
+    /// given window holds the keyboard, and the person sees where it
+    /// went (rcrr8-2). A manager with no pane of the construct needs no
+    /// glide.
+    fn fly_to_manager_pane(&mut self, manager: &str) -> Result<(), ClientError> {
+        let held = |pane: &crate::Pane| matches!(&pane.content, crate::Content::Manager { manager: m } if m == manager);
+        match self.panes.iter().position(held) {
+            Some(i) => self.fly_in(i),
+            None => Ok(()),
+        }
     }
 
     /// The events of the voice agent and of the watchdog, then the input.
