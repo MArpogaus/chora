@@ -4792,3 +4792,141 @@ act = "m3"
 cause = "c3925fc5 the side panel ends at the page edge on whole lines: one line of 28 px of its 2 shows, the cut check still counts it (rtr4-1, fix r2 take, captures/m3.Q.png)"
 kind = "cut"
 nodes = ["mc-s-boil-panels-side-lines"]
+
+[[change]]
+act = "c2b"
+boxes = [[179, 647, 922, 42]]
+cause = "7f519bc8 a face names the pull key (Super Alt 4 Pull out); f5bdc61f the hint All keys (Super F1); cfc805d4 Keys rests as a chip: the bar of a face has two groups more than v8 and its pill is 922 px wide (r5 take, captures/c2b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "c3d"
+boxes = [[179, 647, 922, 42]]
+cause = "7f519bc8 a face names the pull key (Super Alt 4 Pull out); f5bdc61f the hint All keys (Super F1); cfc805d4 Keys rests as a chip: the bar of a face has two groups more than v8 and its pill is 922 px wide (r5 take, captures/c3d.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "c4b"
+boxes = [[179, 647, 922, 42]]
+cause = "7f519bc8 a face names the pull key (Super Alt 4 Pull out); f5bdc61f the hint All keys (Super F1); cfc805d4 Keys rests as a chip: the bar of a face has two groups more than v8 and its pill is 922 px wide (r5 take, captures/c4b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "c3b"
+boxes = [[280, 647, 720, 42]]
+cause = "f5bdc61f the hint All keys (Super F1); cfc805d4 Keys rests as a chip: the bar has one group more than v8 and its pill is 720 px wide (r5 take, captures/c3b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "c3c"
+boxes = [[280, 647, 720, 42]]
+cause = "f5bdc61f the hint All keys (Super F1); cfc805d4 Keys rests as a chip: the bar has one group more than v8 and its pill is 720 px wide (r5 take, captures/c3c.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "c3d"
+boxes = [[446, 355, 182, 144]]
+cause = "83033ed6 a cube frees the keys of a window it covers (co-46): the sunset window is not the focused window of the core in v9 (focused in v8); f1693fb3 an inactive title reads with the title shadow (xp-41), so its title bar is pale (r5 take, captures/c3d.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "c4b"
+boxes = [[446, 355, 182, 144]]
+cause = "83033ed6 a cube frees the keys of a window it covers (co-46): the sunset window is not the focused window of the core in v9 (focused in v8); f1693fb3 an inactive title reads with the title shadow (xp-41), so its title bar is pale (r5 take, captures/c4b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "c4"
+boxes = [[27, 58, 1226, 632]]
+cause = "f5bdc61f F1 opens the key list, stood back; d590aae6 the sheet is 1200 wide in three columns (co-71); 822d5be4, 369cf96f, 142260b9 its columns and rows: v8 shows no sheet, v9 stands the sheet over the cube (r5 take, captures/c4.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "m1"
+cause = "c3925fc5 a panel takes whole lines at the page edge: the lead panel is 287 px for 10 whole lines of 28 (v8: 280 px, the last line cut at 273) (r5 take, captures/m1.Q.png)"
+kind = "rect"
+nodes = ["mc-s-ingredients-panels-lead"]
+
+[[change]]
+act = "m1b"
+cause = "c3925fc5 a panel takes whole lines at the page edge: the lead panel is 287 px for 10 whole lines of 28 (v8: 280 px, the last line cut at 273) (r5 take, captures/m1b.Q.png)"
+kind = "rect"
+nodes = ["mc-s-ingredients-panels-lead"]
+
+[[change]]
+act = "m1c"
+cause = "c3925fc5 a panel takes whole lines at the page edge: the lead panel is 287 px for 10 whole lines of 28 (v8: 280 px, the last line cut at 273) (r5 take, captures/m1c.Q.png)"
+kind = "rect"
+nodes = ["mc-s-boil-panels-lead", "mc-s-boil-panels-lead-lines"]
+
+[[change]]
+act = "m4"
+cause = "c3925fc5 a panel takes whole lines at the page edge: the lead panel is 287 px for 10 whole lines of 28 (v8: 280 px, the last line cut at 273) (r5 take, captures/m4.Q.png)"
+kind = "rect"
+nodes = ["mc-s-sauce-panels-lead", "mc-s-sauce-panels-lead-lines"]
+
+[[change]]
+act = "m4b"
+cause = "c3925fc5 a panel takes whole lines at the page edge: the lead panel is 287 px for 10 whole lines of 28 (v8: 280 px, the last line cut at 273) (r5 take, captures/m4b.Q.png)"
+kind = "rect"
+nodes = ["mc-s-boil-panels-lead", "mc-s-boil-panels-lead-lines"]
+
+[[change]]
+act = "t3f"
+boxes = [[12, 8, 526, 32]]
+cause = "e6afbf97 the layout word has a chip of its own, centred in it (tiling-chip-r1): the left island of the bar changes its outline and widths (r5 take, captures/t3f.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "t5"
+boxes = [[12, 8, 526, 32]]
+cause = "e6afbf97 the layout word has a chip of its own, centred in it (tiling-chip-r1): the left island of the bar changes its outline and widths (r5 take, captures/t5.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "t6"
+boxes = [[12, 8, 526, 32]]
+cause = "e6afbf97 the layout word has a chip of its own, centred in it (tiling-chip-r1): the left island of the bar changes its outline and widths (r5 take, captures/t6.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "t6b"
+boxes = [[12, 8, 526, 32]]
+cause = "e6afbf97 the layout word has a chip of its own, centred in it (tiling-chip-r1): the left island of the bar changes its outline and widths (r5 take, captures/t6b.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "t6c"
+boxes = [[12, 8, 526, 32]]
+cause = "e6afbf97 the layout word has a chip of its own, centred in it (tiling-chip-r1): the left island of the bar changes its outline and widths (r5 take, captures/t6c.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "t6d"
+boxes = [[12, 8, 526, 32]]
+cause = "e6afbf97 the layout word has a chip of its own, centred in it (tiling-chip-r1): the left island of the bar changes its outline and widths (r5 take, captures/t6d.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "t7"
+boxes = [[12, 8, 526, 32]]
+cause = "e6afbf97 the layout word has a chip of its own, centred in it (tiling-chip-r1): the left island of the bar changes its outline and widths (r5 take, captures/t7.Q+0.5.png)"
+kind = "pixel"
+
+[[change]]
+act = "t10c"
+boxes = [[12, 8, 526, 32]]
+cause = "e6afbf97 the layout word has a chip of its own, centred in it (tiling-chip-r1): the left island of the bar changes its outline and widths (r5 take, captures/t10c.Q+0.5.png)"
+kind = "pixel"
+
+[[change]]
+act = "x1"
+boxes = [[1067, 559, 166, 19]]
+cause = "4fec75c3 the paperclip greets once at the first start; e4157dbd, d3d28cfa its balloon has a wedge tail of its own (node hud-line-tail, 166 x 19 at 1067, 559): v8 has neither, so no node and no pixel (r5 take, captures/x1.Q.png)"
+kind = "pixel"
+
+[[change]]
+act = "x5b"
+cause = "88951ae4 a send shows Working and Stop at once: the header of the chat reads Atlas, Working where v8 read Atlas, Idle (r5 take, captures/x5b.Q.png)"
+kind = "meta"
+nodes = ["hud-chat"]
