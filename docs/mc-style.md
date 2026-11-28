@@ -122,7 +122,9 @@ change it there, not here.
     The full list goes by task, in the words of the six rows. It names
     the lock, the power menu, the screenshot and the volume keys too,
     and the give keys in one row, `Super+Alt+1-4`;
-    `Super+slash` is a silent alias of `Super+F1`. While the full list
+    `Super+slash` is a silent alias of `Super+F1`. A key is spelled one
+    way on every page and in the list: a letter in capital, `Super+A`.
+    While the full list
     shows, the column holds only the state line above it, so that the
     list fits a screen of 1024x768. The left side and the drawer keep
     their content.
