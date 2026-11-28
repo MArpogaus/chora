@@ -146,10 +146,18 @@ drag or `Super+Alt+4`) or right after `Alt+Escape` out of it, the bar
 names `Super Alt 2 Into face`, and that key puts that pane's window on
 the face at the front, steps in and gives it the keyboard, and opens the
 cube first when none is open (the window goes as soon as the face
-manager can place it); and the face label
-under the cube names the window manager and the face, with a dot per
-face. A refusal, for example while another client `xp` runs, shows in
-the HUD.
+manager can place it: the bar keeps `Into face` while the cube starts
+and a second press keeps the same put; the wait ends after 20 s with
+the notice "XP did not place the window in time.", and earlier, with
+"XP did not place the window:" and the reason, when the face fails,
+the window closes, the cube closes or the person moves on by a step
+into a face, a fly into a pane or another window chosen at the cube,
+co-79 r8). While the face manager runs already with no cube, in a
+manager pane or as a client of its own, no cube can start beside it:
+the bar names `Super Alt 2 To XP` instead (no `Super C Cube`), and the
+key gives the window of the pane to that xp, as before r7. The face
+label under the cube names the window manager and the face, with a dot
+per face. Any other refusal shows in the HUD.
 
 ## Words
 
@@ -161,6 +169,7 @@ the HUD.
 | turn right | Turn right | Nach rechts drehen |
 | open a cube (hint) | Cube | Würfel |
 | put a pane into the face (hint) | Into face | In die Seite |
+| give a pane to the face manager that runs already (hint) | To XP | Zu XP |
 
 The voice agent says what happened in the same words: "I stepped back",
 "I turned the cube to the left".
