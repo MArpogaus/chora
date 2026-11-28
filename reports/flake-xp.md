@@ -71,3 +71,39 @@ media/2026-11-27/flake-xp-r1/: run1-summary-first-fix.txt, run2-summary-claim-fi
 ### Rules kept
 
 Pushed claude/flake-xp-r1 and claude/session-log only; author and committer Marcel Arpogaus; no attribution lines; no --no-verify; no system packages; no bare git stash; the scratch worktree with the mc fix was removed and never pushed. `pgrep -fa 'chora --headless'` is empty at the end.
+
+## Review r1
+
+Review of claude/flake-xp-r1 at 7fc05748, 8b6f35dc..7fc05748 (7 files, +276 -8). One round, opus high.
+
+Verdict: FIX (one MAJOR: rfxr1-1).
+
+### Checks
+
+- Step 0: `git fetch --unshallow`, `cargo check --workspace` clean.
+- `cargo test --no-fail-fast -p chora-xp -p chora-tiling -p chora-construct -p chora-mc` on 7fc05748: 371, 303, 230, 223 (+1) passed, 0 failed. `cargo clippy --all-targets` on those four: no warning. `tests/gate-handover.sh`: exit 0 ("ok: 9. tiling ended after the give: xp adopted s1"). `tests/gate-xp-faces.sh`: exit 0 ("every cell as in EXPECTED", 13 s). `pgrep -fa 'chora --headless'` empty after.
+- 1) Red first: on aa28b8d6 (8b6f35dc plus the tests only) the three tests fail (`xp_holds_…`, `tiling_holds_…`, `the_construct_holds_…`); on 7fc05748 all pass, with the mc guard and the two xp follow-up tests. The tests record the calls the fake core receives (`core.record` on `input.grab` and `scene.apply` create), so they assert the order the core sees, not a call list of the plugin. They run with no other window manager, so they cannot see a claim refusal (rfxr1-1).
+- 2) Claim split: no double grab (`Runtime::grab_as` keeps a held binding and only sends `input.grab` for a new one), and a refused button or media key goes to `waiting` and is asked again on `input.ungrabbed`, as before; xp -> tiling -> xp is green in gate-handover. The rule is one per look but written twice with two parsers (rfxr1-2), and the construct, which also holds a claim, did not get it (rfxr1-1).
+- 3) The early xp cube mode reads `rt.outputs()`, the same set `create_scene` makes one bar per output from, so today it agrees with `cube_off`; it is a second copy of the predicate, and an early `Own` grab is never taken back by `grab()` (rfxr1-3).
+- 4) Construct `regrab` before `build`: of the plugin state, `regrab` reads `walk_keys` (set by `build`) only through `keys_with_pane`, which needs a focused own window, none at start: no effect. But it depends on core state `build` makes: the claim of the space (panes.rs:339, `claim: Some(..)` unless `--overlay`). The report says the construct "holds no claim"; it does (rfxr1-1).
+- 5) Nothing loosened: `git diff 8b6f35dc..7fc05748 -- tests/` is the 4 doc lines of `session_start` in tests/gate-lib.sh; no wait, timeout or cell changed. The doc overclaims slightly (rfxr1-4).
+- 6) Honest: the report says the cause is shown by the call order, not by a live miss, and that xp-run was green before as well (0 of 10 in flake-launcher r1). It marks no sh-44 status; findings/shared.md still has sh-44 open (FLAKE-SERIES r10 watches), which is right for an order fix with no live red. sh-47 stays open, correctly, with the reason that it is a click, not a chord.
+
+### Live check of rfxr1-1
+
+A session of two outputs, `chora-xp --output HEADLESS-2`, then after 3 s `chora-construct` (it takes HEADLESS-1); both hold a claim (`claims: construct xp`). The construct's line in the core log:
+- 8b6f35dc: `chora-construct: 4 bindings are grabbed already (Alt+Super+1 to Alt+Super+4), asked again when they are free`
+- 7fc05748: `chora-construct: 5 bindings are grabbed already (Super+BTN_LEFT to Alt+Super+4), asked again when they are free`
+
+So on the head the construct loses its pane drag (Super+BTN_LEFT, shared by claims, D55) beside a running xp, until xp lets it go or a later regrab (a pane window takes the keyboard). The same failure 08b2fb35 fixed for xp (handover 10 of 10). No gate starts the construct beside a window manager that keeps the button, so the full gate could not see it.
+
+### Findings
+
+- rfxr1-1 MAJOR plugins/chora-construct/src/scene.rs:38 — `regrab` before `build` grabs the drag Super+BTN_LEFT before the space claims, so beside xp (or tiling) the core refuses it and the construct's pane drag is lost (live: base holds it, head refuses it); the report's premise "the construct holds no claim" is wrong (panes.rs:339). Fix: split as in xp, grabbing the keys before `build` and the drag after it (or `regrab` again after `build`), with a fake-core or gate test of the construct beside a window manager that holds the button.
+- rfxr1-2 MINOR plugins/chora-tiling/src/main.rs:541, plugins/chora-xp/src/wm.rs:863 — `needs_claim` is written twice with two parsers (`rsplit('+')` and `Binding` parse) and is a loose copy of the core's rule (crates/chora/src/ipc/grabs.rs:28-49: `MEDIA_KEYS` without modifiers, buttons only when shared). Fix: one `Binding::needs_claim` in chora-kit used by xp, tiling and the construct.
+- rfxr1-3 MINOR plugins/chora-xp/src/wm/startup.rs:342 — the early cube mode copies `cube_off` (windows.rs:384), and since `grab()` only adds grabs and then sets `cube_keys`, outputs that turn into faces between the two grabs leave the cube keys held for good (`sync_cube_keys` then sees no change). Fix: one `cube_off_of(&outputs)` for both, and `grab()` inside `start_grabs`/`end_grabs` so it lets go what the early grab took.
+- rfxr1-4 NIT tests/gate-lib.sh:21 — "holds the keys of the look too" holds only for keys that need no claim (buttons and media keys still follow the first node), and it names sh-47, which the report says this gap does not explain. Fix: say "the keys that need no claim" and drop sh-47.
+
+### Rules kept
+
+Read-only on code; pushed only this section on claude/session-log; author and committer Marcel Arpogaus; no attribution lines; no --no-verify.
