@@ -1,11 +1,11 @@
 # State
 
-## Now (2026-11-28 11:20 UTC)
+## Now (2026-11-28 11:27 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-28 04:00 to 12-05 03:59 UTC, no day cap; tokens.py 11:20 PM 0 % (reset); last week 100 % 28 h early; need 95 %/168 h = 0.57 %/h; lanes 5, opus only reviews
+budget: week 11-28 04:00 to 12-05 03:59 UTC, no day cap; tokens.py 11:27 PM 0 % (reset); last week 100 % 28 h early; need 95 %/168 h = 0.57 %/h; lanes 5, opus only reviews
 session branch: 3098926e (t162 green); 106 greens
 
-lanes: 4 of 6, t163 (review-co-reach-r8, flake-xp-r2, review-tour-rows-r6, mc-minor-r6); flake r11 after flake-xp
+lanes: 4 of 6, t163 (review-co-reach-r8, flake-xp-r2, tiling-minor-r3, mc-minor-r6); flake r11 after flake-xp
 burn-down: F1-4, F6, F8 met; F5 open (r10 4/5), flake-xp r2, flake-gate merged; F7 open (take r3: 5 regr, 0 open; 12 red co-44)
 
 ## RC
@@ -26,13 +26,13 @@ burn-down: F1-4, F6, F8 met; F5 open (r10 4/5), flake-xp r2, flake-gate merged; 
 |---|---|---|
 | review-co-reach-r8.md (Q 2, 0.4 %) | opus high, 830ab836 | s..L7XdkLzPDdnni1Gx1 |
 | flake-xp-r2.md (Q 5, 0.6 %) | sonnet high, 7fc05748 | s..QqGiX8M41oLod17kM |
-| review-tour-rows-r6.md (Q 4, 0.4 %) | sonnet high, 7b09b623 | s..PAmvsigJvA7w9jEPR |
+| tiling-minor-r3.md (Q 3, 0.5 %) | sonnet high, ad07ec70 | starting |
 | mc-minor-r6.md (Q 4c, 0.6 %) | sonnet high, 3098926e | s..PD6a7ExXXm8iU1WZP |
 ## Queue (% week; 5 % reserve)
 1. (rc 3) t162 green 3098926e (tour-rows-r5, tiling-minor-r1, flake-gate-r1).
 2. (rc 1, 2) co-79: r15 NO (co-79 open MAJOR): CO-REACH r7 008714ba review FIX: CO-REACH r8 830ab836 done: review r8 runs.
-3. (rc 2) rpt2-1 MAJOR: KIT-SWALLOW r1 merged t158; r2 bbfcf1c0 merged t159; pass r3 confirms rc 1 (rpt2-1 fixed 3/3); TILING-MINOR r1 merged t162 (rtmr1-1..3 backlog); TILING-MINOR r2 ad07ec70 review MERGE-OK: t163 runs; then r3 (rtmr2-1..4, sonnet, 6th slot).
-4. (F7, rc 1, 11) take r2: 88 open, 10 regr: TOUR-ROWS r4 review FIX (rtr4r-1 MAJOR c5d rows; rtr4r-2..4 MINOR): TOUR-FIX r1 t157; TOUR-FIX r2 merged t159; TOUR-ROWS r5 t162; TAKE r3: 5 regr (c5d c5e rtf1-1, m8 rtr4-2, m6 m6b new); TOUR-ROWS r6 7b09b623 done (0 regr): review r6 runs.
+3. (rc 2) rpt2-1 MAJOR: KIT-SWALLOW r1 merged t158; r2 bbfcf1c0 merged t159; pass r3 confirms rc 1 (rpt2-1 fixed 3/3); TILING-MINOR r1 merged t162 (rtmr1-1..3 backlog); TILING-MINOR r2 ad07ec70 review MERGE-OK: t163 runs; TILING-MINOR r3 (rtmr2-1..5) runs.
+4. (F7, rc 1, 11) take r2: 88 open, 10 regr; TOUR-FIX r1 t157, r2 t159; TOUR-ROWS r5 t162; TAKE r3: 5 regr; TOUR-ROWS r6 7b09b623 review MERGE-OK (0 regr; rtr6r-1..5 NIT, rtr4-2 closed): t164 after t163; then TAKE r4.
 4c. (rc 1b) XP-MINOR r5 merged t156 (rpx2-5 backlog); mc pass r2 met (MC-MINOR r2 merged t158; r3 merged t159; rpm2-6 backlog); MC-MINOR r6 (mc-63, rpx1-16, -17) runs.
 5. (F5, rc 3) FLAKE-SERIES r10 4/5 (sh-47, launcher family): FLAKE-LAUNCHER r1 merged t161; FLAKE-GATE r1 merged t162 (sh-41, sh-46 fixed); FLAKE-XP r1 7fc05748 review FIX (rfxr1-1 MAJOR construct drag; -2,-3 MINOR, -4 NIT): FLAKE-XP r2 runs; then r11.
 
