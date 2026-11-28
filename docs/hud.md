@@ -210,7 +210,8 @@ A panel needs at least one of `picture`, `text` or `rows`.
 
 The `text` of a panel with `source: voice` is the state word beside the
 figure, toward the middle of the output, on the backing of a plain
-sentence: `text: '{state}'` shows `Listening` in the language of the
+sentence (with no hairline of its own when the sentence is `plain`):
+`text: '{state}'` shows `Listening` in the language of the
 screen. There `{state}` is the word of the word table, not the name of
 the state. The neutral and the mc folders show it, so the state never
 depends on a colour alone. While the voice agent rests (asleep,
