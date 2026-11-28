@@ -319,6 +319,70 @@ fn a_second_key_while_the_cube_starts_keeps_the_same_put() {
     );
 }
 
+/// rcrr7-4 (review r7): every end of a put that waits without the put
+/// tells the person why in a notice, after the told key: the 20 s, a
+/// move on (a step into a face, a fly into a pane, another window noted
+/// at the cube), the window gone, the face at the front failed, the cube
+/// closed.
+#[test]
+fn every_end_of_the_wait_without_the_put_is_told() {
+    let failure = "chora-xp stopped after 2 s: it needs foot 1.26 or later.";
+    let cases = [
+        ("late", "XP did not place the window in time."),
+        (
+            "step-in",
+            "XP did not place the window: you stepped into a face.",
+        ),
+        ("pane", "XP did not place the window: you flew into a pane."),
+        (
+            "note",
+            "XP did not place the window: another window has the keyboard.",
+        ),
+        ("gone", "XP did not place the window: the window closed."),
+        (
+            "failed",
+            "XP did not place the window: chora-xp stopped after 2 s: it needs foot 1.26 or later.",
+        ),
+        ("closed", "XP did not place the window: the cube closed."),
+    ];
+    for (end, told) in cases {
+        let (mut construct, _core, lines) = super::with_hint_bar(&format!("reach-r8-told-{end}"));
+        construct.cube.as_mut().unwrap().program = "xp".into();
+        construct.core_focus = Some("s1".into());
+        construct.put_pane("s1").unwrap();
+        assert!(waits(&construct), "{end}: the put waits");
+        let now = std::time::Instant::now();
+        let host = construct.cube.as_mut().unwrap();
+        match end {
+            "late" => host.put_later.as_mut().unwrap().2 = now,
+            "step-in" => assert!(host.act(chora_kit::modes::Act::StepIn, now)),
+            "note" => host.note_focus(Some("s7".into())),
+            "failed" => host
+                .health
+                .fill(crate::faces::Health::Failed(failure.into())),
+            "pane" => {
+                construct.fly_in(0).unwrap();
+                construct.flown = crate::camera::take_flight(&mut construct.glide);
+            }
+            "gone" => construct.panes[0].attached = false,
+            _ => {}
+        }
+        lines.lock().unwrap().clear();
+        due(&mut construct);
+        if end == "closed" {
+            construct.close_cube().unwrap();
+        } else {
+            construct.put_when_ready().unwrap();
+        }
+        assert!(!waits(&construct), "{end}: the put ends");
+        let said = lines.lock().unwrap().join("\n");
+        assert!(
+            said.contains(&format!(r#""summary":"{told}""#)),
+            "{end}: the end is told as {told:?}: {said}"
+        );
+    }
+}
+
 /// The window of the put that waits.
 fn waiting(construct: &crate::Construct) -> Option<String> {
     let host = construct.cube.as_ref()?;
