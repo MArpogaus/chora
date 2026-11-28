@@ -335,9 +335,12 @@ impl Wm {
     /// Grabs the keys that need no claim, before the scene exists: a chord
     /// that comes while the nodes stand and no key is held has no holder,
     /// and the core drops it (sh-44). The pointer buttons and the media
-    /// keys wait for the claim of the scene, which [`Self::grab`] grabs.
+    /// keys wait for the claim of the scene, which [`Self::grab`] grabs. The cube keys
+    /// follow the outputs, as they do once the bars stand (`wanted_keys`).
     pub(super) fn grab_without_claim(&mut self) -> Result<(), ClientError> {
-        let cube = self.wanted_keys();
+        let outputs = self.rt.outputs()?;
+        let flat = !outputs.is_empty() && outputs.iter().all(|o| Bar::new(o).is_virtual());
+        let cube = if flat { CubeKeys::Flat } else { CubeKeys::Own };
         self.cube_keys = cube;
         self.rt.give_keys(Some(|to| {
             KeyAction::System(chora_kit::actions::System::Give(to.into()))
@@ -523,6 +526,29 @@ mod tests {
             at("grab Super+space") < Some(create),
             "Super+space after the first node: {calls:?}"
         );
+    }
+
+    /// The keys of the cube follow the outputs also before the scene
+    /// stands: on virtual outputs alone, which are faces of a cube, xp
+    /// never grabs them (xp-faces: no cube on faces).
+    #[test]
+    fn xp_on_faces_grabs_no_cube_key_before_its_scene() {
+        let core = core_with_look(false);
+        let mut face = serde_json::to_value(chora_kit::testing::output("face")).unwrap();
+        face["virtual"] = serde_json::json!(true);
+        core.outputs(serde_json::json!([face]));
+        let calls = core.record(|method, params| {
+            (method == "input.grab").then(|| params["binding"].as_str().unwrap_or("").to_owned())
+        });
+        let _wm = wm_on_kit_core(&core, "faces-no-cube");
+        let calls = calls.lock().unwrap().clone();
+        assert!(calls.iter().any(|b| b == "Super+space"), "{calls:?}");
+        for cube in ["Ctrl+Alt+Left", "Ctrl+Alt+Shift+Right", "Super+BTN_LEFT"] {
+            assert!(
+                !calls.iter().any(|b| b == cube),
+                "{cube} on a face: {calls:?}"
+            );
+        }
     }
 
     #[test]
