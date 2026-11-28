@@ -1346,6 +1346,36 @@ mod tests {
         (tiling_on(core.runtime(NAME), &dir, effects), methods)
     }
 
+    /// A chord that arrives while the group of tiling stands and no key is
+    /// held has no holder, and the core drops it (sh-44, sh-47: the gates
+    /// take the nodes of the owner for the start). So tiling holds its keys
+    /// before its first node exists.
+    #[test]
+    fn tiling_holds_its_keys_before_its_first_node_exists() {
+        let dir = chora_kit::testing::TempDir::new("chora-tiling-grabs-first").keep();
+        std::fs::create_dir_all(&dir).unwrap();
+        let core = FakeCore::start().selecting();
+        let calls = core.record(|method, params| match method {
+            "input.grab" => Some("grab".to_owned()),
+            "scene.apply" if params.to_string().contains("\"create\"") => Some("create".to_owned()),
+            _ => None,
+        });
+        let mut tiling = tiling_on(core.runtime(NAME), &dir, &[]);
+        tiling.start().unwrap();
+        let calls = calls.lock().unwrap().clone();
+        let grab = calls.iter().position(|m| m == "grab");
+        let create = calls.iter().position(|m| m == "create");
+        assert!(
+            grab.is_some() && create.is_some(),
+            "tiling grabs and builds: {calls:?}"
+        );
+        assert!(
+            grab < create,
+            "the first node exists before the first key is held: {:?}",
+            &calls[..calls.len().min(4)]
+        );
+    }
+
     /// A tiling on the runtime `rt`, with its settings file in `dir`.
     pub(crate) fn tiling_on(
         rt: Runtime<Action>,

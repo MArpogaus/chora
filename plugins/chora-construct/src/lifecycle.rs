@@ -213,6 +213,42 @@ mod tests {
         construct
     }
 
+    /// A chord that arrives while the space of the construct stands and no
+    /// key is held has no holder, and the core drops it (sh-44, sh-47: the
+    /// gates take the nodes of the owner for the start). So the construct
+    /// holds its keys before its first node exists.
+    #[test]
+    fn the_construct_holds_its_keys_before_its_first_node_exists() {
+        let core = FakeCore::start();
+        core.outputs(serde_json::json!([output("test")]));
+        let calls = core.record(|method, params| match method {
+            "input.grab" => Some("grab".to_owned()),
+            "scene.apply" if params.to_string().contains("\"create\"") => Some("create".to_owned()),
+            _ => None,
+        });
+        let mut rt = core.runtime(NAME);
+        rt.pin_accepts_injected(false);
+        let dir = chora_kit::testing::TempDir::unmade("chora-construct-grabs-first").keep();
+        let file = dir.join("chora-construct.yaml");
+        let settings = settings::File::load(file, config::DEFAULT).unwrap();
+        let shaders = |name: &str, _: &str| Ok(dir.join(name).to_string_lossy().into_owned());
+        let mut construct = Construct::new(rt, settings, false, &shaders).unwrap();
+        core.model().lock().unwrap().scene.add_overlay("test");
+        construct.start().unwrap();
+        let calls = calls.lock().unwrap().clone();
+        let grab = calls.iter().position(|m| m == "grab");
+        let create = calls.iter().position(|m| m == "create");
+        assert!(
+            grab.is_some() && create.is_some(),
+            "the construct grabs and builds: {calls:?}"
+        );
+        assert!(
+            grab < create,
+            "the first node exists before the first key is held: {:?}",
+            &calls[..calls.len().min(4)]
+        );
+    }
+
     /// The construct under the script of the life of a window.
     struct Driven<'a>(&'a mut Construct);
 

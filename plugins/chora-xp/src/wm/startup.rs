@@ -450,6 +450,33 @@ mod tests {
         );
     }
 
+    /// A chord that arrives while the scene stands and no key is held has
+    /// no holder, and the core drops it (sh-44: the gates take the nodes of
+    /// xp for the start, and Super+Space went nowhere). So xp holds its
+    /// keys before its first node shows.
+    #[test]
+    fn xp_holds_its_keys_before_its_first_node_exists() {
+        let core = core_with_look(false);
+        let calls = core.record(|method, params| match method {
+            "input.grab" => Some("grab".to_owned()),
+            "scene.apply" if params.to_string().contains("\"create\"") => Some("create".to_owned()),
+            _ => None,
+        });
+        let _wm = wm_on_kit_core(&core, "grabs-first");
+        let calls = calls.lock().unwrap().clone();
+        let grab = calls.iter().position(|m| m == "grab");
+        let create = calls.iter().position(|m| m == "create");
+        assert!(
+            grab.is_some() && create.is_some(),
+            "xp grabs and builds: {calls:?}"
+        );
+        assert!(
+            grab < create,
+            "sh-44: the first node exists before the first key is held: {:?}",
+            &calls[..calls.len().min(4)]
+        );
+    }
+
     #[test]
     fn arrival_starting_alone_is_settled() {
         let core = core_with_look(false);
