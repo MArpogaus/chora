@@ -316,3 +316,34 @@ Done-when of briefs/mc-minor-r3.md: red before fix for the three items, captures
 - rmmr3-3 NIT plugins/chora-assistant/src/assistant.rs:1398: the 1024x768 case plants the date at x 214..524, not where mc draws it (right end at the header end, under the panel), and came with the fix, not before; it guards `clear_of`, while `texts_of_others` (owner filter, rect rounding) is guarded at 1280x720 only. Fix: take the header rects at 1024x768 from mc's plan, or note the size gap in the cell's comment.
 - rmmr3-4 NIT plugins/chora-mc/src/methods.rs:177: `self.learn_rooms()?` returns on a failed read before `render` and before `keyboard_back`, so the page does not get the keyboard back on close, and a changed read renders twice. Fix: log and go on as `learn_card` does (`if let Err(err) = self.learn_rooms() { tracing::warn!(..) }`).
 Verdict (computed): 0 BLOCK, 0 MAJOR -> MERGE-OK.
+
+## r6 (lane mc-minor-r6, F7 rc 1b; mc-63, rpx1-16, rpx1-17)
+
+Base 3098926eb, head e7e4bca0e on claude/mc-minor-r6. Step 0 green (`git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`). Diffstat 3098926eb..e7e4bca0e: 10 files, +141 -30 (layout.rs +81, rooms.rs +32, agent.rs +17, mc-style.md +13, build.rs +5, main.rs +7, gate-mc-sofa.sh +6, gate-mc-column.sh +6, gate-mc-paths.sh +2, agenda.yaml +1). No other plugin, no chora-notify, no demo/tour/ or intended.toml.
+
+Step 0 check on 3098926e (captures under media/2026-11-28/mc-minor-r6/, before-*): all three were open. mc-63: the boil side panel shows "Timer" and one cut line with the ↓ mark (28 px for 56). rpx1-17: the alarm card reads "Backup failed" with no mark. rpx1-16: the page says "Super+a", the key list "Super+A", and the state is a bordered pill.
+
+| id | red | fix | test |
+|---|---|---|---|
+| mc-63 | 12bf14108 | 2bd249828 | unit `a_panel_the_page_edge_cuts_shows_all_its_lines_or_none` (red: `sauce/side 114 of 142 px`); gate-mc-sofa `boil-lines`: the side lines node is 56 px or gone (red on the red tree: `mc-s-boil-panels-side-lines [160.0,530.0,185.0,28.0]`) |
+| rpx1-16 (spelling) | 05cd4c350 | 63bc19b40, e7e4bca0e (gate-mc-paths) | unit `an_empty_panel_says_why_in_muted` reads `Super+A` |
+| rpx1-17 | 91e38d915 | 4946c2166, 08d34697a (doc names no other plugin) | unit `notify_push_shows_through_chora_notify_and_clear_closes_it` reads `Urgent: Disk`; gate-mc-sofa `alarm` (all summaries start with `Urgent: `, red on the red tree); gate-mc-column reads `Urgent: Chat` |
+
+**mc-63.** `Mc::edge_takes` (layout.rs): a panel whose box holds all its lines (`lines_whole <= h`) and that the page edge leaves less room than its lines needs has a clip of 0 and its rule is clear; it shows again once the page scrolls (`scroll_most` and the ↓ mark count the lines with their lift, so the scroll reaches it). A panel longer than its own box keeps the whole-lines clip. `clip_panels` also updates the rule colour on a scroll. mc-style rule 12 says it. After: at 1280x720 beside the timer card the boil page shows the lead whole, the ↓ mark, no Timer title and no cut line, light and dark.
+
+**rpx1-17.** mc names a critical notice `Urgent: <title>` (`urgent_title`, agent.rs; `notify.push` and mc's own errors). The card of the notice server has no colour of its own for urgency and that server is outside this lane, so the mark is a word, Inter 19 px in the card. mc-style rule 7 says it. After: "Urgent: Backup failed", light and dark.
+
+**rpx1-16, half closed.** The spelling is one way: `Super+A` on the empty agenda (agenda.yaml) as in the key list; mc-style rule 16 says it. **Still open: the bordered state pill ("Listening" in a box, mc-style 11).** The host draws it: `Assistant::word` (plugins/chora-assistant/src/assistant.rs, the `<rect ... stroke>` backing) strokes the word with `speech.border`, the neutral hairline of the sentence panel, also for `style: plain`, whose doc says it has no hairline. `hud.yaml` cannot ask for no stroke: a `border` equal to the fill fails the 1.5:1 check of `colour_errors`. Fix owner: chora-assistant (stroke in the fill colour for a plain sentence, or a `border` that may be none); one line there, outside this lane. The lower-case state and helper words (`speaking`, `idle`, `atlas`: sh-13) are not in this lane.
+
+**Gate.** `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2`, no `--push`, run in pieces because three things were not about the code:
+1. `docs`: mkdocs was not installed, the step fails when docs changed. Put mkdocs-material in a venv in the scratchpad, on PATH for the gate.
+2. `ci-check` cut-check: my doc line in agent.rs named chora-notify (`FAIL: cut-check: names: chora-mc names chora-notify on 1 lines, first plugins/chora-mc/src/agent.rs:620`). Mine; fixed in 08d34697a.
+3. `ci-check` clock selftest: `FAIL: without Inter the clock selftest did not print a skip line naming Inter (TF-1)` after `skip: clock selftest, the Python module PIL is missing`. Foreign (this container has no PIL); pillow added to the same venv, then green.
+Run on 08d34697a (full steps red-first .. construct-hud, all PASS: ... gate-lib, ci-check, build, test, clippy, 2d-guard, xp*, matrix, virtual, hud, layout, tiling-*, chat-keys, doors, last-words, cube, pull, placed, construct-hud, construct-extra, out, winit, wm-pane, pane-keys, walk, keys, pixels), then `mc-paths` FAIL (mine): `FAIL: the first page does not say how to start: ... Say “Atlas” or press Super+A.` (gate-mc-paths read `Super+a`; fixed in e7e4bca0e). With the gate stopped there, the steps after it ran as `--only` on e7e4bca0e: first run `--jobs 2` of mc-paths .. e2e: `mc-sofa` FAIL (foreign flake under two jobs: `FAIL: the clock moves from 612.85 to 430.85 as the chat opens, column hidden, mic muted (rmmr1-1)`, `FAIL: the window has the keys, the key list names no Super: ← 38  Mcremote|`, `FAIL: no state word or no Mute: ...`: clock-chat, remote-back, rooms-pill-status, none of them touch panels or notices); `mc-sofa` alone `--jobs 1`: PASS 139 s. Second `--only` run, `--jobs 2`, mc-paths, mc-column, mc-handover, acts, launcher-click, launcher-mc, voice-acp, voice-events, agent, tiling-keys-more, tiling-windows, tiling-system, handover, mc-scale, watchdog-starved, leak, xp-run, demo, tiling-bar, tiling-theme, tiling-disc, mc-host, e2e: all PASS (acts 2225 s, e2e 286 s).
+```
+mc-paths   PASS   145s   mc-column  PASS    50s   mc-handover PASS 10s
+acts       PASS  2225s   leak       PASS   479s   demo        PASS 277s
+tiling-bar PASS   198s   mc-host    PASS    25s   e2e         PASS 286s
+partial run: nothing is pushed
+```
+No single run printed EXIT 0 (a gate run stops at its first red); every step has a PASS on a head whose product code is e7e4bca0e's (the only commit after 08d34697a is the gate-mc-paths string). `pgrep -fa 'chora --headless'` empty. Cargo test -p chora-mc: 231 passed.
