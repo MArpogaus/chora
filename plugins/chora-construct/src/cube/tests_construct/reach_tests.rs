@@ -198,7 +198,7 @@ fn the_key_into_a_face_waits_for_the_face_manager_and_ends_at_a_step_in() {
     );
     let host = construct.cube.as_mut().unwrap();
     assert!(host.act(chora_kit::modes::Act::StepIn, std::time::Instant::now()));
-    host.put_later.as_mut().unwrap().1 = std::time::Instant::now();
+    host.put_later.as_mut().unwrap().at = std::time::Instant::now();
     construct.put_when_ready().unwrap();
     assert!(
         construct.cube.as_ref().unwrap().put_later.is_none(),
@@ -354,7 +354,7 @@ fn every_end_of_the_wait_without_the_put_is_told() {
         let now = std::time::Instant::now();
         let host = construct.cube.as_mut().unwrap();
         match end {
-            "late" => host.put_later.as_mut().unwrap().2 = now,
+            "late" => host.put_later.as_mut().unwrap().until = now,
             "step-in" => assert!(host.act(chora_kit::modes::Act::StepIn, now)),
             "note" => host.note_focus(Some("s7".into())),
             "failed" => host
@@ -389,7 +389,7 @@ fn every_end_of_the_wait_without_the_put_is_told() {
 /// return at once, so the frame loop goes on.
 #[test]
 fn the_wait_never_waits_on_the_face_manager() {
-    let (mut construct, core, _lines) = super::with_hint_bar("reach-r8-slow");
+    let (mut construct, core, lines) = super::with_hint_bar("reach-r8-slow");
     core.respond(|method, params| match method {
         "methods.list" => Some(serde_json::json!([{"name": "window.move", "client": "xp"}])),
         "methods.call" if params["method"] == "state.get" => {
@@ -400,6 +400,25 @@ fn the_wait_never_waits_on_the_face_manager() {
     });
     construct.cube.as_mut().unwrap().program = "xp".into();
     construct.core_focus = Some("s1".into());
+    construct.socket = Some(core.socket().to_owned());
+    (core.model().lock().unwrap().scene).add_surface("s1", chora_scene::SurfaceInfo::default());
+    let attach = chora_scene::Command::Attach {
+        surface: "s1".into(),
+        parent: crate::PANES.into(),
+    };
+    construct.rt.conn.apply(vec![attach]).unwrap();
+    construct.book.keep("s1");
+    let mut xp = core.connect("xp");
+    let desk = chora_scene::Command::Create {
+        id: "xp-desk-0".into(),
+        kind: chora_scene::NodeKind::Group,
+        parent: chora_scene::ROOT.into(),
+        props: chora_scene::PropsUpdate {
+            claim: Some(Some([0.0, 0.0, 1280.0, 800.0])),
+            ..chora_scene::PropsUpdate::default()
+        },
+    };
+    xp.apply(vec![desk]).unwrap();
     let began = std::time::Instant::now();
     construct.put_pane("s1").unwrap();
     for _ in 0..3 {
@@ -412,12 +431,23 @@ fn the_wait_never_waits_on_the_face_manager() {
         "the key and three looks waited {took:?} on xp"
     );
     assert!(waits(&construct), "xp has not answered: the put waits");
+    let until = began + std::time::Duration::from_secs(4);
+    while waits(&construct) && std::time::Instant::now() < until {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        due(&mut construct);
+        construct.put_when_ready().unwrap();
+    }
+    let said = lines.lock().unwrap().join("\n");
+    assert!(
+        !waits(&construct) && said.contains("window.move"),
+        "once xp answered, a later look puts the window: {said}"
+    );
 }
 
 /// The window of the put that waits.
 fn waiting(construct: &crate::Construct) -> Option<String> {
     let host = construct.cube.as_ref()?;
-    host.put_later.as_ref().map(|put| put.0.clone())
+    host.put_later.as_ref().map(|put| put.surface.clone())
 }
 
 /// Whether a put waits (`put_pane`).
@@ -428,7 +458,7 @@ fn waits(construct: &crate::Construct) -> bool {
 /// The put that waits looks again now.
 fn due(construct: &mut crate::Construct) {
     if let Some(put) = (construct.cube.as_mut()).and_then(|host| host.put_later.as_mut()) {
-        put.1 = std::time::Instant::now();
+        put.at = std::time::Instant::now();
     }
 }
 

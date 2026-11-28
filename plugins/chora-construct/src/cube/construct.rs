@@ -158,7 +158,7 @@ impl Construct {
             .as_ref()
             .and_then(|c| c.start_deadline(Instant::now()));
         let panes = self.manager_deadline();
-        let put = (self.cube.as_ref()).and_then(|c| c.put_later.as_ref().map(|(_, at, _)| *at));
+        let put = (self.cube.as_ref()).and_then(|c| c.put_later.as_ref().map(|put| put.at));
         cube.into_iter().chain(panes).chain(put).min()
     }
 
@@ -291,7 +291,7 @@ impl Construct {
         let Some(mut host) = self.cube.take() else {
             return Ok(());
         };
-        if let Some((surface, ..)) = host.put_later.take() {
+        if let Some(crate::put::Put { surface, .. }) = host.put_later.take() {
             let language = Language::of_session();
             let why = crate::names::Unput::Closed.words(language);
             let told = crate::names::not_put(language, host.client(), Some(why));

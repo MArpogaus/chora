@@ -762,7 +762,7 @@ impl Construct {
     /// The window of the put that waits (`put_pane`), out of the panes.
     pub(crate) fn put_waiting(&self) -> Option<String> {
         let put = self.cube.as_ref()?.put_later.as_ref()?;
-        (!self.in_pane()).then(|| put.0.clone())
+        (!self.in_pane()).then(|| put.surface.clone())
     }
 
     /// The window of a pane that the give key of the face manager gives

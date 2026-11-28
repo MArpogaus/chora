@@ -58,6 +58,7 @@ mod panes;
 mod placeholder;
 mod plugin;
 mod pull;
+mod put;
 mod scene;
 mod space;
 mod start;
@@ -620,6 +621,9 @@ struct Construct {
     /// the start and the events since: a face manager among them runs
     /// beside the construct (co-79 r8).
     clients: std::collections::BTreeSet<String>,
+    /// The socket of the core, for the question of a put that waits, on a
+    /// connection of its own (`put`, co-79 r8).
+    socket: Option<std::path::PathBuf>,
     /// The surface with the keyboard as `focus.changed` last told: read by
     /// `state.get`, and by `regrab` for a pane whose window has it.
     core_focus: Option<String>,
@@ -734,6 +738,7 @@ impl Construct {
             cube: None,
             managed: Vec::new(),
             clients: std::collections::BTreeSet::new(),
+            socket: std::env::var_os(chora_scene::ipc::SOCKET_ENV).map(Into::into),
             core_focus: None,
             kit_focus: chora_kit::wm::focus::Focus::default(),
             walk_keys: true,
