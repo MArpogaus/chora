@@ -19,6 +19,49 @@ use serde_json::{Value, json};
 
 use crate::{conn::Conn, settings::Store};
 
+/// The pointer buttons of a binding, as the core names them.
+const BUTTONS: [&str; 7] = [
+    "BTN_LEFT",
+    "BTN_RIGHT",
+    "BTN_MIDDLE",
+    "BTN_SIDE",
+    "BTN_EXTRA",
+    "BTN_FORWARD",
+    "BTN_BACK",
+];
+
+/// The media keys that the core grants a window manager without a modifier
+/// (`MEDIA_KEYS` of the core).
+const MEDIA_KEYS: [&str; 11] = [
+    "XF86AudioRaiseVolume",
+    "XF86AudioLowerVolume",
+    "XF86AudioMute",
+    "XF86AudioMicMute",
+    "XF86AudioPlay",
+    "XF86AudioNext",
+    "XF86AudioPrev",
+    "XF86MonBrightnessUp",
+    "XF86MonBrightnessDown",
+    "XF86Back",
+    "XF86HomePage",
+];
+
+/// Whether the core grabs a binding only for a client that holds a claim
+/// (`ipc_grab`, crates/chora/src/ipc/grabs.rs): a pointer button, which
+/// window managers share by their claims (D55), and a media key without a
+/// modifier. Before the claim of its scene, a window manager grabs the
+/// other bindings and leaves these, which another window manager may hold.
+/// A text that is no binding needs none.
+#[must_use]
+pub fn needs_claim(binding: &str) -> bool {
+    let Ok(binding) = binding.parse::<Binding>() else {
+        return false;
+    };
+    let is = |names: &[&str]| names.iter().any(|n| n.eq_ignore_ascii_case(&binding.key));
+    let plain = binding.mods == chora_scene::Modifiers::default();
+    is(&BUTTONS) || (plain && is(&MEDIA_KEYS))
+}
+
 /// Whether an event counts as the person's: it did not come from
 /// `input.inject`, or the plugin takes injected input as the person's
 /// (the setting `test_accept_injected_keys`). A window manager lets the
@@ -807,6 +850,46 @@ fn next_failing(served: Duration, failing: Duration) -> Duration {
 
 #[cfg(test)]
 mod tests {
+    /// rfxr1-2: a media key without a modifier needs the claim.
+    #[test]
+    fn a_plain_media_key_needs_the_claim() {
+        for key in ["XF86AudioMute", "xf86audioplay", "XF86Back", "XF86HomePage"] {
+            assert!(super::needs_claim(key), "{key}");
+        }
+    }
+
+    /// rfxr1-2: a media key with a modifier is a chord like any other.
+    #[test]
+    fn a_media_key_with_a_modifier_needs_no_claim() {
+        assert!(!super::needs_claim("Super+XF86AudioMute"));
+        assert!(!super::needs_claim("Ctrl+XF86AudioRaiseVolume"));
+    }
+
+    /// rfxr1-2: a pointer button is shared by claims, with any modifier.
+    #[test]
+    fn a_shared_button_needs_the_claim() {
+        for key in ["Super+BTN_LEFT", "Alt+btn_right", "Ctrl+Super+BTN_MIDDLE"] {
+            assert!(super::needs_claim(key), "{key}");
+        }
+    }
+
+    /// rfxr1-2: a plain key, a key with a modifier, the own move and a text
+    /// that is no binding need no claim.
+    #[test]
+    fn a_plain_key_needs_no_claim() {
+        for key in [
+            "Super+Return",
+            "Alt+Super+4",
+            "F1",
+            "XF86Foo",
+            "move",
+            "+",
+            "",
+        ] {
+            assert!(!super::needs_claim(key), "{key}");
+        }
+    }
+
     use super::*;
     use crate::settings::{
         File,

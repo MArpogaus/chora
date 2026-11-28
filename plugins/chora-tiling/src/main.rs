@@ -535,17 +535,6 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     Ok(serve(&mut tiling)?)
 }
 
-/// Whether the core grabs a binding only for a client that holds a claim:
-/// a pointer button, which window managers share by their claims (D55),
-/// and a media key.
-fn needs_claim(binding: &str) -> bool {
-    binding.starts_with("XF86")
-        || binding
-            .rsplit('+')
-            .next()
-            .is_some_and(|key| key.to_ascii_uppercase().starts_with("BTN_"))
-}
-
 /// How often the system is asked for its colour scheme.
 const THEME_CHECK: std::time::Duration = std::time::Duration::from_secs(5);
 
@@ -823,7 +812,7 @@ impl Tiling {
     /// the first node exists. The pointer buttons and the media keys wait
     /// for the claim, which the relayout sets and grabs for.
     fn grab_without_claim(&mut self) -> Result<(), ClientError> {
-        self.grab_bindings(|key| !needs_claim(key))
+        self.grab_bindings(|key| !chora_kit::runtime::needs_claim(key))
     }
 
     /// Grabs the bindings of the configuration that `wanted` accepts, the

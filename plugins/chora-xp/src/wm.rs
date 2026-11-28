@@ -857,16 +857,6 @@ fn grab_keys(
     grab_keys_of(rt, bindings, cube, |_| true)
 }
 
-/// Whether the core grabs a binding only for a client that holds a claim:
-/// a pointer button, which window managers share by their claims (D55),
-/// and a media key.
-fn needs_claim(binding: &str) -> bool {
-    binding.starts_with("XF86")
-        || binding
-            .parse::<Binding>()
-            .is_ok_and(|b| b.key.to_ascii_uppercase().starts_with("BTN_"))
-}
-
 /// As [`grab_keys`], for the bindings that `wanted` accepts.
 #[allow(clippy::expect_used, reason = "the settings check their bindings")]
 fn grab_keys_of(

@@ -7,8 +7,8 @@ use super::{
     Effects, ExportMethod, HashMap, Icons, Instant, KeyAction, Launches, MENUS, METHODS, Menu,
     Mixer, NAME, NodeKind, OutputInfo, PropsUpdate, ROOT, RpcError, Runtime, Sound, Theme, Tooltip,
     WALLPAPERS, WINDOWS, Wm, apps, decoration, desk_id, desktop_icons, float, give, grab_keys,
-    grab_keys_of, hosted::CubeKeys, max_scale, move_method, needs_claim, settings, wallpaper,
-    window, without_reserve,
+    grab_keys_of, hosted::CubeKeys, max_scale, move_method, settings, wallpaper, window,
+    without_reserve,
 };
 use chora_scene::Order;
 
@@ -349,7 +349,7 @@ impl Wm {
             &mut self.rt,
             &self.settings.value.common.bindings,
             cube,
-            |key| !needs_claim(key),
+            |key| !chora_kit::runtime::needs_claim(key),
         )?;
         self.rt
             .accept_injected(self.settings.value.common.test_accept_injected_keys);
