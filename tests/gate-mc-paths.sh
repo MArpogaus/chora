@@ -173,7 +173,7 @@ sleep 2
 
 cell_first_page() {
     local small
-    says 'Say “Atlas” or press Super+a.' || fail "the first page does not say how to start: $(texts | tr '\n' '|')"
+    says 'Say “Atlas” or press Super+A.' || fail "the first page does not say how to start: $(texts | tr '\n' '|')"
     has_text "Chat with a helper ..." || fail "the first page has no door to a helper"
     small=$(small_texts)
     [ -z "$small" ] || fail "text under 14 px on the first page: $small"
