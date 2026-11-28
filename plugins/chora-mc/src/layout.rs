@@ -358,20 +358,56 @@ impl Mc {
         (top + ((h - top) / line).floor() * line).clamp(0.0, h)
     }
 
+    /// How far the content of a panel reaches down from the top of its
+    /// box: its lines and their lift, at most the height of the box.
+    fn extent(&self, name: &str, panel: &Panel) -> Option<f64> {
+        let [_, _, w, h] = self.place(name, panel)?;
+        let whole = self.lines_whole(name, panel);
+        Some(h.min(whole.unwrap_or_else(|| self.text_height(panel, w))))
+    }
+
+    /// The height that the lines of a panel take from the top of its box,
+    /// the lift of the first baseline included, or none for a panel with
+    /// no lines.
+    pub(crate) fn lines_whole(&self, name: &str, panel: &Panel) -> Option<f64> {
+        let [_, y, w, _] = self
+            .place(name, panel)
+            .filter(|_| !panel.lines.is_empty())?;
+        let body = self.ty("body", panel.style.as_ref());
+        let top = self.lines_top(panel);
+        Some(self.lift(y, top, &body) + self.text_height(panel, w) - top)
+    }
+
     /// The height of the clip of a panel at `y` with the height `h`: whole
     /// lines. The lines of a panel start a lift below its top, and the page
     /// clips what lies under its edge, so a panel with lines counts its
     /// lines from where they start, from the room that the page leaves
-    /// it: the edge never shows a part of a line (rv9ka-1, rtr3-1).
+    /// it: the edge never shows a part of a line (rv9ka-1, rtr3-1). A panel
+    /// whose box holds all its lines shows them all or none: when the edge
+    /// leaves less room, the panel waits until the page scrolls (mc-63).
     pub(crate) fn clip_height(&self, name: &str, panel: &Panel, [y, h]: [f64; 2]) -> f64 {
         let (Some(geo), false) = (self.geometry(name), panel.lines.is_empty()) else {
             return self.whole_lines(panel, h);
         };
         let scroll = self.scroll.get(name).copied().unwrap_or_default();
         let room = h.min(geo.text[1] + geo.text[3] - (y - scroll));
+        if self.edge_takes(name, panel, [y, h]) {
+            return 0.0;
+        }
         let body = self.ty("body", panel.style.as_ref());
         let top = self.lift(y, self.lines_top(panel), &body);
         (top + ((room - top) / body.line).floor() * body.line).clamp(0.0, h)
+    }
+
+    /// Whether the page edge takes a panel whole: its box holds all its
+    /// lines and the room above the edge does not (mc-63).
+    pub(crate) fn edge_takes(&self, name: &str, panel: &Panel, [y, h]: [f64; 2]) -> bool {
+        let (Some(geo), Some(whole)) = (self.geometry(name), self.lines_whole(name, panel)) else {
+            return false;
+        };
+        let scroll = self.scroll.get(name).copied().unwrap_or_default();
+        let room = geo.text[1] + geo.text[3] - (y - scroll);
+        whole <= h && room + 0.5 < whole
     }
 
     /// Sets the clip of every panel of the current page again: the page
@@ -381,18 +417,30 @@ impl Mc {
             return Vec::new();
         };
         let indent = geo.note + geo.gap;
-        (scene.panels.iter())
-            .filter_map(|p| {
-                let [_, y, w, h] = self.place(name, p)?;
-                let size = [w + indent, self.clip_height(name, p, [y, h])];
-                let props = PropsUpdate {
-                    size: Some(size),
+        let rule_of = |p: &Panel| match self.rule(name, p)? {
+            Command::Create { id, props, .. } => Some(Command::Update {
+                id,
+                props: PropsUpdate {
+                    color: props.color,
                     ..PropsUpdate::default()
-                };
-                Some(Command::Update {
-                    id: panel_id(name, &p.id),
-                    props,
-                })
+                },
+            }),
+            _ => None,
+        };
+        (scene.panels.iter())
+            .flat_map(|p| {
+                let clip = self.place(name, p).map(|[_, y, w, h]| {
+                    let size = [w + indent, self.clip_height(name, p, [y, h])];
+                    let props = PropsUpdate {
+                        size: Some(size),
+                        ..PropsUpdate::default()
+                    };
+                    Command::Update {
+                        id: panel_id(name, &p.id),
+                        props,
+                    }
+                });
+                clip.into_iter().chain(rule_of(p))
             })
             .collect()
     }
@@ -674,8 +722,8 @@ impl Mc {
         };
         let bottom = (scene.panels.iter())
             .filter_map(|p| {
-                let [_, y, w, h] = self.place(name, p)?;
-                Some(y + h.min(self.text_height(p, w)))
+                let [_, y, _, _] = self.place(name, p)?;
+                Some(y + self.extent(name, p)?)
             })
             .fold(0.0, f64::max);
         (bottom - geo.text[1] - geo.text[3]).max(0.0)
@@ -719,8 +767,9 @@ impl Mc {
         let below = scene.panels.iter().filter(|p| !p.is_empty()).any(|panel| {
             let prefix = format!("{}-", panel_id(name, &panel.id));
             let mut known = rects.iter().filter(|(id, _)| id.starts_with(&prefix));
-            let lines_end = self.place(name, panel).is_some_and(|[_, y, w, h]| {
-                y - scroll + h.min(self.text_height(panel, w)) > edge + 1.0
+            let lines_end = self.place(name, panel).is_some_and(|[_, y, _, _]| {
+                let end = y - scroll + self.extent(name, panel).unwrap_or_default();
+                end > edge + 1.0
             });
             lines_end || known.any(|(_, [_, y, _, h])| y + h > edge + 1.0)
         });

@@ -81,7 +81,10 @@ change it there, not here.
 
 12. **Titles never clip.** A panel title has one to three words. A
     longer title wraps and moves the text of its panel down. A panel
-    shows whole lines only; it never cuts through a line.
+    shows whole lines only; it never cuts through a line. A panel whose
+    box holds all its lines shows them all or none: where the page edge
+    leaves it less room it waits, the arrow of the page says that more
+    follows, and it shows once the page scrolls.
 13. **Narrow outputs.** 1280 logical pixels is a main target, not an
     edge case. A page shows only as many columns as fit at `min_panel`;
     the other panels wrap into new rows in reading order. A row is never

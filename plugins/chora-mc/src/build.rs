@@ -325,11 +325,12 @@ impl Mc {
     /// The hairline of a panel, in the middle of the space before its
     /// margin; outside the panel, which `panel.set` replaces.
     /// A rule shows beside a panel with text, not at the left edge of the
-    /// text block; else it is clear, so that `replace_panel` always
+    /// text block, and not beside a panel that the page edge takes (mc-63);
+    /// else it is clear, so that `replace_panel` always
     /// finds one to replace.
     pub(crate) fn rule(&self, name: &str, panel: &Panel) -> Option<Command> {
         let ([x, y, _, h], geo) = (self.place(name, panel)?, self.geometry(name)?);
-        let shown = x > geo.text[0] && !panel.is_empty();
+        let shown = x > geo.text[0] && !panel.is_empty() && !self.edge_takes(name, panel, [y, h]);
         let color = (panel.rule.as_ref().filter(|_| shown))
             .and_then(|c| self.settings.value.colors().get(c))
             .copied()

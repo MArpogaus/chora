@@ -679,6 +679,10 @@ cell_boil_lines() {
         select((\$r[3] % \$l) > 0.5 and (\$l - (\$r[3] % \$l)) > 0.5 or \$r[1] + \$r[3] > \$p[1] + \$p[3] + 0.5) |
         \"\(.id) \(\$r | tostring)\"")
     [ -z "$bad" ] || fail "a lines node of the boil page shows part of a line at the edge of the page $page (rtr3-1): $bad"
+    bad=$(ctl query "owner:mc kind:text" | jq -r "
+        .[] | $shown | select(.id == \"mc-s-boil-panels-side-lines\") |
+        (.rects | to_entries[0].value) as \$r | select(\$r[3] < 56) | \"\(.id) \(\$r | tostring)\"")
+    [ -z "$bad" ] || fail "the side panel of the boil page shows part of its two lines at the edge of the page (mc-63): $bad"
     shot boil-lines
     ctl call mc notify.clear '{}' >/dev/null
     until_ok '[ -z "$(ctl call notify state.get "{}" | jq -r ".shown[].summary")" ]' 20 || fail "notify.clear leaves the card"
