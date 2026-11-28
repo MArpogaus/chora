@@ -602,3 +602,64 @@ fn after_the_key_sheet_in_a_pane_the_step_back_names_the_way_into_the_face() {
         "the way into the face is named after the sheet, as without it"
     );
 }
+
+/// The bar of the walk as it stands: which of the two keys it names.
+fn walk_names(core: &chora_kit::testing::FakeCore) -> (bool, bool) {
+    let model = core.model();
+    (
+        has(&model, "construct-hint-put-in"),
+        has(&model, "construct-hint-give-to"),
+    )
+}
+
+/// rcrr8-1 (review r8, MINOR): the face manager connecting or going while
+/// the bar stands (no cube open, the window of a pane with the keyboard)
+/// changes what the key does, so the bar follows at once: `Into face`
+/// becomes `To XP` when xp connects and back when it goes, with no other
+/// event and no redraw by the test.
+#[test]
+fn the_bar_follows_the_face_manager_connecting_and_going() {
+    let (mut construct, core, _lines) = super::with_hint_bar("reach-r8-follow");
+    the_pane_window(&mut construct, &core);
+    construct.cube = None;
+    construct.core_focus = Some("s1".into());
+    construct.hints.until = Some(std::time::Instant::now() + crate::hints::WALK);
+    construct.draw_hints().unwrap();
+    assert_eq!(
+        walk_names(&core),
+        (true, false),
+        "no xp: the key puts into a face"
+    );
+    let connected = chora_scene::Event::ClientConnected { name: "xp".into() };
+    chora_kit::runtime::Plugin::event(&mut construct, connected).unwrap();
+    assert_eq!(
+        walk_names(&core),
+        (false, true),
+        "xp connected: the key gives to it and the bar says so, with no other event"
+    );
+    let gone = chora_scene::Event::ClientDisconnected { name: "xp".into() };
+    chora_kit::runtime::Plugin::event(&mut construct, gone).unwrap();
+    assert_eq!(
+        walk_names(&core),
+        (true, false),
+        "xp gone: the key puts into a face again and the bar says so"
+    );
+}
+
+/// rcrr8-1 (review r8): the xp of the cube that closed stays in `clients`
+/// until its disconnect arrives, and in that gap the face manager is
+/// not beside the construct: nothing runs it but the cube that went.
+#[test]
+fn closing_the_cube_leaves_its_own_xp_out_of_the_clients() {
+    let (mut construct, _core, _lines) = super::with_hint_bar("reach-r8-closed");
+    construct.cube.as_mut().unwrap().program = "xp".into();
+    let own = construct.cube.as_ref().unwrap().client().to_owned();
+    let connected = chora_scene::Event::ClientConnected { name: own.clone() };
+    chora_kit::runtime::Plugin::event(&mut construct, connected).unwrap();
+    assert!(construct.clients.contains(&own), "the cube's xp connected");
+    construct.close_cube().unwrap();
+    assert!(
+        !construct.face_manager_elsewhere(),
+        "the cube closed: its own xp is not a manager running beside"
+    );
+}
