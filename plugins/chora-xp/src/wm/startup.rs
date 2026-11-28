@@ -551,6 +551,42 @@ mod tests {
         }
     }
 
+    /// rfxr1-3: outputs that turn into faces between the early grab and the
+    /// late one leave no cube key held: the late grab lets go of what the
+    /// early one took and the scene no longer asks for.
+    #[test]
+    fn xp_lets_go_the_early_cube_keys_of_outputs_that_turn_into_faces() {
+        let core = core_with_look(false);
+        let screen = serde_json::to_value(chora_kit::testing::output("face")).unwrap();
+        let mut face = screen.clone();
+        face["virtual"] = serde_json::json!(true);
+        let grabbed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        core.respond(move |method, _| match method {
+            "input.grab" => {
+                grabbed.store(true, std::sync::atomic::Ordering::SeqCst);
+                None
+            }
+            "output.list" => {
+                let turned = grabbed.load(std::sync::atomic::Ordering::SeqCst);
+                Some(serde_json::json!([if turned { &face } else { &screen }]))
+            }
+            _ => None,
+        });
+        let _wm = wm_on_kit_core(&core, "faces-after-early-grab");
+        let model = core.model();
+        let model = model.lock().unwrap();
+        let held = |b: &str| {
+            model.grabs.iter().filter(|g| *g == b).count()
+                > model.ungrabs.iter().filter(|g| *g == b).count()
+        };
+        assert!(held("Super+space"), "{:?}", model.grabs);
+        assert!(
+            !held("Ctrl+Alt+Left"),
+            "the early cube key is held on faces ({} ungrabs)",
+            model.ungrabs.len()
+        );
+    }
+
     #[test]
     fn arrival_starting_alone_is_settled() {
         let core = core_with_look(false);
