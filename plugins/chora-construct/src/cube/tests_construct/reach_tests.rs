@@ -383,6 +383,37 @@ fn every_end_of_the_wait_without_the_put_is_told() {
     }
 }
 
+/// rcrr7-5 (review r7): the put that waits never waits on the face
+/// manager: with an xp that exports `window.move` but answers a call only
+/// after a second (as one that starts), the key and each look of the put
+/// return at once, so the frame loop goes on.
+#[test]
+fn the_wait_never_waits_on_the_face_manager() {
+    let (mut construct, core, _lines) = super::with_hint_bar("reach-r8-slow");
+    core.respond(|method, params| match method {
+        "methods.list" => Some(serde_json::json!([{"name": "window.move", "client": "xp"}])),
+        "methods.call" if params["method"] == "state.get" => {
+            std::thread::sleep(std::time::Duration::from_secs(1));
+            Some(serde_json::json!({}))
+        }
+        _ => None,
+    });
+    construct.cube.as_mut().unwrap().program = "xp".into();
+    construct.core_focus = Some("s1".into());
+    let began = std::time::Instant::now();
+    construct.put_pane("s1").unwrap();
+    for _ in 0..3 {
+        due(&mut construct);
+        construct.put_when_ready().unwrap();
+    }
+    let took = began.elapsed();
+    assert!(
+        took < std::time::Duration::from_millis(100),
+        "the key and three looks waited {took:?} on xp"
+    );
+    assert!(waits(&construct), "xp has not answered: the put waits");
+}
+
 /// The window of the put that waits.
 fn waiting(construct: &crate::Construct) -> Option<String> {
     let host = construct.cube.as_ref()?;
