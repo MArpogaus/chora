@@ -206,7 +206,7 @@ impl Construct {
 
     /// The events of the voice agent and of the watchdog, then the input.
     pub(crate) fn other(&mut self, event: Event) -> Result<(), ClientError> {
-        self.count_client(&event);
+        self.count_client(&event)?;
         match event {
             Event::Emitted {
                 event,
@@ -240,17 +240,26 @@ impl Construct {
         }
     }
 
-    /// A client connected or went: `clients` follows (co-79 r8).
-    fn count_client(&mut self, event: &Event) {
-        match event {
+    /// A client connected or went: `clients` follows (co-79 r8). When it
+    /// is the face manager, what the give key does changed, so the hints
+    /// are drawn anew (rcrr8-1).
+    fn count_client(&mut self, event: &Event) -> Result<(), ClientError> {
+        let name = match event {
             Event::ClientConnected { name } => {
                 self.clients.insert(name.clone());
+                name
             }
             Event::ClientDisconnected { name } => {
                 self.clients.remove(name);
+                name
             }
-            _ => {}
+            _ => return Ok(()),
+        };
+        if *name != self.face_manager() {
+            return Ok(());
         }
+        self.hints.stale = true;
+        self.draw_hints()
     }
 
     /// The chat of the HUD host closed and took the keyboard with it: the

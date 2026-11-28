@@ -298,6 +298,7 @@ impl Construct {
             crate::log::log_info!("chora-construct: {surface} stays a pane: {told}");
             self.tell(&told);
         }
+        self.clients.remove(host.client());
         host.end_manager();
         self.tell_end(&host);
         self.remove_outputs(&host.outputs);
