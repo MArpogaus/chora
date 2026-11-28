@@ -663,3 +663,47 @@ fn closing_the_cube_leaves_its_own_xp_out_of_the_clients() {
         "the cube closed: its own xp is not a manager running beside"
     );
 }
+
+/// rcrr8-2 (review r8, MINOR): the give key from a pane to an xp that runs
+/// in a manager pane gives the window away, and the camera glides to the
+/// pane of that xp, as the put steps into the face: the given window
+/// keeps the keyboard, and the person sees where it went.
+#[test]
+fn giving_a_window_to_the_xp_of_a_manager_pane_flies_to_that_pane() {
+    let (mut construct, core, _lines) = super::with_hint_bar("reach-r8-fly-to");
+    the_pane_window(&mut construct, &core);
+    construct.cube = None;
+    construct.book.keep("s1");
+    construct
+        .settings
+        .value
+        .managers
+        .insert("xp".into(), "true".into());
+    construct.open_manager("xp", None, None).unwrap();
+    construct.glide = None;
+    let mut xp = core.connect("xp");
+    let desk = chora_scene::Command::Create {
+        id: "xp-desk-0".into(),
+        kind: chora_scene::NodeKind::Group,
+        parent: chora_scene::ROOT.into(),
+        props: chora_scene::PropsUpdate {
+            claim: Some(Some([0.0, 0.0, 1280.0, 800.0])),
+            ..chora_scene::PropsUpdate::default()
+        },
+    };
+    xp.apply(vec![desk]).unwrap();
+    core.model().lock().unwrap().scene.set_focused(Some("s1"));
+    construct.core_focus = Some("s1".into());
+    assert_eq!(construct.pane_to_manager().as_deref(), Some("s1"));
+    construct.give_key("xp").unwrap();
+    let shown = construct.panes.iter().position(
+        |pane| matches!(&pane.content, crate::Content::Manager { manager } if manager == "xp"),
+    );
+    let pane = &construct.panes[shown.expect("xp keeps its pane")];
+    let wanted = crate::space::fly_in(&construct.lens, pane.at, pane.yaw);
+    assert!(
+        construct.glide.is_some() && construct.target() == wanted,
+        "the camera glides to the manager pane of xp: {:?}, wanted {wanted:?}",
+        construct.target()
+    );
+}
