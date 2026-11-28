@@ -473,3 +473,6 @@ The assistant pill drop under the header is unbounded and can leave the output i
 - rtr5r-1 MINOR (tour-rows r5 review): c4b window row is dead; the old c4b row already names the blob.
 - rtr5r-2 MINOR: tiling box [12,8,526,32] is 88 px wider than the island blob (t3f).
 - rtr5r-3..5 NIT: c3d/c4b box 182 vs 166 px; c4 box 84 % outside the half-frame guard; tests repeat the toml.
+- rtmr1-1 MINOR (tiling-minor r1 review, bd641acb): flavors/tiling/look.sh:20 notice still names "choractl call tiling settings.set" (rpt2-2 class).
+- rtmr1-2 MINOR: rpt3-2 test reads config text only; no test that assistant.door makes tiling send SIGRTMIN+2 (chora-assistant main.rs:885).
+- rtmr1-3 NIT: Apps launcher lists "Move window to ..." entries with no focused window.
