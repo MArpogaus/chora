@@ -672,6 +672,28 @@ fn band(agent: &Agent) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
+    /// A critical title that already begins with `Urgent` gets no second
+    /// mark, in any case; a normal one never gets the mark (rmm6-1).
+    #[test]
+    fn a_critical_title_that_begins_with_urgent_gets_one_prefix() {
+        for title in [
+            "Urgent: Backup failed",
+            "urgent: Backup failed",
+            "URGENT disk",
+        ] {
+            let shown = super::urgent_title(title, super::Urgency::Critical);
+            assert_eq!(shown, title, "one prefix, not two: {shown}");
+        }
+        assert_eq!(
+            super::urgent_title("Backup failed", super::Urgency::Critical),
+            "Urgent: Backup failed"
+        );
+        assert_eq!(
+            super::urgent_title("Urgent: Backup failed", super::Urgency::Normal),
+            "Urgent: Backup failed"
+        );
+    }
+
     /// A critical notice stays until a click: the normal ones after it,
     /// which expire by themselves, never push it out of what a clear
     /// dismisses.
