@@ -2744,7 +2744,7 @@ mod tests {
                 "--test-threads=1",
             ])
             .env(DOOR_FROM, client)
-            .env("XDG_RUNTIME_DIR", runtime)
+            .env(chora_scene::paths::RUNTIME_ENV, runtime)
             .status()
             .unwrap();
         assert!(status.success(), "the child of {client} failed");
