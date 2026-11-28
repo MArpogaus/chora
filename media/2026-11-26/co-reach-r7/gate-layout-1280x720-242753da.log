@@ -1,0 +1,50 @@
+ok: start light-1280x720: layout audit: 57 nodes, no finding
+ok: light-1280x720: a click on the row Terminal started a terminal and the card went
+ok: light-1280x720: Super+T started a terminal and the card went
+ok: light-1280x720: every sample of the new pane showed content (placeholder seen: 0)
+ok: light-1280x720: Alt+Escape during the fly-in stepped back
+ok: light-1280x720: the flown-in frame is the buffer of its window, at 1:1
+ok: light-1280x720: a click on the hint Step back stepped back
+ok: light-1280x720: every sample of the second pane showed content (placeholder seen: 0)
+ok: light-1280x720: Super+T in use mode stepped back and flew into a second pane right of the first
+ok: light-1280x720: Super+T in the walk opened a third pane left of the first, as far or farther
+ok: light-1280x720: one pane: cube fly-in keys put-in terminal walk
+ok: walk light-1280x720: layout audit: 29 nodes, no finding
+ok: question light-1280x720: layout audit: 34 nodes, no finding
+ok: chat-ask light-1280x720: layout audit: 36 nodes, no finding
+ok: chat light-1280x720: layout audit: 31 nodes, no finding
+ok: list light-1280x720: layout audit: 36 nodes, no finding
+ok: list-search light-1280x720: layout audit: 37 nodes, no finding
+ok: help light-1280x720: layout audit: 184 nodes, no finding
+ok: light-1280x720: the muted text of the help has contrast 7.40 over the sunset
+ok: help-search light-1280x720: layout audit: 46 nodes, no finding
+ok: light-1280x720: Super+slash shows and hides the help
+ok: light-1280x720: three panes: fly-in keys put-in terminal walk windows
+ok: light-1280x720: a click on a row of the window list flew into its window
+ok: light-1280x720: a click on the hint Terminal started a terminal flown in
+ok: start dark-1280x720: layout audit: 57 nodes, no finding
+ok: dark-1280x720: a click on the row Terminal started a terminal and the card went
+ok: dark-1280x720: Super+T started a terminal and the card went
+ok: dark-1280x720: every sample of the new pane showed content (placeholder seen: 0)
+ok: dark-1280x720: Alt+Escape during the fly-in stepped back
+ok: dark-1280x720: the flown-in frame is the buffer of its window, at 1:1
+ok: dark-1280x720: a click on the hint Step back stepped back
+ok: dark-1280x720: every sample of the second pane showed content (placeholder seen: 0)
+ok: dark-1280x720: Super+T in use mode stepped back and flew into a second pane right of the first
+ok: dark-1280x720: Super+T in the walk opened a third pane left of the first, as far or farther
+ok: dark-1280x720: one pane: cube fly-in keys put-in terminal walk
+ok: walk dark-1280x720: layout audit: 29 nodes, no finding
+ok: question dark-1280x720: layout audit: 34 nodes, no finding
+ok: chat-ask dark-1280x720: layout audit: 36 nodes, no finding
+ok: chat dark-1280x720: layout audit: 31 nodes, no finding
+ok: list dark-1280x720: layout audit: 36 nodes, no finding
+ok: list-search dark-1280x720: layout audit: 37 nodes, no finding
+ok: help dark-1280x720: layout audit: 184 nodes, no finding
+ok: dark-1280x720: the muted text of the help has contrast 7.59 over the sunset
+ok: help-search dark-1280x720: layout audit: 46 nodes, no finding
+ok: dark-1280x720: Super+slash shows and hides the help
+ok: dark-1280x720: three panes: fly-in keys put-in terminal walk windows
+ok: dark-1280x720: a click on a row of the window list flew into its window
+ok: dark-1280x720: a click on the hint Terminal started a terminal flown in
+ok: the construct HUD keeps its layout in every state
+EXIT 0
