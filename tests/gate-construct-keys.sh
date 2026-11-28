@@ -104,9 +104,9 @@ typed() { od -An -c "$work/typed" 2>/dev/null | tr -d ' \n'; }
 until_ok 'echo "[{\"text\": {\"text\": \"k\"}}]" | ctl inject && test "$(typed)" != ""' ||
     fail "the terminal of the pane term takes no typed text"
 
-key Super+Alt+2
-until_ok 'say | grep -q "XP did not take the window: it is not running."' ||
-    fail "a give of the focused window to xp, which does not run, said nothing: $(say)"
+key Super+Alt+1
+until_ok 'say | grep -q "Tiling did not take the window: it is not running."' ||
+    fail "a give of the focused window to tiling, which does not run, said nothing: $(say)"
 until_ok flown_in || fail "the camera is in no pane"
 key Alt+Escape
 until_ok 'test "$(focused id:construct-look)" = True' || fail "Alt+Escape gave the walk no keyboard"
