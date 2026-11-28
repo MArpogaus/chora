@@ -538,7 +538,7 @@ gets or loses the keyboard, each change in its order, also a loss and a return t
 | `agent.focus` | `name`: shows the `agents` scene with this agent alone in `agent-1` and its transcript in the other `agent-N` panels, newest last; an empty name shows all agents again |
 | `agent.remove` | `name` |
 | `agent.list` | none; answers `agents`, each with `name`, `state`, `task`, `said`, `voice`, `plan`, `question`, `log` and `since` (the time of its first report) |
-| `notify.push` | privileged. `title`, an optional `body` and an optional `urgency` (`low`, `normal` or `critical`): shows a notice through `chora-notify`, the only notification server beside mc, as `notify.show` does (`critical` stays until a click, the others show for its times); mc draws no notice, no column of notifications and no urgent line of its own. An error when `chora-notify` does not run |
+| `notify.push` | privileged. `title`, an optional `body` and an optional `urgency` (`low`, `normal` or `critical`): shows a notice through `chora-notify`, the only notification server beside mc, as `notify.show` does (`critical` stays until a click, the others show for its times; a `critical` title begins with `Urgent:`, once); mc draws no notice, no column of notifications and no urgent line of its own. An error when `chora-notify` does not run |
 | `notify.clear` | privileged; closes the notices that mc showed, the last 32, and that `chora-notify` still holds |
 
 New text writes itself, as Write of manim: a soft front draws the
