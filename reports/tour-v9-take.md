@@ -81,3 +81,44 @@ Cause not found by me for any (r1 named: the mc page divergence fa7faabd and the
 The brief asks for `media/tour-v9.mp4` and `media/tour-v9-sheet.png` on claude/tour-v9-take-r2. The commit was refused by the hooks again, as in r1: `no-session-files` (no media in the repository) and `check-added-large-files`. I did not bypass them and pushed nothing to claude/tour-v9-take-r2 (it stays at e39448ad). The files are on claude/session-log in `media/2026-11-25/tour-v9-r2/`: `tour-v9.mp4` (6.3 MB), `tour-v9-sheet.png`, `tour-diff-r2.txt` and `.json`, `timeline-table.md`.
 
 `pgrep -fa 'chora --headless'` empty at the end.
+
+## r3 (F7, RC 1b, 11)
+
+Head claude/tour-v9-take-r3 3098926e (session head, t162 green; tour-rows r5 and tour-fix r1-r2 in). Step 0 green: unshallow, cargo check and build, foot ffmpeg waybar swaybg dbus-daemon, PIL. No code, tool or intended.toml change. Baseline 733967aa built in a worktree, replayed with `TOUR_BASELINE=1` (the head's harness, `TOUR_REPO` on the worktree), each chapter its own TOUR_OUT.
+
+### 1 `run.py --check` (all chapters)
+`tour: check: 12 red, 0 broken`. xp 31 acts 30 green 1 known; tiling 28 green; mc 22 green; handover 11 green; construct 18 acts 6 green 12 red (acts 4, 7..12, 14..18), every one `I2: gaps: HEADLESS-1: construct-mode-step-in and construct-mode-turn-left/-right are 9 apart, no whole number of 8` (co-44, open, COSMETIC). r2 had 14 red: act 11's ten `I6` (key overlay chips, 11 px) and acts 5 and 6 are gone. Also `known ... is green: drop known` for xp 31 (I4 ca-4), tiling 24 (ti-29), mc 4, 5, 6 (I5 notice over the column), handover 2 (I3 ca-3); `AUDIT [('s1','xp')]`. Not fixed.
+
+### 2 Full take
+All five chapters: `tour: record: 12 red, 0 broken`, the same 12 construct acts; xp 30 green 1 known, tiling 28, mc 22, construct 6 green 12 red, handover 11. Joined MP4 (the five `tour-all.mp4` joined with ffmpeg concat, stream copy) **7.0 MB**, 327 s; limit 19 MB: no re-encode, no crf. 106 stills.
+
+### 3 v8 comparison (tests/tour-diff.py, `--intended demo/tour/intended.toml`)
+v8 take: xp 31 red (old build, expected), tiling 28 red, mc 22 red, construct stops after c3 with 1 `baseline: none` note, handover BROKE (Send To TypeError on the old build); same as r2.
+
+| chapter | acts | same | change | open | regression | none |
+|---|---|---|---|---|---|---|
+| xp | 31 | 0 | 31 | 0 | 0 | 0 |
+| tiling | 28 | 1 | 27 | 0 | 0 | 0 |
+| mc | 22 | 0 | 19 | 0 | 3 | 0 |
+| construct | 18 | 0 | 12 | 0 | 2 | 4 |
+| handover | 11 | 0 | 4 | 0 | 0 | 7 |
+| **r3 total** | 110 | 1 | 93 | 0 | 5 | 11 |
+| r2 total | 110 | 1 | 0 | 88 | 10 | 11 |
+
+r2 by chapter: xp 0/0/31/0, tiling 1/0/27/0, mc 0/0/16/6, construct 0/0/14/0 (+4 none), handover 0/0/0/4 (+7 none). Now 88 open -> 0 and 93 change: the rows of tour-rows r5 and tour-fix absorb what they name. tour-diff exits 1 (5 regression).
+
+Regression acts (5), each with its check line. No check flipped in any (I2 I5 I6 I9 I12 I13 "not measured" on the old build):
+- **c5d** (construct, Q): unnamed `visible`, `rect`, `missing`, `added`, `pixel`. v9 steps into face 0 (face-0 rect 375x261 -> full frame 1280x720; cube edge, face-1, mirrors, floats gone), v8 stays stood back. Still a regression: **yes** (rtf1-1, no row possible, comparability of the replay, not a look defect).
+- **c5e** (construct, Q): unnamed `pixel` (face-0 full frame, face-1/mirrors/floats gone as c5d). Still a regression: **yes** (rtf1-1).
+- **m8** (mc, Q): unnamed `pixel`; the launcher without icons on a dark ground, blob at about [463, 198, 354, 324]; scene rows (footer, header, chat rects `None -> ...`) are named, the pixels are not. Still a regression: **yes** (rtr4-2, MINOR, open).
+- **m6, m6b** (mc, Q): unnamed `missing`, **new since r2** (r2: open). Baseline-only nodes: `mc-r0-right-notify-0`, `-notify-0-time`, `-notify-title` (a notice card in v8 at that moment, none in v9), `mc-r1-right-doors-*` (lock, power, programs, screenshot, volume, each with `-hit` and `-mark`), `mc-r1-right-keys-12-key-hit/-mark`, `-2-key-hit/-mark`, `-keys-title-rule`. Rows for m6 exist (675ebd55 notices out of the column, 798fdc33, 6fa86c16, fa7faabd) but none lists these nodes, so they do not absorb them. Pixel clean (no unnamed pixel diff). Cause likeliest the page divergence fa7faabd plus 675ebd55 (not proven); m6b shows the same missing set plus footer/header rect moves that rows name.
+
+c5d, c5e, m8 are filed regressions (rtf1-1, rtr4-2); m6 and m6b are new and want rows or a look from the next rows lane. The 93 `change` and 1 `same` are per act in `tour-diff-r3.txt`.
+
+### 4 Contact sheet
+`tour-v9-sheet.png`, 1920 x 1890, all 106 stills, 8 columns of 240 x 135 with the still name on each (PIL, as r2; `demo/tour/sheet.sh` lays out 2 columns, 106 stills would be 19 000 px high).
+
+### 5 Where the files are (deviation, say plainly)
+The brief asks for `media/tour-v9.mp4` and `media/tour-v9-sheet.png` on claude/tour-v9-take-r3. The commit was refused by the hooks again, as in r1 and r2: `no-session-files` (no media in the repository) and `check-added-large-files`. I did not bypass them; nothing was pushed to claude/tour-v9-take-r3 (stays at 3098926e). The files are on claude/session-log in `media/2026-11-28/tour-v9-r3/`: `tour-v9.mp4` (7.0 MB), `tour-v9-sheet.png`, `tour-diff-r3.txt` and `.json`, `timeline-table.md`.
+
+`pgrep -fa 'chora --headless'` empty at the end.
