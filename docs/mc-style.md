@@ -57,7 +57,9 @@ change it there, not here.
 7. **One accent.** The `accent` color is on the scene title and on the
    state of the voice agent only. The
    colors `green`, `amber`, `blue` and `red` show a state, for example of
-   an agent or an error; do not use them for decoration.
+   an agent or an error; do not use them for decoration. A critical
+   notice begins with the word `Urgent`, as in `Urgent: Backup failed`,
+   because the card of the notice server has no colour of its own for it.
 
 ## Space
 

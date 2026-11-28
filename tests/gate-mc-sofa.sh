@@ -380,6 +380,8 @@ cell_alarm() {
         fail "the Chat door $door stands on the rule of KEYS $rule"
     jq -ne --argjson d "$door" '$d[0] >= 860 and $d[0] + $d[2] <= 1230' >/dev/null || fail "the Chat door $door leaves the column"
     [ "$(ctl call notify state.get '{}' | jq -r '.shown[0].body')" = "$body" ] || fail "the card of the alarm is cut"
+    ctl call notify state.get '{}' | jq -e '[.shown[].summary] | all(startswith("Urgent: "))' >/dev/null ||
+        fail "the card of a critical notice has no mark of urgency (rpx1-17): $(shown_notices | tr '\n' '|')"
     card=$(ctl call notify state.get '{}' | jq -c '.shown[0].rect')
     foot=$(text_rect "→ 2  The Morning")
     jq -ne --argjson c "$card" --argjson f "$foot" '$c[0] + $c[2] <= 860 and $c[1] + $c[3] <= $f[1]' >/dev/null ||

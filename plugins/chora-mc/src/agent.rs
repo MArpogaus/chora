@@ -574,7 +574,8 @@ impl Mc {
     /// Tells the person that something did not work, as a critical
     /// notice of the notification server.
     pub fn notice(&mut self, title: &str, body: &str) {
-        let notice = Self::notice_of(title, body, Urgency::Critical);
+        let title = urgent_title(title, Urgency::Critical);
+        let notice = Self::notice_of(&title, body, Urgency::Critical);
         if let Some(id) = notice::show_or_log(&mut self.rt.conn, None, &notice) {
             self.notices.remember(id, true);
         }
@@ -583,7 +584,8 @@ impl Mc {
     /// Shows a notice of the notification server; a critical one stays until the
     /// person closes it.
     pub fn push(&mut self, push: &Push) -> Result<(), RpcError> {
-        let notice = Self::notice_of(&push.title, &push.body, push.urgency);
+        let title = urgent_title(&push.title, push.urgency);
+        let notice = Self::notice_of(&title, &push.body, push.urgency);
         let id = notice::show(&mut self.rt.conn, None, &notice).map_err(|err| gone(&err))?;
         (self.notices).remember(id, push.urgency == Urgency::Critical);
         Ok(())
@@ -611,6 +613,17 @@ impl Mc {
         (self.notices)
             .clear(|id| notice::dismiss(conn, id))
             .map_err(|err| gone(&err))
+    }
+}
+
+/// The title of a notice: a critical one begins with the word `Urgent`,
+/// because the card of chora-notify has one look for every notice and no
+/// colour of urgency (rpx1-17).
+fn urgent_title(summary: &str, urgency: Urgency) -> String {
+    if urgency == Urgency::Critical {
+        format!("Urgent: {summary}")
+    } else {
+        summary.to_owned()
     }
 }
 
