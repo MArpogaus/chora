@@ -13,6 +13,11 @@ fn more_id(name: &str) -> String {
 /// The room under a baseline for the descenders of a line.
 const DESCENT: f64 = 8.0;
 
+/// How far a text may reach under the page edge before the page takes it
+/// off and shows the down mark: one tolerance for both, so that a panel the
+/// edge takes always has the mark (rmm6-3).
+const EDGE_SLACK: f64 = 0.5;
+
 impl Mc {
     /// Builds the pages of all scenes anew, after a side took or gave back
     /// its room, so that the text takes the room that is free.
@@ -407,7 +412,7 @@ impl Mc {
         };
         let scroll = self.scroll.get(name).copied().unwrap_or_default();
         let room = geo.text[1] + geo.text[3] - (y - scroll);
-        whole <= h && room + 0.5 < whole
+        whole <= h && room + EDGE_SLACK < whole
     }
 
     /// Sets the clip of every panel of the current page again: the page
@@ -769,9 +774,9 @@ impl Mc {
             let mut known = rects.iter().filter(|(id, _)| id.starts_with(&prefix));
             let lines_end = self.place(name, panel).is_some_and(|[_, y, _, _]| {
                 let end = y - scroll + self.extent(name, panel).unwrap_or_default();
-                end > edge + 1.0
+                end > edge + EDGE_SLACK
             });
-            lines_end || known.any(|(_, [_, y, _, h])| y + h > edge + 1.0)
+            lines_end || known.any(|(_, [_, y, _, h])| y + h > edge + EDGE_SLACK)
         });
         Some(Command::Update {
             id: more_id(name),
