@@ -1,0 +1,215 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.26
+   Compiling serde_core v1.0.229
+   Compiling rustversion v1.0.23
+   Compiling zmij v1.0.23
+   Compiling once_cell v1.21.4
+   Compiling cfg-if v1.0.5
+   Compiling anstyle v1.0.14
+   Compiling tracing-core v0.1.36
+   Compiling encoding_rs v0.8.42
+   Compiling syn v3.0.7
+   Compiling syn v2.0.119
+   Compiling serde_json v1.0.154
+   Compiling bytemuck v1.25.2
+   Compiling serde v1.0.229
+   Compiling autocfg v1.5.1
+   Compiling ref-cast v1.0.27
+   Compiling num-traits v0.2.19
+   Compiling safe_arch v0.7.4
+   Compiling itoa v1.0.18
+   Compiling libc v0.2.191
+   Compiling thiserror v2.0.21
+   Compiling memchr v2.8.3
+   Compiling rustix v1.1.6
+   Compiling smallvec v1.16.3
+   Compiling serde_derive_internals v0.30.0
+   Compiling regex-syntax v0.8.11
+   Compiling utf8parse v0.2.2
+   Compiling ref-cast-impl v1.0.27
+   Compiling serde_derive v1.0.229
+   Compiling scopeguard v1.2.0
+   Compiling rand_core v0.9.5
+   Compiling tracing-attributes v0.1.31
+   Compiling multiversion_no_op v1.0.0
+   Compiling core_detect v1.0.0
+   Compiling pin-project-lite v0.2.17
+   Compiling simdutf8 v0.1.5
+   Compiling rand_xoshiro v0.7.0
+   Compiling regex-automata v0.4.18
+   Compiling tracing v0.1.44
+   Compiling anstyle-parse v1.0.0
+   Compiling thiserror-impl v2.0.21
+   Compiling schemars_derive v1.2.3
+   Compiling wide v0.7.33
+   Compiling archery v1.2.3
+   Compiling dyn-clone v1.0.20
+   Compiling linux-raw-sys v0.12.1
+   Compiling bitflags v2.13.2
+   Compiling lazy_static v1.5.1
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling arraydeque v0.5.1
+   Compiling log v0.4.34
+   Compiling imbl-sized-chunks v0.2.0
+   Compiling equivalent v1.0.2
+   Compiling colorchoice v1.0.5
+   Compiling anstyle-query v1.1.5
+   Compiling chora-scene v0.9.0-rc.3 (/tmp/claude-0/-home-user-chora/1de8020c-9c87-5ef3-a80b-f4522f8b1bca/scratchpad/wt7b/crates/chora-scene)
+   Compiling unicode-width v0.2.2
+   Compiling anstream v1.0.0
+   Compiling imbl v7.0.2
+   Compiling annotate-snippets v0.12.16
+   Compiling tracing-log v0.2.0
+   Compiling granit-parser v1.3.0
+   Compiling sharded-slab v0.1.7
+   Compiling schemars v1.2.3
+   Compiling matchers v0.2.0
+   Compiling encoding_rs_io v0.1.8
+   Compiling thread_local v1.1.10
+   Compiling clap_lex v1.1.1
+   Compiling base64 v0.23.1
+   Compiling glam v0.33.12
+   Compiling heck v0.5.0
+   Compiling nohash-hasher v0.2.0
+   Compiling nu-ansi-term v0.50.3
+   Compiling strsim v0.11.1
+   Compiling clap_builder v4.6.7
+   Compiling tracing-subscriber v0.3.23
+   Compiling serde-saphyr v1.3.0
+   Compiling clap_derive v4.6.7
+   Compiling clap v4.6.7
+   Compiling chora-kit v0.9.0-rc.3 (/tmp/claude-0/-home-user-chora/1de8020c-9c87-5ef3-a80b-f4522f8b1bca/scratchpad/wt7b/crates/chora-kit)
+   Compiling chora-construct v0.9.0-rc.3 (/tmp/claude-0/-home-user-chora/1de8020c-9c87-5ef3-a80b-f4522f8b1bca/scratchpad/wt7b/plugins/chora-construct)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 34.32s
+     Running unittests src/main.rs (/tmp/claude-0/-home-user-chora/1de8020c-9c87-5ef3-a80b-f4522f8b1bca/scratchpad/t7/debug/deps/chora_construct-200f648b22ddb282)
+
+running 14 tests
+test cube::tests_construct::reach_tests::out_of_a_pane_and_in_one_the_bar_names_the_key_into_a_face ... ok
+test cube::tests_construct::reach_tests::after_the_key_sheet_in_a_pane_the_step_back_names_the_way_into_the_face ... ok
+test cube::tests_construct::reach_tests::stepped_out_of_a_pane_without_a_cube_the_walk_names_the_cube ... ok
+test cube::tests_construct::reach_tests::stood_back_out_of_a_pane_the_bar_names_the_way_into_the_face ... ok
+test cube::tests_construct::reach_tests::every_end_of_the_wait_without_the_put_is_told ... FAILED
+test cube::tests_construct::reach_tests::a_second_key_while_the_cube_starts_keeps_the_same_put ... FAILED
+test cube::tests_construct::reach_tests::the_key_into_a_face_waits_for_the_face_manager_and_ends_at_a_step_in ... ok
+test cube::tests_construct::reach_tests::super_x_while_flying_out_of_a_pane_into_a_face_closes_nothing ... ok
+test cube::tests_construct::reach_tests::the_wait_ends_when_the_person_moves_on ... FAILED
+test cube::tests_construct::reach_tests::the_key_sheet_in_a_pane_lists_only_the_keys_that_work_there ... ok
+test cube::tests_construct::reach_tests::the_key_sheet_opened_by_its_key_in_a_pane_lists_the_same_keys ... ok
+test cube::tests_construct::reach_tests::the_pull_key_is_named_in_a_face_where_it_acts ... ok
+test cube::tests_construct::reach_tests::with_the_face_manager_running_the_key_from_a_pane_gives_to_it ... FAILED
+test cube::tests_construct::reach_tests::the_wait_never_waits_on_the_face_manager ... FAILED
+
+failures:
+
+---- cube::tests_construct::reach_tests::every_end_of_the_wait_without_the_put_is_told stdout ----
+
+thread 'cube::tests_construct::reach_tests::every_end_of_the_wait_without_the_put_is_told' (20480) panicked at plugins/chora-construct/src/cube/tests_construct/reach_tests.rs:379:9:
+late: the end is told as "XP did not place the window in time.":
+stack backtrace:
+   0: __rustc::rust_begin_unwind
+             at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/std/src/panicking.rs:679:5
+   1: core::panicking::panic_fmt
+             at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/panicking.rs:80:14
+   2: every_end_of_the_wait_without_the_put_is_told
+             at ./src/cube/tests_construct/reach_tests.rs:379:9
+   3: chora_construct::cube::tests_construct::reach_tests::every_end_of_the_wait_without_the_put_is_told::{closure#0}
+             at ./src/cube/tests_construct/reach_tests.rs:328:51
+   4: <chora_construct::cube::tests_construct::reach_tests::every_end_of_the_wait_without_the_put_is_told::{closure#0} as core::ops::function::FnOnce<()>>::call_once
+             at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/ops/function.rs:250:5
+   5: <fn() -> core::result::Result<(), alloc::string::String> as core::ops::function::FnOnce<()>>::call_once
+             at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/ops/function.rs:250:5
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+
+---- cube::tests_construct::reach_tests::a_second_key_while_the_cube_starts_keeps_the_same_put stdout ----
+construct: notice "XP did not take the window: it is not running.": no notification server: an answer without an id: null
+
+thread 'cube::tests_construct::reach_tests::a_second_key_while_the_cube_starts_keeps_the_same_put' (20478) panicked at plugins/chora-construct/src/cube/tests_construct/reach_tests.rs:316:5:
+no give to an xp that still starts, nothing refused: scene.query {"filter":{"app_id":null,"focused":true,"kind":null,"output":null,"owner":null,"visible":false},"selector":"kind:surface"}
+scene.query {"selector":"id:s1"}
+scene.apply {"commands":[{"remove":{"id":"s1","to":"xp"}}]}
+methods.call {"client":"notify","method":"notify.show","params":{"app":"construct","body":"","expire_ms":4000,"icon":"","replaces":null,"summary":"XP did not take the window: it is not running.","urgency":"normal"}}
+stack backtrace:
+   0: __rustc::rust_begin_unwind
+             at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/std/src/panicking.rs:679:5
+   1: core::panicking::panic_fmt
+             at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/panicking.rs:80:14
+   2: a_second_key_while_the_cube_starts_keeps_the_same_put
+             at ./src/cube/tests_construct/reach_tests.rs:316:5
+   3: chora_construct::cube::tests_construct::reach_tests::a_second_key_while_the_cube_starts_keeps_the_same_put::{closure#0}
+             at ./src/cube/tests_construct/reach_tests.rs:292:59
+   4: <chora_construct::cube::tests_construct::reach_tests::a_second_key_while_the_cube_starts_keeps_the_same_put::{closure#0} as core::ops::function::FnOnce<()>>::call_once
+             at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/ops/function.rs:250:5
+   5: <fn() -> core::result::Result<(), alloc::string::String> as core::ops::function::FnOnce<()>>::call_once
+             at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/ops/function.rs:250:5
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+
+---- cube::tests_construct::reach_tests::the_wait_ends_when_the_person_moves_on stdout ----
+construct: command 0: node "s2" does not exist (code 1)
+
+thread 'cube::tests_construct::reach_tests::the_wait_ends_when_the_person_moves_on' (20568) panicked at plugins/chora-construct/src/cube/tests_construct/reach_tests.rs:283:9:
+moved on (fly): the put ends
+stack backtrace:
+   0: __rustc::rust_begin_unwind
+             at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/std/src/panicking.rs:679:5
+   1: core::panicking::panic_fmt
+             at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/panicking.rs:80:14
+   2: the_wait_ends_when_the_person_moves_on
+             at ./src/cube/tests_construct/reach_tests.rs:283:9
+   3: chora_construct::cube::tests_construct::reach_tests::the_wait_ends_when_the_person_moves_on::{closure#0}
+             at ./src/cube/tests_construct/reach_tests.rs:251:44
+   4: <chora_construct::cube::tests_construct::reach_tests::the_wait_ends_when_the_person_moves_on::{closure#0} as core::ops::function::FnOnce<()>>::call_once
+             at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/ops/function.rs:250:5
+   5: <fn() -> core::result::Result<(), alloc::string::String> as core::ops::function::FnOnce<()>>::call_once
+             at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/ops/function.rs:250:5
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+
+---- cube::tests_construct::reach_tests::with_the_face_manager_running_the_key_from_a_pane_gives_to_it stdout ----
+
+thread 'cube::tests_construct::reach_tests::with_the_face_manager_running_the_key_from_a_pane_gives_to_it' (20587) panicked at plugins/chora-construct/src/cube/tests_construct/reach_tests.rs:228:5:
+with xp running beside, no cube can open: no key into a face, no cube is told
+stack backtrace:
+   0: __rustc::rust_begin_unwind
+             at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/std/src/panicking.rs:679:5
+   1: core::panicking::panic_fmt
+             at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/panicking.rs:80:14
+   2: with_the_face_manager_running_the_key_from_a_pane_gives_to_it
+             at ./src/cube/tests_construct/reach_tests.rs:228:5
+   3: chora_construct::cube::tests_construct::reach_tests::with_the_face_manager_running_the_key_from_a_pane_gives_to_it::{closure#0}
+             at ./src/cube/tests_construct/reach_tests.rs:215:67
+   4: <chora_construct::cube::tests_construct::reach_tests::with_the_face_manager_running_the_key_from_a_pane_gives_to_it::{closure#0} as core::ops::function::FnOnce<()>>::call_once
+             at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/ops/function.rs:250:5
+   5: <fn() -> core::result::Result<(), alloc::string::String> as core::ops::function::FnOnce<()>>::call_once
+             at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/ops/function.rs:250:5
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+
+---- cube::tests_construct::reach_tests::the_wait_never_waits_on_the_face_manager stdout ----
+
+thread 'cube::tests_construct::reach_tests::the_wait_never_waits_on_the_face_manager' (20582) panicked at plugins/chora-construct/src/cube/tests_construct/reach_tests.rs:410:5:
+the key and three looks waited 3.270513823s on xp
+stack backtrace:
+   0: __rustc::rust_begin_unwind
+             at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/std/src/panicking.rs:679:5
+   1: core::panicking::panic_fmt
+             at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/panicking.rs:80:14
+   2: the_wait_never_waits_on_the_face_manager
+             at ./src/cube/tests_construct/reach_tests.rs:410:5
+   3: chora_construct::cube::tests_construct::reach_tests::the_wait_never_waits_on_the_face_manager::{closure#0}
+             at ./src/cube/tests_construct/reach_tests.rs:391:46
+   4: <chora_construct::cube::tests_construct::reach_tests::the_wait_never_waits_on_the_face_manager::{closure#0} as core::ops::function::FnOnce<()>>::call_once
+             at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/ops/function.rs:250:5
+   5: <fn() -> core::result::Result<(), alloc::string::String> as core::ops::function::FnOnce<()>>::call_once
+             at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/ops/function.rs:250:5
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+
+
+failures:
+    cube::tests_construct::reach_tests::a_second_key_while_the_cube_starts_keeps_the_same_put
+    cube::tests_construct::reach_tests::every_end_of_the_wait_without_the_put_is_told
+    cube::tests_construct::reach_tests::the_wait_ends_when_the_person_moves_on
+    cube::tests_construct::reach_tests::the_wait_never_waits_on_the_face_manager
+    cube::tests_construct::reach_tests::with_the_face_manager_running_the_key_from_a_pane_gives_to_it
+
+test result: FAILED. 9 passed; 5 failed; 0 ignored; 0 measured; 298 filtered out; finished in 3.45s
+
+error: test failed, to rerun pass `-p chora-construct --bin chora-construct`
