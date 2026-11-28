@@ -7,7 +7,8 @@ use super::{
     Effects, ExportMethod, HashMap, Icons, Instant, KeyAction, Launches, MENUS, METHODS, Menu,
     Mixer, NAME, NodeKind, OutputInfo, PropsUpdate, ROOT, RpcError, Runtime, Sound, Theme, Tooltip,
     WALLPAPERS, WINDOWS, Wm, apps, decoration, desk_id, desktop_icons, float, give, grab_keys,
-    hosted::CubeKeys, max_scale, move_method, settings, wallpaper, window, without_reserve,
+    grab_keys_of, hosted::CubeKeys, max_scale, move_method, needs_claim, settings, wallpaper,
+    window, without_reserve,
 };
 use chora_scene::Order;
 
@@ -115,8 +116,9 @@ impl Wm {
         let old_root = wm.take_kept()?;
         wm.mixer.refresh();
         wm.rt.announce(&EVENTS, methods)?;
-        wm.grab()?;
+        wm.grab_without_claim()?;
         wm.create_scene(old_root)?;
+        wm.grab()?;
         wm.refresh_looks();
         wm.adopt_all()?;
         wm.catch_up_outputs()?;
@@ -330,6 +332,27 @@ impl Wm {
         commands
     }
 
+    /// Grabs the keys that need no claim, before the scene exists: a chord
+    /// that comes while the nodes stand and no key is held has no holder,
+    /// and the core drops it (sh-44). The pointer buttons and the media
+    /// keys wait for the claim of the scene, which [`Self::grab`] grabs.
+    pub(super) fn grab_without_claim(&mut self) -> Result<(), ClientError> {
+        let cube = self.wanted_keys();
+        self.cube_keys = cube;
+        self.rt.give_keys(Some(|to| {
+            KeyAction::System(chora_kit::actions::System::Give(to.into()))
+        }));
+        grab_keys_of(
+            &mut self.rt,
+            &self.settings.value.common.bindings,
+            cube,
+            |key| !needs_claim(key),
+        )?;
+        self.rt
+            .accept_injected(self.settings.value.common.test_accept_injected_keys);
+        self.rt.grab_give_keys()
+    }
+
     pub(super) fn grab(&mut self) -> Result<(), ClientError> {
         let cube = self.wanted_keys();
         self.cube_keys = cube;
@@ -474,6 +497,31 @@ mod tests {
             grab < create,
             "sh-44: the first node exists before the first key is held: {:?}",
             &calls[..calls.len().min(4)]
+        );
+    }
+
+    /// The core grabs a pointer button or a media key only for a client
+    /// that holds a claim (D55): xp grabs them once its scene claims, and
+    /// the keys that need none before its first node.
+    #[test]
+    fn xp_grabs_its_buttons_after_its_scene_claims() {
+        let core = core_with_look(false);
+        let calls = core.record(|method, params| match method {
+            "input.grab" => Some(format!("grab {}", params["binding"].as_str().unwrap_or(""))),
+            "scene.apply" if params.to_string().contains("\"create\"") => Some("create".to_owned()),
+            _ => None,
+        });
+        let _wm = wm_on_kit_core(&core, "buttons-after-claim");
+        let calls = calls.lock().unwrap().clone();
+        let create = calls.iter().position(|m| m == "create").unwrap();
+        let at = |what: &str| calls.iter().position(|m| m == what);
+        assert!(
+            at("grab Super+BTN_LEFT") > Some(create),
+            "Super+BTN_LEFT before the claim: {calls:?}"
+        );
+        assert!(
+            at("grab Super+space") < Some(create),
+            "Super+space after the first node: {calls:?}"
         );
     }
 

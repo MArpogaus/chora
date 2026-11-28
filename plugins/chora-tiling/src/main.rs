@@ -535,6 +535,17 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     Ok(serve(&mut tiling)?)
 }
 
+/// Whether the core grabs a binding only for a client that holds a claim:
+/// a pointer button, which window managers share by their claims (D55),
+/// and a media key.
+fn needs_claim(binding: &str) -> bool {
+    binding.starts_with("XF86")
+        || binding
+            .rsplit('+')
+            .next()
+            .is_some_and(|key| key.to_ascii_uppercase().starts_with("BTN_"))
+}
+
 /// How often the system is asked for its colour scheme.
 const THEME_CHECK: std::time::Duration = std::time::Duration::from_secs(5);
 
@@ -750,7 +761,7 @@ impl Tiling {
                 .set_output(&output.name, output.layout_area(), full_area(&output));
             let _ = self.book.set_output(&output.name);
         }
-        self.grab_all()?;
+        self.grab_without_claim()?;
         // The nodes that the core kept over a restart with resume.
         let kept = self.query(&format!("owner:{NAME}"))?;
         if kept.iter().any(|n| n["id"] == NAME) {
@@ -774,7 +785,11 @@ impl Tiling {
         }
         // The relayout grabs when it sets the claim: with a claim, a
         // pointer binding can be shared with another window manager (D55).
-        self.relayout()
+        self.relayout()?;
+        if self.claimed.is_none() {
+            self.grab_all()?;
+        }
+        Ok(())
     }
 
     /// Rebuilds the model from the meta of the kept nodes
@@ -800,14 +815,27 @@ impl Tiling {
 
     /// Grabs every binding of the configuration. A binding that another
     /// client holds only logs.
-    #[allow(clippy::expect_used, reason = "the configuration checks its bindings")]
     fn grab_all(&mut self) -> Result<(), ClientError> {
+        self.grab_bindings(|_| true)
+    }
+
+    /// Grabs the bindings that need no claim, as [`Self::grab_all`], before
+    /// the first node exists. The pointer buttons and the media keys wait
+    /// for the claim, which the relayout sets and grabs for.
+    fn grab_without_claim(&mut self) -> Result<(), ClientError> {
+        self.grab_bindings(|key| !needs_claim(key))
+    }
+
+    /// Grabs the bindings of the configuration that `wanted` accepts, the
+    /// give keys, the drag of the title bars and the swallowed chords.
+    #[allow(clippy::expect_used, reason = "the configuration checks its bindings")]
+    fn grab_bindings(&mut self, wanted: impl Fn(&str) -> bool) -> Result<(), ClientError> {
         let bindings = self.wm.config.common.bindings.clone();
         self.rt
             .give_keys(Some(|to| Action::System(System::Give(to.into()))));
         self.rt
             .accept_injected(self.wm.config.common.test_accept_injected_keys);
-        for (text, action) in bindings {
+        for (text, action) in bindings.into_iter().filter(|(text, _)| wanted(text)) {
             let binding = self
                 .wm
                 .config
@@ -816,7 +844,6 @@ impl Tiling {
             self.rt.grab(binding, action)?;
         }
         self.rt.grab_give_keys()?;
-        // The title bars of the clients drag as `drag` does.
         let moves = MOVE.parse().expect("move is a binding");
         self.rt.grab(moves, Action::System(System::Drag))?;
         self.rt

@@ -849,16 +849,37 @@ fn of_the_cube(action: &KeyAction) -> bool {
 /// its stand-in. Xp is the window manager of its screen or face, so it
 /// swallows the Super chords that it binds no action for: no window gets
 /// them (xp-46).
-#[allow(clippy::expect_used, reason = "the settings check their bindings")]
 fn grab_keys(
     rt: &mut Runtime<KeyAction>,
     bindings: &BTreeMap<String, KeyAction>,
     cube: CubeKeys,
 ) -> Result<(), ClientError> {
+    grab_keys_of(rt, bindings, cube, |_| true)
+}
+
+/// Whether the core grabs a binding only for a client that holds a claim:
+/// a pointer button, which window managers share by their claims (D55),
+/// and a media key.
+fn needs_claim(binding: &str) -> bool {
+    binding.starts_with("XF86")
+        || binding
+            .parse::<Binding>()
+            .is_ok_and(|b| b.key.to_ascii_uppercase().starts_with("BTN_"))
+}
+
+/// As [`grab_keys`], for the bindings that `wanted` accepts.
+#[allow(clippy::expect_used, reason = "the settings check their bindings")]
+fn grab_keys_of(
+    rt: &mut Runtime<KeyAction>,
+    bindings: &BTreeMap<String, KeyAction>,
+    cube: CubeKeys,
+    wanted: impl Fn(&str) -> bool,
+) -> Result<(), ClientError> {
     let held = |action: &KeyAction| {
         !matches!(cube, CubeKeys::Flat | CubeKeys::Hosted) || !of_the_cube(action)
     };
-    for (text, action) in bindings.iter().filter(|(_, a)| held(a)) {
+    let chosen = bindings.iter().filter(|(t, a)| held(a) && wanted(t));
+    for (text, action) in chosen {
         for text in std::iter::once(text.as_str()).chain(fallback(text, action)) {
             let binding: Binding = text.parse().expect("the settings check their bindings");
             if rt.grab(binding, action.clone())? {
