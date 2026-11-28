@@ -77,6 +77,10 @@ pub struct Core {
     pub client_answers: Vec<((String, String), Value)>,
     /// The bindings that another client holds: their `input.grab` fails.
     pub held: Vec<String>,
+    /// The bindings that the core grants only to a client that holds a
+    /// claim, as it does for a pointer button that a window manager holds:
+    /// without a claim their `input.grab` fails.
+    pub held_without_claim: Vec<String>,
     /// The bindings that the plugin grabbed with `input.grab`.
     pub grabs: Vec<Value>,
     responders: Vec<Responder>,
@@ -159,6 +163,14 @@ impl FakeCore {
     /// fails with `REJECTED`, every time.
     pub fn hold(&self, binding: &str) {
         self.model.lock().unwrap().held.push(binding.to_owned());
+    }
+
+    /// Plants a binding that another client holds for the clients without a
+    /// claim: the `input.grab` of it fails with `REJECTED` until the
+    /// connection holds a claim of the scene, as the core does for a pointer
+    /// button that a window manager shares (D55).
+    pub fn hold_without_claim(&self, binding: &str) {
+        (self.model.lock().unwrap().held_without_claim).push(binding.to_owned());
     }
 
     /// Plants a responder: it gets the method and the parameters of each
@@ -261,7 +273,12 @@ fn serve(stream: &UnixStream, model: &Model) {
 
 /// What a request meets first: the recorders see it, a planted refusal or a
 /// held binding fails it. The responders are those that may answer it.
-fn admit(model: &Model, method: &str, params: &Value) -> Result<Vec<Responder>, (i64, String)> {
+fn admit(
+    model: &Model,
+    owner: &str,
+    method: &str,
+    params: &Value,
+) -> Result<Vec<Responder>, (i64, String)> {
     let mut core = model.lock().unwrap();
     for (line, log) in &core.recorders {
         if let Some(line) = line(method, params) {
@@ -277,6 +294,11 @@ fn admit(model: &Model, method: &str, params: &Value) -> Result<Vec<Responder>, 
         if core.held.iter().any(|held| held == binding) {
             return Err((RpcError::REJECTED, "held by another client".to_owned()));
         }
+        if core.held_without_claim.iter().any(|held| held == binding)
+            && !core.scene.holds_claim(owner)
+        {
+            return Err((RpcError::REJECTED, "held by claims".to_owned()));
+        }
         core.grabs.push(params["binding"].clone());
     }
     Ok(core.responders.clone())
@@ -285,7 +307,7 @@ fn admit(model: &Model, method: &str, params: &Value) -> Result<Vec<Responder>, 
 fn answer(model: &Model, owner: &str, request: &Value) -> Result<Value, (i64, String)> {
     let params = &request["params"];
     let method = request["method"].as_str().unwrap_or_default();
-    let responders = admit(model, method, params)?;
+    let responders = admit(model, owner, method, params)?;
     if method != "hello"
         && let Some(result) = responders.iter().find_map(|r| r(method, params))
     {

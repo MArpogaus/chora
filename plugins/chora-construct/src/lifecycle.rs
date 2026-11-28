@@ -249,6 +249,31 @@ mod tests {
         );
     }
 
+    /// rfxr1-1: beside a window manager that holds the drag of the panes
+    /// (`Super+BTN_LEFT`, shared by claims, D55), the core refuses it to a
+    /// client without a claim. The construct grabs it once its space has
+    /// claimed, so it keeps its pane drag.
+    #[test]
+    fn the_construct_holds_its_pane_drag_beside_a_window_manager_that_holds_it() {
+        let core = FakeCore::start();
+        core.outputs(serde_json::json!([output("test")]));
+        core.hold_without_claim("Super+BTN_LEFT");
+        let mut rt = core.runtime(NAME);
+        rt.pin_accepts_injected(false);
+        let dir = chora_kit::testing::TempDir::unmade("chora-construct-drag-claim").keep();
+        let file = dir.join("chora-construct.yaml");
+        let settings = settings::File::load(file, config::DEFAULT).unwrap();
+        let shaders = |name: &str, _: &str| Ok(dir.join(name).to_string_lossy().into_owned());
+        let mut construct = Construct::new(rt, settings, false, &shaders).unwrap();
+        core.model().lock().unwrap().scene.add_overlay("test");
+        construct.start().unwrap();
+        let grabs = core.model().lock().unwrap().grabs.clone();
+        assert!(
+            grabs.iter().any(|g| g == "Super+BTN_LEFT"),
+            "the construct holds the drag of its panes: {grabs:?}"
+        );
+    }
+
     /// The construct under the script of the life of a window.
     struct Driven<'a>(&'a mut Construct);
 
