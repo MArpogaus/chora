@@ -368,8 +368,12 @@ impl Construct {
     /// face. In the pane the camera steps out first (`step_out`); with no
     /// cube open the key opens one, stood back (`cube_key`), and the
     /// window goes to the face at the front as soon as the face manager
-    /// can place it; stood back with every face up it goes at once.
+    /// can place it; stood back with every face up it goes at once. A
+    /// second key while that put waits keeps it (r8).
     pub(crate) fn put_pane(&mut self, surface: &str) -> Result<(), ClientError> {
+        if self.put_waiting().as_deref() == Some(surface) {
+            return Ok(());
+        }
         if self.in_pane() {
             self.step_out()?;
         }

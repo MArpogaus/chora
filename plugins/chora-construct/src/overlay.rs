@@ -745,14 +745,24 @@ impl Construct {
     /// into the face at the front (co-79 r7): stood back the one of
     /// `put_window`; in a pane its window; stepped out of a pane with no
     /// cube open the one of `cube_window`, for which the key opens the
-    /// cube first. None while the face manager runs beside the construct
+    /// cube first. While a put waits, its window, so that the key keeps
+    /// it (r8). None while the face manager runs beside the construct
     /// with no cube, as no cube can start then (`pane_to_manager`, r8).
     /// The hint and the key ask the same.
     pub(crate) fn pane_to_face(&self) -> Option<String> {
         if self.face_manager_elsewhere() {
             return None;
         }
-        (self.put_window()).or_else(|| self.pane_window())
+        let waiting = || self.put_waiting();
+        (waiting())
+            .or_else(|| self.put_window())
+            .or_else(|| self.pane_window())
+    }
+
+    /// The window of the put that waits (`put_pane`), out of the panes.
+    pub(crate) fn put_waiting(&self) -> Option<String> {
+        let put = self.cube.as_ref()?.put_later.as_ref()?;
+        (!self.in_pane()).then(|| put.0.clone())
     }
 
     /// The window of a pane that the give key of the face manager gives
