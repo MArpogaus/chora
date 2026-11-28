@@ -363,6 +363,38 @@ mod tests {
         }
     }
 
+    /// A panel that the page edge cuts by less than a pixel and a half
+    /// never waits with no mark: when the edge takes it, the page says that
+    /// it goes on (rmm6-3). The edge cuts the boil side panel by 0.75 px.
+    #[test]
+    fn a_panel_the_edge_takes_by_a_part_of_a_pixel_shows_the_down_mark() {
+        let core = chora_kit::testing::FakeCore::start().selecting();
+        core.answer_with("state.get", json!({"shown": []}));
+        let mut mc = crate::testing::mc_on(&core, "page-edge-part", [1280, 720]);
+        recipe(&mut mc);
+        core.answer_with(
+            "state.get",
+            json!({"shown": [{"rect": [160, 585, 291, 79]}]}),
+        );
+        mc.learn_rooms().unwrap();
+        let panel = (mc.scenes["boil"].panels.iter())
+            .find(|p| p.id == "side")
+            .unwrap()
+            .clone();
+        let [_, y, _, h] = mc.place("boil", &panel).unwrap();
+        let whole = mc.lines_whole("boil", &panel).unwrap();
+        assert!(whole <= h, "the side panel holds its lines in its box");
+        let geo = mc.geometry("boil").unwrap();
+        let scroll = whole - 0.75 - (geo.text[1] + geo.text[3]) + y;
+        assert!(scroll > 0.0, "the page scrolls to put the cut at 0.75 px");
+        mc.scroll.insert("boil".to_owned(), scroll);
+        assert!(
+            mc.edge_takes("boil", &panel, [y, h]),
+            "the edge takes the panel by 0.75 px"
+        );
+        assert!(more_shows(&mc, "boil"), "the down mark shows for the cut");
+    }
+
     /// The panels of the pages whose lines the edge of the page cuts
     /// through a line: the page edge is nearer than the end of the panel's
     /// clip, and what shows of the lines node (from its top to the clip or
