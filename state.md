@@ -26,7 +26,7 @@ burn-down: F1-4, F6, F8 met; F5 open (r10 4/5), flake-xp r2, flake-gate merged; 
 |---|---|---|
 | review-co-reach-r8.md (Q 2, 0.4 %) | opus high, 830ab836 | s..L7XdkLzPDdnni1Gx1 |
 | flake-xp-r2.md (Q 5, 0.6 %) | sonnet high, 7fc05748 | s..QqGiX8M41oLod17kM |
-| review-tour-rows-r6.md (Q 4, 0.4 %) | sonnet high, 7b09b623 | starting |
+| review-tour-rows-r6.md (Q 4, 0.4 %) | sonnet high, 7b09b623 | s..PAmvsigJvA7w9jEPR |
 | mc-minor-r6.md (Q 4c, 0.6 %) | sonnet high, 3098926e | s..PD6a7ExXXm8iU1WZP |
 ## Queue (% week; 5 % reserve)
 1. (rc 3) t162 green 3098926e (tour-rows-r5, tiling-minor-r1, flake-gate-r1).
