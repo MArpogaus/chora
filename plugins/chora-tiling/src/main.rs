@@ -2693,6 +2693,127 @@ mod tests {
         }
     }
 
+    /// The client that the child of [`the_assistant_door_signals_the_bar_rtmr1_2`]
+    /// hears `assistant.door` from.
+    const DOOR_FROM: &str = "CHORA_TEST_DOOR_FROM";
+
+    /// Makes a fifo `name` in `dir`.
+    fn fifo(dir: &Path, name: &str) -> PathBuf {
+        let path = dir.join(name);
+        let made = std::process::Command::new("mkfifo").arg(&path).status();
+        assert!(made.unwrap().success());
+        path
+    }
+
+    /// A stand-in of waybar for a runtime directory `runtime`, which writes
+    /// `door` for each SIGRTMIN+2 and `end` for each SIGRTMIN+3 to the fifo
+    /// `lines`, and `up` once its traps stand.
+    fn bar_stand_in(dir: &Path, runtime: &Path, lines: &Path) -> std::process::Child {
+        let hold = fifo(dir, "hold");
+        let script = dir.join("waybar");
+        std::fs::write(
+            &script,
+            format!(
+                "trap 'echo door >{0}' RTMIN+2\ntrap 'echo end >{0}' RTMIN+3\n\
+                 exec 3<>{1}\necho up >{0}\nwhile :; do read -r -u 3 -t 30 _; done\n",
+                lines.display(),
+                hold.display()
+            ),
+        )
+        .unwrap();
+        let bar = std::process::Command::new("bash")
+            .arg(&script)
+            .spawn()
+            .unwrap();
+        std::fs::write(
+            runtime.join("chora-tiling").join("waybar.pid"),
+            bar.id().to_string(),
+        )
+        .unwrap();
+        bar
+    }
+
+    /// Runs the tiling of this test binary in a child process with the
+    /// runtime directory `runtime`, which hears `assistant.door` from
+    /// `client`.
+    fn hear_door_from(client: &str, runtime: &Path) {
+        let status = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "tests::the_assistant_door_signals_the_bar_rtmr1_2",
+                "--test-threads=1",
+            ])
+            .env(DOOR_FROM, client)
+            .env("XDG_RUNTIME_DIR", runtime)
+            .status()
+            .unwrap();
+        assert!(status.success(), "the child of {client} failed");
+    }
+
+    /// rtmr1-2: an `assistant.door` of the assistant makes tiling send
+    /// SIGRTMIN+2 to the panel (the helper word asks again at once, so that
+    /// the bar word cannot drift from the chat header, rpt3-2); the same
+    /// event of another client sends nothing. A stand-in of waybar in the
+    /// runtime directory of the test writes a line for each signal to a
+    /// fifo; the child test process that is tiling hears the event, and the
+    /// parent ends with SIGRTMIN+3, which a pending SIGRTMIN+2 precedes.
+    #[test]
+    fn the_assistant_door_signals_the_bar_rtmr1_2() {
+        use std::{io::BufRead as _, os::unix::fs::PermissionsExt as _};
+        if let Ok(client) = std::env::var(DOOR_FROM) {
+            let (mut tiling, _) = on_fake_core("door-signal");
+            let door = Event::Emitted {
+                event: "assistant.door".into(),
+                client,
+                data: Value::Null,
+            };
+            tiling.handle(door).unwrap();
+            return;
+        }
+        let dir = chora_kit::testing::TempDir::new("chora-door-signal").keep();
+        let runtime = dir.join("runtime");
+        std::fs::create_dir_all(runtime.join("chora-tiling")).unwrap();
+        for private in [&dir, &runtime, &runtime.join("chora-tiling")] {
+            std::fs::set_permissions(private, std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        let lines = fifo(&dir, "lines");
+        let open = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&lines)
+            .unwrap();
+        let mut bar = bar_stand_in(&dir, &runtime, &lines);
+        let mut reader = std::io::BufReader::new(open);
+        let mut line = String::new();
+        reader.read_line(&mut line).unwrap();
+        assert_eq!(line.trim(), "up");
+        let mut said = |client: &str| -> Vec<String> {
+            hear_door_from(client, &runtime);
+            let pid = bar.id().to_string();
+            let end = std::process::Command::new("kill")
+                .args(["-s", "RTMIN+3", &pid])
+                .status();
+            assert!(end.unwrap().success());
+            let mut got = Vec::new();
+            while got.last().map(String::as_str) != Some("end") {
+                line.clear();
+                reader.read_line(&mut line).unwrap();
+                got.push(line.trim().to_owned());
+            }
+            got
+        };
+        let other = said("other");
+        let assistant = said("assistant");
+        let _ = bar.kill();
+        let _ = bar.wait();
+        assert_eq!(other, ["end"], "another client signalled the bar");
+        assert_eq!(
+            assistant,
+            ["door", "end"],
+            "the door of the assistant did not signal the bar"
+        );
+    }
+
     fn tiler(windows: &[&str]) -> Wm {
         let mut wm = Wm::new(settings::parse(crate::config::DEFAULT).unwrap());
         wm.set_output("A", [0, 0, 100, 60], [0, 0, 100, 80]);
