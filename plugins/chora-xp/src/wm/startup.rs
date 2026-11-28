@@ -2,6 +2,7 @@
 
 use chora_kit::wm::Created;
 
+use super::windows::cube_off_of;
 use super::{
     BARS, Bar, ClientError, Command, Config, DESKTOP, DESKTOPS, DIALOGS, DesktopIcons, EVENTS,
     Effects, ExportMethod, HashMap, Icons, Instant, KeyAction, Launches, MENUS, METHODS, Menu,
@@ -118,7 +119,9 @@ impl Wm {
         wm.rt.announce(&EVENTS, methods)?;
         wm.grab_without_claim()?;
         wm.create_scene(old_root)?;
+        wm.rt.start_grabs();
         wm.grab()?;
+        wm.rt.end_grabs()?;
         wm.refresh_looks();
         wm.adopt_all()?;
         wm.catch_up_outputs()?;
@@ -339,8 +342,8 @@ impl Wm {
     /// follow the outputs, as they do once the bars stand (`wanted_keys`).
     pub(super) fn grab_without_claim(&mut self) -> Result<(), ClientError> {
         let outputs = self.rt.outputs()?;
-        let flat = !outputs.is_empty() && outputs.iter().all(|o| Bar::new(o).is_virtual());
-        let cube = if flat { CubeKeys::Flat } else { CubeKeys::Own };
+        let off = cube_off_of(outputs.iter().map(|o| Bar::new(o).is_virtual()));
+        let cube = if off { CubeKeys::Flat } else { CubeKeys::Own };
         self.cube_keys = cube;
         self.rt.give_keys(Some(|to| {
             KeyAction::System(chora_kit::actions::System::Give(to.into()))

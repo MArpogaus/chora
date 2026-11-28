@@ -382,7 +382,7 @@ impl Wm {
     /// Whether the plugin has no desktop cube: all its outputs are virtual
     /// ones, which a construct shows on a cube of its own.
     pub(crate) fn cube_off(&self) -> bool {
-        !self.bars.is_empty() && self.bars.iter().all(Bar::is_virtual)
+        cube_off_of(self.bars.iter().map(Bar::is_virtual))
     }
 
     /// Grabs or lets go the bindings of the cube after the outputs
@@ -766,6 +766,20 @@ impl Wm {
             },
         })
     }
+}
+
+/// Whether there is no desktop cube for outputs, given for each whether it
+/// is a virtual one: they are all virtual, and there is one. The one rule
+/// of the early grab (`grab_without_claim`) and of the late one.
+pub(super) fn cube_off_of(virtuals: impl IntoIterator<Item = bool>) -> bool {
+    let mut any = false;
+    for is_virtual in virtuals {
+        if !is_virtual {
+            return false;
+        }
+        any = true;
+    }
+    any
 }
 
 fn error_adopt(surface: &str, err: &dyn std::fmt::Display) {

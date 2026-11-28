@@ -18,10 +18,11 @@
 # session_start OUTPUTS [-- STARTUP...] starts a headless session; its env
 # file (env_file, else a new one) is emptied first, so that a session of a
 # name used before never reads the socket of the old one (F21).
-# Its ready (the nodes of the owner answer) holds the keys of the look too: each
-# look grabs before its first node exists (sh-44, sh-47; the unit tests
-# `*_holds_its_keys_before_its_first_node_exists`), so a chord injected
-# right after it never meets a look with no holder.
+# Its ready (the nodes of the owner answer) holds the keys that need no claim
+# too: each look grabs them before its first node exists (sh-44; the unit
+# tests `*_holds_its_keys_before_its_first_node_exists`), so a chord
+# injected right after it never meets a look with no holder. The pointer
+# buttons and the media keys wait for the claim of the look.
 # gate_elapsed prints the seconds since the gate has the lock: the wait in
 # the queue for the lock is not in it (SECONDS counts from the shell start).
 # gate_probes prints the pids of the chora-probe programs of the gate: each
