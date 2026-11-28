@@ -196,3 +196,42 @@ EXIT 0
 
 An unfiltered single run to EXIT 0 on bd641acb was not made (about 2 h each; the earlier unfiltered run on 387bac39
 passed 51 steps and stopped only at the acts regression above). `pgrep -fa 'chora --headless'` is empty.
+
+## Review r1 (rc 1b tiling-minor r1; rpt2-2, rpt3-1..4)
+
+Reviewer lane, read-only on code: claude/tiling-minor-r1 head bd641acb on 7822a66c (17 files, +502 -57, 15 commits).
+Step 0 green (`git fetch --unshallow`, `cargo check --workspace`). No merge gate (the lane ran it, check 7).
+
+Checks:
+1) Red first: PASS. Run at each test commit: 0b558a6a kit `a_chord_has_one_order_of_modifiers_...` and tiling
+   `the_hint_spells_...rpt3_1` FAILED; 9fa77480 `the_door_says_the_state_...` FAILED; 6f97804d the door-told test and the
+   tiling helper test FAILED; 5ba7ff37 `the_picker_offers_no_move_without_a_window` and `a_refused_give_names_no_tool`
+   FAILED (`the_picker_offers_the_moves_with_a_window` ok, as claimed); 01b30501 both volume tests FAILED; 170d1d38
+   `the_picker_box_fits_its_rows_rpt3_4` FAILED; ee2a56c9 `the_door_says_the_state_...` FAILED (the told-once test ok). All
+   pass on head (`cargo test -p chora-tiling -p chora-kit -p chora-assistant`: 959 passed, 0 failed; clippy clean).
+   387bac39 removes no assert: the give notice test moved to kit `give_notice.rs` and gained two (exact notice, German body).
+2) rpt3-1: PASS. The chip calls `keysheet::chord` as the key list does; `caps` orders modifiers (Super, Ctrl, Alt, Shift) and
+   `glass::cap` spells the keys; one formatter, no second table. Side effect: every key list of the four looks now spells
+   `Page Up`, `[` and orders modifiers the same way (intended, gates tiling-keys, tiling-keycaps, chat-keys green).
+3) rpt3-2: PASS with rtmr1-2. `presented()` takes `door` from the header of the open chat (`shown_state`, same `words::row`
+   as the header) and keeps `helper` as the machine word; the only readers of `state.get` `door` are the chat opener
+   (`chat-door`, the bar word) and `announce_door`; `helper` is read by the acts as before. `announce_door` tells once per
+   change and does not fail on a core refusal. No 1-2 s path remains except the 2 s poll kept as fallback. The before frames did not
+   show the window; the proof is the red tests, which fail on the header/door pair (judged enough for a state read; the
+   push to waybar is untested, rtmr1-2).
+4) rpt2-2: PASS with rtmr1-1. The picker lists "No window to move" without a focused window (a failed read keeps the rows);
+   `chosen` returns none for that row; give.sh says "The window stayed where it was." / German, the reason goes to stderr.
+5) rpt3-3: PASS: volume.sh gives an empty tooltip for a level or "Muted" and a reason only for "No sound"; the capture is the
+   script output (the tooltip did not draw before either, said in the report). rpt3-4: PASS: `--lines <rows>` as power.sh; the
+   box height does not depend on the resolution (captured at 1280x800 with one row, both pictures fit; 1280x720 and
+   1920x1080 not captured, none needed); the width (36) holds the longest row on screen.
+6) POLS: no other tiling path loses a word, key or notice; other looks keep their helper word; gates tiling-chip,
+   tiling-notice, tiling-bar (all ok), chat-keys, tiling-keys, tiling-keycaps, tiling-empty-output, 0.8-tiling-look ok on head.
+7) The lane's three-part gate: not a finding.
+
+Findings:
+- rtmr1-1 MINOR flavors/tiling/look.sh:20: the notice of a failed look change shows the body "choractl call tiling settings.set", a tool name in a notice a person sees (rpt2-2 fixed the same class only in give.sh); fix: body "The look stayed as it was." / "Das Design ist geblieben, wie es war." with the command line to stderr, and a test like `a_refused_give_names_no_tool_in_its_notice_rpt2_2`.
+- rtmr1-2 MINOR plugins/chora-tiling/src/main.rs:2986: `the_helper_word_follows_the_door_at_once_rpt3_2` reads the text of config.jsonc, waybar.sh and EVENTS only; nothing checks that an `assistant.door` of the assistant makes tiling send SIGRTMIN+2 (`push_helper`, main.rs:885), so a handler change leaves it green; fix: a unit test that an Emitted `assistant.door` from `assistant` signals the waybar pid of a fake companion with RTMIN+2, and one from another client does not.
+- rtmr1-3 NIT flavors/tiling/applications/chora-give-xp.desktop (and mc, construct): the Apps launcher still lists "Move window to ..." with no window (named in the report); the notice after the refusal is now honest, so it is a word of the menu only; fix: leave, or list the entries only with a window as the Looks picker does.
+
+Verdict: MERGE-OK (0 BLOCK, 0 MAJOR, 2 MINOR, 1 NIT).
