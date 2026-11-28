@@ -707,3 +707,32 @@ fn giving_a_window_to_the_xp_of_a_manager_pane_flies_to_that_pane() {
         construct.target()
     );
 }
+
+/// rcrr8-3 (review r8, NIT): an answer false that comes at once (the
+/// face manager refuses the call) is asked again no sooner than
+/// `ASK_LIMIT` after the question, not on the next look: the looks of a
+/// put come every 150 ms and each question is a thread and a connection.
+#[test]
+fn a_fast_false_answer_is_asked_again_no_sooner_than_the_ask_limit() {
+    let core = chora_kit::testing::FakeCore::start();
+    for _ in 0..200 {
+        core.refuse_next("methods.call");
+    }
+    let asked = core.record(|method, params| {
+        (method == "methods.call" && params["method"] == "state.get").then(|| "asked".to_owned())
+    });
+    let began = std::time::Instant::now();
+    let mut put = crate::put::Put::new("s1", began, std::time::Duration::from_secs(20));
+    while began.elapsed() < std::time::Duration::from_millis(700) {
+        assert!(
+            !put.answered(Some(core.socket()), "xp"),
+            "the face manager refuses: no answer"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    let questions = asked.lock().unwrap().len();
+    assert_eq!(
+        questions, 1,
+        "one question in 700 ms, the next after the ask limit, not {questions}"
+    );
+}
