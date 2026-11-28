@@ -88,6 +88,12 @@
 #    the cube and puts the window of the pane on face 0, where it takes
 #    keys. Pulled out again by Super+Alt+4, the camera in the pane, the
 #    bar there names Super Alt 2 too, and the key puts the window back.
+# 11. Super+Alt+2 in a pane where no cube can take the window (co-79 r8,
+#    rcrr7-6): in a pane of the Terminal row, with a face manager that cannot start
+#    the key is told and ends in the notice "XP did not place the window:"
+#    with the reason of the failed face, the window stays a pane; with xp
+#    running in a manager pane the bar tells "Super Alt 2 To XP", not Into
+#    face, and the key gives the window to that xp, with no cube.
 #
 # Usage: tests/gate-construct-cube.sh   BIN: directory with the binaries
 #   SHOT  a PNG path that keeps a capture of the cube during a turn
@@ -1208,3 +1214,75 @@ until_ok 'test "$(call cube.list | jq -r .mode)" = use' 40 || fail "co-79 r7: af
 ok "co-79 r7: in a pane pulled out of a face the told Super+Alt+2 puts the window back"
 call cube.close >/dev/null || fail "cube.close after step 10"
 until_ok 'test -z "$(virtuals)"' || fail "cube.close after step 10 left $(virtuals)"
+
+start_notify
+give_keys() { local k out=""; for k in 0 1 2; do out="$out $(prop "construct-hints-give-to-keys-$k-text" text | grep -v -e False -e gone)"; done; echo "$out"; }
+end_probes() {
+    python3 -I - "$CHORA_SOCKET" <<'PY'
+import os, signal, sys
+for pid in filter(str.isdigit, os.listdir("/proc")):
+    try:
+        cmd = open(f"/proc/{pid}/cmdline", "rb").read().split(b"\0")
+        env = open(f"/proc/{pid}/environ", "rb").read().split(b"\0")
+    except OSError:
+        continue
+    if cmd[0].endswith(b"chora-probe") and b"CHORA_SOCKET=" + sys.argv[1].encode() in env:
+        os.kill(int(pid), signal.SIGTERM)
+PY
+}
+in_new_pane() {
+    end_probes
+    until_ok 'test -z "$(probe)"' 40 || fail "co-79 r8 ($1): the probe windows did not end: $(probe)"
+    had=" "
+    until_ok 'ctl query id:construct-start-row-0 | jq -e ".[0].rects | length > 0" >/dev/null' 40 ||
+        fail "co-79 r8 ($1): no start card with its Terminal row on the empty floor: $(call construct.list | jq -c '[.panes[].name]')"
+    read -r x y <<<"$(center construct-start-row-0)"
+    inject "[{\"pointer_move\": {\"position\": [$x, $y]}}, {\"click\": {}}]"
+    until_ok 'fresh | grep -q " construct "' 100 || fail "co-79 r8 ($1): the Terminal row started no pane: $(probe)"
+    read -r term _ <<<"$(fresh | head -n 1)"
+    until_ok 'test "$(prop construct-hint-step-back visible)" = True' 40 || fail "co-79 r8 ($1): in the pane of the Terminal row no Step back shows: $(hint_words)"
+}
+mkdir -p "$work/never"
+cat >"$work/never/chora-xp" <<'SH'
+#!/bin/sh
+echo "it needs a display it cannot have." >&2
+sleep 1
+exit 1
+SH
+chmod +x "$work/never/chora-xp"
+call settings.set "{\"cube_manager\": \"$work/never/chora-xp\"}" >/dev/null || fail "co-79 r8: settings.set cube_manager to a manager that cannot start"
+dismiss_notices
+in_new_pane "xp cannot start"
+until_ok 'test "$(put_keys)" = " Super Alt 2"' 20 ||
+    fail "co-79 r8: in the pane of Super+t the bar names no key into a face (put-in keys:$(put_keys); bar: $(hint_words))"
+key Super+Alt+2
+until_ok 'notices | grep -q "^XP did not place the window"' 80 ||
+    fail "co-79 r8: the told Super+Alt+2 in a pane with a face manager that cannot start told nothing (notices: '$(notices)'), cube $(call cube.list 2>&1 | jq -c '{mode, faces: [.faces[]?.health]}' 2>/dev/null)"
+told=$(notices | grep "^XP did not place the window" | tail -n 1)
+echo "$told" | grep -Eq '^XP did not place the window: chora-xp stopped after [0-9]+ s: it needs a display it cannot have\.$' ||
+    fail "co-79 r8: the notice after the told Super+Alt+2 with a face manager that cannot start reads '$told'"
+probe | grep -q "^$term construct " || fail "co-79 r8: with the face manager that cannot start the window is no pane any more: $(probe | grep "^$term ")"
+ok "co-79 r8: Super+Alt+2 in a pane, face manager cannot start: told '$told', the window stays a pane"
+call cube.close >/dev/null || fail "co-79 r8: cube.close after the face manager that cannot start"
+until_ok 'test -z "$(virtuals)"' || fail "co-79 r8: cube.close left $(virtuals)"
+call settings.set '{"cube_manager": "chora-xp"}' >/dev/null || fail "co-79 r8: settings.set cube_manager back"
+
+dismiss_notices
+in_new_pane "xp runs"
+call pane.manager '{"manager": "xp", "size": [560, 400]}' >/dev/null || fail "co-79 r8: pane.manager xp"
+until_ok 'test "$(bars)" = 1' 80 || fail "co-79 r8: the xp of the manager pane is not live: $(bars) taskbars on $(virtuals)"
+manager_out=$(virtuals)
+until_ok 'test "$(prop construct-hint-step-back visible)" = True' 40 || fail "co-79 r8 (xp runs): the camera left the pane of the Terminal row: $(camera) $(hint_words)"
+until_ok 'test "$(give_keys)" = " Super Alt 2"' 20 ||
+    fail "co-79 r8: in a pane with xp running the bar does not tell the give to it (give-to keys:$(give_keys); put-in keys:$(put_keys); bar: $(hint_words))"
+[ "$(prop construct-hints-give-to-word text)" = "To XP" ] || fail "co-79 r8: the hint of the give reads '$(prop construct-hints-give-to-word text)'"
+[ -z "$(put_keys | tr -d ' ')" ] || fail "co-79 r8: with xp running the bar still names Into face: $(hint_words)"
+ok "co-79 r8: in a pane with xp running the bar tells Super Alt 2 To XP: $(hint_words)"
+key Super+Alt+2
+until_ok 'probe | grep -q "^$term xp $manager_out "' 40 ||
+    fail "co-79 r8: the told Super+Alt+2 in a pane with xp running did not give the window to it: $(probe | grep "^$term "), notices '$(notices)'"
+[ "$(virtuals)" = "$manager_out" ] || fail "co-79 r8: a cube opened beside the running xp: $(virtuals)"
+[ -z "$(notices)" ] || fail "co-79 r8: the give to the running xp told '$(notices)'"
+ok "co-79 r8: Super+Alt+2 in a pane with xp running gives the window to it, with no cube and no refusal"
+end_cube_xp
+until_ok 'test -z "$(virtuals)"' 40 || fail "co-79 r8: the manager pane of xp left $(virtuals)"
