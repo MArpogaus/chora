@@ -31,6 +31,9 @@ pub(crate) struct Put {
     pub(crate) until: Instant,
     /// The answer to the question out: whether the face manager answered.
     asked: Option<Receiver<bool>>,
+    /// When the last question went out: a new one goes no sooner than
+    /// `ASK_LIMIT` after it, whatever the answer was (rcrr8-3).
+    asked_at: Option<Instant>,
 }
 
 impl Put {
@@ -41,13 +44,15 @@ impl Put {
             at: now,
             until: now + limit,
             asked: None,
+            asked_at: None,
         }
     }
 
     /// Whether the face manager `to` answered a call, without waiting:
     /// the answer of the question out, else a new question on a
     /// connection of its own to `socket`, whose answer a later look
-    /// reads. With no socket to ask on, the put goes as it did before.
+    /// reads, no sooner than `ASK_LIMIT` after the last one. With no
+    /// socket to ask on, the put goes as it did before.
     pub(crate) fn answered(&mut self, socket: Option<&Path>, to: &str) -> bool {
         let Some(socket) = socket else {
             return true;
@@ -59,6 +64,11 @@ impl Put {
                 Ok(false) | Err(TryRecvError::Disconnected) => {}
             }
         }
+        let now = Instant::now();
+        if self.asked_at.is_some_and(|at| now < at + ASK_LIMIT) {
+            return false;
+        }
+        self.asked_at = Some(now);
         self.asked = ask(socket.to_owned(), to);
         false
     }
