@@ -310,8 +310,9 @@ class CompareDirs(unittest.TestCase):
         `baseline_none`: `none`, not the `change` or `regression` of a comparison, whatever the two frames differ in, and a
         row that names the diff does not turn it back into a `change`."""
         write_capture(self.base, "x1.Q")
-        write_capture(self.cand, "x1.Q", box(50, 40, 120, 60), data='{"nodes": [{"id": "a", "kind": "node", "owner": "xp", "meta": {}, "rects": {"HEADLESS-1": [1, 2, 3, 4]}}]}')
+        write_capture(self.cand, "x1.Q", box(50, 40, 120, 60))
         self.assertEqual(self.verdicts(none=["x1.Q"]), [("x1", "Q", "none")])
+        self.assertEqual(self.verdicts(), [("x1", "Q", "regression")])
         row = {"act": "x1", "kind": "pixel", "cause": "N-1", "boxes": [[40, 30, 140, 80]]}
         self.assertEqual(self.verdicts(intended=[row], none=["x1.Q"]), [("x1", "Q", "none")])
         self.assertEqual(self.verdicts(intended=[row]), [("x1", "Q", "change")])
@@ -1030,7 +1031,7 @@ class RegressionsOfTakeR6(unittest.TestCase):
             v = self.verdict(act)
             self.assertEqual(v["verdict"], "change", (act, v))
             self.assertIn("4363de11", v["cause"])
-            rows = [r for r in self.table()["change"] if r["act"] == act and "mc-r1-right-keys-2-key-hit" in r.get("nodes", ())]
+            rows = [r for r in self.table()["change"] if r["act"] == act and r["kind"] == "missing" and "mc-r1-right-keys-2-key-hit" in r.get("nodes", ())]
             self.assertEqual([sorted(r["nodes"]) for r in rows], [["mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark"]], act)
 
     def test_m8_names_the_launcher_of_the_take_with_the_commits_that_make_it(self):

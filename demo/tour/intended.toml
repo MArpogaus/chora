@@ -12,7 +12,21 @@
 # 733967aa cannot run these: the replay of the handover chapter stops at handover.py:190, where
 # the row `xp-ctx-1-0` (the Send To row of the xp window menu, xp-give 4278d4cd) does not exist,
 # so no capture from the Send To act on was taken there (record-v9 r1).
-baseline_none = ["h2.Q", "h3.Q", "h3b.Q", "h4.Q", "h5.H50", "h6.Q", "h7.Q"]
+baseline_none = ["h2.Q", "h3.Q", "h3b.Q", "h4.Q", "h5.H50", "h6.Q", "h7.Q", "c5d.Q", "c5e.Q"]
+
+# c5d and c5e have a v8 capture that is no baseline: v9 steps into face 0 (Return, f5bdc61f; 75d4623e the person steps in), v8
+# cannot step into a face and stays stood back, so the two frames show two scenes and every pixel differs (rtf1-1, r3 take).
+# They are `none` although the file exists (tests/tour-diff.py, A listed capture); the v9 checks of both still run.
+[baseline_none_why]
+"c5d.Q" = "rtf1-1: v8 cannot step into a face, so its capture is the cube stood back and v9's is face 0 full frame: no comparable baseline"
+"c5e.Q" = "rtf1-1: as c5d.Q (Return steps in, f5bdc61f), v9 stands in face 0, v8 stands back"
+"h2.Q" = "733967aa stops the handover replay at handover.py:190: the Send To row xp-ctx-1-0 (xp-give 4278d4cd) does not exist"
+"h3.Q" = "as h2.Q: no capture from the Send To act on was taken on 733967aa"
+"h3b.Q" = "as h2.Q"
+"h4.Q" = "as h2.Q"
+"h5.H50" = "as h2.Q"
+"h6.Q" = "as h2.Q"
+"h7.Q" = "as h2.Q"
 
 [[change]]
 act = "h2"
@@ -4840,6 +4854,7 @@ act = "c4"
 boxes = [[27, 58, 1226, 632]]
 cause = "f5bdc61f F1 opens the key list, stood back; d590aae6 the sheet is 1200 wide in three columns (co-71); 822d5be4, 369cf96f, 142260b9 its columns and rows: v8 shows no sheet, v9 stands the sheet over the cube (r5 take, captures/c4.Q.png)"
 kind = "pixel"
+wide = "the key sheet panel (construct-help-body-panel [31, 58, 1218, 604] in the r5 take) stands over the cube and the doors: the box is the panel and its shadow (4 px at the sides, to y 690), nothing beyond it"
 
 [[change]]
 act = "m1"
@@ -4930,3 +4945,21 @@ act = "x5b"
 cause = "88951ae4 a send shows Working and Stop at once: the header of the chat reads Atlas, Working where v8 read Atlas, Idle (r5 take, captures/x5b.Q.png)"
 kind = "meta"
 nodes = ["hud-chat"]
+
+[[change]]
+act = "m6"
+cause = "4363de11 the key list names the scroll keys beside Home (rpe-1): the row Up Down Scroll the page has no binding, so it has no key-hit and no key-mark (plugins/chora-mc/src/region/items.rs: hit is the binding of the row); with the Home row (fa7faabd) it shifts the rows after it, so row 2 is that row in v9 where v8's row 2 (Super+Home) had both (r6 take, captures/m6.Q.png)"
+kind = "missing"
+nodes = ["mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark"]
+
+[[change]]
+act = "m6b"
+cause = "4363de11 the key list names the scroll keys beside Home (rpe-1): the row Up Down Scroll the page has no binding, so it has no key-hit and no key-mark (plugins/chora-mc/src/region/items.rs: hit is the binding of the row); with the Home row (fa7faabd) it shifts the rows after it, so row 2 is that row in v9 where v8's row 2 (Super+Home) had both (r6 take, captures/m6b.Q.png)"
+kind = "missing"
+nodes = ["mc-r1-right-keys-2-key-hit", "mc-r1-right-keys-2-key-mark"]
+
+[[change]]
+act = "m8"
+boxes = [[463, 198, 354, 324]]
+cause = "cd277ee4 the box of the launcher takes the colours of mc (dark ground, hairline border); 12f97cd33 mc's launcher is the kit's Apps list: the installed programs only, so the five LibreOffice rows that v8's plain fuzzel listed are gone on the take's PATH (the harness leaves no libreoffice on it); df1a2d0f the rows carry the Icon= of their entry (Foot, ImageMagick, Vim; the kit icon rows of v8 were fuzzel's own) (r6 take, captures/m8.Q.png)"
+kind = "pixel"

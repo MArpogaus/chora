@@ -9,7 +9,9 @@ BASE and CAND are folders (the replay on 733967aa and the v9 take) with, per act
 name to "green" or "red". A capture with no file in BASE has `baseline: none` only when
 intended.toml lists it in `baseline_none = ["<act>.<capture>"]` or the `baseline-none.json` of BASE (or of the folder
 above it) names it (rv-3); any other absence is a regression, and
-so is a capture in BASE that CAND lacks. No capture at all (an empty or missing folder) exits 1.
+so is a capture in BASE that CAND lacks. A listed capture is `none` also where BASE has a file of it: the old build ran another
+scene there (c5d, c5e: v8 cannot step into a face, rtf1-1), so its frame is no baseline; the checks of CAND still run, and a red one
+that no row absorbs is a regression. `baseline_none_why` gives each listed name its reason. No capture at all (an empty or missing folder) exits 1.
 
 Two diffs per capture:
 - scene diff (every capture, also H50): nodes matched by id, windows by app_id and title; visible,
@@ -26,7 +28,7 @@ exit 1). A row may list the nodes it names (`nodes = ["hud-chat"]`, the ids of t
 absorbs those nodes only and wins over a row of the kind without a list; a node that no row names is unnamed, one that
 only an `open` row without a list names stays `open` (rv9j-5). Every row of a scene kind (added, missing, visible, rect, meta, owner, z-order, or `*`) lists its `nodes` and a row of kind pixel its `boxes`
 (`[[x, y, w, h], ...]` in the pixels of the capture): it absorbs those only, and a row without the list absorbs nothing, the act is `open`
-(`unproven` in the result) until the row says what it explains (rtb5-1, rtb6-1: no kind is exempt); a pixel diff is named when every one of its blobs lies in a box.
+(`unproven` in the result) until the row says what it explains (rtb5-1, rtb6-1: no kind is exempt); a pixel diff is named when every one of its blobs lies in a box; a box over half the frame (`HALF_FRAME`) needs `wide = "why"` in its row (rtr5r-4).
 A red check that is meant has a row of kind "check" and `check = "I2"` (the name of the check it
 absorbs; without it the row absorbs every flip of the act). A check that either side marks "not measured"
 is left out of the flips and listed in the row as `unmeasured` (`cand_red` where the candidate reads it red). Exit 1 on a regression, an open act or no capture.
@@ -48,6 +50,9 @@ RECT_SLACK = 2
 CHANNEL = 24
 FRACTION = 0.001
 BLOB = 12
+HALF_FRAME = 1280 * 720 // 2
+"""The area of a box above which a pixel row names nearly the whole capture (1280 x 720, the size of the chapters): it needs a
+`wide = "why"` (rtr5r-4); without one the row proves nothing and the act is `open`."""
 TOP_LAYERS = 8
 
 _spec = importlib.util.spec_from_file_location("png_pixel", pathlib.Path(__file__).with_name("png-pixel.py"))
@@ -239,6 +244,8 @@ def pixel_rows(rows, blobs):
     found, unnamed, unproven = [], False, False
     for blob in blobs or [None]:
         row = next((r for r in boxed if blob and any(inside(blob, b) for b in r["boxes"])), None)
+        if row and not row.get("wide") and min(b[2] * b[3] for b in row["boxes"] if inside(blob, b)) > HALF_FRAME:
+            unproven = True
         if row is None and loose:
             row, unproven = next((r for r in loose if r.get("open")), loose[0]), True
         if row is None:
@@ -330,12 +337,12 @@ def compare(base, cand, intended, none=()):
         for key, folder in (("base", base), ("cand", cand)):
             path = folder / f"{stem}.json"
             side[key] = json.loads(path.read_text()) if path.exists() else {}
+        if stem in none:
+            result = verdict(act, [], True, intended, ({}, side["cand"].get("checks", {})))
+            rows.append({**row, **(result if result["verdict"] == "regression" else {"verdict": "none", "detail": "baseline: none"})})
+            continue
         if not (base / name).exists():
-            if stem in none:
-                result = verdict(act, [], True, intended, ({}, side["cand"].get("checks", {})))
-                rows.append({**row, **(result if result["verdict"] == "regression" else {"verdict": "none", "detail": "baseline: none"})})
-            else:
-                rows.append({**row, "verdict": "regression", "unnamed": ["baseline missing"], "flipped": [], "detail": "no baseline and not listed in baseline_none"})
+            rows.append({**row, "verdict": "regression", "unnamed": ["baseline missing"], "flipped": [], "detail": "no baseline and not listed in baseline_none"})
             continue
         scene = scene_diff(side["base"].get("nodes", []), side["cand"].get("nodes", []))
         if capture == "H50":
