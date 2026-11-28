@@ -410,7 +410,7 @@ class Clients(unittest.TestCase):
     and again, and each call is a client for a few milliseconds; such a
     client is none of the session, or it shows in one snapshot and not in
     the next as a disconnect (sh-32: choractl in train 103, chat-door in
-    the repro)."""
+    the repro). `chora-tiling --launch` is one as well (sh-46)."""
 
     def listed(self, names):
         s = harness.Session("xp")
@@ -421,6 +421,10 @@ class Clients(unittest.TestCase):
     def test_a_call_of_a_tool_is_no_client(self):
         names = ["xp", "acts", "choractl", "chat-door", "chat-opener"]
         self.assertEqual(self.listed(names), {"xp", "acts"})
+
+    def test_a_launch_of_tiling_is_no_client(self):
+        names = ["tiling", "chora-tiling.launch", "chora-tiling.launch-4242"]
+        self.assertEqual(self.listed(names), {"tiling"})
 
     def test_the_other_clients_stay(self):
         self.assertEqual(self.listed(["xp", "notify", "voice"]), {"xp", "notify", "voice"})

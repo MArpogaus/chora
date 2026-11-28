@@ -65,7 +65,7 @@ done
 typed_text :end
 until_ok '[ "$(cat "$log" 2>/dev/null)" = "start::end" ]' 20
 typed=$(cat "$log" 2>/dev/null)
-[ "$typed" = "start::end" ] || fail "xp-46: the client typed '$typed' and not start::end"
+[ "$typed" = "start::end" ] || fail "xp-46: the client typed '$typed' and not start::end; surfaces: $(ctl query 'kind:surface' | jq -c '[.[] | {app: .app_id, focused}]'); $(core_diag)"
 ok "Super+x, Super+k, Super+m and Super+q type nothing into a client of xp"
 until_ok menu_visible 4 && fail "xp-46: an unbound Super chord opened the Start menu"
 ok "an unbound Super chord opens no Start menu"
