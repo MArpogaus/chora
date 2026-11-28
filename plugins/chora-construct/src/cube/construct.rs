@@ -291,6 +291,13 @@ impl Construct {
         let Some(mut host) = self.cube.take() else {
             return Ok(());
         };
+        if let Some((surface, ..)) = host.put_later.take() {
+            let language = Language::of_session();
+            let why = crate::names::Unput::Closed.words(language);
+            let told = crate::names::not_put(language, host.client(), Some(why));
+            crate::log::log_info!("chora-construct: {surface} stays a pane: {told}");
+            self.tell(&told);
+        }
         host.end_manager();
         self.tell_end(&host);
         self.remove_outputs(&host.outputs);

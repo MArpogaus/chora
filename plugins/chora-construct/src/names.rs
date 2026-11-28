@@ -161,6 +161,58 @@ pub fn not_placed(language: Language, manager: &str, reason: &str) -> String {
     }
 }
 
+/// Why a put of the give key that waits ended without the put, besides
+/// the time and a failed face (co-79 r8).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Unput {
+    /// The person stepped into a face.
+    SteppedIn,
+    /// The person flew into a pane.
+    InPane,
+    /// Another window is noted at the cube, chosen there.
+    OtherWindow,
+    /// The window of the pane closed.
+    Gone,
+    /// The cube closed.
+    Closed,
+}
+
+impl Unput {
+    /// The reason in the words of the session.
+    #[must_use]
+    pub const fn words(self, language: Language) -> &'static str {
+        match (self, language) {
+            (Self::SteppedIn, Language::En) => "you stepped into a face",
+            (Self::SteppedIn, Language::De) => "du bist in eine Seite gegangen",
+            (Self::InPane, Language::En) => "you flew into a pane",
+            (Self::InPane, Language::De) => "du bist in ein Fenster geflogen",
+            (Self::OtherWindow, Language::En) => "another window has the keyboard",
+            (Self::OtherWindow, Language::De) => "ein anderes Fenster hat die Tastatur",
+            (Self::Gone, Language::En) => "the window closed",
+            (Self::Gone, Language::De) => "das Fenster wurde geschlossen",
+            (Self::Closed, Language::En) => "the cube closed",
+            (Self::Closed, Language::De) => "der Würfel wurde geschlossen",
+        }
+    }
+}
+
+/// The notice that the window manager of the faces did not place the
+/// window of a pane that the give key put into a face (co-79 r8): in
+/// time, or for the reason.
+#[must_use]
+pub fn not_put(language: Language, manager: &str, reason: Option<&str>) -> String {
+    let name = manager_name(manager);
+    let reason = reason.map(|r| r.trim_end_matches('.'));
+    match (language, reason) {
+        (Language::En, None) => format!("{name} did not place the window in time."),
+        (Language::En, Some(reason)) => format!("{name} did not place the window: {reason}."),
+        (Language::De, None) => format!("{name} hat das Fenster nicht rechtzeitig platziert."),
+        (Language::De, Some(reason)) => {
+            format!("{name} hat das Fenster nicht platziert: {reason}.")
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

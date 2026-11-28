@@ -393,9 +393,10 @@ impl Construct {
     /// The put that waits (`put_pane`): once every face is up and the
     /// face manager exports `window.move`, the window goes into the face
     /// at the front, and the person steps in (`put_in_face`). It ends
-    /// unput when the person moved on (stepped into a face, flew into a
-    /// pane, another window noted at the cube: r8), the window is no
-    /// pane's any more, the cube failed or the wait is over.
+    /// unput, told (`unput`, r8), when the person moved on (stepped into a
+    /// face, flew into a pane, another window noted at the cube), the
+    /// window is no pane's any more, the face at the front failed or the
+    /// wait is over.
     pub(crate) fn put_when_ready(&mut self) -> Result<(), ClientError> {
         let now = std::time::Instant::now();
         let Some(host) = self.cube.as_ref() else {
@@ -407,25 +408,54 @@ impl Construct {
         if at > now {
             return Ok(());
         }
-        let stood_back = host.view().mode() == chora_kit::modes::Mode::Navigate;
-        let moved_on = self.in_pane() || host.noted_window() != Some(surface.as_str());
-        let ends = !stood_back || moved_on || host.front_failed() || until <= now;
+        if let Some(told) = self.unput(&surface, until <= now) {
+            crate::log::log_info!("chora-construct: {surface} stays a pane: {told}");
+            if let Some(host) = self.cube.as_mut() {
+                host.put_later = None;
+            }
+            self.tell(&told);
+            return Ok(());
+        }
         let ready = host.works();
         let to = self.face_manager();
-        let gone = ends || !self.own_window(&surface);
-        let waits = !gone && (!ready || !self.places(&to));
+        let waits = !ready || !self.places(&to);
         if let Some(host) = self.cube.as_mut() {
             host.put_later = waits.then(|| (surface.clone(), now + PUT_POLL, until));
         }
-        if gone {
-            crate::log::log_info!(
-                "chora-construct: {surface} stays a pane (stood back {stood_back})"
-            );
-        }
-        if gone || waits {
+        if waits {
             return Ok(());
         }
         self.put_in_face(&surface, &to)
+    }
+
+    /// Why the put of `surface` that waits ends now without the put, as
+    /// the notice that tells it (co-79 r8); `late` once its 20 s are over.
+    fn unput(&self, surface: &str, late: bool) -> Option<String> {
+        use crate::names::{Unput, not_put};
+        let host = self.cube.as_ref()?;
+        let language = chora_kit::words::Language::of_session();
+        let stood_back = host.view().mode() == chora_kit::modes::Mode::Navigate;
+        let moved = if !self.own_window(surface) {
+            Some(Unput::Gone)
+        } else if self.in_pane() {
+            Some(Unput::InPane)
+        } else if !stood_back {
+            Some(Unput::SteppedIn)
+        } else if host.noted_window() != Some(surface) {
+            Some(Unput::OtherWindow)
+        } else {
+            None
+        };
+        let failed = match host.health_of(host.front_face().0) {
+            crate::faces::Health::Failed(reason) => Some(reason),
+            _ => None,
+        };
+        let reason = (moved.map(|why| why.words(language).to_owned())).or(failed);
+        let told = |reason: Option<&str>| not_put(language, &self.face_manager(), reason);
+        match reason {
+            Some(reason) => Some(told(Some(&reason))),
+            None => late.then(|| told(None)),
+        }
     }
 
     /// Whether the face manager `to` places a window now: it exports
