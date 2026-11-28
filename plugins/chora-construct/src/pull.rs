@@ -379,6 +379,7 @@ impl Construct {
         let Some(host) = self.cube.as_mut() else {
             return Ok(());
         };
+        host.note_focus(Some(surface.to_owned()));
         let now = std::time::Instant::now();
         host.put_later = Some((surface.to_owned(), now, now + PUT_LIMIT));
         crate::log::log_info!("chora-construct: {surface} goes into the face at the front");
@@ -388,7 +389,8 @@ impl Construct {
     /// The put that waits (`put_pane`): once every face is up and the
     /// face manager exports `window.move`, the window goes into the face
     /// at the front, and the person steps in (`put_in_face`). It ends
-    /// unput when the person stepped into a face, the window is no
+    /// unput when the person moved on (stepped into a face, flew into a
+    /// pane, another window noted at the cube: r8), the window is no
     /// pane's any more, the cube failed or the wait is over.
     pub(crate) fn put_when_ready(&mut self) -> Result<(), ClientError> {
         let now = std::time::Instant::now();
@@ -402,7 +404,8 @@ impl Construct {
             return Ok(());
         }
         let stood_back = host.view().mode() == chora_kit::modes::Mode::Navigate;
-        let ends = !stood_back || host.front_failed() || until <= now;
+        let moved_on = self.in_pane() || host.noted_window() != Some(surface.as_str());
+        let ends = !stood_back || moved_on || host.front_failed() || until <= now;
         let ready = host.works();
         let to = self.face_manager();
         let gone = ends || !self.own_window(&surface);

@@ -1089,6 +1089,12 @@ impl Host {
         (front == self.front).then_some(window)
     }
 
+    /// The noted window, on whatever face it was noted: the put that
+    /// waits ends when another one is noted (co-79 r8).
+    pub(crate) fn noted_window(&self) -> Option<&str> {
+        self.focus.as_ref().map(|(window, _)| window.as_str())
+    }
+
     /// The window of the face at the front that had the keyboard before
     /// the step back, while it stands back: the pull key gives it (co-64).
     pub(crate) fn noted_focus(&self) -> Option<String> {
