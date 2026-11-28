@@ -57,7 +57,7 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 <script>
 // The only part to update by hand. Time progress is computed from the clock.
 const S = {
-  updated: "2026-11-28T06:10:00Z",
+  updated: "2026-11-28T07:45:00Z",
   start: "2026-11-28T04:00:00Z",   // budget reset (owner)
   end: "2026-12-05T03:59:00Z",     // next reset; F5, F7 carried over
   budget: 0,                        // % of the new week used (reset 04:00)
@@ -67,15 +67,15 @@ const S = {
     ["F3", "Window-manager core, first slices", "done", "met by audit r2: wm parts and records D107-D116"],
     ["F4", "No file over 1,500 lines", "done", "met again by audit r6: 0 files over, debt 17 of 47; but sleep lines in tests are exactly at their limit (779), so a guard lane now freezes that count"],
     ["F5", "No flaky tests, coverage over 80 %", "risk", "coverage 91.76 % holds; five full gates in a row were green on c3c37c2e (series r9); the series reruns on the final head after train 140"],
-    ["F6", "Every change through the merge gate", "done", "105 green merges, all reviewed (one, 689bff45, without its test first: logged; a new gate step that runs each fix's test before the fix is in review); train 161 (launcher click fix) green; train 162 (tour rows, tiling small fixes, gate flakes) runs since 06:05 UTC (13:05 Bangkok)"],
+    ["F6", "Every change through the merge gate", "done", "106 green merges, all reviewed (one, 689bff45, without its test first: logged; a new gate step that runs each fix's test before the fix is in review); trains 161 and 162 (launcher click fix; tour rows, tiling small fixes, gate flakes) green, 162 at 07:43 UTC (14:43 Bangkok)"],
     ["F7", "No visual regression vs tour v8", "behind", "new v9 take today on the session head, video below. Against v8: 1 act same, 10 regressions (6 in mc, 4 in the handover) and 88 differences whose cause is not yet proven; the stricter check no longer lets a broad reason cover a difference it does not name. Two reviews on the strongest model now judge each act by eye, then one fix lane per look"],
     ["F8", "Docs and decision records", "done", "met by audit r6 (01:40 UTC, 08:40 Bangkok): the kit log module is documented and decision record D120 exists; every decision named in a commit has its record"]
   ],
   now: [
     "Last week's budget ran out on Fri 00:16 UTC (07:16 Bangkok), 28 h early; all lanes stood still until the reset at Sat 04:00 UTC (11:00 Bangkok). All five lanes resumed at 04:18 UTC.",
-    "Tiling: meets the RC bar; five small fixes passed review and are in train 162; a second lane fixes the three left (a tool name in a notice, one missing test, a menu entry without a window).",
+    "Tiling: meets the RC bar; five small fixes are merged (train 162); a second lane fixes the three left (a tool name in a notice, one missing test, a menu entry without a window).",
     "Tour: all 24 remaining differences against v8 are minor; a lane now ties each to its cause or files it, then a fresh take follows.",
-    "Train 161 (launcher click fix) is merged; train 162 runs. Running: construct reach r7, XP key grab flake, tiling small fixes r2. Next after train 162: a fresh tour take and the next flake series.",
+    "Train 162 is merged. Running: construct reach r7, XP key grab flake, tiling small fixes r2, a fresh tour take (r3) on the new head. Next: the next flake series after the XP flake fix.",
     "New week from Sat 04:00 UTC: five lanes, sonnet by default, opus only for construct reach; pace 0.57 % per hour."
   ],
   needs: ["Delete branch <code>claude/release-rc4</code> in GitHub (the session may not)."]
