@@ -470,3 +470,6 @@ After Super+Alt+3 into mc, a Super+drag onto xp leaves the keyboard on tiling's 
 ## MC-PILL-BOUND (rmmr3-1, MINOR)
 The assistant pill drop under the header is unbounded and can leave the output in bottom-anchored looks; clamp to the output. reports/mc-minor.md "## Review r3 (mc-minor-r3)"; rmmr3-2..4 NIT there.
 - rcmr1-1 MINOR (co): pane sheet filters by key form only, grab_keys also by action (config.rs:443 vs camera.rs:656); rcmr1-2 NIT: hints.rs:116 own copy of the F1 rule (reports/co-minor.md Review r2).
+- rtr5r-1 MINOR (tour-rows r5 review): c4b window row is dead; the old c4b row already names the blob.
+- rtr5r-2 MINOR: tiling box [12,8,526,32] is 88 px wider than the island blob (t3f).
+- rtr5r-3..5 NIT: c3d/c4b box 182 vs 166 px; c4 box 84 % outside the half-frame guard; tests repeat the toml.
