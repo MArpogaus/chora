@@ -284,6 +284,47 @@ fn the_wait_ends_when_the_person_moves_on() {
     }
 }
 
+/// rcrr7-3 (review r7): a second Super+Alt+2 while the cube that the
+/// key opened still starts keeps the same put: no give to a face manager
+/// that cannot place the window yet, and no refusal while the cube
+/// visibly opens.
+#[test]
+fn a_second_key_while_the_cube_starts_keeps_the_same_put() {
+    let (mut construct, core, lines) = super::with_hint_bar("reach-r8-again");
+    (core.model().lock().unwrap().scene).add_surface("s1", chora_scene::SurfaceInfo::default());
+    let attach = chora_scene::Command::Attach {
+        surface: "s1".into(),
+        parent: crate::PANES.into(),
+    };
+    construct.rt.conn.apply(vec![attach]).unwrap();
+    construct.book.keep("s1");
+    core.model().lock().unwrap().scene.set_focused(Some("s1"));
+    construct.cube.as_mut().unwrap().program = "xp".into();
+    construct.core_focus = Some("s1".into());
+    construct.put_pane("s1").unwrap();
+    let host = construct.cube.as_mut().unwrap();
+    host.health.fill(crate::faces::Health::Starting);
+    assert_eq!(waiting(&construct).as_deref(), Some("s1"));
+    lines.lock().unwrap().clear();
+    construct.give_key("xp").unwrap();
+    let said = lines.lock().unwrap().join("\n");
+    assert_eq!(
+        waiting(&construct).as_deref(),
+        Some("s1"),
+        "the second key keeps the put: {said}"
+    );
+    assert!(
+        !said.contains(r#""to":"xp""#) && !said.contains("notify.show"),
+        "no give to an xp that still starts, nothing refused: {said}"
+    );
+}
+
+/// The window of the put that waits.
+fn waiting(construct: &crate::Construct) -> Option<String> {
+    let host = construct.cube.as_ref()?;
+    host.put_later.as_ref().map(|put| put.0.clone())
+}
+
 /// Whether a put waits (`put_pane`).
 fn waits(construct: &crate::Construct) -> bool {
     (construct.cube.as_ref()).is_some_and(|host| host.put_later.is_some())
