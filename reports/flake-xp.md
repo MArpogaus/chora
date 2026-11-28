@@ -49,7 +49,7 @@ Load: a loop of `cargo build --workspace` into a separate target dir, followed b
 
 The launcher-mc misses of run 1 are all "no launcher after mouse (a fuzzel process; the log of the session says: )", the lost click on the fading mc node set of flake-launcher r1, which this base does not have (d06b9be2 is not merged yet). It is not the key-grab gap: no miss after the keys (Super+Space). The runs 2 and 3 of launcher-mc ran on a scratch worktree of the branch head with 2a90b905 and d06b9be2 cherry-picked (never committed to this branch); with it, 0 of 20. Without it a launcher-mc cell on this head is red about 8 of 10 under load until that lane merges.
 
-xp-run was green in the runs before the fix as well (0 misses under load, flake-launcher r1 and here, run 1 included the first fix only), so the "after" count shows no regression, not a before/after difference: the loss needs a chord in a window of a few ms, which the cells do not hit. The unit tests are the red.
+xp-run was green before the fix as well (0 of 10 under load in flake-launcher r1; I did not run a baseline of my own), so the "after" count shows no regression, not a before/after difference: the loss needs a chord in a window of a few ms, which the cells do not hit. The unit tests are the red.
 
 ### Full gate
 
