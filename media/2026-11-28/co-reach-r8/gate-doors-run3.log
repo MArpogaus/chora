@@ -1,0 +1,46 @@
+
+cell             xp        tiling    mc        construct
+keys-key         pass      pass      pass      pass
+keys-alias       pass      pass      pass      pass
+keys-names       pass      pass      pass      pass
+keys-door        pass      pass      pass      pass
+f1-free          pass      pass      pass      pass
+launcher-key     pass      pass      pass      pass
+launcher-door    pass      pass      pass      pass
+launcher-chat    pass      pass      pass      pass
+helper-key       pass      pass      pass      pass
+helper-door      pass      pass      pass      pass
+helper-none      pass      missing   pass      pass
+lock-key         pass      pass      pass      pass
+lock-door        pass      pass      pass      pass
+power-key        pass      pass      pass      pass
+power-door       pass      pass      pass      pass
+screenshot-key   pass      pass      pass      pass
+screenshot-door  pass      pass      pass      pass
+volume-key       pass      pass      pass      pass
+volume-door      pass      pass      pass      pass
+clock-door       pass      pass      pass      pass
+--- xp: last lines of its log
+note: helper-door clicks 1
+check xp log-off pass
+--- tiling: last lines of its log
+note: panel [868.0,52.0,400.0,736.0] tiles [[442.0,54.0,412.0,732.0],[14.0,54.0,412.0,732.0]]
+check tiling helper-beside-tiles pass
+check tiling stray-hint pass
+check tiling looks-none pass
+check tiling looks-word-none pass
+check tiling looks-door pass
+check tiling looks-word pass
+check tiling looks-word-parallel pass
+--- mc: last lines of its log
+check mc header-1280x800 pass
+--- construct: last lines of its log
+jq: error (at <stdin>:1): null (null) has no keys
+jq: error (at <stdin>:1): null (null) has no keys
+jq: error (at <stdin>:1): null (null) has no keys
+jq: error (at <stdin>:1): null (null) has no keys
+check construct pane-corner pass
+ok: construct doors: layout audit: 29 nodes, no finding
+check construct layout-1280x800 pass
+check construct cube-doors pass
+FAIL: 1 cells or checks are not pass

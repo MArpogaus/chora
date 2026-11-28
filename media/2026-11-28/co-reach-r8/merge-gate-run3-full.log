@@ -1,0 +1,63 @@
+run directory: /tmp/merge-gate.I3Ghy2
+red-first  PASS     1s /tmp/merge-gate.I3Ghy2/red-first.log
+identity   PASS     0s /tmp/merge-gate.I3Ghy2/identity.log
+ratchets   PASS     1s /tmp/merge-gate.I3Ghy2/ratchets.log
+pre-commit PASS    70s /tmp/merge-gate.I3Ghy2/pre-commit.log
+docs       PASS     2s /tmp/merge-gate.I3Ghy2/docs.log
+gate-lib   PASS   157s /tmp/merge-gate.I3Ghy2/gate-lib.log
+ci-check   PASS   101s /tmp/merge-gate.I3Ghy2/ci-check.log
+build      PASS    27s /tmp/merge-gate.I3Ghy2/build.log
+test       PASS   149s /tmp/merge-gate.I3Ghy2/test.log
+clippy     PASS    27s /tmp/merge-gate.I3Ghy2/clippy.log
+2d-guard   PASS   140s /tmp/merge-gate.I3Ghy2/2d-guard.log
+package-deps PASS     0s /tmp/merge-gate.I3Ghy2/package-deps.log
+package-lists PASS     0s /tmp/merge-gate.I3Ghy2/package-lists.log
+xp         PASS    96s /tmp/merge-gate.I3Ghy2/xp.log
+virtual    PASS    57s /tmp/merge-gate.I3Ghy2/virtual.log
+xp-faces   PASS    13s /tmp/merge-gate.I3Ghy2/xp-faces.log
+xp-paperclip PASS     7s /tmp/merge-gate.I3Ghy2/xp-paperclip.log
+xp-fields  PASS    60s /tmp/merge-gate.I3Ghy2/xp-fields.log
+xp-readable PASS    51s /tmp/merge-gate.I3Ghy2/xp-readable.log
+xp-question PASS    10s /tmp/merge-gate.I3Ghy2/xp-question.log
+xp-chat-idle PASS    11s /tmp/merge-gate.I3Ghy2/xp-chat-idle.log
+matrix     PASS   321s /tmp/merge-gate.I3Ghy2/matrix.log
+xp-helper  PASS    40s /tmp/merge-gate.I3Ghy2/xp-helper.log
+xp-notepad PASS    53s /tmp/merge-gate.I3Ghy2/xp-notepad.log
+hud        PASS    73s /tmp/merge-gate.I3Ghy2/hud.log
+tiling-audit PASS   246s /tmp/merge-gate.I3Ghy2/tiling-audit.log
+tiling-look PASS   689s /tmp/merge-gate.I3Ghy2/tiling-look.log
+tiling-empty PASS    15s /tmp/merge-gate.I3Ghy2/tiling-empty.log
+chat-keys  PASS     7s /tmp/merge-gate.I3Ghy2/chat-keys.log
+layout     PASS  1364s /tmp/merge-gate.I3Ghy2/layout.log
+doors      FAIL   409s /tmp/merge-gate.I3Ghy2/doors.log
+exit code 1; last 30 lines of /tmp/merge-gate.I3Ghy2/doors.log:
+power-door       pass      pass      pass      pass
+screenshot-key   pass      pass      pass      pass
+screenshot-door  pass      pass      pass      pass
+volume-key       pass      pass      pass      pass
+volume-door      pass      pass      pass      pass
+clock-door       pass      pass      pass      pass
+--- xp: last lines of its log
+note: helper-door clicks 1
+check xp log-off pass
+--- tiling: last lines of its log
+note: panel [868.0,52.0,400.0,736.0] tiles [[442.0,54.0,412.0,732.0],[14.0,54.0,412.0,732.0]]
+check tiling helper-beside-tiles pass
+check tiling stray-hint pass
+check tiling looks-none pass
+check tiling looks-word-none pass
+check tiling looks-door pass
+check tiling looks-word pass
+check tiling looks-word-parallel pass
+--- mc: last lines of its log
+check mc header-1280x800 pass
+--- construct: last lines of its log
+jq: error (at <stdin>:1): null (null) has no keys
+jq: error (at <stdin>:1): null (null) has no keys
+jq: error (at <stdin>:1): null (null) has no keys
+jq: error (at <stdin>:1): null (null) has no keys
+check construct pane-corner pass
+ok: construct doors: layout audit: 29 nodes, no finding
+check construct layout-1280x800 pass
+check construct cube-doors pass
+FAIL: 1 cells or checks are not pass
