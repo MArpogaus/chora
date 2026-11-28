@@ -1,0 +1,48 @@
+=== run3-final/xp-run-run1.log
+ok: the Run box lists the installed programs, sorted by name
+ok: text that finds nothing shows the list again under the row Nothing found
+ok: after text that finds nothing the Run box shows again, and Escape closes it
+=== run3-final/xp-run-run10.log
+gate-xp-run.sh: waits for /tmp/chora-gate.lock
+ok: the Run box lists the installed programs, sorted by name
+ok: text that finds nothing shows the list again under the row Nothing found
+ok: after text that finds nothing the Run box shows again, and Escape closes it
+=== run3-final/xp-run-run2.log
+gate-xp-run.sh: waits for /tmp/chora-gate.lock
+ok: the Run box lists the installed programs, sorted by name
+ok: text that finds nothing shows the list again under the row Nothing found
+ok: after text that finds nothing the Run box shows again, and Escape closes it
+=== run3-final/xp-run-run3.log
+gate-xp-run.sh: waits for /tmp/chora-gate.lock
+ok: the Run box lists the installed programs, sorted by name
+ok: text that finds nothing shows the list again under the row Nothing found
+ok: after text that finds nothing the Run box shows again, and Escape closes it
+=== run3-final/xp-run-run4.log
+gate-xp-run.sh: waits for /tmp/chora-gate.lock
+ok: the Run box lists the installed programs, sorted by name
+ok: text that finds nothing shows the list again under the row Nothing found
+ok: after text that finds nothing the Run box shows again, and Escape closes it
+=== run3-final/xp-run-run5.log
+gate-xp-run.sh: waits for /tmp/chora-gate.lock
+ok: the Run box lists the installed programs, sorted by name
+ok: text that finds nothing shows the list again under the row Nothing found
+ok: after text that finds nothing the Run box shows again, and Escape closes it
+=== run3-final/xp-run-run6.log
+gate-xp-run.sh: waits for /tmp/chora-gate.lock
+ok: the Run box lists the installed programs, sorted by name
+ok: text that finds nothing shows the list again under the row Nothing found
+ok: after text that finds nothing the Run box shows again, and Escape closes it
+=== run3-final/xp-run-run7.log
+gate-xp-run.sh: waits for /tmp/chora-gate.lock
+ok: the Run box lists the installed programs, sorted by name
+ok: text that finds nothing shows the list again under the row Nothing found
+ok: after text that finds nothing the Run box shows again, and Escape closes it
+=== run3-final/xp-run-run8.log
+ok: the Run box lists the installed programs, sorted by name
+ok: text that finds nothing shows the list again under the row Nothing found
+ok: after text that finds nothing the Run box shows again, and Escape closes it
+=== run3-final/xp-run-run9.log
+gate-xp-run.sh: waits for /tmp/chora-gate.lock
+ok: the Run box lists the installed programs, sorted by name
+ok: text that finds nothing shows the list again under the row Nothing found
+ok: after text that finds nothing the Run box shows again, and Escape closes it

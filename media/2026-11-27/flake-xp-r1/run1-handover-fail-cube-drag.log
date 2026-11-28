@@ -1,0 +1,8 @@
+gate-handover.sh: waits for /tmp/chora-gate.lock
+ok: foot s1 starts in xp
+ok: 1. a drag from xp to the tiling output: tiling owns s1
+ok: 2. window.give of tiling to xp: xp owns s1
+ok: 3. choractl give mc: mc owns s1
+ok: 4. mc to tiling by window.give, tiling to xp by a Super drag: xp owns s1
+ok: 5. a give to a client that does not exist is refused; xp keeps s1
+FAIL: Super and the button on the xp output turn no cube

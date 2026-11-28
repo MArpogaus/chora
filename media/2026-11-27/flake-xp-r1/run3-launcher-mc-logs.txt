@@ -1,0 +1,64 @@
+=== run3-final/launcher-mc-run1.log
+gate-launcher-mc.sh: waits for /tmp/chora-gate.lock
+ok: mc light, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc light, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+=== run3-final/launcher-mc-run10.log
+gate-launcher-mc.sh: waits for /tmp/chora-gate.lock
+ok: mc light, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc light, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+=== run3-final/launcher-mc-run2.log
+gate-launcher-mc.sh: waits for /tmp/chora-gate.lock
+grep: /tmp/launcher-mc.8RxBqL.out: No such file or directory
+ok: mc light, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc light, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+=== run3-final/launcher-mc-run3.log
+gate-launcher-mc.sh: waits for /tmp/chora-gate.lock
+ok: mc light, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc light, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+=== run3-final/launcher-mc-run4.log
+gate-launcher-mc.sh: waits for /tmp/chora-gate.lock
+ok: mc light, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.af6JGm.out: No such file or directory
+ok: mc light, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.7fF6x0.out: No such file or directory
+ok: mc dark, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+=== run3-final/launcher-mc-run5.log
+gate-launcher-mc.sh: waits for /tmp/chora-gate.lock
+ok: mc light, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc light, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+=== run3-final/launcher-mc-run6.log
+gate-launcher-mc.sh: waits for /tmp/chora-gate.lock
+ok: mc light, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc light, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+grep: /tmp/launcher-mc.dQOPBx.out: No such file or directory
+ok: mc dark, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+=== run3-final/launcher-mc-run7.log
+gate-launcher-mc.sh: waits for /tmp/chora-gate.lock
+ok: mc light, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc light, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+=== run3-final/launcher-mc-run8.log
+gate-launcher-mc.sh: waits for /tmp/chora-gate.lock
+ok: mc light, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc light, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+=== run3-final/launcher-mc-run9.log
+gate-launcher-mc.sh: waits for /tmp/chora-gate.lock
+ok: mc light, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc light, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, new fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape
+ok: mc dark, old fuzzel: the launcher opens by a click on Programs and by Super+Space, and closes by Escape

@@ -1,0 +1,79 @@
+run directory: /tmp/merge-gate.Wv0IPm
+red-first  PASS    37s /tmp/merge-gate.Wv0IPm/red-first.log
+identity   PASS     0s /tmp/merge-gate.Wv0IPm/identity.log
+ratchets   PASS     1s /tmp/merge-gate.Wv0IPm/ratchets.log
+pre-commit PASS   105s /tmp/merge-gate.Wv0IPm/pre-commit.log
+docs       SKIP     0s /tmp/merge-gate.Wv0IPm/docs.log
+gate-lib   PASS   192s /tmp/merge-gate.Wv0IPm/gate-lib.log
+ci-check   PASS    52s /tmp/merge-gate.Wv0IPm/ci-check.log
+build      PASS    30s /tmp/merge-gate.Wv0IPm/build.log
+test       PASS   168s /tmp/merge-gate.Wv0IPm/test.log
+clippy     PASS    18s /tmp/merge-gate.Wv0IPm/clippy.log
+2d-guard   PASS    22s /tmp/merge-gate.Wv0IPm/2d-guard.log
+package-deps PASS     1s /tmp/merge-gate.Wv0IPm/package-deps.log
+package-lists PASS     1s /tmp/merge-gate.Wv0IPm/package-lists.log
+xp         PASS    98s /tmp/merge-gate.Wv0IPm/xp.log
+virtual    PASS    64s /tmp/merge-gate.Wv0IPm/virtual.log
+xp-faces   PASS    15s /tmp/merge-gate.Wv0IPm/xp-faces.log
+xp-paperclip PASS     6s /tmp/merge-gate.Wv0IPm/xp-paperclip.log
+xp-fields  PASS    72s /tmp/merge-gate.Wv0IPm/xp-fields.log
+xp-readable PASS    60s /tmp/merge-gate.Wv0IPm/xp-readable.log
+xp-question PASS    11s /tmp/merge-gate.Wv0IPm/xp-question.log
+xp-chat-idle PASS    12s /tmp/merge-gate.Wv0IPm/xp-chat-idle.log
+matrix     PASS   369s /tmp/merge-gate.Wv0IPm/matrix.log
+xp-helper  PASS    43s /tmp/merge-gate.Wv0IPm/xp-helper.log
+xp-notepad PASS    54s /tmp/merge-gate.Wv0IPm/xp-notepad.log
+hud        PASS    77s /tmp/merge-gate.Wv0IPm/hud.log
+tiling-audit PASS   275s /tmp/merge-gate.Wv0IPm/tiling-audit.log
+tiling-look PASS   745s /tmp/merge-gate.Wv0IPm/tiling-look.log
+tiling-empty PASS    18s /tmp/merge-gate.Wv0IPm/tiling-empty.log
+chat-keys  PASS     7s /tmp/merge-gate.Wv0IPm/chat-keys.log
+layout     PASS  1385s /tmp/merge-gate.Wv0IPm/layout.log
+doors      PASS   399s /tmp/merge-gate.Wv0IPm/doors.log
+last-words PASS    14s /tmp/merge-gate.Wv0IPm/last-words.log
+cube       PASS   159s /tmp/merge-gate.Wv0IPm/cube.log
+pull       PASS   533s /tmp/merge-gate.Wv0IPm/pull.log
+placed     PASS    12s /tmp/merge-gate.Wv0IPm/placed.log
+construct-hud PASS   584s /tmp/merge-gate.Wv0IPm/construct-hud.log
+construct-extra PASS   187s /tmp/merge-gate.Wv0IPm/construct-extra.log
+out        PASS    14s /tmp/merge-gate.Wv0IPm/out.log
+winit      PASS     8s /tmp/merge-gate.Wv0IPm/winit.log
+wm-pane    PASS    21s /tmp/merge-gate.Wv0IPm/wm-pane.log
+pane-keys  PASS     9s /tmp/merge-gate.Wv0IPm/pane-keys.log
+walk       PASS     3s /tmp/merge-gate.Wv0IPm/walk.log
+keys       PASS    42s /tmp/merge-gate.Wv0IPm/keys.log
+pixels     PASS    59s /tmp/merge-gate.Wv0IPm/pixels.log
+mc-paths   PASS   157s /tmp/merge-gate.Wv0IPm/mc-paths.log
+mc-sofa    PASS   154s /tmp/merge-gate.Wv0IPm/mc-sofa.log
+acts       FAIL  2092s /tmp/merge-gate.Wv0IPm/acts.log
+exit code 1; last 30 lines of /tmp/merge-gate.Wv0IPm/acts.log:
+cell xp act:the dragged window closes pass
+cell xp act:the helper answers pass
+cell xp act:the helper asks pass
+cell xp act:the helper presenter starts pass
+cell xp act:the helper stops pass
+cell xp act:the helper works pass
+cell xp act:the key list of xp speaks the keysheet pass
+cell xp act:the keys alias key opens the key list pass
+cell xp act:the keys key opens the key list pass
+cell xp act:the same keys reach the window with the popup shut pass
+cell xp act:the second Notepad ends pass
+cell xp act:the speaker opens the volume popup again pass
+cell xp act:the speaker opens the volume popup for Mute pass
+cell xp act:the speaker opens the volume popup for an outside click pass
+cell xp act:the speaker opens the volume popup over the window pass
+cell xp act:the speaker opens the volume popup to shut it pass
+cell xp act:the task button brings the window back pass
+cell xp act:the tooltip of the speaker says the level that the key set pass
+cell xp act:the tooltip of the speaker says the level that the popup set pass
+cell xp act:the topic Keyboard shortcuts lists every key inside the window pass
+cell xp act:the volume key raises the level pass
+cell xp act:the volume popup opens while the balloon shows pass
+cell xp act:the window closes pass
+cell xp act:the window of Notepad shows pass
+cell xp act:the window of Show Desktop closes pass
+cell xp act:the window of the key check closes pass
+acts: evidence kept in /tmp/acts-run-hpbd01r7
+acts: 237 pass, 1 known red, 1 blocking
+FAIL: tiling I14: in act 'the chat of the helper shuts': chora-tiling.launch-27065 disconnected, the act did not declare it (no program of the session had ended: the connection was lost while it ran) (evidence /tmp/acts-run-hpbd01r7/tiling-I14)
+FAIL: acts: a cell blocks (see the FAIL lines)

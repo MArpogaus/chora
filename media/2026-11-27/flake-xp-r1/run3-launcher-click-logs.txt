@@ -1,0 +1,60 @@
+=== run3-final/launcher-click-run1.log
+gate-launcher-click.sh: waits for /tmp/chora-gate.lock
+ok: tiling: the launcher is visible 620 ms after the click on the Apps door (197760 pixels changed, capture 3 of 15; limit 1500 ms)
+ok: tiling: a click by act.py on the Mid row of the launcher starts mid and not the first row
+ok: construct: a click by act.py on the Mid row of the launcher starts mid and not the first row
+ok: act.py click and drag move the pointer as a hand does, move and scroll as they say
+=== run3-final/launcher-click-run10.log
+gate-launcher-click.sh: waits for /tmp/chora-gate.lock
+ok: tiling: the launcher is visible 704 ms after the click on the Apps door (197760 pixels changed, capture 3 of 11; limit 1500 ms)
+ok: tiling: a click by act.py on the Mid row of the launcher starts mid and not the first row
+ok: construct: a click by act.py on the Mid row of the launcher starts mid and not the first row
+ok: act.py click and drag move the pointer as a hand does, move and scroll as they say
+=== run3-final/launcher-click-run2.log
+gate-launcher-click.sh: waits for /tmp/chora-gate.lock
+ok: tiling: the launcher is visible 743 ms after the click on the Apps door (197760 pixels changed, capture 4 of 13; limit 1500 ms)
+ok: tiling: a click by act.py on the Mid row of the launcher starts mid and not the first row
+ok: construct: a click by act.py on the Mid row of the launcher starts mid and not the first row
+ok: act.py click and drag move the pointer as a hand does, move and scroll as they say
+=== run3-final/launcher-click-run3.log
+gate-launcher-click.sh: waits for /tmp/chora-gate.lock
+ok: tiling: the launcher is visible 579 ms after the click on the Apps door (197760 pixels changed, capture 2 of 14; limit 1500 ms)
+ok: tiling: a click by act.py on the Mid row of the launcher starts mid and not the first row
+ok: construct: a click by act.py on the Mid row of the launcher starts mid and not the first row
+ok: act.py click and drag move the pointer as a hand does, move and scroll as they say
+=== run3-final/launcher-click-run4.log
+gate-launcher-click.sh: waits for /tmp/chora-gate.lock
+ok: tiling: the launcher is visible 751 ms after the click on the Apps door (197760 pixels changed, capture 5 of 14; limit 1500 ms)
+ok: tiling: a click by act.py on the Mid row of the launcher starts mid and not the first row
+ok: construct: a click by act.py on the Mid row of the launcher starts mid and not the first row
+ok: act.py click and drag move the pointer as a hand does, move and scroll as they say
+=== run3-final/launcher-click-run5.log
+gate-launcher-click.sh: waits for /tmp/chora-gate.lock
+ok: tiling: the launcher is visible 531 ms after the click on the Apps door (197760 pixels changed, capture 4 of 20; limit 1500 ms)
+ok: tiling: a click by act.py on the Mid row of the launcher starts mid and not the first row
+ok: construct: a click by act.py on the Mid row of the launcher starts mid and not the first row
+ok: act.py click and drag move the pointer as a hand does, move and scroll as they say
+=== run3-final/launcher-click-run6.log
+gate-launcher-click.sh: waits for /tmp/chora-gate.lock
+ok: tiling: the launcher is visible 623 ms after the click on the Apps door (197760 pixels changed, capture 3 of 12; limit 1500 ms)
+ok: tiling: a click by act.py on the Mid row of the launcher starts mid and not the first row
+ok: construct: a click by act.py on the Mid row of the launcher starts mid and not the first row
+ok: act.py click and drag move the pointer as a hand does, move and scroll as they say
+=== run3-final/launcher-click-run7.log
+gate-launcher-click.sh: waits for /tmp/chora-gate.lock
+ok: tiling: the launcher is visible 639 ms after the click on the Apps door (197760 pixels changed, capture 4 of 14; limit 1500 ms)
+ok: tiling: a click by act.py on the Mid row of the launcher starts mid and not the first row
+ok: construct: a click by act.py on the Mid row of the launcher starts mid and not the first row
+ok: act.py click and drag move the pointer as a hand does, move and scroll as they say
+=== run3-final/launcher-click-run8.log
+gate-launcher-click.sh: waits for /tmp/chora-gate.lock
+ok: tiling: the launcher is visible 580 ms after the click on the Apps door (197760 pixels changed, capture 3 of 13; limit 1500 ms)
+ok: tiling: a click by act.py on the Mid row of the launcher starts mid and not the first row
+ok: construct: a click by act.py on the Mid row of the launcher starts mid and not the first row
+ok: act.py click and drag move the pointer as a hand does, move and scroll as they say
+=== run3-final/launcher-click-run9.log
+gate-launcher-click.sh: waits for /tmp/chora-gate.lock
+ok: tiling: the launcher is visible 803 ms after the click on the Apps door (197760 pixels changed, capture 5 of 12; limit 1500 ms)
+ok: tiling: a click by act.py on the Mid row of the launcher starts mid and not the first row
+ok: construct: a click by act.py on the Mid row of the launcher starts mid and not the first row
+ok: act.py click and drag move the pointer as a hand does, move and scroll as they say
