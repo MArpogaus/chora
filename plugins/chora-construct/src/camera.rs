@@ -528,6 +528,15 @@ impl Construct {
     /// when a chord of the construct comes between. A binding that stays
     /// is not let go in between, so its key never reaches a window.
     pub(crate) fn regrab(&mut self) -> Result<(), ClientError> {
+        self.regrab_with(true)
+    }
+
+    /// As [`Self::regrab`]. Without the `claimed` space, the bindings that
+    /// need a claim wait (`chora_kit::runtime::needs_claim`): the core
+    /// refuses the drag to a client without a claim while another window
+    /// manager holds it (D55). The keys that need none are held before the
+    /// first node exists (sh-44).
+    pub(crate) fn regrab_with(&mut self, claimed: bool) -> Result<(), ClientError> {
         let parse = |b: String| {
             b.parse().map_err(|e| {
                 ClientError::Rpc(RpcError::new(RpcError::INVALID_PARAMS, format!("{b}: {e}")))
@@ -539,7 +548,7 @@ impl Construct {
         self.rt.give_keys(serves.then_some(Grab::Give));
         self.rt.start_grabs();
         let mut drag_errors = Vec::new();
-        if self.active && !self.overlay {
+        if claimed && self.active && !self.overlay {
             let drag = parse(format!("{}+BTN_LEFT", self.settings.value.modifier))?;
             if let Err(err) = self.rt.grab(drag, Grab::Drag) {
                 drag_errors.push(format!("the drag: {err}"));
@@ -560,9 +569,7 @@ impl Construct {
             self.rt.grab(fly_out, Grab::FlyOut)?;
         }
         if self.keys_with_pane() || self.cube.is_some() {
-            for (key, grab) in self.grab_keys() {
-                self.rt.grab(parse(key)?, grab)?;
-            }
+            self.grab_pane_keys(claimed)?;
         }
         self.grab_cube_keys();
         if self.keys_with_pane() && self.cube.is_none() {
@@ -570,6 +577,24 @@ impl Construct {
         }
         self.hints.stale = true;
         self.rt.end_grabs()
+    }
+
+    /// Grabs the chords of [`Self::grab_keys`]; without the `claimed` space,
+    /// those that need a claim wait.
+    fn grab_pane_keys(&mut self, claimed: bool) -> Result<(), ClientError> {
+        for (key, grab) in self.grab_keys() {
+            if !claimed && chora_kit::runtime::needs_claim(&key) {
+                continue;
+            }
+            let binding = key.parse().map_err(|e| {
+                ClientError::Rpc(RpcError::new(
+                    RpcError::INVALID_PARAMS,
+                    format!("{key}: {e}"),
+                ))
+            })?;
+            self.rt.grab(binding, grab)?;
+        }
+        Ok(())
     }
 
     /// Swallows the chords of the modifier that no binding uses, and the
