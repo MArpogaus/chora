@@ -1252,7 +1252,7 @@ mod tests {
         let id = "mc-s-agenda-panels-today-empty";
         assert_eq!(
             crate::testing::text(&model, id).as_deref(),
-            Some("Nothing planned today.\nSay “Atlas” or press Super+a.")
+            Some("Nothing planned today.\nSay “Atlas” or press Super+A.")
         );
         let muted = mc.settings.value.colors()["muted"];
         let color = model.lock().unwrap().scene.node(id).unwrap().props.color;
