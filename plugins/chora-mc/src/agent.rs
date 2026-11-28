@@ -618,9 +618,13 @@ impl Mc {
 
 /// The title of a notice: a critical one begins with the word `Urgent`,
 /// because the card of the notice server has one look for every notice and no
-/// colour of urgency (rpx1-17).
+/// colour of urgency (rpx1-17). A title that already begins with `Urgent`
+/// (in any case) keeps its own mark (rmm6-1).
 fn urgent_title(summary: &str, urgency: Urgency) -> String {
-    if urgency == Urgency::Critical {
+    let marked = summary
+        .get(..6)
+        .is_some_and(|w| w.eq_ignore_ascii_case("urgent"));
+    if urgency == Urgency::Critical && !marked {
         format!("Urgent: {summary}")
     } else {
         summary.to_owned()
