@@ -1,0 +1,5 @@
+ok: typed text starts nothing, and a notice says that the keys walk
+ok: a give key without a window says so
+ok: Super+t made the terminal the pane term
+ok: the camera flew into the new pane term, which has the keyboard
+FAIL: a give of the focused window to xp, which does not run, said nothing:

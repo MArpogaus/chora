@@ -528,3 +528,70 @@ Findings:
 - rcrr6-4, NIT, modes.rs:317, overlay.rs:1149-1152: three entries for one step back (`step_out`, `mode_act(StepBack)` with its own fly-out, the hint's two `step-back` arms); fix: let `mode_act` use `in_pane()` for its fly-out and route the key and the hint through it when a cube is open.
 - rcrr6-5, NIT, reports/co-reach.md:360-434: "## r6" is there twice, the first copy with its backtick spans lost ("name )", "changed ()"); fix: drop the first copy.
 - rcrr6-6, NIT, overlay.rs:690, input.rs:648: with two panes in sight, Super+C notes the pane that last had the keyboard, not the one ahead, and `Into face` does not name it; fix (optional): name the window in the put hint or the HUD notice.
+
+## r7 (co-79: one told key out of a pane into a face, 2026-11-26)
+
+Lane: cloud, claude/co-reach-r7 from **base dc532d60** (57ce1480 + rpc2-1/rpc2-2). Step 0: unshallow, `cargo check --workspace`, `cargo build --workspace` green. Area: plugins/chora-construct (hints, overlay, input, pull, cube host), tests/gate-construct-cube.sh, docs/cube-modes.md.
+
+**Head 008714ba** (red **61741663**, fix **2e521bbc**, gate follow-ups **242753da** (layout gate) and **008714ba** (keys gate): two refused-give cells that pressed Super+Alt+2 where r7 now puts), pushed to claude/co-reach-r7. Diff dc532d60..008714ba: 11 files +322 -61 (gate-construct-keys.sh +3 -3, pull.rs +88, overlay.rs +61 -34, reach_tests.rs +62, gate-construct-cube.sh +53, hints.rs +20 -8, docs/cube-modes.md +14 -7, input.rs +6 -5, cube.rs +5, construct.rs +4 -1, gate-construct-layout.sh +6 -3). **Outside the named area**: gate-construct-layout.sh (1) pins the exact walk hint set after Alt+Escape out of a pane, which now holds `put-in`: its three expected strings changed (`cube fly-in keys put-in terminal walk`, `fly-in keys put-in terminal walk windows`), as r6 did; (2) its refused-give notice cell pressed Super+Alt+2 right after that step out, expecting xp's "not running" refusal, which r7 replaces by the put (run 1 of the full gate: `FAIL: dark-1280x720: the notice of a refused give reads ''`, caused here); 242753da first presses on the floor, so the walk holds the keyboard and the give of the pane ahead is refused as before (layout cell alone at 1280x720: EXIT 0, 40 ok); (3) gate-construct-keys.sh gave the focused pane window to xp by Super+Alt+2 inside a pane and expected xp's refusal (run 3: `FAIL: a give of the focused window to xp, which does not run, said nothing:`, caused here, r7 opens a cube for the put there); 008714ba takes Super+Alt+1 (tiling, not running there) for the same refusal; keys gate alone EXIT 0, 18 ok.
+
+### 1. Red on dc532d60
+Terminal row, Alt+Escape: bar `W A S D Walk, Return Fly in, Super C Cube, Super T Terminal, F1 All keys`, no key into a face; Super+Alt+2 there does nothing (no cube; `put_window` needs a cube stood back). In a pane (flown in by its Fly in, or pulled out of a face) the bar names only `Alt Esc Step back` and `All keys`. Gate step 10 on dc532d60: `FAIL: co-79 r7: right after Alt+Escape out of the pane of the Terminal row the hint bar names no key into a face (put-in keys:   ; bar: ; panes: ["chora-probe"]): {"mode":"use","faces":0}`; every earlier cell ok (70 ok, r6 steps 7, 8 and rpc2 step 9 among them; gate-cube-red-dc532d60.log). Unit test `reach_tests::out_of_a_pane_and_in_one_the_bar_names_the_key_into_a_face` failed on dc532d60 ("stepped out of the pane with no cube, the walk names the key into a face").
+
+### 2. Decision (docs/cube-modes.md)
+"One key, one step (co-79 r7): wherever the window of a pane has the keyboard, in the pane (flown in by its `Fly in` click, from a face, or pulled out of one by a drag or `Super+Alt+4`) or right after `Alt+Escape` out of it, the bar names `Super Alt 2 Into face`, and that key puts that pane's window on the face at the front, steps in and gives it the keyboard, and opens the cube first when none is open (the window goes as soon as the face manager can place it)." KISS: one predicate (`pane_to_face`) decides the hint and the key in every pane state; no chain through Super C (still told beside it, so r6's step 8 holds). POLS: the key is the same give key r5 told stood back, it now also works where the person stands after Alt+Escape and inside the pane.
+
+### 3. Fix 2e521bbc
+- `pane_to_face()` (overlay.rs): `put_window` (stood back, r5) or the flown pane's window or `cube_window` (no cube, stepped out, r6); `put_in_hint` and `give_key` ask it.
+- `put_pane()` (pull.rs): in a pane first `step_out` (with a cube in use it stands back, r6); with no cube `cube_key` (opens it stood back, notes the window); then the put waits on `Host::put_later`, polled by `check_cube`/`cube_deadline` every 150 ms: once every face is up and xp both exports `window.move` and answers `state.get` within 250 ms, `put_in_face` (r5) gives, places on the front face and steps in. The wait ends unput on a step in, a failed front face, a window that is no pane's, or 20 s.
+- Why the answer check: the first fix put as soon as `window.move` was listed, and the gate caught it: xp exports its methods before it grabs its keys and adopts, so the place call timed out (`s14 is a window of xp, not on VIRTUAL-1: socket: Resource temporarily unavailable`) and the cube stayed stood back (r6 open point 2, now handled in the product, not only in the gate).
+- `walking()`: `Into face` after `Super C Cube`; with `Tab Windows` the cube hint gives way, at most six (unit test). The in-pane bar (Flown/Rest sets) names `Into face` beside `Step back`.
+- Unit tests: the red one above; `the_key_into_a_face_waits_for_the_face_manager_and_ends_at_a_step_in`; `hints::stepped_out_of_a_pane_the_walk_names_the_key_into_a_face_and_stays_at_six`. chora-construct 307 passed (306 before the wait test); clippy clean.
+- Gate step 10 (gate-construct-cube.sh): Terminal row, Alt+Escape, bar names `Super Alt 2`, one Super+Alt+2 (no wait in the gate for xp): window on face 0, mode use, typed `a` reaches it; Super+Alt+4 pulls it out (camera in the pane), the bar there names `Super Alt 2`, the key puts it back, mode use. Cube gate alone on 2e521bbc: EXIT 0 (gate-cube-fix-2e521bbc.log).
+
+### 4. Paths by hand (fresh compositor per run, 1280x800, hand7.sh; told = bar names `Super Alt 2 Into face` before the key; pass = told, Foot on xp VIRTUAL-1 shown, mode use, bar `Pull out`)
+| Path | state where the key is pressed | told | acts |
+|---|---|---|---|
+| start card Terminal row, Alt+Escape (no cube) | walk, panes [foot] | 5/5 | **5/5** |
+| start card All programs row, foot, Alt+Escape (no cube) | walk | 5/5 | **5/5** |
+| launcher Super+space, foot, Alt+Escape (no cube) | walk | 5/5 | **5/5** |
+| Super+t in the space, Alt+Escape (no cube) | walk | 5/5 | **5/5** |
+| Super+t in a pane (2 panes), Alt+Escape (no cube) | walk, bar with Tab Windows (Super C gives way) | 5/5 | **5/5** |
+| cube row, Programs, Foot, Alt+Escape (r5 path) | navigate | 5/5 | **5/5** |
+| demo 2: Terminal row, Alt+Escape, Return Fly in (back into the pane) | in the pane, no cube | 5/5 | **5/5** |
+| pulled from a face by Super+Alt+4 (camera in the pane) | in the pane, cube in use | 5/5 | **5/5** |
+Before (dc532d60, p2-r15 hand-co79): Terminal row, key told right after Alt+Escape 0/5. Drag out of a face (Max): not counted by hand: at 1 output a drag on a stood-back face turns the cube, and the title drag off a face needs a second output (gate-construct-pull); after its drop the camera flies into the pane, the state of the pulled row above, where the key is told and acts.
+
+### 5. Gate
+Run 1 (2e521bbc) stopped at layout, **caused here**: `FAIL: dark-1280x720: the notice of a refused give reads ''` (see the head paragraph, fixed by 242753da). Run 2 (242753da) stopped at doors on a **foreign flake**: tiling `helper-none missing` (`FAIL: 1 cells or checks are not pass`, construct cells all pass); tests/gate-doors.sh alone EXIT 0, helper-none pass in all four (gate-doors-run2.log, gate-doors-alone.log). Run 3 (242753da) stopped at keys, **caused here**: `FAIL: a give of the focused window to xp, which does not run, said nothing:` (fixed by 008714ba). Run 4 on **008714ba**, `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2`, no step filter, detached, nothing else running: **all steps passed, 68 PASS, 0 FAIL, EXIT 0**; cube 160 s (three co-79 r7 lines ok), layout 1377 s, keys 38 s, acts 1979 s. `pgrep -fa 'chora --headless'` empty after. Last 20 lines:
+```
+mc-column  PASS    49s /tmp/merge-gate.m8rKE6/mc-column.log
+voice-acp  PASS    12s /tmp/merge-gate.m8rKE6/voice-acp.log
+voice-events PASS     2s /tmp/merge-gate.m8rKE6/voice-events.log
+launcher-mc PASS    37s /tmp/merge-gate.m8rKE6/launcher-mc.log
+agent      PASS    38s /tmp/merge-gate.m8rKE6/agent.log
+tiling-keys-more PASS    41s /tmp/merge-gate.m8rKE6/tiling-keys-more.log
+tiling-system PASS    16s /tmp/merge-gate.m8rKE6/tiling-system.log
+handover   PASS   101s /tmp/merge-gate.m8rKE6/handover.log
+mc-scale   PASS    13s /tmp/merge-gate.m8rKE6/mc-scale.log
+tiling-windows PASS   193s /tmp/merge-gate.m8rKE6/tiling-windows.log
+watchdog-starved PASS    56s /tmp/merge-gate.m8rKE6/watchdog-starved.log
+xp-run     PASS    14s /tmp/merge-gate.m8rKE6/xp-run.log
+demo       PASS   245s /tmp/merge-gate.m8rKE6/demo.log
+tiling-bar PASS   185s /tmp/merge-gate.m8rKE6/tiling-bar.log
+tiling-theme PASS    19s /tmp/merge-gate.m8rKE6/tiling-theme.log
+leak       PASS   474s /tmp/merge-gate.m8rKE6/leak.log
+mc-host    PASS    22s /tmp/merge-gate.m8rKE6/mc-host.log
+tiling-disc PASS    72s /tmp/merge-gate.m8rKE6/tiling-disc.log
+e2e        PASS   280s /tmp/merge-gate.m8rKE6/e2e.log
+all steps passed; no --push, nothing is pushed
+```
+
+### Captures (media/2026-11-26/co-reach-r7/, each under 400 KB)
+- `<path>-run1-in-pane.png`, `-stood-back.png` (bar with `Super Alt 2 Into face`), `-after-key.png` (Foot in face 0, `Pull out` told); `flyin-run1-flown-in.png` (demo 2: in the pane, `Into face` beside `Step back`); `pull-run1-in-pane.png`.
+- hand-<path>.log (5 runs each), hand7.sh, gate-cube-red-dc532d60.log, gate-cube-fix-2e521bbc.log, gate-layout-1280x720-242753da.log, gate-keys-run3.log, gate-doors-run2.log, gate-doors-alone.log.
+
+### Open for the PM
+1. Drag out of a face (Max) rests on the rule and the pull gate, not on a hand count (see 4).
+2. docs/configuration.md still lists the walk hints without `Super C Cube` and `Into face` (rcrr6-1, outside this lane's area).
+3. While xp starts, the poll asks `state.get` with 250 ms (a few times, about 1-3 s after the key): the construct's frame can stall that long once per try.
