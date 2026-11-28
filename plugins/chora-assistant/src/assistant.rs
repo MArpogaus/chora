@@ -792,8 +792,8 @@ impl Assistant {
         self.word = size;
         let [x, y, ..] = self.word_at(size);
         let [red, green, blue] = self.values.speech.fill;
-        let [edge_red, edge_green, edge_blue] = self.values.speech.border;
         let [w, h] = size;
+        let [edge_red, edge_green, edge_blue] = self.values.speech.border;
         let backing = format!(
             r#"<rect x="0.5" y="0.5" width="{}" height="{}" rx="{WORD_RADIUS}" fill="rgb({red},{green},{blue})" stroke="rgb({edge_red},{edge_green},{edge_blue})"/>"#,
             w - 1,
@@ -1546,6 +1546,33 @@ mod tests {
         assert!(top >= fy - 8 && top + height <= fy + fh + 8, "beside it");
         let thinking = figure.set_state(&mut theme, ("thinking", "Thinking"), now);
         assert!(word(&thinking, "Thinking"), "{thinking:?}");
+    }
+
+    /// The state word stands on the backing of its sentence: a plain
+    /// sentence has no hairline, so its word has none either, and a hairline
+    /// of another colour never changes the picture; a sentence in a bubble
+    /// keeps its hairline (rpx1-16).
+    #[test]
+    fn the_state_word_of_a_plain_sentence_has_no_border() {
+        let (mut theme, values, _) = crate::tests::loaded("word-border");
+        let now = Instant::now();
+        let mut picture = |plain: bool, border: [u8; 3]| {
+            let mut values = values.clone();
+            values.line.plain = plain;
+            values.speech.border = border;
+            let mut a = assistant(&values, "listening", now);
+            a.word(&mut theme, "Listening").unwrap().image.unwrap()
+        };
+        assert_eq!(
+            picture(true, [10, 10, 10]),
+            picture(true, [200, 20, 20]),
+            "a plain sentence strokes no word"
+        );
+        assert_ne!(
+            picture(false, [10, 10, 10]),
+            picture(false, [200, 20, 20]),
+            "a bubble keeps the hairline of its word"
+        );
     }
 
     #[test]
