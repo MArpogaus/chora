@@ -617,7 +617,7 @@ impl Mc {
 }
 
 /// The title of a notice: a critical one begins with the word `Urgent`,
-/// because the card of chora-notify has one look for every notice and no
+/// because the card of the notice server has one look for every notice and no
 /// colour of urgency (rpx1-17).
 fn urgent_title(summary: &str, urgency: Urgency) -> String {
     if urgency == Urgency::Critical {
