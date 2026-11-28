@@ -331,6 +331,38 @@ mod tests {
         assert!(lines_shown(&mc, "boil", "side") >= 3, "the page is whole");
     }
 
+    /// The side panel of the boil page, which the page edge cuts at
+    /// 1280x720 beside a timer card, shows all its lines or none, never
+    /// one of two (mc-63): it takes the room of its lines, or it goes
+    /// until the page scrolls.
+    #[test]
+    fn a_panel_the_page_edge_cuts_shows_all_its_lines_or_none() {
+        let core = chora_kit::testing::FakeCore::start().selecting();
+        core.answer_with("state.get", json!({"shown": []}));
+        let mut mc = crate::testing::mc_on(&core, "page-edge-whole", [1280, 720]);
+        let want = recipe(&mut mc);
+        for card in [json!([]), json!([{"rect": [160, 585, 291, 79]}])] {
+            core.answer_with("state.get", json!({ "shown": card }));
+            mc.learn_rooms().unwrap();
+            let mut cut = Vec::new();
+            for (scene, id, _) in want {
+                let panel = (mc.scenes[scene].panels.iter())
+                    .find(|p| p.id == id)
+                    .unwrap()
+                    .clone();
+                let [_, y, w, h] = mc.place(scene, &panel).unwrap();
+                let body = mc.ty("body", panel.style.as_ref());
+                let top = mc.lift(y, mc.lines_top(&panel), &body);
+                let whole = top + mc.text_height(&panel, w) - mc.lines_top(&panel);
+                let clip = mc.clip_height(scene, &panel, [y, h]);
+                if whole <= h && clip != 0.0 && clip + 0.5 < whole {
+                    cut.push(format!("{scene}/{id} {clip} of {whole} px"));
+                }
+            }
+            assert!(cut.is_empty(), "a panel is cut: {}", cut.join(", "));
+        }
+    }
+
     /// The panels of the pages whose lines the edge of the page cuts
     /// through a line: the page edge is nearer than the end of the panel's
     /// clip, and what shows of the lines node (from its top to the clip or
