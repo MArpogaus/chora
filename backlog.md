@@ -476,3 +476,4 @@ The assistant pill drop under the header is unbounded and can leave the output i
 - rtmr1-1 MINOR (tiling-minor r1 review, bd641acb): flavors/tiling/look.sh:20 notice still names "choractl call tiling settings.set" (rpt2-2 class).
 - rtmr1-2 MINOR: rpt3-2 test reads config text only; no test that assistant.door makes tiling send SIGRTMIN+2 (chora-assistant main.rs:885).
 - rtmr1-3 NIT: Apps launcher lists "Move window to ..." entries with no focused window.
+- rfgr1-1 NIT (flake-gate r1 PM review, 9d9a9da2): harness.clients drops every chora-tiling.launch-* name, so a launch client that hangs is never seen; bound it by age.
