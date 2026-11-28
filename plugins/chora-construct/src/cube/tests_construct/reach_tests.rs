@@ -206,6 +206,43 @@ fn the_key_into_a_face_waits_for_the_face_manager_and_ends_at_a_step_in() {
     );
 }
 
+/// rcrr7-1 (review r7, MAJOR): with the face manager running already
+/// and no cube open (xp as a client the construct did not start, or in a
+/// manager pane), the give key from a pane gives the window to it, as
+/// before r7, and the bar tells that give: the cube that `Into face` and
+/// `Super C Cube` open cannot start beside that xp, so neither is told.
+#[test]
+fn with_the_face_manager_running_the_key_from_a_pane_gives_to_it() {
+    let xp = serde_json::json!([{"name": "xp", "methods": []}]);
+    let (mut construct, core, lines) = super::with_hint_bar_beside("reach-r8-runs", xp);
+    the_pane_window(&mut construct, &core);
+    construct.book.keep("s1");
+    construct.cube = None;
+    let connected = chora_scene::Event::ClientConnected { name: "xp".into() };
+    chora_kit::runtime::Plugin::event(&mut construct, connected).unwrap();
+    core.model().lock().unwrap().scene.set_focused(Some("s1"));
+    construct.core_focus = Some("s1".into());
+    construct.hints.until = Some(std::time::Instant::now() + crate::hints::WALK);
+    construct.draw_hints().unwrap();
+    let model = core.model();
+    assert!(
+        !has(&model, "construct-hint-put-in") && !has(&model, "construct-hint-cube"),
+        "with xp running beside, no cube can open: no key into a face, no cube is told"
+    );
+    assert!(
+        has(&model, "construct-hint-give-to"),
+        "the bar tells what the key does there: it gives the window to XP"
+    );
+    lines.lock().unwrap().clear();
+    construct.give_key("xp").unwrap();
+    let said = lines.lock().unwrap().join("\n");
+    assert!(!said.contains("output.add"), "no cube opens: {said}");
+    assert!(
+        said.contains(r#""id":"s1","to":"xp""#),
+        "the window of the pane goes to the running xp: {said}"
+    );
+}
+
 /// The window `s1` of the pane of `with_hint_bar`, which exists and sits in
 /// the panes, so that the core can focus it and answers the query for the
 /// window with the keyboard.

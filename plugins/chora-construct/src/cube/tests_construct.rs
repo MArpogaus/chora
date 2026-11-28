@@ -1226,7 +1226,13 @@ fn a_click_on_a_pane_beside_the_cube_flies_into_it() {
 /// A cube stood back with the hint bar on the screen: the overlay, the
 /// output and the group of the construct, as the hints need them.
 fn with_hint_bar(name: &str) -> (Construct, FakeCore, Log) {
-    let (mut construct, core, lines) = on_core(name, cube_core(json!([])));
+    with_hint_bar_beside(name, json!([]))
+}
+
+/// As `with_hint_bar`, with the clients that `clients.list` answers, as
+/// a face manager that runs already (co-79 r8).
+fn with_hint_bar_beside(name: &str, clients: Value) -> (Construct, FakeCore, Log) {
+    let (mut construct, core, lines) = on_core(name, cube_core(clients));
     core.model().lock().unwrap().scene.add_overlay("test");
     construct.output = Some(chora_kit::testing::output("test"));
     construct.metrics.keep_estimates();
