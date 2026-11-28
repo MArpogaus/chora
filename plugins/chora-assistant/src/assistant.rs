@@ -771,8 +771,9 @@ impl Assistant {
         self.relayout(theme)
     }
 
-    /// The picture of the state word on the backing of a plain sentence,
-    /// beside the figure, toward the middle of the area; none for a folder
+    /// The picture of the state word on the backing of the sentence,
+    /// beside the figure, toward the middle of the area: a plain sentence has
+    /// no hairline, so its word has none (rpx1-16); none for a folder
     /// without a word.
     fn word(&mut self, theme: &mut Theme, label: &str) -> Option<PropsUpdate> {
         if self.island.is_some() {
@@ -793,12 +794,18 @@ impl Assistant {
         let [x, y, ..] = self.word_at(size);
         let [red, green, blue] = self.values.speech.fill;
         let [w, h] = size;
-        let [edge_red, edge_green, edge_blue] = self.values.speech.border;
-        let backing = format!(
-            r#"<rect x="0.5" y="0.5" width="{}" height="{}" rx="{WORD_RADIUS}" fill="rgb({red},{green},{blue})" stroke="rgb({edge_red},{edge_green},{edge_blue})"/>"#,
-            w - 1,
-            h - 1
-        );
+        let backing = if self.values.line.plain {
+            format!(
+                r#"<rect width="{w}" height="{h}" rx="{WORD_RADIUS}" fill="rgb({red},{green},{blue})"/>"#
+            )
+        } else {
+            let [edge_red, edge_green, edge_blue] = self.values.speech.border;
+            format!(
+                r#"<rect x="0.5" y="0.5" width="{}" height="{}" rx="{WORD_RADIUS}" fill="rgb({red},{green},{blue})" stroke="rgb({edge_red},{edge_green},{edge_blue})"/>"#,
+                w - 1,
+                h - 1
+            )
+        };
         let place = [WORD_PAD, BACKING, w - 2 * WORD_PAD, WORD_LINE];
         let colour = self.values.word_ink.map_or_else(
             || self.values.speech.text_rgba(),
