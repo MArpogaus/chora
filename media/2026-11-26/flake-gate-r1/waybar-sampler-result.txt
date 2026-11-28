@@ -1,0 +1,1 @@
+samples 11318 max waybar count 3 child-of-waybar sightings 42 (product session, 6 busy loops, 40 s, head 0e18f14c)

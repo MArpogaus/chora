@@ -1,0 +1,11 @@
+acts-before run 1 rc=0 203s
+acts-before run 2 rc=0 168s
+acts-before run 3 rc=0 172s
+acts-before run 4 rc=0 169s
+acts-before run 5 rc=0 176s
+acts-before run 6 rc=0 174s
+acts-before run 7 rc=0 175s
+acts-before run 8 rc=0 174s
+acts-before run 9 rc=0 174s
+acts-before run 10 rc=0 168s
+acts-before misses 0/10

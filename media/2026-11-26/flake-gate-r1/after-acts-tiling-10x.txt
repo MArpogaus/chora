@@ -1,0 +1,11 @@
+a-acts run 1 rc=0 205s
+a-acts run 2 rc=0 183s
+a-acts run 3 rc=0 180s
+a-acts run 4 rc=0 180s
+a-acts run 5 rc=0 179s
+a-acts run 6 rc=0 183s
+a-acts run 7 rc=0 181s
+a-acts run 8 rc=0 173s
+a-acts run 9 rc=0 179s
+a-acts run 10 rc=0 182s
+a-acts misses 0/10

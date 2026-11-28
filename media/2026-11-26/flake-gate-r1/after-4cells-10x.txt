@@ -1,0 +1,4 @@
+a-tiling-one-bar misses 0/10
+a-tiling-bar misses 0/10
+a-tiling-notice misses 0/10
+a-xp-notepad misses 0/10

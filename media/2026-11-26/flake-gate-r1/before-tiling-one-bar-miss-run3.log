@@ -1,0 +1,7 @@
+gate-tiling-one-bar.sh: waits for /tmp/chora-gate.lock
+ok: lock: waybar does not inherit the lock descriptor
+ok: lock: without flock one line on stderr says the lock is skipped
+ok: chora-tiling alone: one waybar (1) for 10 s
+ok: chora-tiling and the panel unit: one waybar (1) for 10 s
+ok: product session: none left after the stop
+FAIL: persona session.sh tiling: 3 waybar processes on one config: 11878
