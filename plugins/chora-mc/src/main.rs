@@ -3068,6 +3068,54 @@ mod testing {
         (mc_on(&core, dir, size), core.model())
     }
 
+    /// A chord that arrives while the nodes of mc stand and no key is held
+    /// has no holder, and the core drops it (sh-44, sh-47). The bindings
+    /// of the settings are held before the first node exists; those that
+    /// need the claim of the build (drag, volume) follow it.
+    #[test]
+    fn mc_holds_its_keys_before_its_first_node_exists() {
+        let core = FakeCore::start();
+        core.outputs(serde_json::json!([OutputInfo {
+            name: "test".into(),
+            position: [0, 0],
+            size: [800, 600],
+            scale: 1.0,
+            camera: Transform::IDENTITY,
+            work_area: [0, 0, 800, 600],
+            default_work_area: [0; 4],
+            is_virtual: None,
+            owner: None,
+        }]));
+        let calls = core.record(|method, params| match method {
+            "input.grab" => Some("grab".to_owned()),
+            "scene.apply" if params.to_string().contains("\"create\"") => Some("create".to_owned()),
+            _ => None,
+        });
+        let mut rt = core.runtime(NAME);
+        rt.pin_accepts_injected(false);
+        let dir = chora_kit::testing::TempDir::unmade("chora-mc-grabs-first").keep();
+        let settings = settings::File::load(dir.join("chora-mc.yaml"), config::DEFAULT).unwrap();
+        let mut mc = Mc::new(
+            rt,
+            settings,
+            dir.join("scenes"),
+            [dir.join("write.frag"), dir.join("blur.frag")],
+        );
+        mc.start(Vec::new()).unwrap();
+        let calls = calls.lock().unwrap().clone();
+        let grab = calls.iter().position(|m| m == "grab");
+        let create = calls.iter().position(|m| m == "create");
+        assert!(
+            grab.is_some() && create.is_some(),
+            "mc grabs and builds: {calls:?}"
+        );
+        assert!(
+            grab < create,
+            "the first node exists before the first key is held: {:?}",
+            &calls[..calls.len().min(4)]
+        );
+    }
+
     /// As [`mc`], on a fake core of the test.
     pub fn mc_on(core: &FakeCore, dir: &str, size: [i32; 2]) -> Mc {
         let mut rt = core.runtime(NAME);

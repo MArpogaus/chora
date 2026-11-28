@@ -114,9 +114,9 @@ impl Wm {
         wm.voiced.ask(&mut wm.rt.conn);
         let old_root = wm.take_kept()?;
         wm.mixer.refresh();
-        wm.create_scene(old_root)?;
         wm.rt.announce(&EVENTS, methods)?;
         wm.grab()?;
+        wm.create_scene(old_root)?;
         wm.refresh_looks();
         wm.adopt_all()?;
         wm.catch_up_outputs()?;

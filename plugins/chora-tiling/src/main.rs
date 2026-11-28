@@ -739,6 +739,10 @@ impl Tiling {
         self.book.released()
     }
 
+    /// Grabs the keys, then creates the group of tiling and takes the
+    /// windows: a chord that comes while the nodes stand and no key is held
+    /// has no holder, and the core drops it. The relayout grabs again when
+    /// it sets the claim (D55).
     fn start(&mut self) -> Result<(), ClientError> {
         self.voiced.ask(&mut self.rt.conn);
         for output in self.rt.outputs()? {
@@ -746,6 +750,7 @@ impl Tiling {
                 .set_output(&output.name, output.layout_area(), full_area(&output));
             let _ = self.book.set_output(&output.name);
         }
+        self.grab_all()?;
         // The nodes that the core kept over a restart with resume.
         let kept = self.query(&format!("owner:{NAME}"))?;
         if kept.iter().any(|n| n["id"] == NAME) {
@@ -769,11 +774,7 @@ impl Tiling {
         }
         // The relayout grabs when it sets the claim: with a claim, a
         // pointer binding can be shared with another window manager (D55).
-        self.relayout()?;
-        if self.claimed.is_none() {
-            self.grab_all()?;
-        }
-        Ok(())
+        self.relayout()
     }
 
     /// Rebuilds the model from the meta of the kept nodes

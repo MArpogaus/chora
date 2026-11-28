@@ -35,8 +35,8 @@ impl Construct {
         }
         self.name_theme()?;
         self.active = true;
-        self.build()?;
         self.regrab()?;
+        self.build()?;
         self.reopen_left_cube()?;
         let free = self.rt.conn.query("kind:surface")?;
         self.adopt_free(free)?;
