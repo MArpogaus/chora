@@ -27,7 +27,7 @@ burn-down: F1-4, F6, F8 met; F5 open (r10 4/5), flake-xp runs, flake-gate merged
 | co-reach-r7.md (Q 2, 1 %) | opus high, dc532d60 | s..Lt3YWo6KSF9sma4g1 |
 | tiling-minor-r2.md (Q 3, 0.5 %) | sonnet high, bd641acb | s..e5m7T8bV2j2Lb7at |
 | flake-xp-r1.md (Q 5, 0.7 %) | sonnet high, 8b6f35dc | s..kL3XGUoheq6ZEp6h9E |
-| tour-v9-take-r3.md (Q 4, 1 %) | sonnet medium, 3098926e | starting |
+| tour-v9-take-r3.md (Q 4, 1 %) | sonnet medium, 3098926e | s..NAX1Yb9SZ2QEw1qSK |
 ## Queue (% week; 5 % reserve)
 1. (rc 3) t162 green 3098926e (tour-rows-r5, tiling-minor-r1, flake-gate-r1). Limit stop 11-27 00:16 to 11-28 04:00.
 2. (rc 1, 2) co r14: co-75, co-76 5/5; co-79: CO-REACH r6 bcecb671 merged t158; pass r2 57ce1480 confirms rc 1; CO-MINOR r1 dc532d60 merged t160 (rcmr1-1 MINOR, -2 NIT backlog); r15 NO (co-79 open MAJOR): CO-REACH r7 runs.
