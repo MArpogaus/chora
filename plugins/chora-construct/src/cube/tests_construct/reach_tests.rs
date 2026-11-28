@@ -326,7 +326,7 @@ fn a_second_key_while_the_cube_starts_keeps_the_same_put() {
 /// closed.
 #[test]
 fn every_end_of_the_wait_without_the_put_is_told() {
-    let failure = "chora-xp stopped after 2 s: it needs foot 1.26 or later.";
+    let failure = "the manager stopped after 2 s: it needs foot 1.26 or later.";
     let cases = [
         ("late", "XP did not place the window in time."),
         (
@@ -341,7 +341,7 @@ fn every_end_of_the_wait_without_the_put_is_told() {
         ("gone", "XP did not place the window: the window closed."),
         (
             "failed",
-            "XP did not place the window: chora-xp stopped after 2 s: it needs foot 1.26 or later.",
+            "XP did not place the window: the manager stopped after 2 s: it needs foot 1.26 or later.",
         ),
         ("closed", "XP did not place the window: the cube closed."),
     ];
