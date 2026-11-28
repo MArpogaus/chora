@@ -22,6 +22,10 @@
 # settings and move rows, whose program is chora-tiling) stand last. Look
 # means one of the four looks (ti-55), so the rows of the colours say theme.
 #
+# The rows that move a window stand in the list only with a window that has
+# the focus, as the Looks menu has them (rtmr1-3): the list of a desktop with
+# no window has none, the list with a window has all three.
+#
 # Usage: tests/gate-tiling-apps.sh   BIN: directory with the binaries
 #   SHOTS  a directory that keeps the capture tiling-apps-nothing.png
 set -u
@@ -58,6 +62,27 @@ real_path=$bin:$PATH
 export PATH=$real_path
 session_start 1280x800 -- "$bin/chora-tiling"
 grant screen.capture input.inject
+
+mkdir -p "$work/fake-bare"
+cat >"$work/fake-bare/fuzzel" <<FAKE
+#!/bin/sh
+case " \$* " in *" --dmenu "*) sed 's/\\x00icon\\x1f.*\$//' >"$work/bare-rows" ;; esac
+FAKE
+chmod +x "$work/fake-bare/fuzzel"
+PATH=$work/fake-bare:$real_path timeout 20 "$bin/chora-tiling" --launch fuzzel >/dev/null 2>&1
+[ -s "$work/bare-rows" ] || fail "the launcher of a desktop with no window got no rows"
+grep -q '^Move window to ' "$work/bare-rows" && fail "a desktop with no window offers to move one (rtmr1-3): $(tr '\n' '|' <"$work/bare-rows")"
+grep -qxF "Dark theme" "$work/bare-rows" || fail "the rows of the theme are gone with no window: $(tr '\n' '|' <"$work/bare-rows")"
+ok "a desktop with no window has no row that moves a window, and the other rows of the flavor stay (rtmr1-3)"
+ctl run foot -a mover sh -c 'sleep 600' >/dev/null || fail "the run of the window"
+ctl wait --timeout 15 'app_id:mover kind:surface' >/dev/null || fail "the window did not show"
+bare_rows_move() {
+    PATH=$work/fake-bare:$real_path timeout 20 "$bin/chora-tiling" --launch fuzzel >/dev/null 2>&1
+    grep -q "^Move window to " "$work/bare-rows"
+}
+until_ok bare_rows_move 40 ||
+    fail "a desktop with a focused window offers no row that moves it (rtmr1-3): $(tr '\n' '|' <"$work/bare-rows")"
+ok "a desktop with a window that has the focus offers the rows that move it (rtmr1-3)"
 
 PATH=$work/fake:$real_path timeout 20 "$bin/chora-tiling" --launch fuzzel >/dev/null 2>&1
 rows=$work/fake/rows.1
