@@ -1,0 +1,2 @@
+# volume.sh on 587aa6f7, wpctl at 55 %:
+{"text": "Volume 55%", "tooltip": ""}

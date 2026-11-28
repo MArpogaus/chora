@@ -104,3 +104,95 @@ Gate: full `tests/merge-gate.sh --jobs 2`, EXIT 1 with one foreign red: cell key
 Gate: EXIT 1 on one foreign cell (mc-sofa keylist, rpx1-9) that the lane reproduced on e39448ad alone; train140 shows mc-sofa PASS on the PM host, so it is a lane-container red, logged for FLAKE-SERIES r10. The train gate reruns everything.
 Findings: none MAJOR. rtm2-1 NIT: 4 ticks is tight on a loaded runner; watch it in FLAKE-SERIES r10.
 Verdict (computed): MERGE-OK 7987897c, next train141.
+
+## r1 (rc 1b, F7: the rpt ids of the pass)
+
+Branch claude/tiling-minor-r1, base 7822a66c (session head with kit-swallow r2, train 159), head bd641acb
+(15 commits, 18 files). Red commit before each fix; every red failed on 7822a66c by an assertion (the
+rpt3-2 test first failed to start for want of a field program and was moved to the xp balloon chat with the open
+mode kept, then failed on `No helper` against a header that said `working`). Step 0: `git fetch --unshallow`,
+`cargo check --workspace`, `cargo build --workspace` green. Captures: media/2026-11-27/tiling-minor-r1/ (each
+under 500 KB; before from the binaries of 7822a66c, after from those of 587aa6f7, 1280x800, fresh compositors
+with `round.sh start`).
+
+| id | red | fix | test | capture |
+|----|-----|-----|------|---------|
+| rpt3-1 | 0b558a6a | a1d8f4aa | kit `tests/keysheet.rs` `a_chord_has_one_order_of_modifiers_and_the_names_of_the_keys_on_the_keyboard`; tiling `the_hint_spells_the_chord_as_the_key_list_does_rpt3_1` | rpt3-1-before/after-chip-* (Alt+Super+X to Super+Alt+X, Bracketleft to `[`, Ctrl+Shift+Super+Next to Super+Ctrl+Shift+Page Down) |
+| rpt3-2 | 9fa77480, 6f97804d | 6d7e92da, bd641acb | assistant `the_door_says_the_state_that_the_chat_header_says_rpt3_2`, `the_door_word_is_told_once_for_each_change_rpt3_2`; tiling `the_helper_word_follows_the_door_at_once_rpt3_2` | rpt3-2-before/after-helper-* (see the note) |
+| rpt2-2 | 5ba7ff37 | 6e1365d1 | tiling `tests/looks_picker.rs` `the_picker_offers_no_move_without_a_window_rpt2_2`, `a_refused_give_names_no_tool_in_its_notice_rpt2_2` (and `the_picker_offers_the_moves_with_a_window`, green at once) | rpt2-2-before/after-looks-picker-empty-tag |
+| rpt3-3 | 01b30501 | 7d318133 | tiling `panel::the_volume_has_a_tooltip_only_for_a_reason_rpt3_3` and the changed rows of `the_volume_always_has_honest_words` | rpt3-3-before/after-volume-sh.txt (see the note) |
+| rpt3-4 | 170d1d38 | 587aa6f7 | tiling `tests/looks_picker.rs` `the_picker_box_fits_its_rows_rpt3_4` | rpt3-4-before/after-looks-picker-* |
+
+### What each fix does
+
+- **rpt3-1.** One formatter, the one the key list uses: `keysheet::caps` (kit) now puts the modifiers in the order
+  Super, Ctrl, Alt, Shift whatever order a binding names them in (the core spells them Ctrl, Alt, Shift, Super), and
+  `glass::cap` shows Prior and Next as Page Up and Page Down and comma, semicolon, apostrophe, grave, minus, equal,
+  backslash and the two brackets as the mark on the key, BackSpace as Backspace. The chip calls `keysheet::chord`
+  as before, so no second table; every key list of the four looks gets the same spelling. A chord of the file with
+  these keys now shows the same way in the list (before it said "Bracketleft" there too). Not added to
+  tests/keysheet/words.table: the acts (tests/acts/invariants.py I10) match its key names as words in any key line,
+  and "Next" and "Prior" are words of "Next desk" and "Next layout".
+- **rpt3-2.** Two sources said the state: the bar read the presenter's helper machine (heard events, polled every 2 s
+  through `chora-chat --door`), the header read the chat session's own status (it says `working` at once on a send and
+  `idle` at once on Stop). Now `presented()` of the assistant takes the name and the state of the open chat's header
+  (`Session::shown_state`) for `door` and `helper` and keeps the machine only without an open chat; the assistant
+  tells `assistant.door {door}` on each change of that word (`announce_door`, once per change, in `event` and
+  `chat_step`); tiling hears it and sends SIGRTMIN+2 to waybar (`push_helper`); the helper module has `"signal": 2`
+  and still polls every 2 s in case a signal is lost; waybar.sh ignores SIGRTMIN+2 until waybar has its handlers, as
+  for SIGRTMIN+1.
+- **rpt2-2.** `--launch looks` asks `scene.query` for the focused window (a read that fails counts as a window, so
+  the rows stay); with none it lists the one row "No window to move" ("Kein Fenster zum Verschieben", new word
+  `NoWindowToMove`) instead of the moves. give.sh no longer puts `choractl: no focused window` (tool name, English
+  only) in the notice: its body says "The window stayed where it was." / "Das Fenster ist geblieben, wo es war."
+  and the reason goes to stderr.
+- **rpt3-3.** volume.sh prints no tooltip for a level or "Muted" (it said the word again), only for "No sound" with
+  its reason ("wpctl not found", "No output device", "No answer"). With no tooltip there is nothing to stand under a
+  resting pointer.
+- **rpt3-4.** `--launch looks` passes `--lines N` with the number of its rows, as power.sh passes `--lines 5`.
+
+### Notes
+
+- **Captures that do not show the fault before.** rpt3-3: the waybar tooltip did not draw in the persona session
+  before the fix either (the injected pointer does not hover a GTK popup in five tries, click, move, 4 s rest, with
+  and without the key list), so the capture is the output of volume.sh, `{"text": "Volume 55%", "tooltip": "Volume
+  55%"}` before and `"tooltip": ""` after, with the red test. rpt3-2: the disagreement is a phase of the 2 s poll
+  against the header; 7 frames at 0.3 s after a question show bar and header equal in both runs (the before run did
+  not catch the 1 to 2 s window), so the proof is the red test (header `working`, door `No helper`) and the second
+  test (one `assistant.door` per change); the after frames show the bar and the header change in the same frame.
+- The chip is shown in a tiling-only session, as in the pass: in tiling+xp the swallow of Super+Alt chords did not
+  show the chip (not looked into, not a finding of this brief).
+- The Apps launcher of tiling still lists the "Move window to ..." rows with no window (only the Looks picker was in
+  the brief); its refusal now says the new notice words, as it runs the same give.sh.
+- The brief names the report section "## r1"; the file already had an "## r1" of an earlier round (rth ids on
+  84f66d43), so this one carries the suffix.
+- **A regression of my own, caught by the gate.** The first full gate stopped at `acts` (2162 s): `xp act:the helper
+  answers` read `helper: idle`, not `answered`. 6d7e92da had made the `helper` word of `state.get` follow the header
+  of the open chat, which says `idle` for a done report. Red test (`state.get` keeps the word of the machine; test
+  commit before bd641acb), fix bd641acb: only `door` follows the header. cut-check (ci-check) had also failed once on
+  my first test file (notify-send and LC_ALL counted in plugins/chora-tiling, a pid-named temp folder): the give.sh
+  notice test moved to crates/chora-kit/tests/give_notice.rs (387bac39).
+- The default base (origin/claude/autonomous-dev-session-3w-i33pg7) is 0e18f14c here, far behind 7822a66c, so the
+  `docs` step failed ("mkdocs is not installed and docs changed") on the first run: a host and base gap, not mine.
+  Every later run passes `--base 7822a66c8f6a78080fd416f03ef0420b65d172e7`; docs is then `SKIP: mkdocs is not
+  installed (docs unchanged)`, allowed by `--allow-skip docs`.
+
+### Gate
+
+`CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2 --allow-skip docs --base 7822a66c...` (no --push), all on head
+bd641acb, in three runs because the usage limit and a worker restart ended the process of the first two between
+steps (not a red): run 1 (/tmp/merge-gate.jchBeV) red-first to cube, 33 steps, all PASS, docs SKIP; run 2
+(/tmp/merge-gate.HbpXH2, `--only` the rest) 29 steps PASS including acts (237 pass, 1 known red, 0 blocking) and
+leak, cut off after leak by the restart; run 3 (/tmp/merge-gate.C9ghTI, `--only tiling-disc,mc-host,e2e`) PASS.
+Every one of the 68 steps passed on bd641acb in one of the runs; no step was red there; the last lines:
+
+```
+mc-host    PASS    26s /tmp/merge-gate.C9ghTI/mc-host.log
+tiling-disc PASS    86s /tmp/merge-gate.C9ghTI/tiling-disc.log
+e2e        PASS   288s /tmp/merge-gate.C9ghTI/e2e.log
+partial run: nothing is pushed
+EXIT 0
+```
+
+An unfiltered single run to EXIT 0 on bd641acb was not made (about 2 h each; the earlier unfiltered run on 387bac39
+passed 51 steps and stopped only at the acts regression above). `pgrep -fa 'chora --headless'` is empty.
