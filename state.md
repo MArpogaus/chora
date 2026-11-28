@@ -1,8 +1,8 @@
 # State
 
-## Now (2026-11-28 06:02 UTC)
+## Now (2026-11-28 06:03 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-28 04:00 to 12-05 03:59 UTC, no day cap; tokens.py 06:02 PM 0 % (reset); last week hit 100 % at 11-27 00:16, 28 h early; need 95 %/168 h = 0.57 %/h; lanes 5, opus only co-reach
+budget: week 11-28 04:00 to 12-05 03:59 UTC, no day cap; tokens.py 06:03 PM 0 % (reset); last week hit 100 % at 11-27 00:16, 28 h early; need 95 %/168 h = 0.57 %/h; lanes 5, opus only co-reach
 session branch: d38d9a83 (t161 green); 105 greens. t162 runs (tour-rows-r5, tiling-minor-r1, flake-gate-r1)
 
 lanes: 3 of 6 (co-reach-r7, flake-xp-r1, tiling-minor-r2); tour r3, flake r11 after t162
@@ -25,7 +25,7 @@ burn-down: F1-4, F6, F8 met; F5 open (r10 4/5), flake-xp runs, flake-gate MERGE-
 | Lane | Model, branch | State |
 |---|---|---|
 | co-reach-r7.md (Q 2, 1 %) | opus high, dc532d60 | s..Lt3YWo6KSF9sma4g1 |
-| tiling-minor-r2.md (Q 3, 0.5 %) | sonnet high, bd641acb | starting |
+| tiling-minor-r2.md (Q 3, 0.5 %) | sonnet high, bd641acb | s..e5m7T8bV2j2Lb7at |
 | flake-xp-r1.md (Q 5, 0.7 %) | sonnet high, 8b6f35dc | s..kL3XGUoheq6ZEp6h9E |
 ## Queue (% week; 5 % reserve)
 1. (rc 3) t161 green (flake-launcher-r1); t162 runs: tour-rows-r5, tiling-minor-r1, flake-gate-r1. Limit stop 11-27 00:16 to 11-28 04:00.
