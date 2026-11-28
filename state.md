@@ -24,7 +24,7 @@ burn-down: F1-4, F6, F8 met; F5 open (r10 4/5), flake-xp r2, flake-gate merged; 
 ## Lanes
 | Lane | Model, branch | State |
 |---|---|---|
-| co-minor-r3.md (Q 2, 0.6 %) | sonnet high, 830ab836 | starting |
+| co-minor-r3.md (Q 2, 0.6 %) | sonnet high, 830ab836 | s..NHGpKjWnQJ2BEVYY9 |
 | flake-xp-r2.md (Q 5, 0.6 %) | sonnet high, 7fc05748 | s..QqGiX8M41oLod17kM |
 | tiling-minor-r3.md (Q 3, 0.5 %) | sonnet high, ad07ec70 | s..M6wS9edrNDs7nJTHu |
 | mc-minor-r6.md (Q 4c, 0.6 %) | sonnet high, 3098926e | s..PD6a7ExXXm8iU1WZP |
