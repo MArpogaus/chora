@@ -1,0 +1,16 @@
+# mc-minor r6 (F7, rc 1b; mc-63 MINOR, rpx1-16, rpx1-17 COSMETIC): whole side panel lines, calm state chip, urgent alarm marked
+
+Model: sonnet, effort high (three small look fixes with red tests in one plugin; routine)
+Red on head: mc-63 on 3098926e: the boil page side panel shows 1 of 2 lines (28 px for 56 px), whitelisted by tour rows m2 m2b m3 (findings/mc.md mc-63)
+Lane: cloud, branch claude/mc-minor-r6 at 3098926e (session head, t162 green). Area: plugins/chora-mc and its tests, docs/mc-style.md, tests/gate-mc-*.sh; no other plugin, no chora-notify, no demo/tour/ or intended.toml (TOUR-ROWS r6 owns them). mc has no open BLOCK or MAJOR (rules.md 6); the week's first mc pixel round. Stop at 200 k. Cost at most 0.6 %.
+Why: findings/mc.md mc-63; reports/rc1-pass.md rpx1-16 (state as a bordered pill; "Super+a" vs "Super+A") and rpx1-17 (critical alarm card has no urgency mark); design/looks/mc-v2.md and docs/mc-style.md on claude/session-log are the look.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`. A failure: send_message the PM "mc-minor-r6 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+0. First check on 3098926e whether rpx1-16 and rpx1-17 are still open (a capture each); a closed one: name the commit that closed it, skip it.
+1. mc-63: the side panel shows its whole content or none (KISS: size it to its lines, or drop it when it does not fit); no cut line at 1280x720 and 1920x1080.
+2. rpx1-16 (if open): the state reads as the look says (mc-style), one key spelling across the page and the key list.
+3. rpx1-17 (if open): a critical alarm card carries the urgency mark mc-style names (or the one sentence you add there), readable at 14 px and up.
+Each fix: a red test commit first (unit test or gate cell failing on 3098926e), then the fix commit; COSMETIC without a testable rule: a pixel assert in a gate cell.
+Run: the full gate, no step filter: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2` (no --push) detached with setsid nohup, poll in the same turn; paste the last 20 lines. A red cell you did not cause: name it with its log line, rerun it alone and the steps after it. Never end a turn to wait. Before ending: `pgrep -fa 'chora --headless'` empty.
+Done when: each open id with red then fix commit; captures before and after at 1280x720 (light and dark) under media/2026-11-28/mc-minor-r6/ on claude/session-log only (each under 500 KB); gate EXIT 0 (or a named foreign flake and every later step run); reports/mc-minor.md "## r6" (base, head, diffstat, per id, gate line); findings/mc.md mc-63 and mc-61 rows updated.
+Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 5 lines): head sha, ids closed, counts, gate result.
+Rules: push claude/mc-minor-r6 and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report, media folder and the mc finding rows); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).
