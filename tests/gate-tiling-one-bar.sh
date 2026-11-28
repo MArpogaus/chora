@@ -139,8 +139,8 @@ fork_cell() {
     chmod 700 "$d/run"
     cat >"$fakebin/waybar" <<'FAKE'
 #!/bin/sh
-( sleep 30; true ) &
-sleep 30
+( tail -f /dev/null; true ) &
+tail -f /dev/null
 FAKE
     chmod +x "$fakebin/waybar"
     XDG_RUNTIME_DIR=$d/run setsid "$fakebin/waybar" >"$d/log" 2>&1 &
