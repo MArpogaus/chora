@@ -2837,7 +2837,10 @@ mod tests {
         assert_eq!(
             sent,
             [
-                (json!("notify.show"), show("Disk", "full", 0, "critical")),
+                (
+                    json!("notify.show"),
+                    show("Urgent: Disk", "full", 0, "critical")
+                ),
                 (json!("notify.show"), show("Update", "", -1, "normal")),
                 (json!("notify.close"), json!({"id": 7})),
             ]
