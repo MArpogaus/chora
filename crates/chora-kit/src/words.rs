@@ -178,6 +178,9 @@ pub enum Word {
     MoveThisWindowTo,
     /// The one row of the Looks menu while no other look runs.
     NoOtherLook,
+    /// The one row of the Looks menu while no window has the focus: there
+    /// is nothing to move.
+    NoWindowToMove,
     /// A line typed before a helper was picked from the list.
     PickFirst,
     /// The entry of the list that starts a helper for a project.
@@ -229,7 +232,7 @@ pub enum Word {
 }
 
 /// Every word, for the checks of the tests.
-pub const ALL: [Word; 88] = [
+pub const ALL: [Word; 89] = [
     Word::Asleep,
     Word::Listening,
     Word::Thinking,
@@ -294,6 +297,7 @@ pub const ALL: [Word; 88] = [
     Word::KeyUnboundBare,
     Word::MoveThisWindowTo,
     Word::NoOtherLook,
+    Word::NoWindowToMove,
     Word::PickFirst,
     Word::NewHelper,
     Word::NoWindowToGive,
@@ -405,6 +409,7 @@ impl Word {
             Self::KeyUnboundBare => "{chord} does nothing here.",
             Self::MoveThisWindowTo => "Move this window to ",
             Self::NoOtherLook => "No other look is running",
+            Self::NoWindowToMove => "No window to move",
             Self::PickFirst => "Pick a helper first: type its number and press Enter, or click it.",
             Self::NewHelper => "New helper for {project}",
             Self::NoWindowToGive => "No window to give.",
@@ -509,6 +514,7 @@ impl Word {
             Self::KeyUnboundBare => "{chord} ist hier nicht belegt.",
             Self::MoveThisWindowTo => "Dieses Fenster verschieben nach ",
             Self::NoOtherLook => "Kein anderer Look läuft",
+            Self::NoWindowToMove => "Kein Fenster zum Verschieben",
             Self::PickFirst => {
                 "Wählen Sie zuerst einen Helfer: Nummer eingeben und Enter drücken, oder anklicken."
             }

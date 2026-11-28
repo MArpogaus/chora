@@ -248,6 +248,8 @@ struct Agent {
     /// Whether `assistant.chat.keyboard` last said that the field has the
     /// keyboard.
     keyboard_told: bool,
+    /// The door word that `assistant.door` last told.
+    door_told: Option<String>,
     /// The button of the card that shows its pressed state, and when it
     /// goes back.
     flash: Option<(String, Instant)>,
@@ -312,7 +314,9 @@ impl Plugin for Agent {
             }
             _ => Vec::new(),
         };
-        self.apply(commands)
+        let applied = self.apply(commands);
+        self.announce_door()?;
+        applied
     }
 
     fn method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
@@ -456,6 +460,7 @@ impl Agent {
             hovered: None,
             flash: None,
             keyboard_told: false,
+            door_told: None,
         };
         agent.ready().map_err(|e| e.to_string())?;
         agent.look_context = agent.switcher.applied().clone();
@@ -1098,6 +1103,7 @@ mod tests {
             hovered: None,
             flash: None,
             keyboard_told: false,
+            door_told: None,
         };
         (agent, [dir, cache], core)
     }
@@ -1441,5 +1447,54 @@ mod tests {
             !chora_kit::testing::has(&model, "hud-body"),
             "its child too"
         );
+    }
+    /// rpt3-2: the word of the helper door that a panel reads and the
+    /// header of the open chat are one state, at every moment: the chat
+    /// that heard "working" is working for the door too, and idle again
+    /// when the helper is. No field program runs in a test, so the call
+    /// that opens the chat fails after the chat is open in its mode.
+    #[test]
+    fn the_door_says_the_state_that_the_chat_header_says_rpt3_2() {
+        let (mut agent, _dirs) = xp_agent("door-one-state");
+        let _ = agent.chat_show(Some("atlas"), None);
+        assert_eq!(agent.chat.helper(), Some("atlas"));
+        for (state, word) in [("working", "working"), ("idle", "idle")] {
+            let data = serde_json::json!({"name": "atlas", "state": state, "seq": 0});
+            agent.chat_voice("voice.state", &data);
+            let header = agent.chat.header(Language::En);
+            let presented = agent.presented();
+            let door = presented["door"].as_str().unwrap_or_default();
+            assert!(header.contains(word), "header: {header}");
+            assert_eq!(door, "atlas \u{b7} ".to_owned() + word, "door of {state}");
+            assert_eq!(
+                presented["helper"],
+                agent.machine.word(),
+                "the word of state.get is the one of the machine, as the acts read it"
+            );
+        }
+    }
+
+    /// rpt3-2: the panel is told at once, with `assistant.door {door}`,
+    /// when the door word changes, once for each change and not for a
+    /// change of anything else, so that it needs no poll that lags.
+    #[test]
+    fn the_door_word_is_told_once_for_each_change_rpt3_2() {
+        let (mut agent, _dirs, core) = on_core("door-told", true);
+        let _ = agent.chat_show(Some("atlas"), None);
+        let told = |core: &chora_kit::testing::FakeCore| -> Vec<String> {
+            (core.model().lock().unwrap().emits.iter())
+                .filter(|e| e["event"] == "assistant.door")
+                .filter_map(|e| e["data"]["door"].as_str().map(str::to_owned))
+                .collect()
+        };
+        let working = serde_json::json!({"name": "atlas", "state": "working", "seq": 0});
+        agent.chat_voice("voice.state", &working);
+        agent.chat_step(Instant::now()).unwrap();
+        agent.chat_step(Instant::now()).unwrap();
+        assert_eq!(told(&core), ["atlas \u{b7} working"]);
+        let idle = serde_json::json!({"name": "atlas", "state": "idle", "seq": 0});
+        agent.chat_voice("voice.state", &idle);
+        agent.chat_step(Instant::now()).unwrap();
+        assert_eq!(told(&core), ["atlas \u{b7} working", "atlas \u{b7} idle"]);
     }
 }

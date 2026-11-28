@@ -26,16 +26,29 @@ pub struct Row<L> {
 /// The thin space that keeps an arrow off the plus before it.
 const THIN: char = '\u{2009}';
 
-/// The caps of a binding, one per key: the caps of [`crate::glass`], and
-/// `drag` for the left button of the pointer.
+/// The modifiers in the order that a key list spells them, whatever order
+/// a binding names them in: `Alt+Super+x` is `Super+Alt+x`.
+const MODIFIERS: [&str; 4] = ["Super", "Ctrl", "Alt", "Shift"];
+
+/// The position of a key among [`MODIFIERS`], none for a key that is none.
+fn modifier(key: &str) -> Option<usize> {
+    MODIFIERS.iter().position(|m| m.eq_ignore_ascii_case(key))
+}
+
+/// The caps of a binding, one per key: the modifiers in the order of
+/// [`MODIFIERS`], then the caps of [`crate::glass`], and `drag` for the left
+/// button of the pointer.
 #[must_use]
 pub fn caps(binding: &str) -> Vec<String> {
-    binding
-        .split('+')
-        .filter(|key| !key.is_empty())
-        .map(|key| match key {
-            "BTN_LEFT" => "drag".to_owned(),
-            other => crate::glass::cap(other),
+    let keys = || binding.split('+').filter(|key| !key.is_empty());
+    let mut mods: Vec<&str> = keys().filter(|key| modifier(key).is_some()).collect();
+    mods.sort_by_key(|key| modifier(key));
+    mods.into_iter()
+        .chain(keys().filter(|key| modifier(key).is_none()))
+        .map(|key| match (key, modifier(key)) {
+            (_, Some(at)) => MODIFIERS[at].to_owned(),
+            ("BTN_LEFT", None) => "drag".to_owned(),
+            (other, None) => crate::glass::cap(other),
         })
         .collect()
 }

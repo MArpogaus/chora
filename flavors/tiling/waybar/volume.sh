@@ -1,9 +1,11 @@
 #!/bin/sh
 # The volume module of the panel: prints the volume of the default sound
 # output, as wpctl of WirePlumber reads it within 2 seconds, as the JSON
-# of a custom module of waybar: "Volume 40%" or "Muted", or "No
-# sound" with the reason in the tooltip: "wpctl not found", "No
-# output device" or "No answer". German with a German locale.
+# of a custom module of waybar: "Volume 40%" or "Muted" without a tooltip,
+# which would say the word again and stand over the key list and the tiles
+# under a pointer at rest, or "No sound" with the reason in the tooltip:
+# "wpctl not found", "No output device" or "No answer". German with a
+# German locale.
 # Usage: sh volume.sh
 case ${LC_ALL:-${LC_MESSAGES:-${LANG:-}}} in
 de*)
@@ -24,11 +26,11 @@ answer=$(timeout 2 wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null)
 status=$?
 case $status:$answer in
 124:*) say "$unavailable" "$hung" ;;
-0:"Volume: "*"[MUTED]"*) say "$muted" "$muted" ;;
+0:"Volume: "*"[MUTED]"*) say "$muted" "" ;;
 0:"Volume: "*)
     level=${answer#Volume: }
     shown=$(awk -v level="${level%% *}" -v word="$volume" 'BEGIN { printf "%s %d%%", word, level * 100 + 0.5 }')
-    say "$shown" "$shown"
+    say "$shown" ""
     ;;
 *) say "$unavailable" "$none" ;;
 esac

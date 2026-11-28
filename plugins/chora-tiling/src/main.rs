@@ -392,6 +392,30 @@ fn launch_looks_word() -> ExitCode {
     }
 }
 
+/// The other looks that run and whether a window has the focus, as the
+/// Looks menu needs them; the notice and the failure when the core does not
+/// list its clients. A focus that cannot be read counts as a window, so
+/// that the rows stay.
+fn looks_seen(language: chora_kit::words::Language) -> Result<(Vec<&'static str>, bool), ExitCode> {
+    let mut conn = launch_conn();
+    let clients = conn
+        .as_mut()
+        .map_err(|err| err.to_string())
+        .and_then(|conn| {
+            conn.call::<_, Value>("clients.list", Value::Null)
+                .map_err(|e| e.to_string())
+        });
+    let clients = clients.map_err(|err| {
+        let (title, text) = looks::unreachable_notice(language);
+        tell_launch(title, text);
+        cannot_start("looks", &err)
+    })?;
+    let window = conn.as_mut().map_or(true, |conn| {
+        conn.focused_surface().map_or(true, |w| w.is_some())
+    });
+    Ok((looks::running(&clients), window))
+}
+
 /// `--launch looks`: the menu of the Looks word of the bar. It lists the
 /// other looks that run (the clients of the core) as the rows that move the
 /// focused window there, under the prompt "Move this window to ", or says
@@ -400,17 +424,10 @@ fn launch_looks(dirs: &[std::path::PathBuf]) -> ExitCode {
     use std::io::Write as _;
     use std::os::unix::process::CommandExt as _;
     let language = chora_kit::words::Language::of_session();
-    let clients =
-        launch_conn().and_then(|mut conn| conn.call::<_, Value>("clients.list", Value::Null));
-    let clients = match clients {
-        Ok(clients) => clients,
-        Err(err) => {
-            let (title, text) = looks::unreachable_notice(language);
-            tell_launch(title, text);
-            return cannot_start("looks", &err);
-        }
+    let (running, window) = match looks_seen(language) {
+        Ok(seen) => seen,
+        Err(code) => return code,
     };
-    let running = looks::running(&clients);
     let scheme = theme::written_scheme(dirs);
     let fuzzel = match theme::launch_line("fuzzel", &[], dirs, scheme) {
         Ok(line) => line,
@@ -419,9 +436,11 @@ fn launch_looks(dirs: &[std::path::PathBuf]) -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+    let rows = looks::rows(&running, window, language);
     let spawned = std::process::Command::new(&fuzzel[0])
         .args(&fuzzel[1..])
         .args(["--dmenu", "--prompt", looks::prompt(language)])
+        .args(["--lines", &rows.len().to_string()])
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .spawn();
@@ -430,7 +449,7 @@ fn launch_looks(dirs: &[std::path::PathBuf]) -> ExitCode {
         Err(err) => return cannot_start("fuzzel", &err),
     };
     if let Some(mut stdin) = child.stdin.take() {
-        let _ = stdin.write_all(looks::rows(&running, language).join("\n").as_bytes());
+        let _ = stdin.write_all(rows.join("\n").as_bytes());
     }
     let Ok(out) = child.wait_with_output() else {
         return ExitCode::FAILURE;
@@ -587,7 +606,7 @@ fn serve(tiling: &mut Tiling) -> Result<(), ClientError> {
 }
 
 /// The events that tiling handles.
-const EVENTS: [&str; 22] = [
+const EVENTS: [&str; 23] = [
     "voice.state",
     "voice.say",
     "voice.remove",
@@ -595,6 +614,7 @@ const EVENTS: [&str; 22] = [
     "client.disconnected",
     "assistant.ready",
     "assistant.chat",
+    "assistant.door",
     "surface.created",
     "surface.destroyed",
     "surface.detached",
@@ -859,6 +879,11 @@ impl Tiling {
         }
         if matches!(&event, Event::ClientDisconnected { name } if name == "assistant") {
             return self.clear_panel();
+        }
+        if matches!(&event, Event::Emitted { event, client, .. } if event == "assistant.door" && client == "assistant")
+        {
+            Self::push_helper();
+            return Ok(());
         }
         if let Event::Emitted {
             event: name,
@@ -2466,6 +2491,30 @@ mod tests {
         assert!(tiling.chip_until.is_some(), "the chip has a time to go");
     }
 
+    /// rpt3-1: the chip spells the chord as the key list does: Super first,
+    /// the keys of the keyboard and not their names in the core.
+    #[test]
+    fn the_hint_spells_the_chord_as_the_key_list_does_rpt3_1() {
+        for (pressed, spelled) in [
+            ("Alt+Super+x", "Super+Alt+X does nothing here."),
+            ("Super+bracketleft", "Super+[ does nothing here."),
+            (
+                "Ctrl+Shift+Super+Next",
+                "Super+Ctrl+Shift+Page Down does nothing here.",
+            ),
+            (
+                "Ctrl+Alt+Shift+Super+Prior",
+                "Super+Ctrl+Alt+Shift+Page Up does nothing here.",
+            ),
+        ] {
+            let (mut tiling, methods) = tiling_with_grabs("stray-spelled");
+            tiling.act(pressed).unwrap();
+            let hints = hints_shown(&methods);
+            assert_eq!(hints.len(), 1, "{pressed}: {hints:?}");
+            assert!(hints[0].contains(spelled), "{pressed}: {hints:?}");
+        }
+    }
+
     /// rtd1-3: the hint names the help key that the person bound.
     #[test]
     fn the_hint_names_a_rebound_help_key_rtd1_3() {
@@ -2883,6 +2932,17 @@ mod panel {
         printed(&run(&bin(name, false, &fakes), "volume.sh", &[], lang))
     }
 
+    /// rpt3-3: the tooltip of the volume said the word again, and under a
+    /// resting pointer it stood over the key list and the tiles. Only a
+    /// reason, which the word cannot say, is a tooltip.
+    #[test]
+    fn the_volume_has_a_tooltip_only_for_a_reason_rpt3_3() {
+        let loud = said(&volume("tip-loud", Some("echo 'Volume: 0.40'"), "C"));
+        assert_eq!(loud[1], "", "the level is in the word");
+        let gone = said(&volume("tip-gone", None, "C"));
+        assert_eq!(gone[1], "wpctl not found", "the reason is not");
+    }
+
     #[test]
     fn the_volume_always_has_honest_words() {
         let (en, de) = ("C.UTF-8", "de_DE.UTF-8");
@@ -2891,9 +2951,9 @@ mod panel {
         let unavailable = "No sound";
         let (lautlos, keiner) = ("Kein Ton", "Kein Ausgabegerät");
         for (name, wpctl, lang, words) in [
-            ("loud", Some("echo 'Volume: 0.40'"), en, ["Volume 40%"; 2]),
-            ("muted", muted, en, ["Muted"; 2]),
-            ("muted-de", muted, de, ["Stumm"; 2]),
+            ("loud", Some("echo 'Volume: 0.40'"), en, ["Volume 40%", ""]),
+            ("muted", muted, en, ["Muted", ""]),
+            ("muted-de", muted, de, ["Stumm", ""]),
             ("missing", None, en, [unavailable, "wpctl not found"]),
             ("missing-de", None, de, [lautlos, "wpctl nicht gefunden"]),
             ("none", none, en, [unavailable, "No output device"]),
@@ -2918,6 +2978,24 @@ mod panel {
         );
         let took = start.elapsed();
         assert!(took < Duration::from_secs(5), "{took:?}");
+    }
+
+    /// rpt3-2: the helper word of the panel changes when the assistant
+    /// tells that the door changed (SIGRTMIN+2), not at the next poll.
+    #[test]
+    fn the_helper_word_follows_the_door_at_once_rpt3_2() {
+        let config = std::fs::read_to_string(waybar_dir().join("config.jsonc")).expect("config");
+        let (_, helper) = config
+            .split_once("\"custom/helper\": {")
+            .expect("the module");
+        let helper = helper.split_once('}').expect("its end").0;
+        assert!(helper.contains("\"signal\": 2"), "{helper}");
+        let script = std::fs::read_to_string(waybar_dir().join("waybar.sh")).expect("waybar.sh");
+        assert!(
+            script.contains("trap '' USR1 USR2 RTMIN+1 RTMIN+2"),
+            "{script}"
+        );
+        assert!(super::EVENTS.contains(&"assistant.door"));
     }
 
     #[test]
