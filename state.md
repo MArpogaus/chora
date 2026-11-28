@@ -2,7 +2,7 @@
 
 ## Now (2026-11-28 09:38 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN
-budget: week 11-28 04:00 to 12-05 03:59 UTC, no day cap; tokens.py 09:38 PM 0 % (reset); last week hit 100 % at 11-27 00:16, 28 h early; need 95 %/168 h = 0.57 %/h; lanes 5, opus only co-reach
+budget: week 11-28 04:00 to 12-05 03:59 UTC, no day cap; tokens.py 09:38 PM 0 % (reset); last week 100 % 28 h early; need 95 %/168 h = 0.57 %/h; lanes 5, opus only co-reach
 session branch: 3098926e (t162 green); 106 greens
 
 lanes: 5 of 6 (co-reach-r8, flake-xp-r2, tiling-minor-r2, tour-rows-r6, mc-minor-r6); flake r11 after flake-xp
@@ -26,7 +26,7 @@ burn-down: F1-4, F6, F8 met; F5 open (r10 4/5), flake-xp r2, flake-gate merged; 
 |---|---|---|
 | co-reach-r8.md (Q 2, 1 %) | opus high, 008714ba | s..MTDatd81jxZtyoBvH |
 | tiling-minor-r2.md (Q 3, 0.5 %) | sonnet high, bd641acb | s..e5m7T8bV2j2Lb7at |
-| flake-xp-r2.md (Q 5, 0.6 %) | sonnet high, 7fc05748 | starting |
+| flake-xp-r2.md (Q 5, 0.6 %) | sonnet high, 7fc05748 | s..QqGiX8M41oLod17kM |
 | tour-rows-r6.md (Q 4, 0.6 %) | sonnet high, 3098926e | s..L1fQVEHk5EawzQmfm |
 | mc-minor-r6.md (Q 4c, 0.6 %) | sonnet high, 3098926e | s..PD6a7ExXXm8iU1WZP |
 ## Queue (% week; 5 % reserve)
