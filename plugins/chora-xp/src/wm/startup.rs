@@ -564,16 +564,16 @@ mod tests {
         let mut face = screen.clone();
         face["virtual"] = serde_json::json!(true);
         let grabbed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-        core.respond(move |method, _| match method {
-            "input.grab" => {
-                grabbed.store(true, std::sync::atomic::Ordering::SeqCst);
-                None
+        let seen = std::sync::Arc::clone(&grabbed);
+        core.respond(move |method, _| {
+            if method == "input.grab" {
+                seen.store(true, std::sync::atomic::Ordering::SeqCst);
             }
-            "output.list" => {
-                let turned = grabbed.load(std::sync::atomic::Ordering::SeqCst);
-                Some(serde_json::json!([if turned { &face } else { &screen }]))
-            }
-            _ => None,
+            None
+        });
+        core.outputs_by(move || {
+            let turned = grabbed.load(std::sync::atomic::Ordering::SeqCst);
+            serde_json::json!([if turned { &face } else { &screen }])
         });
         let _wm = wm_on_kit_core(&core, "faces-after-early-grab");
         let model = core.model();

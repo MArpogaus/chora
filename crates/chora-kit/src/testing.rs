@@ -187,6 +187,12 @@ impl FakeCore {
             .push(Arc::new(responder));
     }
 
+    /// Makes `output.list` answer with what `outputs` returns at each call,
+    /// a JSON list of outputs: they change while the plugin starts.
+    pub fn outputs_by(&self, outputs: impl Fn() -> Value + Send + Sync + 'static) {
+        self.respond(move |method, _| (method == "output.list").then(&outputs));
+    }
+
     /// Makes `output.list` answer with `outputs`, a JSON list of outputs.
     pub fn outputs(&self, outputs: Value) {
         self.respond(move |method, _| (method == "output.list").then(|| outputs.clone()));
