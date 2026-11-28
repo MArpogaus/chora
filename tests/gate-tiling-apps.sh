@@ -74,7 +74,7 @@ PATH=$work/fake-bare:$real_path timeout 20 "$bin/chora-tiling" --launch fuzzel >
 grep -q '^Move window to ' "$work/bare-rows" && fail "a desktop with no window offers to move one (rtmr1-3): $(tr '\n' '|' <"$work/bare-rows")"
 grep -qxF "Dark theme" "$work/bare-rows" || fail "the rows of the theme are gone with no window: $(tr '\n' '|' <"$work/bare-rows")"
 ok "a desktop with no window has no row that moves a window, and the other rows of the flavor stay (rtmr1-3)"
-ctl run foot -a mover sh -c 'sleep 600' >/dev/null || fail "the run of the window"
+ctl run foot -a mover cat >/dev/null || fail "the run of the window"
 ctl wait --timeout 15 'app_id:mover kind:surface' >/dev/null || fail "the window did not show"
 bare_rows_move() {
     PATH=$work/fake-bare:$real_path timeout 20 "$bin/chora-tiling" --launch fuzzel >/dev/null 2>&1
