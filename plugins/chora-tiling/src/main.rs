@@ -337,12 +337,15 @@ fn launch(argv: &[String]) -> ExitCode {
     if program == "fuzzel" && rest.is_empty() {
         let flavor = dirs.iter().find(|d| d.join("applications").is_dir());
         let helper = chora_kit::launcher::helper_name();
+        let window = window_has_focus(&mut launch_conn());
         chora_kit::launcher::run_ordered(
             &line,
             "chora-tiling --launch foot",
             flavor.cloned(),
-            true,
-            helper.as_deref(),
+            Some(chora_kit::launcher::Tiling {
+                helper: helper.as_deref(),
+                window,
+            }),
         );
         return ExitCode::SUCCESS;
     }
@@ -392,6 +395,15 @@ fn launch_looks_word() -> ExitCode {
     }
 }
 
+/// Whether a window has the focus, as the rows that move it need to know
+/// in the Apps list and in the Looks menu. A connection or a focus that
+/// cannot be read counts as a window, so that the rows stay.
+fn window_has_focus(conn: &mut Result<Conn, chora_scene::ipc::ClientError>) -> bool {
+    conn.as_mut().map_or(true, |conn| {
+        conn.focused_surface().map_or(true, |w| w.is_some())
+    })
+}
+
 /// The other looks that run and whether a window has the focus, as the
 /// Looks menu needs them; the notice and the failure when the core does not
 /// list its clients. A focus that cannot be read counts as a window, so
@@ -410,9 +422,7 @@ fn looks_seen(language: chora_kit::words::Language) -> Result<(Vec<&'static str>
         tell_launch(title, text);
         cannot_start("looks", &err)
     })?;
-    let window = conn.as_mut().map_or(true, |conn| {
-        conn.focused_surface().map_or(true, |w| w.is_some())
-    });
+    let window = window_has_focus(&mut conn);
     Ok((looks::running(&clients), window))
 }
 

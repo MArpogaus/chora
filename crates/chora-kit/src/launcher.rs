@@ -86,14 +86,29 @@ pub const HELPER_PROGRAM: &str = "chora-chat";
 /// list: its theme rows, its settings row and its rows that move a window.
 const FLAVOR_ROWS: [&str; 3] = ["look", "settings", "give"];
 
-/// Whether the program is a row of the flavor of tiling: `chora-tiling
-/// --launch look|settings|give`. The screenshot rows of the shared folder
-/// are programs.
-fn flavor_row(app: &App) -> bool {
+/// The word of the flavor row that the program is: `look`, `settings` or
+/// `give` of `chora-tiling --launch look|settings|give`; none for a
+/// program. The screenshot rows of the shared folder are programs.
+fn flavor_program(app: &App) -> Option<&str> {
     let mut words = app.command.split_whitespace();
-    words.next() == Some("chora-tiling")
-        && words.next() == Some("--launch")
-        && words.next().is_some_and(|w| FLAVOR_ROWS.contains(&w))
+    (words.next() == Some("chora-tiling") && words.next() == Some("--launch"))
+        .then(|| words.next())
+        .flatten()
+        .filter(|w| FLAVOR_ROWS.contains(w))
+}
+
+/// Whether the program is a row of the flavor of tiling.
+fn flavor_row(app: &App) -> bool {
+    flavor_program(app).is_some()
+}
+
+/// The list without the rows that move the focused window to another
+/// look, which fail when no window has the focus: the one rule for the
+/// Apps list and the Looks menu of the bar.
+#[must_use]
+pub fn without_moves(mut apps: Vec<App>) -> Vec<App> {
+    apps.retain(|a| flavor_program(a) != Some("give"));
+    apps
 }
 
 /// The Apps list of tiling: the row of the chat with a helper first, so
@@ -404,27 +419,39 @@ fn entry_dirs(first: Option<PathBuf>, shared: &[PathBuf], xdg: Vec<PathBuf>) -> 
 /// directory in front of the folder that every look shares and the XDG
 /// ones, for the entries of a flavor.
 pub fn run(fuzzel: &[String], terminal: &str, first: Option<PathBuf>) {
-    run_ordered(fuzzel, terminal, first, false, None);
+    run_ordered(fuzzel, terminal, first, None);
 }
 
-/// Like [`run`], and with `ordered` the list is in the order of
-/// [`tiling_order`]; with a `helper` name the row of the chat names that
-/// helper.
+/// What the Apps list of tiling adds to [`run`].
+#[derive(Clone, Copy, Debug)]
+pub struct Tiling<'a> {
+    /// The name of the helper that the row of the chat names, if any.
+    pub helper: Option<&'a str>,
+    /// Whether a window has the focus; without one the rows that move a
+    /// window are left out ([`without_moves`]).
+    pub window: bool,
+}
+
+/// Like [`run`], and with `tiling` the list is in the order of
+/// [`tiling_order`], its chat row names the helper and its rows that move
+/// a window are there only with a window.
 pub fn run_ordered(
     fuzzel: &[String],
     terminal: &str,
     first: Option<PathBuf>,
-    ordered: bool,
-    helper: Option<&str>,
+    tiling: Option<Tiling<'_>>,
 ) {
     let dirs = entry_dirs(first, &crate::shared::dirs(), crate::xdg::data_dirs());
     let entries = desktop_entry::applications_in(&dirs);
     let mut apps = apps(entries, terminal, desktop_entry::on_path);
-    if ordered {
+    if let Some(tiling) = tiling {
+        if !tiling.window {
+            apps = without_moves(apps);
+        }
         apps = tiling_order(apps);
-    }
-    if let Some(name) = helper {
-        apps = helper_named(apps, name);
+        if let Some(name) = tiling.helper {
+            apps = helper_named(apps, name);
+        }
     }
     if let Some(command) = choose_reporting(fuzzel, &apps, &mut tell) {
         crate::launch::run(&command, None);
@@ -512,6 +539,25 @@ mod tests {
                 "Edit settings"
             ]
         );
+    }
+
+    #[test]
+    fn the_rows_that_move_a_window_are_the_give_rows_only() {
+        let list = apps(
+            [
+                entry(
+                    "Move window to the xp desktop",
+                    "chora-tiling --launch give xp",
+                ),
+                entry("Dark theme", "chora-tiling --launch look dark"),
+                entry("Edit settings", "chora-tiling --launch settings"),
+                entry("Give", "give xp"),
+            ],
+            "foot",
+            |_| true,
+        );
+        let names: Vec<String> = without_moves(list).into_iter().map(|a| a.name).collect();
+        assert_eq!(names, ["Dark theme", "Edit settings", "Give"]);
     }
 
     fn on_path(program: &str) -> bool {
