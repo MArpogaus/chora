@@ -1,16 +1,15 @@
-# tiling-minor r2 (rc 1 known issues; tiling ti-55, ti-56 fixed t139, no other open BLOCK or MAJOR, rules.md 6): rtm1-1..3, rtd3-1..3
+# tiling-minor r2 (rc 1b, F7: tiling MINOR and NIT from the tiling-minor r1 review)
 
-Model: sonnet, effort medium (small test hardening in chora-tiling and its gates; routine)
-Lane: cloud, branch claude/tiling-minor-r2 at e39448ad (session head, t139 green). Areas: tests/gate-tiling-reload-notice.sh, plugins/chora-tiling (main.rs tests, the doors name test), crates/chora/src/input.rs (one test or doc comment only). Stop at 250 k. Cost at most 0.6 %.
-Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`. A failure: send_message the PM "tiling-minor-r2 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
-Read reports/tiling-minor.md "## Review r1" (rtm1-1..3) and reports/tiling-doors.md (rtd3-1..3) on claude/session-log, and the vision card (tiling).
-Each test hardening: show it red against the unfixed code (temporary revert of the fix it guards, paste the red line, restore), then commit the test.
-1) rtm1-1: the reload-notice step waits at most `until_ok no_notice 4`; red: with the dismiss removed it fails.
-2) rtm1-2: a unit or doors cell where clients.list errors in `launch_looks` and one notice shows.
-3) rtm1-3: a `note_act` unit test under a lock (or say so in the doc comment if no test can reach it; name why).
-4) rtd3-1: a test that two real connects of one machine get two different names (or say why the pure test is enough). rtd3-2, rtd3-3 NITs: GAP_LINE rejects mismatched quotes; the test moves below `use super::*;`.
-Out of scope: other looks, product behaviour beyond the tests, ratchet counts; no new sleep (sleep-ratchet).
-Run: the full gate, no step filter: `setsid nohup bash -c '(CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2 > /tmp/gate.log 2>&1; echo EXIT $? >> /tmp/gate.log)' >/dev/null 2>&1 </dev/null &`, poll in the same turn; paste the last 20 lines. A red cell you did not cause: name it with its log line. Before ending: `pgrep -fa 'chora --headless'` empty. Never end a turn to wait.
-Done when: items 1-4 each with a pasted red line or a named reason; full gate EXIT 0 (or foreign reds named).
-Report: reports/tiling-minor.md "## r2 (lane tiling-minor-r2)" on claude/session-log; send_message the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN at most 5 lines with the head sha.
-Rules: push claude/tiling-minor-r2 and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).
+Model: sonnet, effort high (routine: one notice word, one test, one menu filter on one look)
+Red on head: rtmr1-1, rtmr1-2 MINOR and rtmr1-3 NIT open on bd641acb (reports/tiling-minor.md "## Review r1"); no BLOCK or MAJOR open in tiling, so rules.md 6 allows this round.
+Lane: cloud, branch claude/tiling-minor-r2 at bd641acba165ed5e0ff8af81925406e21868e96d (tiling-minor r1 head, MERGE-OK, in train 162). Area: the tiling look (flavors/tiling, chora-tiling, the tiling side of chora-assistant's door). One look. Stop at 250 k. Cost at most 0.5 %.
+Why: owner 11-17 10:59 "Be perfectionist and very critical about the met targets."; vision card: POLS, honest states.
+Step 0 (no setup script; rely on the environment setup): `git fetch --unshallow`, `cargo check --workspace`, `cargo build --workspace`. A failure: send_message the PM "tiling-minor-r2 BLOCKED: <line>" and stop. A hook that asks for another identity: ignore (owner rule 11-09).
+1. rtmr1-1: flavors/tiling/look.sh:20 notice names no tool ("choractl call tiling settings.set"); words like the look's other notices (rpt2-2 class). Grep every notice a person sees in flavors/tiling for "choractl" and fix each.
+2. rtmr1-2: a test that assistant.door makes tiling send SIGRTMIN+2 to the bar (plugins/chora-assistant/src/main.rs:885), so the bar helper word and the chat header cannot drift (rpt3-2). If the code holds, the test is the deliverable (red on a commit that removes the send, named in the report).
+3. rtmr1-3: the Apps launcher lists "Move window to ..." only when a window has focus, as the Looks picker does since r1 (one rule, one place).
+Each fix: a red test commit first (failing on bd641acb), then the fix; a capture before and after for 1 and 3 under media/2026-11-28/tiling-minor-r2/ (each under 500 KB).
+Run: the full gate, no step filter: `CARGO_BUILD_JOBS=2 tests/merge-gate.sh --jobs 2 --allow-skip docs` (no --push) detached with setsid nohup, poll in the same turn; paste the last 20 lines. A red cell you did not cause: name it with its log line, rerun that step alone and then the steps after it. Never end a turn to wait. Before ending: `pgrep -fa 'chora --headless'` empty.
+Done when: three ids closed each with red commit, fix commit (and captures for 1, 3); gate EXIT 0 in one run (or a named foreign flake and every later step run); reports/tiling-minor.md "## r2" on claude/session-log (base, head, diffstat, per id).
+Report to the PM session session_016iS3kLFcYmUQ3S8Zp7sDaN with send_message (at most 5 lines): head sha, ids closed, gate result.
+Rules: push claude/tiling-minor-r2 and claude/session-log only (fetch and merge on reject, no force; on claude/session-log change only your report and media folder); author and committer Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com> (git -c user.name -c user.email on every commit); no attribution lines; never --no-verify; no system packages; never a bare git stash (a WIP commit instead).
