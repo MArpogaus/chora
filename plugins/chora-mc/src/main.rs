@@ -1306,6 +1306,41 @@ mod tests {
         assert!(prev.slot < 0, "the previous page stands at the left");
     }
 
+    /// A render that changes the items puts a new set of regions in place
+    /// and fades the old one out; the old set takes the pointer until it
+    /// is gone, and a press on one of its hits does what the hit says
+    /// (flake-launcher r1: a press on Programs that came while the set
+    /// before it faded did nothing, and the launcher never started).
+    #[test]
+    fn a_click_on_a_hit_of_the_set_that_fades_out_still_acts() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("fading-hit", [1280, 800]);
+        mc.grab_all().unwrap();
+        mc.show("morning", false).unwrap();
+        let prev = |mc: &super::Mc| {
+            let items = mc
+                .items("morning")
+                .into_values()
+                .flat_map(|(items, _)| items);
+            let item = items.into_iter().find(|i| i.id.ends_with("-prev"));
+            format!("{}-hit", item.expect("a line to the previous page").id)
+        };
+        let old = prev(&mc);
+        assert!(
+            crate::testing::has(&model, &old),
+            "the hit takes the pointer"
+        );
+        mc.event(chat_event("assistant", true, "test")).unwrap();
+        let new = prev(&mc);
+        assert_ne!(old, new, "the render put a new set in place");
+        assert!(
+            crate::testing::has(&model, &old),
+            "the old set stays while it fades"
+        );
+        assert!(mc.click_hit(&old), "a hit of the old set is a hit");
+        assert_eq!(mc.current.as_deref(), Some("agenda"), "it turned the page");
+    }
+
     fn press_key(mc: &mut super::Mc, key: &str, modifiers: &[&str]) {
         press_key_from(mc, key, modifiers, false);
     }
